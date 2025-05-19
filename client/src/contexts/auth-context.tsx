@@ -35,64 +35,149 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onAuthChange(async (firebaseUser) => {
       if (firebaseUser) {
         try {
-          // Try to fetch user profile from API
-          const response = await fetch(`/api/users/profile?uid=${firebaseUser.uid}`, {
-            credentials: "include",
-          });
+          // Check Firebase to get user data with Firestore directly
+          import("firebase/firestore").then(async ({ getFirestore, doc, getDoc }) => {
+            try {
+              const db = getFirestore();
+              const userDocRef = doc(db, "users", firebaseUser.uid);
+              const userDoc = await getDoc(userDocRef);
+              
+              if (userDoc.exists()) {
+                const firestoreData = userDoc.data();
+                console.log("Firestore data:", firestoreData);
+                
+                // Try to fetch user profile from our API
+                const response = await fetch(`/api/users/profile?uid=${firebaseUser.uid}`, {
+                  credentials: "include",
+                });
 
-          if (response.ok) {
-            // If user profile exists in the backend, use it
-            const userData = await response.json();
-            setUser({
+                if (response.ok) {
+                  // If user profile exists in the backend, merge with Firestore data
+                  const userData = await response.json();
+                  setUser({
+                    uid: firebaseUser.uid,
+                    email: firebaseUser.email,
+                    displayName: firebaseUser.displayName || userData.displayName,
+                    photoURL: firebaseUser.photoURL,
+                    role: firestoreData.role || userData.role || "employee",
+                    department: userData.department || null,
+                    id: userData.id,
+                  });
+                } else {
+                  // If user doesn't exist in backend yet, create one with Firestore role
+                  // Create a new user in the backend
+                  try {
+                    const createResponse = await apiRequest("POST", "/api/users", {
+                      uid: firebaseUser.uid,
+                      email: firebaseUser.email,
+                      displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || "User",
+                      role: firestoreData.role || "employee",
+                      department: null,
+                    });
+                    
+                    if (createResponse.ok) {
+                      const newUserData = await createResponse.json();
+                      setUser({
+                        uid: firebaseUser.uid,
+                        email: firebaseUser.email,
+                        displayName: firebaseUser.displayName,
+                        photoURL: firebaseUser.photoURL,
+                        role: firestoreData.role || "employee",
+                        department: null,
+                        id: newUserData.id,
+                      });
+                    } else {
+                      // If creating user fails, just use Firebase data with Firestore role
+                      setUser({
+                        uid: firebaseUser.uid,
+                        email: firebaseUser.email,
+                        displayName: firebaseUser.displayName,
+                        photoURL: firebaseUser.photoURL,
+                        role: firestoreData.role || "employee",
+                        department: null,
+                      });
+                    }
+                  } catch (createError) {
+                    console.error("Error creating user profile:", createError);
+                    setUser({
+                      uid: firebaseUser.uid,
+                      email: firebaseUser.email,
+                      displayName: firebaseUser.displayName,
+                      photoURL: firebaseUser.photoURL,
+                      role: firestoreData.role || "employee",
+                      department: null,
+                    });
+                  }
+                }
+              } else {
+                // No Firestore document, fallback to basic auth
+                handleBasicAuth(firebaseUser);
+              }
+            } catch (firestoreError) {
+              console.error("Error fetching Firestore data:", firestoreError);
+              handleBasicAuth(firebaseUser);
+            }
+          }).catch(error => {
+            console.error("Error importing Firestore:", error);
+            handleBasicAuth(firebaseUser);
+          });
+        } catch (error) {
+          console.error("Error in auth flow:", error);
+          handleBasicAuth(firebaseUser);
+        }
+      } else {
+        setUser(null);
+        setLoading(false);
+      }
+    });
+
+    // Helper function for basic auth without Firestore
+    const handleBasicAuth = async (firebaseUser: User) => {
+      try {
+        // Try to fetch user profile from API
+        const response = await fetch(`/api/users/profile?uid=${firebaseUser.uid}`, {
+          credentials: "include",
+        });
+
+        if (response.ok) {
+          // If user profile exists in the backend, use it
+          const userData = await response.json();
+          setUser({
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            displayName: firebaseUser.displayName || userData.displayName,
+            photoURL: firebaseUser.photoURL,
+            role: userData.role || "employee",
+            department: userData.department || null,
+            id: userData.id,
+          });
+        } else {
+          // Default role fallback
+          const userRole = "employee";
+          
+          // Create a new user in the backend
+          try {
+            const createResponse = await apiRequest("POST", "/api/users", {
               uid: firebaseUser.uid,
               email: firebaseUser.email,
-              displayName: firebaseUser.displayName || userData.displayName,
-              photoURL: firebaseUser.photoURL,
-              role: userData.role || "employee",
-              department: userData.department || null,
-              id: userData.id,
+              displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || "User",
+              role: userRole,
+              department: null,
             });
-          } else {
-            // If user doesn't exist in backend yet, check Firestore directly
-            // and create a backend user profile
             
-            // For now, fallback to Firebase data with default role
-            const userRole = "employee"; // Default role for new users
-            
-            // Create a new user in the backend
-            try {
-              const createResponse = await apiRequest("POST", "/api/users", {
+            if (createResponse.ok) {
+              const newUserData = await createResponse.json();
+              setUser({
                 uid: firebaseUser.uid,
                 email: firebaseUser.email,
-                displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || "User",
+                displayName: firebaseUser.displayName,
+                photoURL: firebaseUser.photoURL,
                 role: userRole,
                 department: null,
+                id: newUserData.id,
               });
-              
-              if (createResponse.ok) {
-                const newUserData = await createResponse.json();
-                setUser({
-                  uid: firebaseUser.uid,
-                  email: firebaseUser.email,
-                  displayName: firebaseUser.displayName,
-                  photoURL: firebaseUser.photoURL,
-                  role: userRole,
-                  department: null,
-                  id: newUserData.id,
-                });
-              } else {
-                // If creating user fails, just use Firebase data
-                setUser({
-                  uid: firebaseUser.uid,
-                  email: firebaseUser.email,
-                  displayName: firebaseUser.displayName,
-                  photoURL: firebaseUser.photoURL,
-                  role: userRole,
-                  department: null,
-                });
-              }
-            } catch (createError) {
-              console.error("Error creating user profile:", createError);
+            } else {
+              // If creating user fails, just use Firebase data
               setUser({
                 uid: firebaseUser.uid,
                 email: firebaseUser.email,
@@ -102,24 +187,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 department: null,
               });
             }
+          } catch (createError) {
+            console.error("Error creating user profile:", createError);
+            setUser({
+              uid: firebaseUser.uid,
+              email: firebaseUser.email,
+              displayName: firebaseUser.displayName,
+              photoURL: firebaseUser.photoURL,
+              role: userRole,
+              department: null,
+            });
           }
-        } catch (error) {
-          console.error("Error fetching user profile:", error);
-          // Fallback to basic Firebase user data
-          setUser({
-            uid: firebaseUser.uid,
-            email: firebaseUser.email,
-            displayName: firebaseUser.displayName,
-            photoURL: firebaseUser.photoURL,
-            role: "employee", // Default role for new users
-            department: null,
-          });
         }
-      } else {
-        setUser(null);
+      } catch (error) {
+        console.error("Error fetching user profile:", error);
+        setUser({
+          uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          displayName: firebaseUser.displayName,
+          photoURL: firebaseUser.photoURL,
+          role: "employee",
+          department: null,
+        });
       }
       setLoading(false);
-    });
+    };
 
     return () => unsubscribe();
   }, []);
