@@ -34,6 +34,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     res.json(user);
   });
+  
+  // Update user role from Firestore
+  app.post("/api/users/update-role", async (req, res) => {
+    try {
+      const { uid, role } = req.body;
+      
+      if (!uid || !role) {
+        return res.status(400).json({ message: "UID and role are required" });
+      }
+      
+      const user = await storage.getUserByUid(uid);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Update the user's role
+      const updatedUser = await storage.updateUser(user.id, { role });
+      
+      res.json(updatedUser);
+    } catch (error) {
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
 
   app.get("/api/users/:id", async (req, res) => {
     const id = parseInt(req.params.id);
