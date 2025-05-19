@@ -120,9 +120,18 @@ export function Sidebar() {
             <p className="font-medium text-sm">{user?.displayName || "User"}</p>
             <p className="text-xs text-gray-500">{user?.role === "master_admin" ? "Master Admin" : user?.role === "admin" ? "Admin" : "Employee"}</p>
           </div>
-          <Link href="/logout" className="ml-auto text-gray-500 hover:text-gray-700">
+          <button 
+            onClick={() => {
+              import("@/lib/firebase").then(({ logoutUser }) => {
+                logoutUser().then(() => {
+                  window.location.href = "/login";
+                });
+              });
+            }} 
+            className="ml-auto text-gray-500 hover:text-gray-700 cursor-pointer"
+          >
             <LogOut className="h-5 w-5" />
-          </Link>
+          </button>
         </div>
       </div>
     </aside>
