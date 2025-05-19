@@ -31,99 +31,209 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
+  // Helper function to create a new user
+  const handleNewUser = async (firebaseUser: User) => {
+    try {
+      // Try to fetch Firestore data first
+      let userRole = "employee"; // Default role
+      
+      try {
+        const { getFirestore, doc, getDoc } = await import("firebase/firestore");
+        const db = getFirestore();
+        const userDocRef = doc(db, "users", firebaseUser.uid);
+        const userDoc = await getDoc(userDocRef);
+        
+        if (userDoc.exists()) {
+          const firestoreData = userDoc.data();
+          console.log("Firestore data for new user:", firestoreData);
+          
+          // Use role from Firestore if available
+          if (firestoreData.role) {
+            userRole = firestoreData.role;
+          }
+        }
+      } catch (firestoreError) {
+        console.error("Error getting Firestore data for new user:", firestoreError);
+        // Continue with default role
+      }
+      
+      // Create a new user in the backend
+      try {
+        const createResponse = await fetch('/api/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || "User",
+            role: userRole,
+            department: null,
+          }),
+          credentials: 'include'
+        });
+        
+        if (createResponse.ok) {
+          const newUserData = await createResponse.json();
+          console.log("Created new user:", newUserData);
+          
+          setUser({
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            displayName: firebaseUser.displayName || newUserData.displayName,
+            photoURL: firebaseUser.photoURL,
+            role: newUserData.role,
+            department: newUserData.department,
+            id: newUserData.id,
+          });
+          
+          // Show success toast
+          toast({
+            title: "Account created",
+            description: "Your account has been successfully set up.",
+            variant: "success" as any,
+          });
+        } else {
+          console.error("Failed to create user:", await createResponse.text());
+          handleBasicAuth(firebaseUser);
+        }
+      } catch (createError) {
+        console.error("Error creating user:", createError);
+        handleBasicAuth(firebaseUser);
+      }
+    } catch (error) {
+      console.error("Error in handleNewUser:", error);
+      handleBasicAuth(firebaseUser);
+    }
+    
+    setLoading(false);
+  };
+
   useEffect(() => {
     const unsubscribe = onAuthChange(async (firebaseUser) => {
       if (firebaseUser) {
         try {
-          // Check Firebase to get user data with Firestore directly
-          import("firebase/firestore").then(async ({ getFirestore, doc, getDoc }) => {
-            try {
-              const db = getFirestore();
-              const userDocRef = doc(db, "users", firebaseUser.uid);
-              const userDoc = await getDoc(userDocRef);
+          // Get all users first to find the user by UID
+          const usersResponse = await fetch('/api/users');
+          if (usersResponse.ok) {
+            const users = await usersResponse.json();
+            const existingUser = users.find((u: any) => u.uid === firebaseUser.uid);
+            
+            if (existingUser) {
+              console.log("Found existing user:", existingUser);
               
-              if (userDoc.exists()) {
-                const firestoreData = userDoc.data();
-                console.log("Firestore data:", firestoreData);
-                
-                // Try to fetch user profile from our API
-                const response = await fetch(`/api/users/profile?uid=${firebaseUser.uid}`, {
-                  credentials: "include",
-                });
-
-                if (response.ok) {
-                  // If user profile exists in the backend, merge with Firestore data
-                  const userData = await response.json();
-                  setUser({
-                    uid: firebaseUser.uid,
-                    email: firebaseUser.email,
-                    displayName: firebaseUser.displayName || userData.displayName,
-                    photoURL: firebaseUser.photoURL,
-                    role: firestoreData.role || userData.role || "employee",
-                    department: userData.department || null,
-                    id: userData.id,
-                  });
-                } else {
-                  // If user doesn't exist in backend yet, create one with Firestore role
-                  // Create a new user in the backend
-                  try {
-                    const createResponse = await apiRequest("POST", "/api/users", {
-                      uid: firebaseUser.uid,
-                      email: firebaseUser.email,
-                      displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || "User",
-                      role: firestoreData.role || "employee",
-                      department: null,
-                    });
+              // Check Firebase to get user data with Firestore directly
+              import("firebase/firestore").then(async ({ getFirestore, doc, getDoc }) => {
+                try {
+                  const db = getFirestore();
+                  const userDocRef = doc(db, "users", firebaseUser.uid);
+                  const userDoc = await getDoc(userDocRef);
+                  
+                  if (userDoc.exists()) {
+                    const firestoreData = userDoc.data();
+                    console.log("Firestore data:", firestoreData);
                     
-                    if (createResponse.ok) {
-                      const newUserData = await createResponse.json();
-                      setUser({
-                        uid: firebaseUser.uid,
-                        email: firebaseUser.email,
-                        displayName: firebaseUser.displayName,
-                        photoURL: firebaseUser.photoURL,
-                        role: firestoreData.role || "employee",
-                        department: null,
-                        id: newUserData.id,
-                      });
+                    // If the Firestore role is different from the existing user's role, update it
+                    if (firestoreData.role && firestoreData.role !== existingUser.role) {
+                      console.log("Updating role to:", firestoreData.role);
+                      try {
+                        // Update the user's role to match Firestore
+                        const updateResponse = await fetch(`/api/users/${existingUser.id}`, {
+                          method: 'PATCH',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ role: firestoreData.role }),
+                          credentials: 'include'
+                        });
+                        
+                        if (updateResponse.ok) {
+                          const updatedUser = await updateResponse.json();
+                          setUser({
+                            uid: firebaseUser.uid,
+                            email: firebaseUser.email,
+                            displayName: firebaseUser.displayName || updatedUser.displayName,
+                            photoURL: firebaseUser.photoURL,
+                            role: updatedUser.role,
+                            department: updatedUser.department,
+                            id: updatedUser.id,
+                          });
+                        } else {
+                          // If update fails, use existing user with Firestore role
+                          setUser({
+                            ...existingUser,
+                            role: firestoreData.role,
+                          });
+                        }
+                      } catch (updateError) {
+                        console.error("Error updating user role:", updateError);
+                        // Use existing user but with Firestore role
+                        setUser({
+                          ...existingUser,
+                          role: firestoreData.role,
+                        });
+                      }
                     } else {
-                      // If creating user fails, just use Firebase data with Firestore role
+                      // User exists and role matches or no Firestore role, use the existing user
                       setUser({
                         uid: firebaseUser.uid,
                         email: firebaseUser.email,
-                        displayName: firebaseUser.displayName,
+                        displayName: firebaseUser.displayName || existingUser.displayName,
                         photoURL: firebaseUser.photoURL,
-                        role: firestoreData.role || "employee",
-                        department: null,
+                        role: existingUser.role,
+                        department: existingUser.department,
+                        id: existingUser.id,
                       });
                     }
-                  } catch (createError) {
-                    console.error("Error creating user profile:", createError);
+                  } else {
+                    // No Firestore document, use existing user from database
                     setUser({
                       uid: firebaseUser.uid,
                       email: firebaseUser.email,
-                      displayName: firebaseUser.displayName,
+                      displayName: firebaseUser.displayName || existingUser.displayName,
                       photoURL: firebaseUser.photoURL,
-                      role: firestoreData.role || "employee",
-                      department: null,
+                      role: existingUser.role,
+                      department: existingUser.department,
+                      id: existingUser.id,
                     });
                   }
+                } catch (firestoreError) {
+                  console.error("Error fetching Firestore data:", firestoreError);
+                  // Fallback to existing user
+                  setUser({
+                    uid: firebaseUser.uid,
+                    email: firebaseUser.email,
+                    displayName: firebaseUser.displayName || existingUser.displayName,
+                    photoURL: firebaseUser.photoURL,
+                    role: existingUser.role,
+                    department: existingUser.department,
+                    id: existingUser.id,
+                  });
                 }
-              } else {
-                // No Firestore document, fallback to basic auth
-                handleBasicAuth(firebaseUser);
-              }
-            } catch (firestoreError) {
-              console.error("Error fetching Firestore data:", firestoreError);
-              handleBasicAuth(firebaseUser);
+                
+                setLoading(false);
+              }).catch(error => {
+                console.error("Error importing Firestore:", error);
+                // Fallback to existing user if Firestore import fails
+                setUser({
+                  uid: firebaseUser.uid,
+                  email: firebaseUser.email,
+                  displayName: firebaseUser.displayName || existingUser.displayName,
+                  photoURL: firebaseUser.photoURL,
+                  role: existingUser.role,
+                  department: existingUser.department,
+                  id: existingUser.id,
+                });
+                setLoading(false);
+              });
+            } else {
+              // User doesn't exist in our database yet, create a new one
+              handleNewUser(firebaseUser);
             }
-          }).catch(error => {
-            console.error("Error importing Firestore:", error);
-            handleBasicAuth(firebaseUser);
-          });
+          } else {
+            console.error("Error fetching users list");
+            handleNewUser(firebaseUser);
+          }
         } catch (error) {
           console.error("Error in auth flow:", error);
-          handleBasicAuth(firebaseUser);
+          handleNewUser(firebaseUser);
         }
       } else {
         setUser(null);
