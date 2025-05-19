@@ -21,6 +21,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(users);
   });
 
+  // Get user profile by Firebase UID
+  app.get("/api/users/profile", async (req, res) => {
+    const { uid } = req.query;
+    if (!uid) {
+      return res.status(400).json({ message: "UID is required" });
+    }
+    
+    const user = await storage.getUserByUid(uid as string);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    res.json(user);
+  });
+
   app.get("/api/users/:id", async (req, res) => {
     const id = parseInt(req.params.id);
     const user = await storage.getUser(id);
