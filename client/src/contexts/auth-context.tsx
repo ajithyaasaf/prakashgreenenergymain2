@@ -46,22 +46,62 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setUser({
               uid: firebaseUser.uid,
               email: firebaseUser.email,
-              displayName: firebaseUser.displayName,
+              displayName: firebaseUser.displayName || userData.displayName,
               photoURL: firebaseUser.photoURL,
               role: userData.role || "employee",
               department: userData.department || null,
               id: userData.id,
             });
           } else {
-            // If user doesn't exist in backend yet, just use Firebase data
-            setUser({
-              uid: firebaseUser.uid,
-              email: firebaseUser.email,
-              displayName: firebaseUser.displayName,
-              photoURL: firebaseUser.photoURL,
-              role: "employee", // Default role for new users
-              department: null,
-            });
+            // If user doesn't exist in backend yet, check Firestore directly
+            // and create a backend user profile
+            
+            // For now, fallback to Firebase data with default role
+            const userRole = "employee"; // Default role for new users
+            
+            // Create a new user in the backend
+            try {
+              const createResponse = await apiRequest("POST", "/api/users", {
+                uid: firebaseUser.uid,
+                email: firebaseUser.email,
+                displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || "User",
+                role: userRole,
+                department: null,
+              });
+              
+              if (createResponse.ok) {
+                const newUserData = await createResponse.json();
+                setUser({
+                  uid: firebaseUser.uid,
+                  email: firebaseUser.email,
+                  displayName: firebaseUser.displayName,
+                  photoURL: firebaseUser.photoURL,
+                  role: userRole,
+                  department: null,
+                  id: newUserData.id,
+                });
+              } else {
+                // If creating user fails, just use Firebase data
+                setUser({
+                  uid: firebaseUser.uid,
+                  email: firebaseUser.email,
+                  displayName: firebaseUser.displayName,
+                  photoURL: firebaseUser.photoURL,
+                  role: userRole,
+                  department: null,
+                });
+              }
+            } catch (createError) {
+              console.error("Error creating user profile:", createError);
+              setUser({
+                uid: firebaseUser.uid,
+                email: firebaseUser.email,
+                displayName: firebaseUser.displayName,
+                photoURL: firebaseUser.photoURL,
+                role: userRole,
+                department: null,
+              });
+            }
           }
         } catch (error) {
           console.error("Error fetching user profile:", error);
