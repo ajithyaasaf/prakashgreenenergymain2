@@ -351,6 +351,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           attendanceRecords = userAttendance.map(record => ({
             ...record,
             userName: user.displayName,
+            userDepartment: user.department,
             // Convert overtime from minutes to hours
             overtimeHours: record.overtimeHours ? record.overtimeHours / 60 : 0
           }));
@@ -366,6 +367,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return {
               ...record,
               userName: matchedUser ? matchedUser.displayName : 'Unknown User',
+              userDepartment: matchedUser ? matchedUser.department : null,
               // Convert overtime from minutes to hours
               overtimeHours: record.overtimeHours ? record.overtimeHours / 60 : 0
             };
@@ -377,6 +379,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error generating attendance report:', error);
       res.status(500).json({ message: 'Failed to generate attendance report' });
+    }
+  });
+  
+  // Enhanced attendance range endpoint for reporting dashboards
+  app.get('/api/attendance/range', async (req, res) => {
+    try {
+      const { from, to, department, userId } = req.query;
+      
+      if (!from || !to) {
+        return res.status(400).json({ message: 'Missing required parameters: from and to dates' });
+      }
+      
+      const fromDate = new Date(from as string);
+      const toDate = new Date(to as string);
+      
+      // Set time to beginning/end of day
+      fromDate.setHours(0, 0, 0, 0);
+      toDate.setHours(23, 59, 59, 999);
+      
+      // Get all users
+      const allUsers = await storage.listUsers();
+      
+      // Filter users by department if specified
+      let filteredUsers = allUsers;
+      if (department) {
+        filteredUsers = allUsers.filter(user => 
+          user.department?.toLowerCase() === (department as string).toLowerCase()
+        );
+      }
+      
+      // Filter by specific user if provided
+      if (userId) {
+        const userIdNum = parseInt(userId as string);
+        filteredUsers = filteredUsers.filter(user => user.id === userIdNum);
+      }
+      
+      // Get all attendance records in the date range
+      const attendancesByDate = await storage.listAttendanceBetweenDates(fromDate, toDate);
+      
+      // Filter attendance records by the filtered users
+      let filteredAttendanceRecords = attendancesByDate;
+      if (department || userId) {
+        const filteredUserIds = filteredUsers.map(user => user.id);
+        filteredAttendanceRecords = attendancesByDate.filter(record => 
+          filteredUserIds.includes(record.userId)
+        );
+      }
+      
+      // Enrich attendance records with user data
+      const enrichedRecords = filteredAttendanceRecords.map(record => {
+        const matchedUser = allUsers.find(u => u.id === record.userId);
+        return {
+          ...record,
+          userName: matchedUser ? matchedUser.displayName : 'Unknown User',
+          userDepartment: matchedUser ? matchedUser.department : null,
+          // Ensure overtime is in hours (not minutes)
+          overtimeHours: record.overtimeHours ? record.overtimeHours / 60 : 0
+        };
+      });
+      
+      res.json(enrichedRecords);
+    } catch (error) {
+      console.error('Error generating attendance range report:', error);
+      res.status(500).json({ message: 'Failed to generate attendance range report' });
     }
   });
   
