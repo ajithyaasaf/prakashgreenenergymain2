@@ -2,18 +2,21 @@ import { useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { AuthForm } from "@/components/auth/auth-form";
 import { LoginForm } from "@/components/auth/login-form";
-import { useAuthContext } from "@/contexts/auth-context";
+import { auth } from "@/lib/firebase";
 
 export default function Login() {
-  const { user } = useAuthContext();
   const [, setLocation] = useLocation();
 
   // Redirect to dashboard if already authenticated
   useEffect(() => {
-    if (user) {
-      setLocation("/dashboard");
-    }
-  }, [user, setLocation]);
+    const checkAuthState = auth.onAuthStateChanged((user) => {
+      if (user) {
+        setLocation("/dashboard");
+      }
+    });
+    
+    return () => checkAuthState();
+  }, [setLocation]);
 
   return (
     <AuthForm

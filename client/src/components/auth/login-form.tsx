@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { useAuth } from "@/hooks/use-auth";
+import { useBasicAuth } from "@/hooks/use-basic-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,7 +10,7 @@ import { Mail, Lock, Loader2 } from "lucide-react";
 export function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const { login, loginWithGoogle, isLoading } = useAuth();
+  const { login, loginWithGoogle, isLoading } = useBasicAuth();
   const [, setLocation] = useLocation();
 
   const handleSubmit = async (e: React.FormEvent) => {
