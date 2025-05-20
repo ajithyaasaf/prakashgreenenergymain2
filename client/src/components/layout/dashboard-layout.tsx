@@ -67,7 +67,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* Main content area */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Page header with actions */}
-        <Header onMenuClick={(e) => {
+        <Header onMenuClick={(e: React.MouseEvent) => {
           e.stopPropagation(); // Prevent event bubbling
           setIsMobileMenuOpen(!isMobileMenuOpen);
         }} />
