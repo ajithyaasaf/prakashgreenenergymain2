@@ -69,6 +69,8 @@ export interface IStorage {
   updateAttendance(id: number, attendance: Partial<InsertAttendance>): Promise<Attendance | undefined>;
   listAttendanceByUser(userId: number): Promise<Attendance[]>;
   listAttendanceByDate(date: Date): Promise<Attendance[]>;
+  listAttendanceByUserBetweenDates(userId: number, fromDate: Date, toDate: Date): Promise<Attendance[]>;
+  listAttendanceBetweenDates(fromDate: Date, toDate: Date): Promise<Attendance[]>;
   
   // Leave Management
   getLeave(id: number): Promise<Leave | undefined>;

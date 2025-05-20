@@ -116,6 +116,7 @@ export const attendance = pgTable("attendance", {
   checkOutLongitude: text("check_out_longitude"),
   checkOutImageUrl: text("check_out_image_url"), // For outside office checkout
   status: text("status").notNull().default('pending'), // pending, present, absent, late
+  overtimeHours: integer("overtime_hours"), // Stored as minutes for precision, convert to hours for display
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
