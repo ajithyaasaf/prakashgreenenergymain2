@@ -100,86 +100,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
   
   useEffect(() => {
-    const unsubscribe = onAuthChange((firebaseUser) => {
+    const unsubscribe = onAuthChange(async (firebaseUser) => {
       if (firebaseUser) {
-        // Get all users first to find the user by UID
-        fetch('/api/users')
-          .then(response => response.ok ? response.json() : [])
-          .then(users => {
-            const existingUser = users.find((u: any) => u.uid === firebaseUser.uid);
-            
-            if (existingUser) {
-              console.log("Found existing user:", existingUser);
-              setUser({
-                uid: firebaseUser.uid,
-                email: firebaseUser.email,
-                displayName: firebaseUser.displayName || existingUser.displayName,
-                photoURL: firebaseUser.photoURL,
-                role: existingUser.role,
-                department: existingUser.department,
-                id: existingUser.id,
-              });
-              setLoading(false);
-              
-              // Check Firebase to get user data with Firestore
-              import("firebase/firestore")
-                .then(({ getFirestore, doc, getDoc }) => {
-                  const db = getFirestore();
-                  const userDocRef = doc(db, "users", firebaseUser.uid);
-                  return getDoc(userDocRef);
-                })
-                .then(userDoc => {
-                  if (userDoc && userDoc.exists()) {
-                    const firestoreData = userDoc.data();
-                    console.log("Firestore data:", firestoreData);
-                    
-                    // If the Firestore role is different from the existing user's role, update it
-                    if (firestoreData.role && firestoreData.role !== existingUser.role) {
-                      console.log("Updating role to:", firestoreData.role);
-                      
-                      return fetch(`/api/users/${existingUser.id}`, {
-                        method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ role: firestoreData.role }),
-                        credentials: 'include'
-                      })
-                      .then(updateResponse => {
-                        if (updateResponse.ok) {
-                          return updateResponse.json();
-                        } else {
-                          throw new Error("Failed to update role");
-                        }
-                      })
-                      .then(updatedUser => {
-                        setUser(prevUser => ({
-                          ...prevUser!,
-                          role: updatedUser.role,
-                        }));
-                      })
-                      .catch(updateError => {
-                        console.error("Error updating user role:", updateError);
-                        // Still update the local state with Firestore role
-                        setUser(prevUser => ({
-                          ...prevUser!,
-                          role: firestoreData.role as UserRole,
-                        }));
-                      });
-                    }
-                  }
-                })
-                .catch(firestoreError => {
-                  console.error("Error fetching Firestore data:", firestoreError);
-                });
-            } else {
-              // User doesn't exist in our database yet, create a new one
-              handleNewUser(firebaseUser);
-            }
-          })
-          .catch(error => {
-            console.error("Error in auth flow:", error);
+        setLoading(true);
+        try {
+          // Import syncUser function for auto-sync
+          const { syncUser } = await import("@/lib/firebase");
+          
+          // Automatically sync this user with our database
+          const result = await syncUser(firebaseUser.uid, true);
+          
+          if (result.status === 'error') {
+            // If there was an error syncing, fall back to basic auth
             handleBasicAuth(firebaseUser);
+            return;
+          }
+          
+          // Get the user data and update state
+          const userData = result.user;
+          
+          setUser({
+            uid: firebaseUser.uid,
+            email: userData.email || firebaseUser.email,
+            displayName: userData.displayName || firebaseUser.displayName,
+            photoURL: firebaseUser.photoURL,
+            role: userData.role,
+            department: userData.department,
+            id: userData.id,
           });
+        } catch (error) {
+          console.error("Error syncing user data:", error);
+          // Fall back to basic auth if there was an error
+          handleBasicAuth(firebaseUser);
+        } finally {
+          setLoading(false);
+        }
       } else {
+        // No user is signed in
         setUser(null);
         setLoading(false);
       }

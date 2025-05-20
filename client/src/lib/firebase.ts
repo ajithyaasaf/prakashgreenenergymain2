@@ -10,20 +10,20 @@ import {
   onAuthStateChanged,
   type User 
 } from "firebase/auth";
-import { getFirestore, collection, getDocs } from "firebase/firestore";
+import { getFirestore, collection, getDocs, doc, getDoc } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
-// Firebase configuration
+// Firebase configuration from environment variables
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyBo8D4pTG6oNGg4qy7V4AaC73qfAB0HRcc",
-  authDomain: "solar-energy-56bc8.firebaseapp.com",
-  databaseURL: "https://solar-energy-56bc8-default-rtdb.firebaseio.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "solar-energy-56bc8",
-  storageBucket: "solar-energy-56bc8.firebasestorage.app",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "833087081002",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:833087081002:web:10001186150884d311d153",
-  measurementId: "G-2S9TJM6E3C"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: `${import.meta.env.VITE_FIREBASE_PROJECT_ID}.firebaseapp.com`,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: `${import.meta.env.VITE_FIREBASE_PROJECT_ID}.appspot.com`,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
+
+// Log Firebase initialization (remove in production)
+console.log("Initializing Firebase with project ID:", import.meta.env.VITE_FIREBASE_PROJECT_ID);
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
@@ -106,6 +106,113 @@ export const fetchFirestoreUsers = async () => {
   }
 };
 
+// Function to get Firestore user data
+export const getFirestoreUserData = async (uid: string) => {
+  try {
+    const userDocRef = doc(db, "users", uid);
+    const userDoc = await getDoc(userDocRef);
+    
+    if (userDoc.exists()) {
+      return {
+        uid,
+        ...userDoc.data()
+      };
+    }
+    
+    return null;
+  } catch (error) {
+    console.error("Error getting Firestore user data:", error);
+    return null;
+  }
+};
+
+// Function to get auth user data for a specific uid
+export const getAuthUserData = async (uid: string) => {
+  const currentUser = auth.currentUser;
+  
+  // If this is the current user, we can directly use their data
+  if (currentUser && currentUser.uid === uid) {
+    return {
+      uid: currentUser.uid,
+      email: currentUser.email,
+      displayName: currentUser.displayName,
+      photoURL: currentUser.photoURL
+    };
+  }
+  
+  // Otherwise return null - we'll need to create placeholders
+  return null;
+};
+
+// Function to sync a specific user with our application database
+export const syncUser = async (uid: string, forceFull = false) => {
+  try {
+    // Get user data from Firestore
+    const firestoreUser = await getFirestoreUserData(uid);
+    
+    // Get user auth data if available
+    const authUser = await getAuthUserData(uid);
+    
+    // Get existing user from our API
+    const existingUsersResponse = await fetch('/api/users');
+    const existingUsers = await existingUsersResponse.json();
+    const existingUser = existingUsers.find((user: any) => user.uid === uid);
+    
+    // Merge data with priority to auth data
+    let email = authUser?.email || firestoreUser?.email || `user-${uid}@example.com`;
+    let displayName = authUser?.displayName || firestoreUser?.displayName || email.split('@')[0] || "User";
+    const role = firestoreUser?.role || "employee";
+    const department = firestoreUser?.department || null;
+    
+    // Create or update user
+    if (!existingUser) {
+      // Create new user
+      const response = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          uid,
+          email,
+          displayName,
+          role,
+          department
+        })
+      });
+      
+      if (response.ok) {
+        const newUser = await response.json();
+        return { status: 'created', user: newUser };
+      }
+    } else if (forceFull || existingUser.role !== role || 
+        existingUser.department !== department || 
+        existingUser.displayName !== displayName ||
+        existingUser.email !== email) {
+      
+      // Update existing user
+      const response = await fetch(`/api/users/${existingUser.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          role,
+          department,
+          displayName,
+          email
+        })
+      });
+      
+      if (response.ok) {
+        const updatedUser = await response.json();
+        return { status: 'updated', user: updatedUser };
+      }
+    }
+    
+    return { status: 'unchanged', user: existingUser };
+  } catch (error) {
+    console.error(`Error syncing user ${uid}:`, error);
+    return { status: 'error', error: String(error) };
+  }
+};
+
 // Function to sync Firestore users with our application database
 export const syncFirestoreUsers = async () => {
   try {
@@ -115,127 +222,32 @@ export const syncFirestoreUsers = async () => {
       throw new Error("No authenticated user found");
     }
 
-    // Get current user's credentials for use with Firebase SDK
-    const idToken = await currentUser.getIdToken();
-
     // Get all Firestore users (from firestore collection)
     const usersCollectionRef = collection(db, "users");
     const usersSnapshot = await getDocs(usersCollectionRef);
     
     const firestoreUsers = usersSnapshot.docs.map(doc => ({
-      uid: doc.id,
-      ...doc.data()
+      uid: doc.id
     }));
-    
-    // Fetch existing users from our API
-    const existingUsersResponse = await fetch('/api/users');
-    const existingUsers = await existingUsersResponse.json();
     
     // Track successful syncs
     const syncResults = [];
     
     // Process each Firestore user
     for (const firestoreUser of firestoreUsers) {
-      try {
-        // Find if this user already exists in our app database
-        const existingUser = existingUsers.find((user: any) => user.uid === firestoreUser.uid);
-        
-        // First, try to get the full email from auth.currentUser if it's the current user
-        let email = firestoreUser.email;
-        let displayName = firestoreUser.displayName;
-        
-        // If this is the current user, we definitely have their email and name
-        if (firestoreUser.uid === currentUser.uid) {
-          email = currentUser.email || email;
-          displayName = currentUser.displayName || displayName;
-        }
-        
-        // If we still don't have an email, create a placeholder based on UID
-        // This ensures we always have an email even if we can't get the real one
-        if (!email) {
-          email = `user-${firestoreUser.uid}@example.com`;
-        }
-        
-        // If we don't have a display name, try to derive it from the email
-        if (!displayName) {
-          displayName = email.split('@')[0] || "User";
-        }
-        
-        // Set default role if not present
-        const role = firestoreUser.role || "employee";
-        
-        // Create or update user in our app
-        if (!existingUser) {
-          // Create new user
-          const response = await fetch('/api/users', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              uid: firestoreUser.uid,
-              email: email,
-              displayName: displayName,
-              role: role,
-              department: firestoreUser.department || null,
-            })
-          });
-          
-          if (response.ok) {
-            const newUser = await response.json();
-            syncResults.push({
-              uid: firestoreUser.uid,
-              status: 'created',
-              email,
-              displayName
-            });
-          }
-        } else {
-          // Only update if there are changes
-          if (existingUser.role !== role || 
-              existingUser.department !== firestoreUser.department || 
-              existingUser.displayName !== displayName) {
-                
-            const response = await fetch(`/api/users/${existingUser.id}`, {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                role: role,
-                department: firestoreUser.department || null,
-                displayName: displayName
-              })
-            });
-            
-            if (response.ok) {
-              syncResults.push({
-                uid: firestoreUser.uid,
-                status: 'updated',
-                email,
-                displayName
-              });
-            }
-          } else {
-            syncResults.push({
-              uid: firestoreUser.uid,
-              status: 'unchanged',
-              email,
-              displayName
-            });
-          }
-        }
-      } catch (userError) {
-        console.error(`Error syncing user ${firestoreUser.uid}:`, userError);
-        syncResults.push({
-          uid: firestoreUser.uid,
-          status: 'error',
-          error: userError.message
-        });
-      }
+      const result = await syncUser(firestoreUser.uid);
+      syncResults.push({
+        uid: firestoreUser.uid,
+        status: result.status,
+        ...result.user
+      });
     }
     
     console.log("User sync results:", syncResults);
     return syncResults;
   } catch (error) {
     console.error("Error syncing Firestore users:", error);
-    return false;
+    return [];
   }
 };
 
