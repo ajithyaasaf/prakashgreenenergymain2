@@ -31,11 +31,26 @@ export const hasValidFirebaseConfig = () => {
   );
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-const storage = getStorage(app);
+// Initialize Firebase with error handling
+let app;
+let auth;
+let db;
+let storage;
+
+try {
+  app = initializeApp(firebaseConfig);
+  auth = getAuth(app);
+  db = getFirestore(app);
+  storage = getStorage(app);
+  console.log("Firebase initialized successfully");
+} catch (error) {
+  console.error("Error initializing Firebase:", error);
+  // Create dummy objects to prevent app crashes
+  app = {};
+  auth = { currentUser: null, onAuthStateChanged: (cb) => { cb(null); return () => {}; } };
+  db = { collection: () => ({}) };
+  storage = {};
+}
 const googleProvider = new GoogleAuthProvider();
 
 // Authentication functions

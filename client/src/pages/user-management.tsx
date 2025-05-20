@@ -240,7 +240,7 @@ export default function UserManagement() {
               disabled={isSyncing}
             >
               <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
-              {isSyncing ? 'Syncing Users...' : 'Sync Firebase Users'}
+              {isSyncing ? 'Updating Users...' : 'Fix User Display Names'}
             </Button>
             <Button 
               className="bg-primary hover:bg-primary-dark text-white"
