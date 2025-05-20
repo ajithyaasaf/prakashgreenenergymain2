@@ -335,12 +335,22 @@ export default function UserManagement() {
             <div className="py-4 space-y-4">
               <div className="space-y-1">
                 <Label htmlFor="edit-name">Name</Label>
-                <div id="edit-name" className="font-medium">{editUser.displayName || 'No Name'}</div>
+                <Input 
+                  id="edit-name" 
+                  value={editUser.displayName || ''} 
+                  onChange={(e) => setEditUser({...editUser, displayName: e.target.value})}
+                  placeholder="Enter user name"
+                />
               </div>
               
               <div className="space-y-1">
                 <Label htmlFor="edit-email">Email</Label>
-                <div id="edit-email">{editUser.email}</div>
+                <Input 
+                  id="edit-email" 
+                  value={editUser.email || ''} 
+                  onChange={(e) => setEditUser({...editUser, email: e.target.value})}
+                  placeholder="Enter email address"
+                />
               </div>
               
               <div className="space-y-1">
