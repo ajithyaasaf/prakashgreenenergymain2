@@ -47,56 +47,47 @@ export default function Attendance() {
   const [activeTab, setActiveTab] = useState("daily");
   
   // Fetch attendance records for the selected date
-  const { data: attendanceRecords, isLoading, refetch } = useQuery({
+  const { data: attendanceRecords = [], isLoading, refetch } = useQuery({
     queryKey: ["/api/attendance", { date: date.toISOString().split('T')[0] }],
     queryFn: async () => {
-      // This would normally fetch from the API
-      // For now returning mock data
-      await new Promise(resolve => setTimeout(resolve, 500));
-      return [
-        {
-          id: 1,
-          userId: 1,
-          userName: "Rajesh Sharma",
-          date: new Date().toISOString(),
-          checkInTime: new Date().setHours(9, 32, 0, 0),
-          checkOutTime: new Date().setHours(18, 45, 0, 0),
-          location: "office",
-          status: "present"
-        },
-        {
-          id: 2,
-          userId: 2,
-          userName: "Priya Patel",
-          date: new Date().toISOString(),
-          checkInTime: new Date().setHours(9, 15, 0, 0),
-          checkOutTime: null,
-          location: "office",
-          status: "present"
-        },
-        {
-          id: 3,
-          userId: 3,
-          userName: "Vikram Kumar",
-          date: new Date().toISOString(),
-          checkInTime: null,
-          checkOutTime: null,
-          location: null,
-          status: "leave"
-        }
-      ];
+      const dateParam = date.toISOString().split('T')[0];
+      const response = await fetch(`/api/attendance?date=${dateParam}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch attendance records');
+      }
+      
+      const attendanceData = await response.json();
+      
+      // Fetch user details for each attendance record
+      const usersResponse = await fetch('/api/users');
+      if (!usersResponse.ok) {
+        throw new Error('Failed to fetch user details');
+      }
+      
+      const users = await usersResponse.json();
+      
+      // Enrich attendance records with user names
+      return attendanceData.map((record: any) => {
+        const user = users.find((u: any) => u.id === record.userId);
+        return {
+          ...record,
+          userName: user ? user.displayName : `User #${record.userId}`,
+          userDepartment: user ? user.department : null
+        };
+      });
     },
   });
 
   // Filter attendance records by search query
-  const filteredRecords = attendanceRecords?.filter((record: any) => {
+  const filteredRecords = attendanceRecords?.filter((record) => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
     return record.userName.toLowerCase().includes(query);
   });
 
   // Get today's attendance for current user
-  const currentUserAttendance = attendanceRecords?.find((record: any) => 
+  const currentUserAttendance = attendanceRecords?.find((record) => 
     record.userId === user?.id
   );
 

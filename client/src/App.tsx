@@ -15,6 +15,7 @@ import Attendance from "@/pages/attendance";
 import Leave from "@/pages/leave";
 import UserManagement from "@/pages/user-management";
 import Departments from "@/pages/departments";
+import OfficeLocations from "@/pages/office-locations";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { AuthProvider, useAuthContext } from "@/contexts/auth-context";
 import { Loader2 } from "lucide-react";
@@ -136,6 +137,18 @@ function Router() {
         >
           <DashboardLayout>
             <Departments />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      
+      {/* Office Locations for geo-fencing - accessible only to Master Admins */}
+      <Route path="/office-locations">
+        <ProtectedRoute 
+          requiredPermission="set_office_locations"
+          requiredRole="master_admin"
+        >
+          <DashboardLayout>
+            <OfficeLocations />
           </DashboardLayout>
         </ProtectedRoute>
       </Route>

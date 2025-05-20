@@ -90,6 +90,13 @@ export function Sidebar() {
       permission: "manage_departments"
     },
     { 
+      href: "/office-locations", 
+      label: "Office Locations", 
+      icon: <i className="ri-map-pin-line mr-3 text-xl"></i>,
+      roles: ["master_admin"],
+      permission: "set_office_locations"
+    },
+    { 
       href: "/settings", 
       label: "Settings", 
       icon: <i className="ri-settings-4-line mr-3 text-xl"></i>

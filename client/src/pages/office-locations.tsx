@@ -68,7 +68,15 @@ export default function OfficeLocations() {
 
   // Fetch office locations
   const {
-    data: officeLocations = [],
+    data: officeLocations = [] as Array<{
+      id: number;
+      name: string;
+      latitude: string;
+      longitude: string;
+      radius: number;
+      createdAt: string;
+      updatedAt: string;
+    }>,
     isLoading,
     error,
   } = useQuery({
