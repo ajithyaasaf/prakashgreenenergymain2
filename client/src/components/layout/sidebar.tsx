@@ -8,13 +8,25 @@ interface NavItem {
   label: string;
   icon: React.ReactNode;
   roles?: ("master_admin" | "admin" | "employee")[];
+  departments?: ("cre" | "accounts" | "hr" | "sales_and_marketing" | "technical_team")[];
+  permission?: string;
 }
 
 export function Sidebar() {
   const [location] = useLocation();
-  const { user } = useAuthContext();
+  const { user, hasPermission, isDepartmentMember } = useAuthContext();
+  
+  // Import permissions hook
+  const permissions = (() => {
+    try {
+      const { Permission } = require("@/hooks/use-permissions");
+      return Permission;
+    } catch {
+      return {};
+    }
+  })();
 
-  // Define navigation items with role-based visibility
+  // Define navigation items with role-based and department-based visibility
   const navItems: NavItem[] = [
     { 
       href: "/dashboard", 
@@ -24,44 +36,58 @@ export function Sidebar() {
     { 
       href: "/customers", 
       label: "Customers", 
-      icon: <i className="ri-user-3-line mr-3 text-xl"></i>
+      icon: <i className="ri-user-3-line mr-3 text-xl"></i>,
+      permission: "manage_customers",
+      departments: ["sales_and_marketing"]
     },
     { 
       href: "/products", 
       label: "Products", 
-      icon: <i className="ri-store-2-line mr-3 text-xl"></i>
+      icon: <i className="ri-store-2-line mr-3 text-xl"></i>,
+      permission: "manage_products",
+      departments: ["technical_team"]
     },
     { 
       href: "/quotations", 
       label: "Quotations", 
-      icon: <i className="ri-file-list-3-line mr-3 text-xl"></i>
+      icon: <i className="ri-file-list-3-line mr-3 text-xl"></i>,
+      permission: "manage_quotations",
+      departments: ["sales_and_marketing"]
     },
     { 
       href: "/invoices", 
       label: "Invoices", 
-      icon: <i className="ri-bill-line mr-3 text-xl"></i>
+      icon: <i className="ri-bill-line mr-3 text-xl"></i>,
+      permission: "manage_invoices",
+      departments: ["accounts"]
     },
     { 
       href: "/attendance", 
       label: "Attendance", 
-      icon: <i className="ri-time-line mr-3 text-xl"></i>
+      icon: <i className="ri-time-line mr-3 text-xl"></i>,
+      permission: "manage_attendance",
+      departments: ["hr"]
     },
     { 
       href: "/leave", 
       label: "Leave Management", 
-      icon: <i className="ri-calendar-check-line mr-3 text-xl"></i>
+      icon: <i className="ri-calendar-check-line mr-3 text-xl"></i>,
+      permission: "manage_leaves",
+      departments: ["hr"]
     },
     { 
       href: "/user-management", 
       label: "User Management", 
       icon: <i className="ri-user-settings-line mr-3 text-xl"></i>,
-      roles: ["master_admin", "admin"]
+      roles: ["master_admin", "admin"],
+      permission: "manage_access"
     },
     { 
       href: "/departments", 
       label: "Departments", 
       icon: <i className="ri-building-line mr-3 text-xl"></i>,
-      roles: ["master_admin"]
+      roles: ["master_admin"],
+      permission: "manage_departments"
     },
     { 
       href: "/settings", 
@@ -70,10 +96,29 @@ export function Sidebar() {
     },
   ];
 
-  // Filter items based on user role
+  // Filter items based on user role, department, and permissions
   const filteredNavItems = navItems.filter(item => {
-    if (!item.roles) return true;
-    return item.roles.includes(user?.role || "employee");
+    // Always show items with no restrictions
+    if (!item.roles && !item.departments && !item.permission) return true;
+    
+    // If no user, don't show restricted items
+    if (!user) return false;
+    
+    // Check role-based access
+    if (item.roles && !item.roles.includes(user.role)) return false;
+    
+    // Master admin can access everything
+    if (user.role === "master_admin") return true;
+    
+    // Check department-based access for employees
+    if (item.departments && user.department) {
+      if (!item.departments.includes(user.department)) {
+        // Department doesn't match and user is an employee
+        if (user.role === "employee") return false;
+      }
+    }
+    
+    return true;
   });
 
   return (

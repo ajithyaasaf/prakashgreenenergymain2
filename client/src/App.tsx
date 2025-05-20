@@ -28,7 +28,7 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
       
-      {/* Protected routes - basic authentication required */}
+      {/* Dashboard - accessible to all authenticated users */}
       <Route path="/">
         <ProtectedRoute>
           <DashboardLayout>
@@ -44,72 +44,96 @@ function Router() {
         </ProtectedRoute>
       </Route>
       
-      {/* Customer management - requires manage_customers permission */}
+      {/* Customer management - accessible to Sales & Marketing */}
       <Route path="/customers">
-        <ProtectedRoute requiredPermission="manage_customers">
+        <ProtectedRoute 
+          requiredPermission="manage_customers"
+          requiredDepartment={["sales_and_marketing"]}
+        >
           <DashboardLayout>
             <Customers />
           </DashboardLayout>
         </ProtectedRoute>
       </Route>
       
-      {/* Product management - requires manage_products permission */}
+      {/* Product management - accessible to Technical Team */}
       <Route path="/products">
-        <ProtectedRoute requiredPermission="manage_products">
+        <ProtectedRoute 
+          requiredPermission="manage_products"
+          requiredDepartment={["technical_team"]}
+        >
           <DashboardLayout>
             <Products />
           </DashboardLayout>
         </ProtectedRoute>
       </Route>
       
-      {/* Quotation management - requires manage_quotations permission */}
+      {/* Quotation management - accessible to Sales & Marketing */}
       <Route path="/quotations">
-        <ProtectedRoute requiredPermission="manage_quotations">
+        <ProtectedRoute 
+          requiredPermission="manage_quotations"
+          requiredDepartment={["sales_and_marketing"]}
+        >
           <DashboardLayout>
             <Quotations />
           </DashboardLayout>
         </ProtectedRoute>
       </Route>
       
-      {/* Invoice management - requires manage_invoices permission */}
+      {/* Invoice management - accessible to Accounts */}
       <Route path="/invoices">
-        <ProtectedRoute requiredPermission="manage_invoices">
+        <ProtectedRoute 
+          requiredPermission="manage_invoices"
+          requiredDepartment={["accounts"]}
+        >
           <DashboardLayout>
             <Invoices />
           </DashboardLayout>
         </ProtectedRoute>
       </Route>
       
-      {/* Attendance management - requires manage_attendance permission */}
+      {/* Attendance management - accessible to HR */}
       <Route path="/attendance">
-        <ProtectedRoute requiredPermission="manage_attendance">
+        <ProtectedRoute 
+          requiredPermission="manage_attendance"
+          requiredDepartment={["hr"]}
+        >
           <DashboardLayout>
             <Attendance />
           </DashboardLayout>
         </ProtectedRoute>
       </Route>
       
-      {/* Leave management - requires manage_leaves permission */}
+      {/* Leave management - accessible to HR */}
       <Route path="/leave">
-        <ProtectedRoute requiredPermission="manage_leaves">
+        <ProtectedRoute 
+          requiredPermission="manage_leaves"
+          requiredDepartment={["hr"]}
+        >
           <DashboardLayout>
             <Leave />
           </DashboardLayout>
         </ProtectedRoute>
       </Route>
       
-      {/* User management - requires manage_access permission */}
+      {/* User management - accessible to Admins and Master Admins */}
       <Route path="/user-management">
-        <ProtectedRoute requiredPermission="manage_access">
+        <ProtectedRoute 
+          requiredPermission="manage_access"
+          requiredRole={["master_admin", "admin"]}
+        >
           <DashboardLayout>
             <UserManagement />
           </DashboardLayout>
         </ProtectedRoute>
       </Route>
       
-      {/* Department management - requires manage_departments permission */}
+      {/* Department management - accessible only to Master Admins */}
       <Route path="/departments">
-        <ProtectedRoute requiredPermission="manage_departments">
+        <ProtectedRoute 
+          requiredPermission="manage_departments"
+          requiredRole="master_admin"
+        >
           <DashboardLayout>
             <Departments />
           </DashboardLayout>

@@ -22,6 +22,8 @@ interface AuthContextType {
   loading: boolean;
   createUserProfile: (userData: Partial<AuthUser>) => Promise<void>;
   updateUserProfile: (userData: Partial<AuthUser>) => Promise<void>;
+  hasPermission: (role: UserRole[] | UserRole) => boolean;
+  isDepartmentMember: (department: Department[] | Department) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -243,6 +245,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Role-based permission check
+  const hasPermission = (roles: UserRole[] | UserRole): boolean => {
+    if (!user) return false;
+    
+    if (Array.isArray(roles)) {
+      return roles.includes(user.role);
+    }
+    
+    return user.role === roles;
+  };
+  
+  // Department-based permission check
+  const isDepartmentMember = (departments: Department[] | Department): boolean => {
+    if (!user || !user.department) return false;
+    
+    if (Array.isArray(departments)) {
+      return departments.includes(user.department);
+    }
+    
+    return user.department === departments;
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -250,6 +274,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loading,
         createUserProfile,
         updateUserProfile,
+        hasPermission,
+        isDepartmentMember,
       }}
     >
       {children}
