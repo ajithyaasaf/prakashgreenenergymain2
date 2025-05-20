@@ -1,7 +1,9 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuthContext } from "@/contexts/auth-context";
+import { apiRequest } from "@/lib/queryClient";
 import { formatDate, cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -25,15 +27,28 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { getInitials } from "@/lib/utils";
-import { Search, PlusCircle, Pencil, UserCog, Loader2 } from "lucide-react";
+import { Search, PlusCircle, Pencil, UserCog, Loader2, AlertTriangle } from "lucide-react";
 
 export default function UserManagement() {
   const { user } = useAuthContext();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddUserDialog, setShowAddUserDialog] = useState(false);
+  const [editUser, setEditUser] = useState<any>(null);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   
   // Only master_admin and admin can access this page
   if (user?.role !== "master_admin" && user?.role !== "admin") {
@@ -55,52 +70,42 @@ export default function UserManagement() {
   // Fetch users
   const { data: users, isLoading } = useQuery({
     queryKey: ["/api/users"],
-    queryFn: async () => {
-      // This would normally fetch from the API
-      // For now returning mock data
-      await new Promise(resolve => setTimeout(resolve, 500));
-      return [
-        {
-          id: 1,
-          uid: "123",
-          email: "rajesh@prakashgreens.com",
-          displayName: "Rajesh Sharma",
-          role: "master_admin",
-          department: null,
-          profileImageUrl: null,
-          createdAt: "2023-01-15T08:30:00.000Z"
-        },
-        {
-          id: 2,
-          uid: "456",
-          email: "priya@prakashgreens.com",
-          displayName: "Priya Patel",
-          role: "admin",
-          department: "hr",
-          profileImageUrl: null,
-          createdAt: "2023-02-10T10:15:00.000Z"
-        },
-        {
-          id: 3,
-          uid: "789",
-          email: "vikram@prakashgreens.com",
-          displayName: "Vikram Kumar",
-          role: "employee",
-          department: "technical_team",
-          profileImageUrl: null,
-          createdAt: "2023-03-05T14:45:00.000Z"
-        },
-        {
-          id: 4,
-          uid: "101",
-          email: "ananya@prakashgreens.com",
-          displayName: "Ananya Singh",
-          role: "employee",
-          department: "sales_and_marketing",
-          profileImageUrl: null,
-          createdAt: "2023-03-20T09:30:00.000Z"
-        }
-      ];
+  });
+
+  // Fetch departments
+  const { data: departments } = useQuery({
+    queryKey: ["/api/departments"],
+  });
+
+  // Update user mutation
+  const updateUserMutation = useMutation({
+    mutationFn: async (userData: any) => {
+      const response = await apiRequest("PATCH", `/api/users/${userData.id}`, userData);
+      if (!response.ok) {
+        throw new Error("Failed to update user");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      // Invalidate users query to refetch
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      
+      // Show success message
+      toast({
+        title: "User updated",
+        description: "User details have been successfully updated.",
+        variant: "success" as any,
+      });
+      
+      // Close edit dialog
+      setShowEditDialog(false);
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: `Failed to update user: ${error.message}`,
+        variant: "destructive",
+      });
     },
   });
 
@@ -109,8 +114,8 @@ export default function UserManagement() {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
     return (
-      user.displayName.toLowerCase().includes(query) ||
-      user.email.toLowerCase().includes(query) ||
+      user.displayName?.toLowerCase().includes(query) ||
+      user.email?.toLowerCase().includes(query) ||
       (user.department && user.department.toLowerCase().includes(query))
     );
   });
@@ -129,6 +134,19 @@ export default function UserManagement() {
     hr: "Human Resources",
     sales_and_marketing: "Sales & Marketing",
     technical_team: "Technical Team"
+  };
+
+  // Handle opening edit dialog
+  const handleEditUser = (userData: any) => {
+    setEditUser(userData);
+    setShowEditDialog(true);
+  };
+
+  // Handle saving user changes
+  const handleSaveUserChanges = () => {
+    if (!editUser) return;
+    
+    updateUserMutation.mutate(editUser);
   };
 
   return (
@@ -194,18 +212,18 @@ export default function UserManagement() {
                       <TableCell>
                         <div className="flex items-center">
                           <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-600">
-                            {userData.profileImageUrl ? (
+                            {userData.photoURL ? (
                               <img 
-                                src={userData.profileImageUrl} 
+                                src={userData.photoURL} 
                                 alt={userData.displayName} 
                                 className="h-10 w-10 rounded-full"
                               />
                             ) : (
-                              <span>{getInitials(userData.displayName)}</span>
+                              <span>{getInitials(userData.displayName || userData.email)}</span>
                             )}
                           </div>
                           <div className="ml-4">
-                            <div className="font-medium">{userData.displayName}</div>
+                            <div className="font-medium">{userData.displayName || 'No Name'}</div>
                           </div>
                         </div>
                       </TableCell>
@@ -216,15 +234,25 @@ export default function UserManagement() {
                             ? roleStyles[userData.role as keyof typeof roleStyles] 
                             : "bg-gray-100"
                         )}>
-                          {userData.role.replace("_", " ")}
+                          {userData.role?.replace("_", " ")}
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        {userData.department ? departmentNames[userData.department] || userData.department : "-"}
+                        {userData.department ? departmentNames[userData.department] || userData.department : (
+                          <div className="flex items-center text-amber-600">
+                            <AlertTriangle className="h-4 w-4 mr-1" />
+                            <span className="text-xs">Not assigned</span>
+                          </div>
+                        )}
                       </TableCell>
-                      <TableCell>{formatDate(userData.createdAt)}</TableCell>
+                      <TableCell>{userData.createdAt ? formatDate(userData.createdAt) : 'Unknown'}</TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="sm" className="h-8 p-2">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-8 p-2"
+                          onClick={() => handleEditUser(userData)}
+                        >
                           <Pencil className="h-4 w-4 mr-1" />
                           Edit
                         </Button>
@@ -248,8 +276,107 @@ export default function UserManagement() {
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
-            <p>User form will be implemented here.</p>
+            <p>To add users, have them register through the registration page.</p>
+            <p>After registration, you can edit their roles and departments here.</p>
           </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddUserDialog(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit User Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Edit User</DialogTitle>
+            <DialogDescription>
+              Modify user role and department assignment.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {editUser && (
+            <div className="py-4 space-y-4">
+              <div className="space-y-1">
+                <Label htmlFor="edit-name">Name</Label>
+                <div id="edit-name" className="font-medium">{editUser.displayName || 'No Name'}</div>
+              </div>
+              
+              <div className="space-y-1">
+                <Label htmlFor="edit-email">Email</Label>
+                <div id="edit-email">{editUser.email}</div>
+              </div>
+              
+              <div className="space-y-1">
+                <Label htmlFor="edit-role">Role</Label>
+                <Select
+                  value={editUser.role}
+                  onValueChange={(value) => setEditUser({...editUser, role: value})}
+                  disabled={user.role !== "master_admin" || editUser.role === "master_admin"}
+                >
+                  <SelectTrigger id="edit-role">
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(user.role === "master_admin" || editUser.role !== "master_admin") && (
+                      <>
+                        <SelectItem value="employee">Employee</SelectItem>
+                        <SelectItem value="admin">Admin</SelectItem>
+                        {user.role === "master_admin" && (
+                          <SelectItem value="master_admin">Master Admin</SelectItem>
+                        )}
+                      </>
+                    )}
+                  </SelectContent>
+                </Select>
+                {user.role !== "master_admin" && editUser.role === "master_admin" && (
+                  <p className="text-xs text-amber-600 mt-1">
+                    Only master admins can change the role of other master admins.
+                  </p>
+                )}
+              </div>
+              
+              <div className="space-y-1">
+                <Label htmlFor="edit-department">Department</Label>
+                <Select
+                  value={editUser.department || ""}
+                  onValueChange={(value) => setEditUser({...editUser, department: value || null})}
+                >
+                  <SelectTrigger id="edit-department">
+                    <SelectValue placeholder="Assign department" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">No Department</SelectItem>
+                    <SelectItem value="cre">Customer Relations</SelectItem>
+                    <SelectItem value="accounts">Accounts</SelectItem>
+                    <SelectItem value="hr">Human Resources</SelectItem>
+                    <SelectItem value="sales_and_marketing">Sales & Marketing</SelectItem>
+                    <SelectItem value="technical_team">Technical Team</SelectItem>
+                  </SelectContent>
+                </Select>
+                {!editUser.department && (
+                  <p className="text-xs text-amber-600 mt-1">
+                    Employees without a department can only access the basic dashboard.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEditDialog(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSaveUserChanges}
+              disabled={updateUserMutation.isPending}
+            >
+              {updateUserMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save Changes
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>

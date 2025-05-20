@@ -89,7 +89,12 @@ export function ProtectedRoute({
 
   // For employees, check department-specific permissions
   if (user.role === "employee") {
-    // Employees can only access features related to their department
+    // Allow access to basic dashboard for employees without department
+    if (!requiredPermission && (!requiredDepartment || window.location.pathname === "/" || window.location.pathname === "/dashboard")) {
+      return <>{children}</>;
+    }
+    
+    // For other features, employees need a department
     if (!user.department) {
       return renderAccessDenied(setLocation, fallbackUrl);
     }
