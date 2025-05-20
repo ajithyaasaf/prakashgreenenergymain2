@@ -15,12 +15,14 @@ import { getStorage } from "firebase/storage";
 
 // Firebase configuration
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyAq5YJoV4BqdJvFj9p9X6Hk3IQlOTPXBMM",
-  authDomain: `${import.meta.env.VITE_FIREBASE_PROJECT_ID || "prakash-greens-energy"}.firebaseapp.com`,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "prakash-greens-energy",
-  storageBucket: `${import.meta.env.VITE_FIREBASE_PROJECT_ID || "prakash-greens-energy"}.appspot.com`,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "712345678901",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:712345678901:web:1234567890abcdef",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyBo8D4pTG6oNGg4qy7V4AaC73qfAB0HRcc",
+  authDomain: "solar-energy-56bc8.firebaseapp.com",
+  databaseURL: "https://solar-energy-56bc8-default-rtdb.firebaseio.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "solar-energy-56bc8",
+  storageBucket: "solar-energy-56bc8.firebasestorage.app",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "833087081002",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:833087081002:web:10001186150884d311d153",
+  measurementId: "G-2S9TJM6E3C"
 };
 
 // Initialize Firebase
