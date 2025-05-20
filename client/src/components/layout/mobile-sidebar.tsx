@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { Leaf, LogOut } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { useAuthContext } from "@/contexts/auth-context";
 import { useEffect, useState } from "react";
 
@@ -80,39 +80,21 @@ export function MobileSidebar({ isOpen, setIsOpen }: MobileSidebarProps) {
   });
 
   return (
-    <div className="md:hidden">
-      <header className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-10">
-        <div className="flex items-center justify-between p-4">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-md bg-primary flex items-center justify-center">
-              <Leaf className="h-5 w-5 text-white" />
-            </div>
-            <span className="font-bold text-xl">Prakash Greens</span>
-          </div>
-          <button 
-            onClick={() => setIsOpen(!isOpen)} 
-            className="text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary rounded-md p-1"
-            aria-label={isOpen ? "Close menu" : "Open menu"}
-          >
-            <i className={`${isOpen ? 'ri-close-line' : 'ri-menu-line'} text-2xl`}></i>
-          </button>
-        </div>
-      </header>
-      
+    <>
       {/* Mobile menu overlay */}
       {isOpen && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-30 z-20"
+          className="fixed inset-0 bg-black bg-opacity-30 z-20 md:hidden"
           onClick={() => setIsOpen(false)}
         ></div>
       )}
       
-      {/* Mobile menu */}
+      {/* Mobile menu drawer */}
       <div 
         className={cn(
-          "fixed left-0 right-0 z-30 bg-white border-t border-gray-200 transition-all duration-300 ease-in-out transform",
-          isOpen ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0 pointer-events-none",
-          "max-h-[70vh] overflow-y-auto rounded-t-xl shadow-xl"
+          "fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-gray-200 transition-all duration-300 ease-in-out transform md:hidden",
+          isOpen ? "translate-y-0 opacity-100" : "translate-y-full opacity-0 pointer-events-none",
+          "max-h-[80vh] overflow-y-auto rounded-t-xl shadow-xl"
         )}
       >
         <div className="p-4 border-b border-gray-200 flex justify-between items-center">
@@ -180,6 +162,6 @@ export function MobileSidebar({ isOpen, setIsOpen }: MobileSidebarProps) {
           </div>
         )}
       </div>
-    </div>
+    </>
   );
 }
