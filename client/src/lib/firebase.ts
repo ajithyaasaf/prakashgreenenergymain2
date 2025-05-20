@@ -10,7 +10,7 @@ import {
   onAuthStateChanged,
   type User 
 } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { getFirestore, collection, getDocs } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
 // Firebase configuration
@@ -55,6 +55,82 @@ export const updateUserProfile = (user: User, profile: { displayName?: string | 
 
 export const onAuthChange = (callback: (user: User | null) => void) => {
   return onAuthStateChanged(auth, callback);
+};
+
+// Function to fetch all Firestore users
+export const fetchFirestoreUsers = async () => {
+  try {
+    const usersCollectionRef = collection(db, "users");
+    const usersSnapshot = await getDocs(usersCollectionRef);
+    
+    const users = usersSnapshot.docs.map(doc => ({
+      uid: doc.id,
+      ...doc.data()
+    }));
+    
+    return users;
+  } catch (error) {
+    console.error("Error fetching Firestore users:", error);
+    return [];
+  }
+};
+
+// Function to sync Firestore users with our application database
+export const syncFirestoreUsers = async () => {
+  try {
+    // Fetch users from Firestore
+    const firestoreUsers = await fetchFirestoreUsers();
+    
+    // Fetch existing users from our API
+    const existingUsersResponse = await fetch('/api/users');
+    const existingUsers = await existingUsersResponse.json();
+    
+    // Find which users need to be created or updated
+    const usersToSync = firestoreUsers.filter(firestoreUser => {
+      // Check if the user already exists in our database
+      const existingUser = existingUsers.find((user: any) => user.uid === firestoreUser.uid);
+      
+      // If the user doesn't exist or has different data, sync it
+      return !existingUser || 
+        existingUser.role !== firestoreUser.role || 
+        existingUser.department !== firestoreUser.department;
+    });
+    
+    // Create or update each user
+    for (const userToSync of usersToSync) {
+      const existingUser = existingUsers.find((user: any) => user.uid === userToSync.uid);
+      
+      if (!existingUser) {
+        // Create new user
+        await fetch('/api/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            uid: userToSync.uid,
+            email: userToSync.email || `user-${userToSync.uid}@example.com`,
+            displayName: userToSync.displayName || userToSync.email?.split('@')[0] || "User",
+            role: userToSync.role || "employee",
+            department: userToSync.department || null,
+          })
+        });
+      } else {
+        // Update existing user
+        await fetch(`/api/users/${existingUser.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            role: userToSync.role,
+            department: userToSync.department || null,
+          })
+        });
+      }
+    }
+    
+    return true;
+  } catch (error) {
+    console.error("Error syncing Firestore users:", error);
+    return false;
+  }
 };
 
 export { auth, db, storage };

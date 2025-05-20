@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuthContext } from "@/contexts/auth-context";
 import { apiRequest } from "@/lib/queryClient";
 import { formatDate, cn } from "@/lib/utils";
+import { syncFirestoreUsers } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,7 +40,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { getInitials } from "@/lib/utils";
-import { Search, PlusCircle, Pencil, UserCog, Loader2, AlertTriangle } from "lucide-react";
+import { Search, PlusCircle, Pencil, UserCog, Loader2, AlertTriangle, RefreshCw } from "lucide-react";
 
 export default function UserManagement() {
   const { user } = useAuthContext();
@@ -49,6 +50,7 @@ export default function UserManagement() {
   const [showAddUserDialog, setShowAddUserDialog] = useState(false);
   const [editUser, setEditUser] = useState<any>(null);
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   
   // Only master_admin and admin can access this page
   if (user?.role !== "master_admin" && user?.role !== "admin") {
@@ -68,12 +70,12 @@ export default function UserManagement() {
   }
   
   // Fetch users
-  const { data: users, isLoading } = useQuery({
+  const { data: users = [], isLoading, refetch: refetchUsers } = useQuery({
     queryKey: ["/api/users"],
   });
 
   // Fetch departments
-  const { data: departments } = useQuery({
+  const { data: departments = [] } = useQuery({
     queryKey: ["/api/departments"],
   });
 
@@ -109,8 +111,30 @@ export default function UserManagement() {
     },
   });
 
+  // Handle syncing users from Firestore
+  const handleSyncUsers = async () => {
+    setIsSyncing(true);
+    try {
+      await syncFirestoreUsers();
+      await refetchUsers();
+      toast({
+        title: "Sync successful",
+        description: "All Firebase users have been synced with the application.",
+        variant: "success" as any,
+      });
+    } catch (error) {
+      toast({
+        title: "Sync failed",
+        description: "Failed to sync users from Firebase.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   // Filter users by search query
-  const filteredUsers = users ? users.filter((user: any) => {
+  const filteredUsers = Array.isArray(users) ? users.filter((user: any) => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
     return (
@@ -157,13 +181,23 @@ export default function UserManagement() {
             <CardTitle className="text-xl">User Management</CardTitle>
             <CardDescription>Manage user accounts and permissions</CardDescription>
           </div>
-          <Button 
-            className="bg-primary hover:bg-primary-dark text-white"
-            onClick={() => setShowAddUserDialog(true)}
-          >
-            <PlusCircle className="h-4 w-4 mr-2" />
-            Add User
-          </Button>
+          <div className="flex space-x-2">
+            <Button 
+              variant="outline"
+              onClick={handleSyncUsers}
+              disabled={isSyncing}
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
+              {isSyncing ? 'Syncing Users...' : 'Sync Firebase Users'}
+            </Button>
+            <Button 
+              className="bg-primary hover:bg-primary-dark text-white"
+              onClick={() => setShowAddUserDialog(true)}
+            >
+              <PlusCircle className="h-4 w-4 mr-2" />
+              Add User
+            </Button>
+          </div>
         </CardHeader>
         
         <CardContent className="px-6">
