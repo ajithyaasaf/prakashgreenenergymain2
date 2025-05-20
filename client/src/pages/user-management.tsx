@@ -110,7 +110,7 @@ export default function UserManagement() {
   });
 
   // Filter users by search query
-  const filteredUsers = users?.filter((user: any) => {
+  const filteredUsers = users ? users.filter((user: any) => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
     return (
@@ -118,7 +118,7 @@ export default function UserManagement() {
       user.email?.toLowerCase().includes(query) ||
       (user.department && user.department.toLowerCase().includes(query))
     );
-  });
+  }) : [];
 
   // Role badge styles
   const roleStyles = {
@@ -341,14 +341,14 @@ export default function UserManagement() {
               <div className="space-y-1">
                 <Label htmlFor="edit-department">Department</Label>
                 <Select
-                  value={editUser.department || ""}
-                  onValueChange={(value) => setEditUser({...editUser, department: value || null})}
+                  value={editUser.department || "none"}
+                  onValueChange={(value) => setEditUser({...editUser, department: value === "none" ? null : value})}
                 >
                   <SelectTrigger id="edit-department">
                     <SelectValue placeholder="Assign department" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">No Department</SelectItem>
+                    <SelectItem value="none">No Department</SelectItem>
                     <SelectItem value="cre">Customer Relations</SelectItem>
                     <SelectItem value="accounts">Accounts</SelectItem>
                     <SelectItem value="hr">Human Resources</SelectItem>
