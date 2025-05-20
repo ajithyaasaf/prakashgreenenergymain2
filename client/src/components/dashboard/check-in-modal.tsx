@@ -505,10 +505,10 @@ export function CheckInModal({ open, onOpenChange }: CheckInModalProps) {
           {checkMode === 'out' && (
             <>
               {isBeforeCheckOutTime && (
-                <Alert variant="warning" className="mb-4">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertTitle>Early Check-out</AlertTitle>
-                  <AlertDescription>
+                <Alert className="mb-4 bg-amber-50 border-amber-200">
+                  <AlertCircle className="h-4 w-4 text-amber-600" />
+                  <AlertTitle className="text-amber-800">Early Check-out</AlertTitle>
+                  <AlertDescription className="text-amber-700">
                     You are checking out before your scheduled time 
                     ({isFieldStaff ? "7:30 PM" : "6:30 PM"}). 
                     Please provide a reason.
@@ -517,10 +517,10 @@ export function CheckInModal({ open, onOpenChange }: CheckInModalProps) {
               )}
               
               {!geolocation.isWithinOffice && (
-                <Alert variant="warning" className="mb-4">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertTitle>Remote Check-out</AlertTitle>
-                  <AlertDescription>
+                <Alert className="mb-4 bg-amber-50 border-amber-200">
+                  <AlertCircle className="h-4 w-4 text-amber-600" />
+                  <AlertTitle className="text-amber-800">Remote Check-out</AlertTitle>
+                  <AlertDescription className="text-amber-700">
                     You are checking out from outside the office. 
                     A photo verification is required.
                   </AlertDescription>
