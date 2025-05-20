@@ -1,467 +1,485 @@
-import { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { useToast } from '@/hooks/use-toast';
-import { useAuthContext } from '@/contexts/auth-context';
-import { usePermissions } from '@/hooks/use-permissions';
-import { format, subDays, startOfWeek, startOfMonth, endOfWeek, endOfMonth } from 'date-fns';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DatePicker } from '@/components/ui/date-picker';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Separator } from '@/components/ui/separator';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Download, Calendar, Clock, UserCheck, MapPin, InfoIcon } from 'lucide-react';
-import { 
-  Chart as ChartJS, 
-  CategoryScale, 
-  LinearScale, 
-  BarElement, 
-  Title, 
-  Tooltip, 
-  Legend 
-} from 'chart.js';
-import { Bar } from 'react-chartjs-2';
+import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useAuthContext } from "@/contexts/auth-context";
+import { usePermissions } from "@/hooks/use-permissions";
+import { formatDate, formatTime } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DateRangePicker } from "@/components/ui/date-picker";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+import { FileDown, Filter, Search, Loader2, BarChart2, Clock, Users, UserPlus, UserCheck } from "lucide-react";
+import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { startOfDay, endOfDay, subDays, format, isAfter, isBefore, isEqual, addDays, eachDayOfInterval } from "date-fns";
 import * as XLSX from 'xlsx';
 
-// Register ChartJS components
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
-
-interface AttendanceRecord {
-  id: number;
-  userId: number;
-  userName: string;
-  date: string;
-  checkInTime: string;
-  checkOutTime: string | null;
-  location: string;
-  reason: string | null;
-  status: string;
-  overtimeHours: number;
-}
-
-// Date presets for quick selection
-const datePresets = {
-  today: {
-    from: new Date(),
-    to: new Date()
-  },
-  yesterday: {
-    from: subDays(new Date(), 1),
-    to: subDays(new Date(), 1)
-  },
-  thisWeek: {
-    from: startOfWeek(new Date(), { weekStartsOn: 1 }),
-    to: endOfWeek(new Date(), { weekStartsOn: 1 })
-  },
-  thisMonth: {
-    from: startOfMonth(new Date()),
-    to: endOfMonth(new Date())
-  },
-  lastMonth: {
-    from: startOfMonth(subDays(new Date(), 30)),
-    to: endOfMonth(subDays(new Date(), 30))
-  }
+// Status styles for attendance badges
+const statusStyles = {
+  present: "bg-green-100 text-green-800",
+  absent: "bg-red-100 text-red-800",
+  leave: "bg-yellow-100 text-yellow-800",
+  late: "bg-orange-100 text-orange-800",
 };
 
 export function AttendanceReport() {
-  const { toast } = useToast();
   const { user } = useAuthContext();
   const { hasPermission } = usePermissions();
-  const [dateRange, setDateRange] = useState(datePresets.thisWeek);
-  const [selectedDatePreset, setSelectedDatePreset] = useState('thisWeek');
-  const [selectedUserId, setSelectedUserId] = useState<string>('');
-  const [view, setView] = useState<'list' | 'chart'>('list');
-  
-  // Fetch all users for filter dropdown
-  const { data: users, isLoading: loadingUsers } = useQuery({
-    queryKey: ['/api/users'],
-    enabled: hasPermission('view_all_reports') || hasPermission('manage_attendance')
+  const [dateRange, setDateRange] = useState({
+    from: subDays(new Date(), 7),
+    to: new Date(),
   });
+  const [selectedDepartment, setSelectedDepartment] = useState<string | null>(null);
+  const [selectedEmployee, setSelectedEmployee] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState("summary");
   
-  // Fetch attendance data
-  const { data: attendanceData, isLoading: loadingAttendance } = useQuery({
-    queryKey: [
-      '/api/attendance/report', 
-      {
-        from: format(dateRange.from, 'yyyy-MM-dd'),
-        to: format(dateRange.to, 'yyyy-MM-dd'),
-        userId: selectedUserId || undefined
+  // Fetch attendance records for the date range
+  const { data: attendanceRecords = [], isLoading } = useQuery({
+    queryKey: ["/api/attendance/range", 
+      { 
+        from: dateRange.from?.toISOString(), 
+        to: dateRange.to?.toISOString(),
+        department: selectedDepartment,
+        userId: selectedEmployee 
       }
     ],
-    refetchOnWindowFocus: false,
+    enabled: !!dateRange.from && !!dateRange.to,
   });
   
-  // Handle date preset selection
-  const handleDatePresetChange = (preset: string) => {
-    setSelectedDatePreset(preset);
-    setDateRange(datePresets[preset as keyof typeof datePresets]);
-  };
+  // Fetch all employees for filtering
+  const { data: employees = [] } = useQuery({
+    queryKey: ["/api/users"],
+  });
   
-  // Handle custom date range selection
-  const handleDateRangeChange = (type: 'from' | 'to', date: Date) => {
-    setSelectedDatePreset('custom');
-    setDateRange(prev => ({
-      ...prev,
-      [type]: date
-    }));
-  };
+  // Fetch all departments for filtering
+  const { data: departments = [] } = useQuery({
+    queryKey: ["/api/departments"],
+  });
   
-  // Export to Excel function
-  const exportToExcel = () => {
-    if (!attendanceData || !attendanceData.length) {
-      toast({
-        title: "No data to export",
-        description: "There is no attendance data available for export.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    // Format data for export
-    const exportData = attendanceData.map((record: AttendanceRecord) => ({
-      'Employee': record.userName,
-      'Date': format(new Date(record.date), 'dd/MM/yyyy'),
-      'Check-In': record.checkInTime ? format(new Date(record.checkInTime), 'hh:mm a') : 'N/A',
-      'Check-Out': record.checkOutTime ? format(new Date(record.checkOutTime), 'hh:mm a') : 'N/A',
-      'Location': record.location === 'office' ? 'Office' : 'Field',
-      'Status': record.status,
-      'Overtime (hrs)': record.overtimeHours ? record.overtimeHours.toFixed(2) : '0',
-      'Reason': record.reason || 'N/A'
-    }));
-    
-    // Create workbook and worksheet
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.json_to_sheet(exportData);
-    
-    // Add worksheet to workbook
-    XLSX.utils.book_append_sheet(wb, ws, 'Attendance Report');
-    
-    // Generate filename with date range
-    const fromDate = format(dateRange.from, 'yyyy-MM-dd');
-    const toDate = format(dateRange.to, 'yyyy-MM-dd');
-    const fileName = `Attendance_Report_${fromDate}_to_${toDate}.xlsx`;
-    
-    // Save file
-    XLSX.writeFile(wb, fileName);
-    
-    toast({
-      title: "Export Successful",
-      description: `Attendance report has been exported as ${fileName}`,
-    });
-  };
+  // Filter attendance records based on search query
+  const filteredRecords = attendanceRecords.filter((record: any) => {
+    const matchesSearch = searchQuery
+      ? record.userName?.toLowerCase().includes(searchQuery.toLowerCase())
+      : true;
+    return matchesSearch;
+  });
   
-  // Prepare chart data
-  const prepareChartData = () => {
-    if (!attendanceData) return null;
+  // Get unique employees from attendance records
+  const uniqueEmployees = Array.from(
+    new Set(filteredRecords.map((record: any) => record.userName))
+  );
+  
+  // Prepare data for summary chart (attendance by date)
+  const dailySummaryData = dateRange.from && dateRange.to
+    ? eachDayOfInterval({ start: dateRange.from, end: dateRange.to }).map(date => {
+        const dateStr = format(date, "yyyy-MM-dd");
+        const dayRecords = filteredRecords.filter((record: any) => 
+          record.date?.split('T')[0] === dateStr
+        );
+        
+        const present = dayRecords.filter((r: any) => r.status === 'present').length;
+        const absent = dayRecords.filter((r: any) => r.status === 'absent').length;
+        const leave = dayRecords.filter((r: any) => r.status === 'leave').length;
+        const late = dayRecords.filter((r: any) => r.status === 'late').length;
+        
+        return {
+          date: format(date, "MMM dd"),
+          present,
+          absent,
+          leave,
+          late,
+          total: present + absent + leave + late
+        };
+      })
+    : [];
     
-    const labels: string[] = [];
-    const checkInCounts: number[] = [];
-    const overtimeHours: number[] = [];
-    
-    // Group by date
-    const dateGroups = attendanceData.reduce((acc: Record<string, any[]>, record: AttendanceRecord) => {
-      const dateStr = format(new Date(record.date), 'yyyy-MM-dd');
-      if (!acc[dateStr]) {
-        acc[dateStr] = [];
-      }
-      acc[dateStr].push(record);
-      return acc;
-    }, {});
-    
-    // Build data arrays
-    Object.keys(dateGroups).sort().forEach(date => {
-      labels.push(format(new Date(date), 'MMM dd'));
-      checkInCounts.push(dateGroups[date].length);
-      
-      // Sum overtime hours for the day
-      const dayOvertimeHours = dateGroups[date].reduce(
-        (sum: number, record: AttendanceRecord) => sum + (record.overtimeHours || 0), 
-        0
-      );
-      overtimeHours.push(Number(dayOvertimeHours.toFixed(2)));
-    });
+  // Calculate overall stats
+  const totalPresent = filteredRecords.filter((r: any) => r.status === 'present').length;
+  const totalAbsent = filteredRecords.filter((r: any) => r.status === 'absent').length;
+  const totalLeave = filteredRecords.filter((r: any) => r.status === 'leave').length;
+  const totalLate = filteredRecords.filter((r: any) => r.status === 'late').length;
+  const totalOvertimeHours = filteredRecords.reduce((total: number, record: any) => 
+    total + (record.overtimeHours || 0), 0
+  );
+  
+  // Calculate employee-wise stats
+  const employeeStats = uniqueEmployees.map(empName => {
+    const empRecords = filteredRecords.filter((r: any) => r.userName === empName);
+    const present = empRecords.filter((r: any) => r.status === 'present').length;
+    const absent = empRecords.filter((r: any) => r.status === 'absent').length;
+    const leave = empRecords.filter((r: any) => r.status === 'leave').length;
+    const late = empRecords.filter((r: any) => r.status === 'late').length;
+    const totalOvertimeHours = empRecords.reduce((total: number, record: any) => 
+      total + (record.overtimeHours || 0), 0
+    );
     
     return {
-      labels,
-      datasets: [
-        {
-          label: 'Attendance Count',
-          data: checkInCounts,
-          backgroundColor: '#a7ce3b',
-          borderColor: '#8aaf22',
-          borderWidth: 1,
-        },
-        {
-          label: 'Overtime Hours',
-          data: overtimeHours,
-          backgroundColor: '#157fbe',
-          borderColor: '#0d6eab',
-          borderWidth: 1,
-        },
-      ],
+      name: empName,
+      present,
+      absent,
+      leave,
+      late,
+      total: present + absent + leave + late,
+      overtimeHours: totalOvertimeHours
     };
+  });
+  
+  // Handle export to Excel
+  const handleExport = () => {
+    // Prepare data for export
+    const exportData = filteredRecords.map((record: any) => ({
+      Date: record.date ? formatDate(new Date(record.date)) : '',
+      Employee: record.userName || '',
+      Department: record.userDepartment || '',
+      Status: record.status || '',
+      'Check In': record.checkInTime ? formatTime(new Date(record.checkInTime)) : '',
+      'Check Out': record.checkOutTime ? formatTime(new Date(record.checkOutTime)) : '',
+      Location: record.location || '',
+      'Overtime Hours': record.overtimeHours || 0,
+      Remarks: record.remarks || ''
+    }));
+    
+    // Create worksheet
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    
+    // Create workbook and add the worksheet
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Attendance Report');
+    
+    // Generate file name based on date range
+    const fromDateStr = dateRange.from ? format(dateRange.from, 'MMM-dd-yyyy') : '';
+    const toDateStr = dateRange.to ? format(dateRange.to, 'MMM-dd-yyyy') : '';
+    const fileName = `Attendance_Report_${fromDateStr}_to_${toDateStr}.xlsx`;
+    
+    // Export to Excel
+    XLSX.writeFile(wb, fileName);
   };
   
-  const chartData = prepareChartData();
-  const chartOptions = {
-    responsive: true,
-    scales: {
-      y: {
-        beginAtZero: true,
-      },
-    },
-    plugins: {
-      legend: {
-        position: 'top' as const,
-      },
-      title: {
-        display: true,
-        text: 'Attendance and Overtime Summary',
-      },
-    },
+  // Format date for display
+  const formatDateDisplay = (date: Date) => {
+    return format(date, 'MMM dd, yyyy');
+  };
+  
+  // Format time for display
+  const formatTimeDisplay = (date: Date) => {
+    return format(date, 'hh:mm a');
   };
   
   return (
     <Card className="w-full">
       <CardHeader>
-        <CardTitle className="text-xl font-bold text-primary">Attendance Report</CardTitle>
+        <CardTitle className="text-xl font-bold">Attendance Reports</CardTitle>
         <CardDescription>
-          View and export attendance data across your organization
+          View and analyze attendance data for all employees
         </CardDescription>
       </CardHeader>
       
       <CardContent>
-        <div className="flex flex-col md:flex-row gap-4 mb-6">
-          <div className="w-full md:w-1/4">
-            <Label htmlFor="date-preset">Date Range</Label>
-            <Select
-              value={selectedDatePreset}
-              onValueChange={handleDatePresetChange}
-            >
-              <SelectTrigger id="date-preset">
-                <SelectValue placeholder="Select date range" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="today">Today</SelectItem>
-                <SelectItem value="yesterday">Yesterday</SelectItem>
-                <SelectItem value="thisWeek">This Week</SelectItem>
-                <SelectItem value="thisMonth">This Month</SelectItem>
-                <SelectItem value="lastMonth">Last Month</SelectItem>
-                <SelectItem value="custom">Custom Range</SelectItem>
-              </SelectContent>
-            </Select>
+        <div className="space-y-4">
+          {/* Filter controls */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Date Range</label>
+              <DateRangePicker
+                dateRange={dateRange}
+                setDateRange={setDateRange}
+                className="w-full"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Department</label>
+              <Select
+                value={selectedDepartment || ""}
+                onValueChange={(value) => setSelectedDepartment(value === "" ? null : value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="All Departments" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">All Departments</SelectItem>
+                  {departments.map((dept: any) => (
+                    <SelectItem key={dept.id} value={dept.name.toLowerCase()}>
+                      {dept.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Employee</label>
+              <Select
+                value={selectedEmployee || ""}
+                onValueChange={(value) => setSelectedEmployee(value === "" ? null : value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="All Employees" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">All Employees</SelectItem>
+                  {employees.map((emp: any) => (
+                    <SelectItem key={emp.id} value={emp.id.toString()}>
+                      {emp.displayName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="flex items-end">
+              <Button 
+                onClick={handleExport} 
+                className="bg-primary hover:bg-primary/90 gap-1 w-full"
+              >
+                <FileDown className="h-4 w-4" />
+                Export to Excel
+              </Button>
+            </div>
           </div>
           
-          <div className="w-full md:w-1/4">
-            <Label htmlFor="from-date">From Date</Label>
-            <DatePicker
-              date={dateRange.from}
-              setDate={(date) => handleDateRangeChange('from', date)}
-            />
+          {/* Search and filter */}
+          <div className="flex items-center space-x-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search employees..."
+                className="pl-8"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
           </div>
           
-          <div className="w-full md:w-1/4">
-            <Label htmlFor="to-date">To Date</Label>
-            <DatePicker
-              date={dateRange.to}
-              setDate={(date) => handleDateRangeChange('to', date)}
-            />
+          {/* Statistics cards */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="p-4 flex justify-between items-center">
+                <div>
+                  <p className="text-sm text-gray-500">Present</p>
+                  <p className="text-2xl font-bold">{totalPresent}</p>
+                  <p className="text-xs text-gray-500">
+                    {Math.round((totalPresent / filteredRecords.length) * 100) || 0}% of total
+                  </p>
+                </div>
+                <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center text-green-600">
+                  <UserCheck className="h-6 w-6" />
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-4 flex justify-between items-center">
+                <div>
+                  <p className="text-sm text-gray-500">Absent</p>
+                  <p className="text-2xl font-bold">{totalAbsent}</p>
+                  <p className="text-xs text-gray-500">
+                    {Math.round((totalAbsent / filteredRecords.length) * 100) || 0}% of total
+                  </p>
+                </div>
+                <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center text-red-600">
+                  <Users className="h-6 w-6" />
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-4 flex justify-between items-center">
+                <div>
+                  <p className="text-sm text-gray-500">On Leave</p>
+                  <p className="text-2xl font-bold">{totalLeave}</p>
+                  <p className="text-xs text-gray-500">
+                    {Math.round((totalLeave / filteredRecords.length) * 100) || 0}% of total
+                  </p>
+                </div>
+                <div className="h-12 w-12 rounded-full bg-yellow-100 flex items-center justify-center text-yellow-600">
+                  <UserPlus className="h-6 w-6" />
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-4 flex justify-between items-center">
+                <div>
+                  <p className="text-sm text-gray-500">Overtime Hours</p>
+                  <p className="text-2xl font-bold">{totalOvertimeHours.toFixed(1)}</p>
+                  <p className="text-xs text-gray-500">Total overtime hours</p>
+                </div>
+                <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+                  <Clock className="h-6 w-6" />
+                </div>
+              </CardContent>
+            </Card>
           </div>
           
-          <div className="w-full md:w-1/4">
-            <Label htmlFor="user-filter">Employee</Label>
-            <Select
-              value={selectedUserId}
-              onValueChange={setSelectedUserId}
-            >
-              <SelectTrigger id="user-filter">
-                <SelectValue placeholder="All Employees" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">All Employees</SelectItem>
-                {users && users.map((user: any) => (
-                  <SelectItem key={user.id} value={user.id.toString()}>
-                    {user.displayName}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        
-        <Tabs value={view} onValueChange={(v) => setView(v as 'list' | 'chart')} className="w-full">
-          <div className="flex justify-between items-center mb-4">
-            <TabsList>
-              <TabsTrigger value="list">List View</TabsTrigger>
-              <TabsTrigger value="chart">Chart View</TabsTrigger>
+          {/* Tabbed content for detailed reports */}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="summary">Summary</TabsTrigger>
+              <TabsTrigger value="detailed">Detailed Report</TabsTrigger>
+              <TabsTrigger value="employee">Employee Stats</TabsTrigger>
             </TabsList>
             
-            <Button variant="outline" onClick={exportToExcel}>
-              <Download className="h-4 w-4 mr-2" />
-              Export to Excel
-            </Button>
-          </div>
-          
-          <TabsContent value="list" className="mt-0">
-            {loadingAttendance ? (
-              <div className="space-y-2">
-                {Array(5).fill(null).map((_, i) => (
-                  <div key={i} className="flex items-center space-x-4 p-3 border rounded">
-                    <Skeleton className="h-12 w-12 rounded-full" />
-                    <div className="space-y-2 flex-1">
-                      <Skeleton className="h-4 w-[250px]" />
-                      <Skeleton className="h-4 w-[200px]" />
-                    </div>
-                  </div>
-                ))}
+            {/* Summary tab with charts */}
+            <TabsContent value="summary" className="space-y-4">
+              <div className="h-80 w-full mt-6">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={dailySummaryData}
+                    margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="present" fill="#22c55e" name="Present" />
+                    <Bar dataKey="absent" fill="#ef4444" name="Absent" />
+                    <Bar dataKey="leave" fill="#eab308" name="Leave" />
+                    <Bar dataKey="late" fill="#f97316" name="Late" />
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
-            ) : !attendanceData || attendanceData.length === 0 ? (
-              <div className="text-center py-8">
-                <InfoIcon className="mx-auto h-12 w-12 text-muted-foreground" />
-                <h3 className="mt-2 text-lg font-medium">No attendance records found</h3>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Try changing your filters or select a different date range.
-                </p>
+              
+              <div className="text-sm text-gray-500 text-center">
+                Daily attendance trends from {dateRange.from && formatDateDisplay(dateRange.from)} to {dateRange.to && formatDateDisplay(dateRange.to)}
               </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse">
-                  <thead>
-                    <tr className="bg-muted">
-                      <th className="px-4 py-3 text-left text-sm font-medium">Employee</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium">Date</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium">Check In</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium">Check Out</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium">Location</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium">Status</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium">Overtime</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium">Reason</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {attendanceData.map((record: AttendanceRecord) => (
-                      <tr key={record.id} className="border-b hover:bg-muted/50">
-                        <td className="px-4 py-3 text-sm">
-                          <div className="flex items-center space-x-2">
-                            <Avatar className="h-8 w-8">
-                              <AvatarFallback className="bg-primary text-white">
-                                {record.userName.charAt(0)}
-                              </AvatarFallback>
-                            </Avatar>
-                            <span className="font-medium">{record.userName}</span>
+            </TabsContent>
+            
+            {/* Detailed report tab with table */}
+            <TabsContent value="detailed">
+              <div className="rounded-md border mt-4">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Employee</TableHead>
+                      <TableHead>Department</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Check In</TableHead>
+                      <TableHead>Check Out</TableHead>
+                      <TableHead>Location</TableHead>
+                      <TableHead>Overtime</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {isLoading ? (
+                      <TableRow>
+                        <TableCell colSpan={8} className="text-center py-10">
+                          <div className="flex justify-center">
+                            <Loader2 className="h-8 w-8 animate-spin text-primary" />
                           </div>
-                        </td>
-                        <td className="px-4 py-3 text-sm">
-                          <div className="flex items-center">
-                            <Calendar className="h-4 w-4 mr-1 text-muted-foreground" />
-                            {format(new Date(record.date), 'dd MMM yyyy')}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-sm">
-                          <div className="flex items-center">
-                            <Clock className="h-4 w-4 mr-1 text-green-500" />
-                            {record.checkInTime 
-                              ? format(new Date(record.checkInTime), 'hh:mm a') 
-                              : '-'}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-sm">
-                          <div className="flex items-center">
-                            <Clock className="h-4 w-4 mr-1 text-red-500" />
-                            {record.checkOutTime 
-                              ? format(new Date(record.checkOutTime), 'hh:mm a') 
-                              : '-'}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-sm">
-                          <div className="flex items-center">
-                            <MapPin className="h-4 w-4 mr-1 text-muted-foreground" />
-                            <Badge variant={record.location === 'office' ? 'outline' : 'secondary'}>
-                              {record.location === 'office' ? 'Office' : 'Field'}
+                          <p className="text-sm text-gray-500 mt-2">Loading attendance records...</p>
+                        </TableCell>
+                      </TableRow>
+                    ) : filteredRecords.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={8} className="text-center py-10 text-gray-500">
+                          No attendance records found for the selected criteria
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      filteredRecords.map((record: any) => (
+                        <TableRow key={record.id}>
+                          <TableCell>
+                            {record.date ? formatDate(new Date(record.date)) : "-"}
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            {record.userName || "-"}
+                          </TableCell>
+                          <TableCell>
+                            {record.userDepartment || "-"}
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={cn("font-medium capitalize", 
+                              record.status in statusStyles 
+                                ? statusStyles[record.status as keyof typeof statusStyles] 
+                                : "bg-gray-100"
+                            )}>
+                              {record.status}
                             </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {record.checkInTime ? formatTime(new Date(record.checkInTime)) : "-"}
+                          </TableCell>
+                          <TableCell>
+                            {record.checkOutTime ? formatTime(new Date(record.checkOutTime)) : "-"}
+                          </TableCell>
+                          <TableCell className="capitalize">
+                            {record.location || "-"}
+                          </TableCell>
+                          <TableCell>
+                            {record.overtimeHours ? `${record.overtimeHours} hrs` : "-"}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </TabsContent>
+            
+            {/* Employee stats tab */}
+            <TabsContent value="employee">
+              <div className="rounded-md border mt-4">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Employee</TableHead>
+                      <TableHead>Present</TableHead>
+                      <TableHead>Absent</TableHead>
+                      <TableHead>Leave</TableHead>
+                      <TableHead>Late</TableHead>
+                      <TableHead>Present %</TableHead>
+                      <TableHead>Overtime Hours</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {isLoading ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center py-10">
+                          <div className="flex justify-center">
+                            <Loader2 className="h-8 w-8 animate-spin text-primary" />
                           </div>
-                        </td>
-                        <td className="px-4 py-3 text-sm">
-                          <Badge 
-                            variant={
-                              record.status === 'completed' ? 'default' :
-                              record.status === 'in_progress' ? 'secondary' : 'outline'
-                            }
-                          >
-                            {record.status === 'completed' ? 'Completed' :
-                             record.status === 'in_progress' ? 'In Progress' : 
-                             record.status}
-                          </Badge>
-                        </td>
-                        <td className="px-4 py-3 text-sm">
-                          {record.overtimeHours > 0 ? (
-                            <Badge variant="secondary" className="bg-blue-100 text-blue-800 hover:bg-blue-100">
-                              {record.overtimeHours.toFixed(2)} hrs
-                            </Badge>
-                          ) : '-'}
-                        </td>
-                        <td className="px-4 py-3 text-sm max-w-[200px] truncate">
-                          {record.reason || '-'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                          <p className="text-sm text-gray-500 mt-2">Loading employee statistics...</p>
+                        </TableCell>
+                      </TableRow>
+                    ) : employeeStats.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center py-10 text-gray-500">
+                          No employee records found for the selected criteria
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      employeeStats.map((employee, index) => (
+                        <TableRow key={index}>
+                          <TableCell className="font-medium">
+                            {employee.name}
+                          </TableCell>
+                          <TableCell>{employee.present}</TableCell>
+                          <TableCell>{employee.absent}</TableCell>
+                          <TableCell>{employee.leave}</TableCell>
+                          <TableCell>{employee.late}</TableCell>
+                          <TableCell>
+                            {Math.round((employee.present / employee.total) * 100) || 0}%
+                          </TableCell>
+                          <TableCell>
+                            {employee.overtimeHours.toFixed(1)} hrs
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
               </div>
-            )}
-          </TabsContent>
-          
-          <TabsContent value="chart" className="mt-0">
-            {loadingAttendance ? (
-              <div className="w-full h-[400px] flex items-center justify-center">
-                <Skeleton className="h-[350px] w-full" />
-              </div>
-            ) : !chartData || chartData.labels.length === 0 ? (
-              <div className="text-center py-8">
-                <InfoIcon className="mx-auto h-12 w-12 text-muted-foreground" />
-                <h3 className="mt-2 text-lg font-medium">No data available for chart</h3>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Try changing your filters or select a different date range.
-                </p>
-              </div>
-            ) : (
-              <div className="w-full h-[400px]">
-                <Bar data={chartData} options={chartOptions} height={350} />
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
-      </CardContent>
-      
-      <CardFooter className="flex flex-col items-start border-t p-4">
-        <div className="flex gap-4 flex-wrap">
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-green-500"></div>
-            <span className="text-sm">On Time Check-in</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-amber-500"></div>
-            <span className="text-sm">Late Check-in</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-            <span className="text-sm">Field Location</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-primary"></div>
-            <span className="text-sm">Overtime</span>
-          </div>
+            </TabsContent>
+          </Tabs>
         </div>
-        <p className="text-sm text-muted-foreground mt-2">
-          <UserCheck className="h-4 w-4 inline mr-1" />
-          {attendanceData ? attendanceData.length : 0} records found for the selected period
-        </p>
-      </CardFooter>
+      </CardContent>
     </Card>
   );
 }

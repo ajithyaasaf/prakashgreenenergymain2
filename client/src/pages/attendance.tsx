@@ -34,7 +34,7 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import { CalendarIcon, Search, Loader2, FileText, BarChart } from "lucide-react";
+import { CalendarIcon, Search, Loader2, FileText, BarChart, UserCheck, Clock } from "lucide-react";
 import { CheckInModal } from "@/components/dashboard/check-in-modal";
 import { AttendanceReport } from "@/components/dashboard/attendance-report";
 
