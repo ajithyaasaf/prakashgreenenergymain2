@@ -59,7 +59,12 @@ try {
     currentUser: null, 
     onAuthStateChanged: (cb: (user: User | null) => void) => { cb(null); return () => {}; } 
   } as ReturnType<typeof getAuth>;
-  db = { collection: () => ({}) } as ReturnType<typeof getFirestore>;
+  db = { 
+    collection: () => ({}),
+    type: 'firestore',
+    app: {} as any,
+    toJSON: () => ({})
+  } as ReturnType<typeof getFirestore>;
   storage = {} as ReturnType<typeof getStorage>;
 }
 const googleProvider = new GoogleAuthProvider();
@@ -123,8 +128,8 @@ export const fetchFirestoreUsers = async () => {
       if (authUser) {
         return {
           ...firestoreUser,
-          email: authUser.email || firestoreUser.email,
-          displayName: authUser.displayName || firestoreUser.displayName
+          email: authUser.email || firestoreUser.email || null,
+          displayName: authUser.displayName || firestoreUser.displayName || null
         };
       }
       
@@ -176,11 +181,21 @@ export const getAuthUserData = async (uid: string) => {
   return null;
 };
 
+// Define a type for Firestore user data
+interface FirestoreUser {
+  uid: string;
+  email?: string;
+  displayName?: string;
+  role?: "master_admin" | "admin" | "employee";
+  department?: "cre" | "accounts" | "hr" | "sales_and_marketing" | "technical_team" | null;
+  [key: string]: any; // For other fields that might be present
+}
+
 // Function to sync a specific user with our application database
 export const syncUser = async (uid: string, forceFull = false) => {
   try {
     // Get user data from Firestore
-    const firestoreUser = await getFirestoreUserData(uid);
+    const firestoreUser = await getFirestoreUserData(uid) as FirestoreUser | null;
     
     // Get user auth data if available
     const authUser = await getAuthUserData(uid);

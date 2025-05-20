@@ -102,22 +102,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // Keep existing user during transitions to prevent UI flicker
     let currentUser: AuthUser | null = null;
+    let isInitialAuth = true;
     
     const unsubscribe = onAuthChange(async (firebaseUser) => {
-      // Don't immediately clear the user when auth state changes
-      // This prevents the UI from flickering during transitions
+      // Handle logout
       if (!firebaseUser) {
-        // Only clear the user after a short delay to ensure it's a real logout
-        setTimeout(() => {
-          setUser(null);
-          setLoading(false);
-        }, 300);
+        setUser(null);
+        setLoading(false);
         return;
       }
       
-      // Set temporary basic user info immediately upon login
-      // This ensures that users see they're logged in while we fetch additional data
-      if (firebaseUser && !currentUser) {
+      // If this is the first auth event or we're changing users
+      if (isInitialAuth || !currentUser || currentUser.uid !== firebaseUser.uid) {
+        // Set loading state immediately
+        setLoading(true);
+        
+        // Create temporary user object
         currentUser = {
           uid: firebaseUser.uid,
           email: firebaseUser.email,
@@ -126,44 +126,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           role: "employee", // Default role, will be updated
           department: null,
         };
-        setUser(currentUser);
-      }
-      
-      setLoading(true);
-      try {
-        // Import syncUser function for auto-sync
-        const { syncUser } = await import("@/lib/firebase");
         
-        // Sync this user with our database
-        const result = await syncUser(firebaseUser.uid, true);
-        
-        if (result.status === 'error') {
-          // If there was an error syncing, fall back to basic auth
-          handleBasicAuth(firebaseUser);
-          return;
+        // Only set the temporary user if this is not the initial auth
+        // For initial auth, wait for full data to prevent the login screen flash
+        if (!isInitialAuth) {
+          setUser(currentUser);
         }
         
-        // Get the user data and update state
-        const userData = result.user;
-        
-        // Update our current user reference
-        currentUser = {
-          uid: firebaseUser.uid,
-          email: userData.email || firebaseUser.email,
-          displayName: userData.displayName || firebaseUser.displayName,
-          photoURL: firebaseUser.photoURL,
-          role: userData.role,
-          department: userData.department,
-          id: userData.id,
-        };
-        
-        setUser(currentUser);
-      } catch (error) {
-        console.error("Error syncing user data:", error);
-        // Fall back to basic auth if there was an error
-        handleBasicAuth(firebaseUser);
-      } finally {
-        setLoading(false);
+        try {
+          // Import syncUser function for auto-sync
+          const { syncUser } = await import("@/lib/firebase");
+          
+          // Sync this user with our database
+          const result = await syncUser(firebaseUser.uid, true);
+          
+          if (result.status === 'error') {
+            // If there was an error syncing, fall back to basic auth
+            handleBasicAuth(firebaseUser);
+            return;
+          }
+          
+          // Get the user data and update state
+          const userData = result.user;
+          
+          // Update our current user reference
+          currentUser = {
+            uid: firebaseUser.uid,
+            email: userData.email || firebaseUser.email,
+            displayName: userData.displayName || firebaseUser.displayName,
+            photoURL: firebaseUser.photoURL,
+            role: userData.role,
+            department: userData.department,
+            id: userData.id,
+          };
+          
+          // Set the complete user data
+          setUser(currentUser);
+          // Mark that we've completed the initial auth
+          isInitialAuth = false;
+        } catch (error) {
+          console.error("Error syncing user data:", error);
+          // Fall back to basic auth if there was an error
+          handleBasicAuth(firebaseUser);
+        } finally {
+          setLoading(false);
+        }
       }
     });
 
