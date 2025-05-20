@@ -286,13 +286,22 @@ export default function Departments() {
         </CardContent>
       </Card>
 
-      {/* Add Department Dialog */}
-      <Dialog open={showAddDepartmentDialog} onOpenChange={setShowAddDepartmentDialog}>
+      {/* Add/Edit Department Dialog */}
+      <Dialog 
+        open={showAddDepartmentDialog || showEditDialog} 
+        onOpenChange={(open) => {
+          if (!open) {
+            resetForm();
+            setShowAddDepartmentDialog(false);
+            setShowEditDialog(false);
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>Add New Department</DialogTitle>
+            <DialogTitle>{showEditDialog ? 'Edit Department' : 'Add New Department'}</DialogTitle>
             <DialogDescription>
-              Create a new department in the organization.
+              {showEditDialog ? 'Update department information.' : 'Create a new department in the organization.'}
             </DialogDescription>
           </DialogHeader>
           <form className="space-y-4 py-4" onSubmit={(e) => {
@@ -358,6 +367,33 @@ export default function Departments() {
           </form>
         </DialogContent>
       </Dialog>
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the department
+              {currentDepartment ? ` "${currentDepartment.name}"` : ''} and all related data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (currentDepartment) {
+                  deleteDepartmentMutation.mutate(currentDepartment.id);
+                }
+              }}
+              disabled={deleteDepartmentMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteDepartmentMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin inline" /> : null}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
