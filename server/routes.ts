@@ -15,6 +15,311 @@ import {
 } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Office location endpoints
+  app.get('/api/office-locations', async (req, res) => {
+    try {
+      const officeLocations = await storage.listOfficeLocations();
+      res.json(officeLocations);
+    } catch (error) {
+      console.error('Error fetching office locations:', error);
+      res.status(500).json({ message: 'Failed to fetch office locations' });
+    }
+  });
+
+  app.get('/api/office-locations/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const officeLocation = await storage.getOfficeLocation(id);
+      
+      if (!officeLocation) {
+        return res.status(404).json({ message: 'Office location not found' });
+      }
+      
+      res.json(officeLocation);
+    } catch (error) {
+      console.error('Error fetching office location:', error);
+      res.status(500).json({ message: 'Failed to fetch office location' });
+    }
+  });
+
+  app.post('/api/office-locations', async (req, res) => {
+    try {
+      const newLocation = req.body;
+      const officeLocation = await storage.createOfficeLocation(newLocation);
+      res.status(201).json(officeLocation);
+    } catch (error) {
+      console.error('Error creating office location:', error);
+      res.status(500).json({ message: 'Failed to create office location' });
+    }
+  });
+
+  app.patch('/api/office-locations/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const updateData = req.body;
+      const updatedLocation = await storage.updateOfficeLocation(id, updateData);
+      
+      if (!updatedLocation) {
+        return res.status(404).json({ message: 'Office location not found' });
+      }
+      
+      res.json(updatedLocation);
+    } catch (error) {
+      console.error('Error updating office location:', error);
+      res.status(500).json({ message: 'Failed to update office location' });
+    }
+  });
+
+  app.delete('/api/office-locations/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const result = await storage.deleteOfficeLocation(id);
+      
+      if (!result) {
+        return res.status(404).json({ message: 'Office location not found' });
+      }
+      
+      res.status(204).end();
+    } catch (error) {
+      console.error('Error deleting office location:', error);
+      res.status(500).json({ message: 'Failed to delete office location' });
+    }
+  });
+  
+  // Attendance endpoints
+  app.get('/api/attendance', async (req, res) => {
+    try {
+      let attendanceRecords;
+      const { userId, date } = req.query;
+      
+      if (userId && date) {
+        // Get attendance for specific user and date
+        const parsedDate = new Date(date as string);
+        attendanceRecords = await storage.getAttendanceByUserAndDate(
+          parseInt(userId as string), 
+          parsedDate
+        );
+      } else if (userId) {
+        // Get all attendance records for a user
+        attendanceRecords = await storage.listAttendanceByUser(parseInt(userId as string));
+      } else if (date) {
+        // Get all attendance records for a specific date
+        const parsedDate = new Date(date as string);
+        attendanceRecords = await storage.listAttendanceByDate(parsedDate);
+      } else {
+        // Return error if no parameters provided
+        return res.status(400).json({ message: 'Missing required parameters (userId or date)' });
+      }
+      
+      res.json(attendanceRecords || []);
+    } catch (error) {
+      console.error('Error fetching attendance records:', error);
+      res.status(500).json({ message: 'Failed to fetch attendance records' });
+    }
+  });
+
+  app.post('/api/attendance/check-in', async (req, res) => {
+    try {
+      const { userId, latitude, longitude, location = 'office', customerId, reason } = req.body;
+      
+      if (!userId) {
+        return res.status(400).json({ message: 'Missing required parameter: userId' });
+      }
+      
+      // Validate check-in time (only after 9:30 AM)
+      const now = new Date();
+      const checkInTime = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate(),
+        now.getHours(),
+        now.getMinutes()
+      );
+      
+      const minCheckInTime = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate(),
+        9, // 9 hours
+        30 // 30 minutes
+      );
+      
+      // Check if current time is before 9:30 AM
+      if (checkInTime < minCheckInTime) {
+        return res.status(400).json({ 
+          message: 'Check-in is only available after 9:30 AM',
+          currentTime: checkInTime,
+          minCheckInTime: minCheckInTime
+        });
+      }
+      
+      // Check if user already checked in today
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const existingAttendance = await storage.getAttendanceByUserAndDate(
+        parseInt(userId), 
+        today
+      );
+      
+      if (existingAttendance) {
+        return res.status(400).json({ 
+          message: 'You have already checked in today',
+          attendance: existingAttendance
+        });
+      }
+      
+      // Create attendance record
+      const newAttendance = await storage.createAttendance({
+        userId: parseInt(userId),
+        date: today,
+        checkInTime,
+        location,
+        customerId: customerId ? parseInt(customerId) : undefined,
+        reason,
+        checkInLatitude: latitude,
+        checkInLongitude: longitude,
+        status: 'present'
+      });
+      
+      res.status(201).json(newAttendance);
+    } catch (error) {
+      console.error('Error checking in:', error);
+      res.status(500).json({ message: 'Failed to process check-in' });
+    }
+  });
+
+  app.post('/api/attendance/check-out', async (req, res) => {
+    try {
+      const { 
+        userId, 
+        latitude, 
+        longitude, 
+        photoUrl,
+        reason 
+      } = req.body;
+      
+      if (!userId) {
+        return res.status(400).json({ message: 'Missing required parameter: userId' });
+      }
+      
+      // Find user to determine department
+      const user = await storage.getUser(parseInt(userId));
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      
+      // Check if user has checked in today
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const attendanceRecord = await storage.getAttendanceByUserAndDate(
+        parseInt(userId), 
+        today
+      );
+      
+      if (!attendanceRecord) {
+        return res.status(400).json({ message: 'No check-in record found for today' });
+      }
+      
+      // Calculate checkout time restrictions based on department
+      const now = new Date();
+      const checkOutTime = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate(),
+        now.getHours(),
+        now.getMinutes()
+      );
+      
+      // Determine minimum checkout time based on department
+      // Field staff (Sales & Marketing, Technical) can leave at 7:30 PM
+      // Office staff (CRE, Accounts, HR) can leave at 6:30 PM
+      const isFieldStaff = user.department === 'sales_and_marketing' || 
+                          user.department === 'technical_team';
+      
+      const minCheckOutHour = isFieldStaff ? 19 : 18; // 7:30 PM or 6:30 PM
+      const minCheckOutMinute = isFieldStaff ? 30 : 30;
+      
+      const minCheckOutTime = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate(),
+        minCheckOutHour,
+        minCheckOutMinute
+      );
+      
+      // Determine if the user is checking out before the allowed time
+      const earlyCheckout = checkOutTime < minCheckOutTime;
+      
+      // If user is checking out early and no reason is provided
+      if (earlyCheckout && !reason) {
+        return res.status(400).json({ 
+          message: 'Early checkout requires a reason',
+          currentTime: checkOutTime,
+          requiredCheckOutTime: minCheckOutTime
+        });
+      }
+      
+      // If out of office checkout, require a photo
+      const isRemoteCheckout = 
+        attendanceRecord.location === 'field' || 
+        (attendanceRecord.checkInLatitude && attendanceRecord.checkInLongitude && 
+        latitude && longitude && 
+        (attendanceRecord.checkInLatitude !== latitude || 
+         attendanceRecord.checkInLongitude !== longitude));
+      
+      if (isRemoteCheckout && !photoUrl) {
+        return res.status(400).json({ 
+          message: 'Photo is required for checkout outside of office location'
+        });
+      }
+      
+      // Update attendance record with checkout info
+      const updatedAttendance = await storage.updateAttendance(attendanceRecord.id, {
+        checkOutTime,
+        checkOutLatitude: latitude,
+        checkOutLongitude: longitude,
+        checkOutImageUrl: photoUrl,
+        reason: earlyCheckout ? reason : attendanceRecord.reason
+      });
+      
+      // Check if Technical team member is working overtime
+      let overtimeHours = 0;
+      if (user.department === 'technical_team' && !earlyCheckout) {
+        // Calculate overtime (time after 7:30 PM)
+        const standardEndTime = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate(),
+          19, // 7 PM
+          30 // 30 minutes
+        );
+        
+        if (checkOutTime > standardEndTime) {
+          // Calculate overtime in hours
+          overtimeHours = (checkOutTime.getTime() - standardEndTime.getTime()) / (1000 * 60 * 60);
+          
+          // Update record with overtime info
+          await storage.updateAttendance(attendanceRecord.id, {
+            ...updatedAttendance,
+            overtimeHours
+          });
+        }
+      }
+      
+      res.json({
+        ...updatedAttendance,
+        overtimeHours,
+        earlyCheckout,
+        minCheckOutTime
+      });
+    } catch (error) {
+      console.error('Error checking out:', error);
+      res.status(500).json({ message: 'Failed to process check-out' });
+    }
+  });
+  
   // Users
   app.get("/api/users", async (req, res) => {
     const users = await storage.listUsers();
