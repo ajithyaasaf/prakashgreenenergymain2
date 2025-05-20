@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuthContext } from "@/contexts/auth-context";
+import { usePermissions } from "@/hooks/use-permissions";
 import { formatDate, formatTime } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,15 +27,24 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import { CalendarIcon, Search, Loader2 } from "lucide-react";
+import { CalendarIcon, Search, Loader2, FileText, BarChart } from "lucide-react";
 import { CheckInModal } from "@/components/dashboard/check-in-modal";
+import { AttendanceReport } from "@/components/dashboard/attendance-report";
 
 export default function Attendance() {
   const { user } = useAuthContext();
+  const { hasPermission } = usePermissions();
   const [date, setDate] = useState<Date>(new Date());
   const [showCheckInModal, setShowCheckInModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState("daily");
   
   // Fetch attendance records for the selected date
   const { data: attendanceRecords, isLoading, refetch } = useQuery({
@@ -115,175 +125,202 @@ export default function Attendance() {
 
   return (
     <>
-      <Card className="mb-6">
-        <CardHeader className="flex flex-row items-center justify-between px-6 py-4">
-          <div>
-            <CardTitle className="text-xl">Attendance</CardTitle>
-            <CardDescription>Track employee attendance</CardDescription>
-          </div>
-          
-          <div className="flex space-x-2">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="border-gray-300">
-                  <CalendarIcon className="h-4 w-4 mr-2" />
-                  {formatDate(date)}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                <Calendar
-                  mode="single"
-                  selected={date}
-                  onSelect={(date) => date && setDate(date)}
-                  className="rounded-md border"
-                />
-              </PopoverContent>
-            </Popover>
+      <div className="mb-6">
+        <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="w-full">
+          <div className="flex justify-between items-center mb-4">
+            <TabsList>
+              <TabsTrigger value="daily" className="flex items-center gap-1">
+                <CalendarIcon className="h-4 w-4" />
+                <span>Daily Attendance</span>
+              </TabsTrigger>
+              {hasPermission('view_all_reports') && (
+                <TabsTrigger value="reports" className="flex items-center gap-1">
+                  <BarChart className="h-4 w-4" />
+                  <span>Reports</span>
+                </TabsTrigger>
+              )}
+            </TabsList>
             
-            <Button 
-              onClick={handleCheckInOut}
-              className="bg-primary hover:bg-primary-dark text-white"
-              disabled={!canCheckIn && !canCheckOut}
-            >
-              {canCheckOut ? "Check Out" : "Check In"}
-            </Button>
-          </div>
-        </CardHeader>
-        
-        <CardContent className="px-6">
-          {/* Current day summary */}
-          <div className="mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Card className="bg-gray-50">
-              <CardContent className="p-4 flex justify-between items-center">
-                <div>
-                  <p className="text-sm text-gray-500">Present</p>
-                  <p className="text-2xl font-bold">
-                    {attendanceRecords?.filter(r => r.status === 'present').length || 0}
-                  </p>
-                </div>
-                <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center text-green-600">
-                  <i className="ri-user-follow-line text-lg"></i>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card className="bg-gray-50">
-              <CardContent className="p-4 flex justify-between items-center">
-                <div>
-                  <p className="text-sm text-gray-500">On Leave</p>
-                  <p className="text-2xl font-bold">
-                    {attendanceRecords?.filter(r => r.status === 'leave').length || 0}
-                  </p>
-                </div>
-                <div className="h-10 w-10 rounded-full bg-yellow-100 flex items-center justify-center text-yellow-600">
-                  <i className="ri-calendar-check-line text-lg"></i>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card className="bg-gray-50">
-              <CardContent className="p-4 flex justify-between items-center">
-                <div>
-                  <p className="text-sm text-gray-500">Absent</p>
-                  <p className="text-2xl font-bold">
-                    {attendanceRecords?.filter(r => r.status === 'absent').length || 0}
-                  </p>
-                </div>
-                <div className="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center text-red-600">
-                  <i className="ri-user-unfollow-line text-lg"></i>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card className="bg-gray-50">
-              <CardContent className="p-4 flex justify-between items-center">
-                <div>
-                  <p className="text-sm text-gray-500">Late</p>
-                  <p className="text-2xl font-bold">
-                    {attendanceRecords?.filter(r => r.status === 'late').length || 0}
-                  </p>
-                </div>
-                <div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600">
-                  <i className="ri-time-line text-lg"></i>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-          
-          <div className="mb-4 flex items-center">
-            <div className="relative w-full md:w-96">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              <Input
-                placeholder="Search by employee name"
-                className="pl-10"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+            <div className="flex space-x-2">
+              {activeTab === 'daily' && (
+                <>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="border-gray-300">
+                        <CalendarIcon className="h-4 w-4 mr-2" />
+                        {formatDate(date)}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={date}
+                        onSelect={(date) => date && setDate(date)}
+                        className="rounded-md border"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  
+                  <Button 
+                    onClick={handleCheckInOut}
+                    className="bg-primary hover:bg-primary/90 text-white"
+                    disabled={!canCheckIn && !canCheckOut}
+                  >
+                    {canCheckOut ? "Check Out" : "Check In"}
+                  </Button>
+                </>
+              )}
             </div>
           </div>
-
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Employee</TableHead>
-                  <TableHead>Check In</TableHead>
-                  <TableHead>Check Out</TableHead>
-                  <TableHead>Location</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Remarks</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8">
-                      <div className="flex justify-center">
-                        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          
+          <TabsContent value="daily" className="space-y-4">
+            <Card>
+              <CardHeader className="p-4">
+                <CardTitle className="text-xl">Daily Attendance</CardTitle>
+                <CardDescription>Track employee attendance for {formatDate(date)}</CardDescription>
+              </CardHeader>
+              
+              <CardContent className="px-6">
+                {/* Current day summary */}
+                <div className="mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <Card className="bg-gray-50">
+                    <CardContent className="p-4 flex justify-between items-center">
+                      <div>
+                        <p className="text-sm text-gray-500">Present</p>
+                        <p className="text-2xl font-bold">
+                          {attendanceRecords?.filter(r => r.status === 'present').length || 0}
+                        </p>
                       </div>
-                    </TableCell>
-                  </TableRow>
-                ) : filteredRecords?.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-gray-500">
-                      {searchQuery ? "No employees match your search" : "No attendance records found"}
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredRecords?.map((record: any) => (
-                    <TableRow key={record.id}>
-                      <TableCell className="font-medium">
-                        {record.userName}
-                      </TableCell>
-                      <TableCell>
-                        {record.checkInTime ? formatTime(new Date(record.checkInTime)) : "-"}
-                      </TableCell>
-                      <TableCell>
-                        {record.checkOutTime ? formatTime(new Date(record.checkOutTime)) : "-"}
-                      </TableCell>
-                      <TableCell className="capitalize">
-                        {record.location || "-"}
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={cn("font-medium capitalize", 
-                          record.status in statusStyles 
-                            ? statusStyles[record.status as keyof typeof statusStyles] 
-                            : "bg-gray-100"
-                        )}>
-                          {record.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {record.status === "leave" ? "Approved Leave" : "-"}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+                      <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center text-green-600">
+                        <UserCheck className="h-5 w-5" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card className="bg-gray-50">
+                    <CardContent className="p-4 flex justify-between items-center">
+                      <div>
+                        <p className="text-sm text-gray-500">On Leave</p>
+                        <p className="text-2xl font-bold">
+                          {attendanceRecords?.filter(r => r.status === 'leave').length || 0}
+                        </p>
+                      </div>
+                      <div className="h-10 w-10 rounded-full bg-yellow-100 flex items-center justify-center text-yellow-600">
+                        <Calendar className="h-5 w-5" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card className="bg-gray-50">
+                    <CardContent className="p-4 flex justify-between items-center">
+                      <div>
+                        <p className="text-sm text-gray-500">Absent</p>
+                        <p className="text-2xl font-bold">
+                          {attendanceRecords?.filter(r => r.status === 'absent').length || 0}
+                        </p>
+                      </div>
+                      <div className="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center text-red-600">
+                        <FileText className="h-5 w-5" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card className="bg-gray-50">
+                    <CardContent className="p-4 flex justify-between items-center">
+                      <div>
+                        <p className="text-sm text-gray-500">Late</p>
+                        <p className="text-2xl font-bold">
+                          {attendanceRecords?.filter(r => r.status === 'late').length || 0}
+                        </p>
+                      </div>
+                      <div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600">
+                        <Clock className="h-5 w-5" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+                
+                <div className="mb-4 flex items-center">
+                  <div className="relative w-full md:w-96">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    <Input
+                      placeholder="Search by employee name"
+                      className="pl-10"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Employee</TableHead>
+                        <TableHead>Check In</TableHead>
+                        <TableHead>Check Out</TableHead>
+                        <TableHead>Location</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Remarks</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {isLoading ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center py-8">
+                            <div className="flex justify-center">
+                              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ) : filteredRecords?.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                            {searchQuery ? "No employees match your search" : "No attendance records found"}
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        filteredRecords?.map((record: any) => (
+                          <TableRow key={record.id}>
+                            <TableCell className="font-medium">
+                              {record.userName}
+                            </TableCell>
+                            <TableCell>
+                              {record.checkInTime ? formatTime(new Date(record.checkInTime)) : "-"}
+                            </TableCell>
+                            <TableCell>
+                              {record.checkOutTime ? formatTime(new Date(record.checkOutTime)) : "-"}
+                            </TableCell>
+                            <TableCell className="capitalize">
+                              {record.location || "-"}
+                            </TableCell>
+                            <TableCell>
+                              <Badge className={cn("font-medium capitalize", 
+                                record.status in statusStyles 
+                                  ? statusStyles[record.status as keyof typeof statusStyles] 
+                                  : "bg-gray-100"
+                              )}>
+                                {record.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {record.status === "leave" ? "Approved Leave" : "-"}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="reports">
+            {hasPermission('view_all_reports') && <AttendanceReport />}
+          </TabsContent>
+        </Tabs>
+      </div>
 
       {/* Check-in Modal */}
       <CheckInModal open={showCheckInModal} onOpenChange={setShowCheckInModal} />
