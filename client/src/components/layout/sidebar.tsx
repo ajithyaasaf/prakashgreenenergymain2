@@ -2,6 +2,7 @@ import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { useAuthContext } from "@/contexts/auth-context";
 import { Leaf, LogOut } from "lucide-react";
+import { useEffect, useState } from "react";
 
 interface NavItem {
   href: string;
@@ -15,6 +16,8 @@ interface NavItem {
 export function Sidebar() {
   const [location] = useLocation();
   const { user, hasPermission, isDepartmentMember } = useAuthContext();
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isMd, setIsMd] = useState(false);
   
   // Import permissions hook
   const permissions = (() => {
@@ -25,6 +28,22 @@ export function Sidebar() {
       return {};
     }
   })();
+
+  // Handle responsive window resizing
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMd(window.innerWidth >= 768);
+    };
+    
+    // Set initial state
+    handleResize();
+    
+    // Add event listener
+    window.addEventListener('resize', handleResize);
+    
+    // Clean up
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Define navigation items with role-based and department-based visibility
   const navItems: NavItem[] = [
@@ -129,49 +148,88 @@ export function Sidebar() {
   });
 
   return (
-    <aside className="hidden md:flex md:w-64 flex-col bg-white border-r border-gray-200 h-full">
-      <div className="p-4 border-b border-gray-200 flex items-center justify-center">
-        <div className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-md bg-primary flex items-center justify-center">
+    <aside 
+      className={cn(
+        "hidden md:flex flex-col bg-white border-r border-gray-200 h-full transition-all duration-300 ease-in-out",
+        isCollapsed ? "md:w-20" : "md:w-64",
+      )}
+    >
+      <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+        <div className={cn(
+          "flex items-center gap-2",
+          isCollapsed && "justify-center w-full"
+        )}>
+          <div className="h-8 w-8 rounded-md bg-primary flex items-center justify-center flex-shrink-0">
             <Leaf className="h-5 w-5 text-white" />
           </div>
-          <span className="font-bold text-xl">Prakash Greens</span>
+          {!isCollapsed && <span className="font-bold text-xl whitespace-nowrap">Prakash Greens</span>}
         </div>
+        {isMd && (
+          <button 
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="text-gray-500 hover:text-gray-700"
+            aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            <i className={`${isCollapsed ? 'ri-menu-unfold-line' : 'ri-menu-fold-line'} text-lg`}></i>
+          </button>
+        )}
       </div>
       <div className="overflow-y-auto flex-grow p-2">
-        <nav className="space-y-1">
+        <nav className={cn("space-y-1", isCollapsed && "flex flex-col items-center")}>
           {filteredNavItems.map((item, index) => (
             <Link 
               key={index} 
               href={item.href}
               className={cn(
-                "sidebar-item flex items-center px-4 py-3 rounded-md hover:bg-gray-100 text-gray-700",
-                location === item.href && "active border-l-4 border-primary bg-primary/10"
+                "sidebar-item flex items-center px-4 py-3 rounded-md hover:bg-gray-100 text-gray-700 transition-colors duration-200",
+                isCollapsed && "justify-center px-2",
+                location === item.href && "active bg-primary/10",
+                !isCollapsed && location === item.href && "border-l-4 border-primary"
               )}
+              title={isCollapsed ? item.label : undefined}
             >
-              {item.icon}
-              <span>{item.label}</span>
+              <div className={isCollapsed ? "mx-auto" : ""}>{item.icon}</div>
+              {!isCollapsed && <span className="truncate">{item.label}</span>}
             </Link>
           ))}
         </nav>
       </div>
-      <div className="p-4 border-t border-gray-200">
-        <div className="flex items-center">
-          <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
-            {user?.photoURL ? (
-              <img 
-                src={user.photoURL} 
-                alt={user.displayName || "User"} 
-                className="h-10 w-10 rounded-full"
-              />
-            ) : (
-              <i className="ri-user-line text-gray-500"></i>
-            )}
+      <div className={cn(
+        "p-4 border-t border-gray-200",
+        isCollapsed && "flex justify-center"
+      )}>
+        {!isCollapsed ? (
+          <div className="flex items-center">
+            <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
+              {user?.photoURL ? (
+                <img 
+                  src={user.photoURL} 
+                  alt={user.displayName || "User"} 
+                  className="h-10 w-10 rounded-full object-cover"
+                />
+              ) : (
+                <i className="ri-user-line text-gray-500"></i>
+              )}
+            </div>
+            <div className="ml-3 min-w-0">
+              <p className="font-medium text-sm truncate">{user?.displayName || "User"}</p>
+              <p className="text-xs text-gray-500 truncate">{user?.role === "master_admin" ? "Master Admin" : user?.role === "admin" ? "Admin" : "Employee"}</p>
+            </div>
+            <button 
+              onClick={() => {
+                import("@/lib/firebase").then(({ logoutUser }) => {
+                  logoutUser().then(() => {
+                    window.location.href = "/login";
+                  });
+                });
+              }} 
+              className="ml-auto text-gray-500 hover:text-gray-700 cursor-pointer"
+              aria-label="Logout"
+            >
+              <LogOut className="h-5 w-5" />
+            </button>
           </div>
-          <div className="ml-3">
-            <p className="font-medium text-sm">{user?.displayName || "User"}</p>
-            <p className="text-xs text-gray-500">{user?.role === "master_admin" ? "Master Admin" : user?.role === "admin" ? "Admin" : "Employee"}</p>
-          </div>
+        ) : (
           <button 
             onClick={() => {
               import("@/lib/firebase").then(({ logoutUser }) => {
@@ -180,11 +238,12 @@ export function Sidebar() {
                 });
               });
             }} 
-            className="ml-auto text-gray-500 hover:text-gray-700 cursor-pointer"
+            className="text-gray-500 hover:text-gray-700 cursor-pointer"
+            aria-label="Logout"
           >
             <LogOut className="h-5 w-5" />
           </button>
-        </div>
+        )}
       </div>
     </aside>
   );
