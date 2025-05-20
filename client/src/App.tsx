@@ -19,67 +19,101 @@ import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { AuthProvider, useAuthContext } from "@/contexts/auth-context";
 import { Loader2 } from "lucide-react";
 
-function AuthenticatedRoute({ component: Component }: { component: React.ComponentType }) {
-  const { user, loading } = useAuthContext();
-
-  if (loading) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <span className="ml-2 text-lg">Loading...</span>
-      </div>
-    );
-  }
-
-  if (!user) {
-    window.location.href = "/login";
-    return null;
-  }
-
-  return (
-    <DashboardLayout>
-      <Component />
-    </DashboardLayout>
-  );
-}
+import { ProtectedRoute } from "@/components/auth/protected-route";
 
 function Router() {
   return (
     <Switch>
-      {/* Public routes */}
+      {/* Public routes - no auth required */}
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
       
-      {/* Protected routes */}
+      {/* Protected routes - basic authentication required */}
       <Route path="/">
-        <AuthenticatedRoute component={Dashboard} />
+        <ProtectedRoute>
+          <DashboardLayout>
+            <Dashboard />
+          </DashboardLayout>
+        </ProtectedRoute>
       </Route>
       <Route path="/dashboard">
-        <AuthenticatedRoute component={Dashboard} />
+        <ProtectedRoute>
+          <DashboardLayout>
+            <Dashboard />
+          </DashboardLayout>
+        </ProtectedRoute>
       </Route>
+      
+      {/* Customer management - requires manage_customers permission */}
       <Route path="/customers">
-        <AuthenticatedRoute component={Customers} />
+        <ProtectedRoute requiredPermission="manage_customers">
+          <DashboardLayout>
+            <Customers />
+          </DashboardLayout>
+        </ProtectedRoute>
       </Route>
+      
+      {/* Product management - requires manage_products permission */}
       <Route path="/products">
-        <AuthenticatedRoute component={Products} />
+        <ProtectedRoute requiredPermission="manage_products">
+          <DashboardLayout>
+            <Products />
+          </DashboardLayout>
+        </ProtectedRoute>
       </Route>
+      
+      {/* Quotation management - requires manage_quotations permission */}
       <Route path="/quotations">
-        <AuthenticatedRoute component={Quotations} />
+        <ProtectedRoute requiredPermission="manage_quotations">
+          <DashboardLayout>
+            <Quotations />
+          </DashboardLayout>
+        </ProtectedRoute>
       </Route>
+      
+      {/* Invoice management - requires manage_invoices permission */}
       <Route path="/invoices">
-        <AuthenticatedRoute component={Invoices} />
+        <ProtectedRoute requiredPermission="manage_invoices">
+          <DashboardLayout>
+            <Invoices />
+          </DashboardLayout>
+        </ProtectedRoute>
       </Route>
+      
+      {/* Attendance management - requires manage_attendance permission */}
       <Route path="/attendance">
-        <AuthenticatedRoute component={Attendance} />
+        <ProtectedRoute requiredPermission="manage_attendance">
+          <DashboardLayout>
+            <Attendance />
+          </DashboardLayout>
+        </ProtectedRoute>
       </Route>
+      
+      {/* Leave management - requires manage_leaves permission */}
       <Route path="/leave">
-        <AuthenticatedRoute component={Leave} />
+        <ProtectedRoute requiredPermission="manage_leaves">
+          <DashboardLayout>
+            <Leave />
+          </DashboardLayout>
+        </ProtectedRoute>
       </Route>
+      
+      {/* User management - requires manage_access permission */}
       <Route path="/user-management">
-        <AuthenticatedRoute component={UserManagement} />
+        <ProtectedRoute requiredPermission="manage_access">
+          <DashboardLayout>
+            <UserManagement />
+          </DashboardLayout>
+        </ProtectedRoute>
       </Route>
+      
+      {/* Department management - requires manage_departments permission */}
       <Route path="/departments">
-        <AuthenticatedRoute component={Departments} />
+        <ProtectedRoute requiredPermission="manage_departments">
+          <DashboardLayout>
+            <Departments />
+          </DashboardLayout>
+        </ProtectedRoute>
       </Route>
       
       {/* Fallback to 404 */}
