@@ -274,6 +274,16 @@ export function CheckInModal({ open, onOpenChange }: CheckInModalProps) {
           });
           return;
         }
+        
+        // Require photo for field check-in
+        if (!photoDataUrl) {
+          toast({
+            title: "Photo Required",
+            description: "You must take a photo when checking in at a field location.",
+            variant: "destructive",
+          });
+          return;
+        }
       }
       
       checkInMutation.mutate();

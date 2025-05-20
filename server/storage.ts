@@ -485,6 +485,28 @@ export class MemStorage implements IStorage {
       return attDateString === dateString;
     });
   }
+  
+  async listAttendanceByUserBetweenDates(userId: number, fromDate: Date, toDate: Date): Promise<Attendance[]> {
+    const fromDateStr = fromDate.toISOString().split('T')[0];
+    const toDateStr = toDate.toISOString().split('T')[0];
+    
+    return Array.from(this.attendance.values()).filter(att => {
+      const attDateStr = att.date.toISOString().split('T')[0];
+      return att.userId === userId && 
+             attDateStr >= fromDateStr && 
+             attDateStr <= toDateStr;
+    });
+  }
+  
+  async listAttendanceBetweenDates(fromDate: Date, toDate: Date): Promise<Attendance[]> {
+    const fromDateStr = fromDate.toISOString().split('T')[0];
+    const toDateStr = toDate.toISOString().split('T')[0];
+    
+    return Array.from(this.attendance.values()).filter(att => {
+      const attDateStr = att.date.toISOString().split('T')[0];
+      return attDateStr >= fromDateStr && attDateStr <= toDateStr;
+    });
+  }
 
   // Leave Management
   async getLeave(id: number): Promise<Leave | undefined> {
