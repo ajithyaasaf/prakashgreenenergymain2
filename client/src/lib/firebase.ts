@@ -22,8 +22,14 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
-// Log Firebase initialization (remove in production)
-console.log("Initializing Firebase with project ID:", import.meta.env.VITE_FIREBASE_PROJECT_ID);
+// Utility function to check if we have valid Firebase configuration
+export const hasValidFirebaseConfig = () => {
+  return Boolean(
+    import.meta.env.VITE_FIREBASE_API_KEY && 
+    import.meta.env.VITE_FIREBASE_PROJECT_ID && 
+    import.meta.env.VITE_FIREBASE_APP_ID
+  );
+};
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);

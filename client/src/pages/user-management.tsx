@@ -111,21 +111,73 @@ export default function UserManagement() {
     },
   });
 
-  // Handle syncing users from Firestore
+  // Enhanced function that cleans up placeholder data without requiring Firebase
   const handleSyncUsers = async () => {
     setIsSyncing(true);
     try {
-      await syncFirestoreUsers();
+      // Get current users from database
+      const apiUsers = await queryClient.fetchQuery({ queryKey: ["/api/users"] });
+      
+      // Find users that need their information improved
+      const usersToUpdate = (apiUsers as any[]).filter(user => 
+        user.email?.includes('@example.com') || 
+        !user.displayName || 
+        user.displayName?.startsWith('user-')
+      );
+      
+      if (usersToUpdate.length === 0) {
+        toast({
+          title: "No updates needed",
+          description: "All users already have proper names and emails.",
+          variant: "default"
+        });
+        setIsSyncing(false);
+        return;
+      }
+      
+      // Update each user with better display information
+      for (const user of usersToUpdate) {
+        // Extract a better name from the user ID or email
+        let betterName = "User";
+        
+        // If email contains something usable (not example.com), use it
+        if (user.email && !user.email.includes('@example.com')) {
+          betterName = user.email.split('@')[0];
+          // Capitalize first letter and replace dots/underscores with spaces
+          betterName = betterName
+            .replace(/\./g, ' ')
+            .replace(/_/g, ' ')
+            .split(' ')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
+        } else {
+          // Use their UID to create a proper name
+          betterName = `User ${user.id}`;
+        }
+        
+        // Update the user record
+        await updateUserMutation.mutateAsync({
+          id: user.id,
+          displayName: betterName,
+          email: user.email,
+          role: user.role,
+          department: user.department
+        });
+      }
+      
+      // Refresh the data
       await refetchUsers();
+      
       toast({
-        title: "Sync successful",
-        description: "All Firebase users have been synced with the application.",
+        title: "User data improved",
+        description: `Updated ${usersToUpdate.length} users with better display names.`,
         variant: "success" as any,
       });
     } catch (error) {
+      console.error("Error cleaning up user data:", error);
       toast({
-        title: "Sync failed",
-        description: "Failed to sync users from Firebase.",
+        title: "Update failed",
+        description: "There was a problem updating user display information.",
         variant: "destructive",
       });
     } finally {
