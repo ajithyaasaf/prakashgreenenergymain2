@@ -275,17 +275,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Update attendance record with checkout info
-      const updatedAttendance = await storage.updateAttendance(attendanceRecord.id, {
-        checkOutTime,
-        checkOutLatitude: latitude,
-        checkOutLongitude: longitude,
-        checkOutImageUrl: photoUrl,
-        reason: earlyCheckout ? reason : attendanceRecord.reason
-      });
-      
-      // Check if Technical team member is working overtime
-      let overtimeHours = 0;
+      // Calculate overtime for Technical team members
+      let overtimeMinutes = 0;
       if (user.department === 'technical_team' && !earlyCheckout) {
         // Calculate overtime (time after 7:30 PM)
         const standardEndTime = new Date(
@@ -297,16 +288,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
         
         if (checkOutTime > standardEndTime) {
-          // Calculate overtime in hours
-          overtimeHours = (checkOutTime.getTime() - standardEndTime.getTime()) / (1000 * 60 * 60);
-          
-          // Update record with overtime info
-          await storage.updateAttendance(attendanceRecord.id, {
-            ...updatedAttendance,
-            overtimeHours
-          });
+          // Calculate overtime in minutes
+          overtimeMinutes = Math.round((checkOutTime.getTime() - standardEndTime.getTime()) / (1000 * 60));
         }
       }
+      
+      // Update attendance record with checkout info and overtime
+      const updatedAttendance = await storage.updateAttendance(attendanceRecord.id, {
+        checkOutTime,
+        checkOutLatitude: latitude,
+        checkOutLongitude: longitude,
+        checkOutImageUrl: photoUrl,
+        reason: earlyCheckout ? reason : attendanceRecord.reason,
+        overtimeHours: overtimeMinutes > 0 ? overtimeMinutes : undefined
+      });
+      
+      // Calculate overtime hours for response
+      const overtimeHours = overtimeMinutes / 60;
       
       res.json({
         ...updatedAttendance,
@@ -317,6 +315,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error checking out:', error);
       res.status(500).json({ message: 'Failed to process check-out' });
+    }
+  });
+  
+  // Attendance report endpoint
+  app.get('/api/attendance/report', async (req, res) => {
+    try {
+      const { userId, from, to } = req.query;
+      
+      if (!from || !to) {
+        return res.status(400).json({ message: 'Missing required parameters: from and to dates' });
+      }
+      
+      const fromDate = new Date(from as string);
+      const toDate = new Date(to as string);
+      
+      // Set time to beginning/end of day
+      fromDate.setHours(0, 0, 0, 0);
+      toDate.setHours(23, 59, 59, 999);
+      
+      let attendanceRecords = [];
+      
+      if (userId) {
+        // Get attendance for specific user
+        const userAttendance = await storage.listAttendanceByUserBetweenDates(
+          parseInt(userId as string),
+          fromDate,
+          toDate
+        );
+        
+        // Get user info to add to records
+        const user = await storage.getUser(parseInt(userId as string));
+        
+        if (user && userAttendance) {
+          attendanceRecords = userAttendance.map(record => ({
+            ...record,
+            userName: user.displayName,
+            // Convert overtime from minutes to hours
+            overtimeHours: record.overtimeHours ? record.overtimeHours / 60 : 0
+          }));
+        }
+      } else {
+        // Get attendance for all users
+        const allUsers = await storage.listUsers();
+        const attendancesByDate = await storage.listAttendanceBetweenDates(fromDate, toDate);
+        
+        if (attendancesByDate && allUsers) {
+          attendanceRecords = attendancesByDate.map(record => {
+            const matchedUser = allUsers.find(u => u.id === record.userId);
+            return {
+              ...record,
+              userName: matchedUser ? matchedUser.displayName : 'Unknown User',
+              // Convert overtime from minutes to hours
+              overtimeHours: record.overtimeHours ? record.overtimeHours / 60 : 0
+            };
+          });
+        }
+      }
+      
+      res.json(attendanceRecords);
+    } catch (error) {
+      console.error('Error generating attendance report:', error);
+      res.status(500).json({ message: 'Failed to generate attendance report' });
     }
   });
   
