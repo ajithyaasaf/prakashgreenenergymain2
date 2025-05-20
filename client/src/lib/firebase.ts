@@ -39,10 +39,11 @@ export const hasValidFirebaseConfig = () => {
 };
 
 // Initialize Firebase with error handling
-let app;
-let auth;
-let db;
-let storage;
+// Add proper type definitions to fix the type errors
+let app: ReturnType<typeof initializeApp>;
+let auth: ReturnType<typeof getAuth>;
+let db: ReturnType<typeof getFirestore>;
+let storage: ReturnType<typeof getStorage>;
 
 try {
   app = initializeApp(firebaseConfig);
@@ -53,10 +54,13 @@ try {
 } catch (error) {
   console.error("Error initializing Firebase:", error);
   // Create dummy objects to prevent app crashes
-  app = {};
-  auth = { currentUser: null, onAuthStateChanged: (cb) => { cb(null); return () => {}; } };
-  db = { collection: () => ({}) };
-  storage = {};
+  app = {} as ReturnType<typeof initializeApp>;
+  auth = { 
+    currentUser: null, 
+    onAuthStateChanged: (cb: (user: User | null) => void) => { cb(null); return () => {}; } 
+  } as ReturnType<typeof getAuth>;
+  db = { collection: () => ({}) } as ReturnType<typeof getFirestore>;
+  storage = {} as ReturnType<typeof getStorage>;
 }
 const googleProvider = new GoogleAuthProvider();
 
