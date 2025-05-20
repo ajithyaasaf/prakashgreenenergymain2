@@ -14,19 +14,26 @@ import { getFirestore, collection, getDocs, doc, getDoc } from "firebase/firesto
 import { getStorage } from "firebase/storage";
 
 // Firebase configuration from environment variables
+console.log("Loading Firebase config with API key:", import.meta.env.VITE_FIREBASE_API_KEY ? "present" : "missing");
+
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: `${import.meta.env.VITE_FIREBASE_PROJECT_ID}.firebaseapp.com`,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: `${import.meta.env.VITE_FIREBASE_PROJECT_ID}.appspot.com`,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID
+  apiKey: "AIzaSyBo8D4pTG6oNGg4qy7V4AaC73qfAB0HRcc",
+  authDomain: "solar-energy-56bc8.firebaseapp.com",
+  databaseURL: "https://solar-energy-56bc8-default-rtdb.firebaseio.com",
+  projectId: "solar-energy-56bc8",
+  storageBucket: "solar-energy-56bc8.firebasestorage.app",
+  messagingSenderId: "833087081002",
+  appId: "1:833087081002:web:10001186150884d311d153",
+  measurementId: "G-2S9TJM6E3C"
 };
 
 // Utility function to check if we have valid Firebase configuration
 export const hasValidFirebaseConfig = () => {
   return Boolean(
     import.meta.env.VITE_FIREBASE_API_KEY && 
+    import.meta.env.VITE_FIREBASE_AUTH_DOMAIN &&
     import.meta.env.VITE_FIREBASE_PROJECT_ID && 
+    import.meta.env.VITE_FIREBASE_STORAGE_BUCKET &&
     import.meta.env.VITE_FIREBASE_APP_ID
   );
 };
