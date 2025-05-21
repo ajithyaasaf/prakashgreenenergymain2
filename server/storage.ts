@@ -849,20 +849,24 @@ export class FirestoreStorage implements IStorage {
         ? Timestamp.fromDate(data.checkOutTime)
         : undefined,
     });
-    const attendanceDoc = doc(db, "attendance", id);
-    await updateDoc(attendanceDoc, {
+    
+    const attendanceDoc = db.collection("attendance").doc(id);
+    
+    await attendanceDoc.update({
       ...validatedData,
       updatedAt: Timestamp.now(),
     });
-    const updatedDoc = await getDoc(attendanceDoc);
-    if (!updatedDoc.exists()) throw new Error("Attendance not found");
-    const updatedData = updatedDoc.data();
+    
+    const updatedDoc = await attendanceDoc.get();
+    if (!updatedDoc.exists) throw new Error("Attendance not found");
+    
+    const updatedData = updatedDoc.data() || {};
     return {
       id: updatedDoc.id,
       ...updatedData,
-      date: updatedData.date.toDate(),
-      checkInTime: updatedData.checkInTime?.toDate(),
-      checkOutTime: updatedData.checkOutTime?.toDate(),
+      date: updatedData.date?.toDate() || new Date(),
+      checkInTime: updatedData.checkInTime?.toDate() || null,
+      checkOutTime: updatedData.checkOutTime?.toDate() || null,
     } as Attendance;
   }
 
@@ -874,39 +878,42 @@ export class FirestoreStorage implements IStorage {
     const endOfDay = Timestamp.fromDate(
       new Date(date.setHours(23, 59, 59, 999)),
     );
-    const q = query(
-      collection(db, "attendance"),
-      where("userId", "==", userId),
-      where("date", ">=", startOfDay),
-      where("date", "<=", endOfDay),
-    );
-    const snapshot = await getDocs(q);
+    
+    const attendanceRef = db.collection("attendance");
+    const snapshot = await attendanceRef
+      .where("userId", "==", userId)
+      .where("date", ">=", startOfDay)
+      .where("date", "<=", endOfDay)
+      .get();
+    
     if (snapshot.empty) return undefined;
+    
     const record = snapshot.docs[0];
-    const data = record.data();
+    const data = record.data() || {};
+    
     return {
       id: record.id,
       ...data,
-      date: data.date.toDate(),
-      checkInTime: data.checkInTime?.toDate(),
-      checkOutTime: data.checkOutTime?.toDate(),
+      date: data.date?.toDate() || new Date(),
+      checkInTime: data.checkInTime?.toDate() || null,
+      checkOutTime: data.checkOutTime?.toDate() || null,
     } as Attendance;
   }
 
   async listAttendanceByUser(userId: string): Promise<Attendance[]> {
-    const q = query(
-      collection(db, "attendance"),
-      where("userId", "==", userId),
-    );
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map((doc) => {
-      const data = doc.data();
+    const attendanceRef = db.collection("attendance");
+    const snapshot = await attendanceRef
+      .where("userId", "==", userId)
+      .get();
+    
+    return snapshot.docs.map(doc => {
+      const data = doc.data() || {};
       return {
         id: doc.id,
         ...data,
-        date: data.date.toDate(),
-        checkInTime: data.checkInTime?.toDate(),
-        checkOutTime: data.checkOutTime?.toDate(),
+        date: data.date?.toDate() || new Date(),
+        checkInTime: data.checkInTime?.toDate() || null,
+        checkOutTime: data.checkOutTime?.toDate() || null,
       } as Attendance;
     });
   }
@@ -916,20 +923,21 @@ export class FirestoreStorage implements IStorage {
     const endOfDay = Timestamp.fromDate(
       new Date(date.setHours(23, 59, 59, 999)),
     );
-    const q = query(
-      collection(db, "attendance"),
-      where("date", ">=", startOfDay),
-      where("date", "<=", endOfDay),
-    );
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map((doc) => {
-      const data = doc.data();
+    
+    const attendanceRef = db.collection("attendance");
+    const snapshot = await attendanceRef
+      .where("date", ">=", startOfDay)
+      .where("date", "<=", endOfDay)
+      .get();
+    
+    return snapshot.docs.map(doc => {
+      const data = doc.data() || {};
       return {
         id: doc.id,
         ...data,
-        date: data.date.toDate(),
-        checkInTime: data.checkInTime?.toDate(),
-        checkOutTime: data.checkOutTime?.toDate(),
+        date: data.date?.toDate() || new Date(),
+        checkInTime: data.checkInTime?.toDate() || null,
+        checkOutTime: data.checkOutTime?.toDate() || null,
       } as Attendance;
     });
   }
@@ -940,35 +948,38 @@ export class FirestoreStorage implements IStorage {
   ): Promise<Attendance[]> {
     const start = Timestamp.fromDate(startDate);
     const end = Timestamp.fromDate(endDate);
-    const q = query(
-      collection(db, "attendance"),
-      where("date", ">=", start),
-      where("date", "<=", end),
-    );
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map((doc) => {
-      const data = doc.data();
+    
+    const attendanceRef = db.collection("attendance");
+    const snapshot = await attendanceRef
+      .where("date", ">=", start)
+      .where("date", "<=", end)
+      .get();
+    
+    return snapshot.docs.map(doc => {
+      const data = doc.data() || {};
       return {
         id: doc.id,
         ...data,
-        date: data.date.toDate(),
-        checkInTime: data.checkInTime?.toDate(),
-        checkOutTime: data.checkOutTime?.toDate(),
+        date: data.date?.toDate() || new Date(),
+        checkInTime: data.checkInTime?.toDate() || null,
+        checkOutTime: data.checkOutTime?.toDate() || null,
       } as Attendance;
     });
   }
 
   async getLeave(id: string): Promise<Leave | undefined> {
-    const leaveDoc = doc(db, "leaves", id);
-    const docSnap = await getDoc(leaveDoc);
-    if (!docSnap.exists()) return undefined;
-    const data = docSnap.data();
+    const leaveDoc = db.collection("leaves").doc(id);
+    const docSnap = await leaveDoc.get();
+    
+    if (!docSnap.exists) return undefined;
+    
+    const data = docSnap.data() || {};
     return {
       id: docSnap.id,
       ...data,
-      startDate: data.startDate.toDate(),
-      endDate: data.endDate.toDate(),
-      createdAt: data.createdAt.toDate(),
+      startDate: data.startDate?.toDate() || new Date(),
+      endDate: data.endDate?.toDate() || new Date(),
+      createdAt: data.createdAt?.toDate() || new Date(),
     } as Leave;
   }
 
