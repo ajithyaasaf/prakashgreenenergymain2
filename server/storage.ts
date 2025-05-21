@@ -1,28 +1,66 @@
 import { db } from "./firebase";
 import {
-  collection,
-  getDocs,
-  doc,
-  getDoc,
-  setDoc,
-  updateDoc,
-  deleteDoc,
-  query,
-  where,
-  Timestamp,
-} from "firebase/firestore";
+  FieldValue,
+  Timestamp
+} from "firebase-admin/firestore";
 import { z } from "zod";
 import {
-  insertUserSchema,
-  insertDepartmentSchema,
-  insertOfficeLocationSchema,
-  insertCustomerSchema,
-  insertProductSchema,
-  insertQuotationSchema,
-  insertInvoiceSchema,
   insertAttendanceSchema,
-  insertLeaveSchema,
+  insertOfficeLocationSchema,
+  insertPermissionSchema
 } from "@shared/schema";
+
+// Define our schemas since we're not using drizzle anymore
+const insertUserSchema = z.object({
+  uid: z.string(),
+  email: z.string().email(),
+  displayName: z.string().optional(),
+  role: z.enum(["master_admin", "admin", "employee"]).default("employee"),
+  department: z.enum(["cre", "accounts", "hr", "sales_and_marketing", "technical_team"]).nullable().optional(),
+  photoURL: z.string().optional()
+});
+
+const insertDepartmentSchema = z.object({
+  name: z.string()
+});
+
+const insertCustomerSchema = z.object({
+  name: z.string(),
+  email: z.string().email(),
+  phone: z.string(),
+  address: z.string()
+});
+
+const insertProductSchema = z.object({
+  name: z.string(),
+  description: z.string(),
+  price: z.number()
+});
+
+const insertQuotationSchema = z.object({
+  customerId: z.string(),
+  products: z.array(z.object({
+    productId: z.string(),
+    quantity: z.number()
+  })),
+  total: z.number(),
+  status: z.string().default("pending")
+});
+
+const insertInvoiceSchema = z.object({
+  quotationId: z.string(),
+  customerId: z.string(),
+  total: z.number(),
+  status: z.string().default("pending")
+});
+
+const insertLeaveSchema = z.object({
+  userId: z.string(),
+  startDate: z.date(),
+  endDate: z.date(),
+  reason: z.string(),
+  status: z.enum(["pending", "approved", "rejected"]).default("pending")
+});
 
 export interface User {
   id: string;
@@ -211,25 +249,25 @@ export interface IStorage {
 
 export class FirestoreStorage implements IStorage {
   async getUser(id: string): Promise<User | undefined> {
-    const userDoc = doc(db, "users", id);
-    const docSnap = await getDoc(userDoc);
-    if (!docSnap.exists()) return undefined;
+    const userDoc = db.collection("users").doc(id);
+    const docSnap = await userDoc.get();
+    if (!docSnap.exists) return undefined;
     const data = docSnap.data();
     return {
       id: docSnap.id,
-      uid: data.uid,
-      email: data.email,
-      displayName: data.displayName,
-      role: data.role,
-      department: data.department,
-      createdAt: data.createdAt.toDate(),
-      photoURL: data.photoURL,
+      uid: data?.uid,
+      email: data?.email,
+      displayName: data?.displayName,
+      role: data?.role,
+      department: data?.department,
+      createdAt: data?.createdAt.toDate(),
+      photoURL: data?.photoURL,
     } as User;
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    const q = query(collection(db, "users"), where("email", "==", email));
-    const snapshot = await getDocs(q);
+    const usersRef = db.collection("users");
+    const snapshot = await usersRef.where("email", "==", email).get();
     if (snapshot.empty) return undefined;
     const doc = snapshot.docs[0];
     const data = doc.data();
