@@ -2,7 +2,11 @@ import { db } from "./firebase";
 import {
   FieldValue,
   Timestamp,
-  Firestore
+  Firestore,
+  CollectionReference,
+  DocumentReference,
+  DocumentData,
+  Query
 } from "firebase-admin/firestore";
 import { z } from "zod";
 import {
@@ -252,10 +256,12 @@ export class FirestoreStorage implements IStorage {
   private db: Firestore;
   
   constructor() {
+    // Import from firebase.ts file which provides the initialized Firestore instance
+    const { db } = require('./firebase');
     this.db = db;
   }
   async getUser(id: string): Promise<User | undefined> {
-    const userDoc = this.this.db.collection("users").doc(id);
+    const userDoc = this.db.collection("users").doc(id);
     const docSnap = await userDoc.get();
     if (!docSnap.exists) return undefined;
     const data = docSnap.data();
@@ -272,7 +278,7 @@ export class FirestoreStorage implements IStorage {
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    const usersRef = this.this.db.collection("users");
+    const usersRef = this.db.collection("users");
     const snapshot = await usersRef.where("email", "==", email).get();
     if (snapshot.empty) return undefined;
     const doc = snapshot.docs[0];
@@ -835,9 +841,9 @@ export class FirestoreStorage implements IStorage {
       ...validatedData,
       userEmail: userDoc.exists ? userDoc.data()?.email || "" : "",
       userDepartment: userDoc.exists ? userDoc.data()?.department || null : null,
-      date: validatedData.date.toDate(),
-      checkInTime: validatedData.checkInTime?.toDate(),
-      checkOutTime: validatedData.checkOutTime?.toDate(),
+      date: new Date(),
+      checkInTime: validatedData.checkInTime instanceof Timestamp ? validatedData.checkInTime.toDate() : undefined,
+      checkOutTime: validatedData.checkOutTime instanceof Timestamp ? validatedData.checkOutTime.toDate() : undefined,
     } as Attendance;
   }
 

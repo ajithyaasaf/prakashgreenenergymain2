@@ -1,7 +1,7 @@
-import { initializeApp, cert, type ServiceAccount } from 'firebase-admin/app';
-import { getAuth } from 'firebase-admin/auth';
-import { getFirestore } from 'firebase-admin/firestore';
-import { getStorage } from 'firebase-admin/storage';
+import { initializeApp, cert, type ServiceAccount, App } from 'firebase-admin/app';
+import { getAuth, Auth } from 'firebase-admin/auth';
+import { getFirestore, Firestore } from 'firebase-admin/firestore';
+import { getStorage, Storage } from 'firebase-admin/storage';
 
 // Firebase server configuration
 const firebaseConfig = {
@@ -14,10 +14,10 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase Admin with error handling
-let app;
-let auth;
-let db;
-let storage;
+let app: App;
+let auth: Auth;
+let db: Firestore;
+let storage: Storage;
 
 try {
   if (firebaseConfig.privateKey && firebaseConfig.clientEmail) {
