@@ -696,48 +696,60 @@ export class FirestoreStorage implements IStorage {
     data: Partial<z.infer<typeof insertQuotationSchema>>,
   ): Promise<Quotation> {
     const validatedData = insertQuotationSchema.partial().parse(data);
-    const quotationDoc = doc(db, "quotations", id);
-    await updateDoc(quotationDoc, {
+    const quotationDoc = db.collection("quotations").doc(id);
+    
+    await quotationDoc.update({
       ...validatedData,
       updatedAt: Timestamp.now(),
     });
-    const updatedDoc = await getDoc(quotationDoc);
-    if (!updatedDoc.exists()) throw new Error("Quotation not found");
-    const updatedData = updatedDoc.data();
+    
+    const updatedDoc = await quotationDoc.get();
+    if (!updatedDoc.exists) throw new Error("Quotation not found");
+    
+    const updatedData = updatedDoc.data() || {};
     return {
       id: updatedDoc.id,
       ...updatedData,
-      createdAt: updatedData.createdAt.toDate(),
+      createdAt: updatedData.createdAt?.toDate() || new Date(),
     } as Quotation;
   }
 
   async deleteQuotation(id: string): Promise<void> {
-    const quotationDoc = doc(db, "quotations", id);
-    await deleteDoc(quotationDoc);
+    const quotationDoc = db.collection("quotations").doc(id);
+    await quotationDoc.delete();
   }
 
   async listInvoices(): Promise<Invoice[]> {
-    const invoicesCollection = collection(db, "invoices");
-    const snapshot = await getDocs(invoicesCollection);
-    return snapshot.docs.map(
-      (doc) =>
-        ({
-          id: doc.id,
-          ...doc.data(),
-          createdAt: doc.data().createdAt.toDate(),
-        }) as Invoice,
-    );
+    const invoicesCollection = db.collection("invoices");
+    const snapshot = await invoicesCollection.get();
+    
+    return snapshot.docs.map(doc => {
+      const data = doc.data() || {};
+      return {
+        id: doc.id,
+        quotationId: data.quotationId,
+        customerId: data.customerId,
+        total: data.total,
+        status: data.status,
+        createdAt: data.createdAt?.toDate() || new Date()
+      } as Invoice;
+    });
   }
 
   async getInvoice(id: string): Promise<Invoice | undefined> {
-    const invoiceDoc = doc(db, "invoices", id);
-    const docSnap = await getDoc(invoiceDoc);
-    if (!docSnap.exists()) return undefined;
-    const data = docSnap.data();
+    const invoiceDoc = db.collection("invoices").doc(id);
+    const docSnap = await invoiceDoc.get();
+    
+    if (!docSnap.exists) return undefined;
+    
+    const data = docSnap.data() || {};
     return {
       id: docSnap.id,
-      ...data,
-      createdAt: data.createdAt.toDate(),
+      quotationId: data.quotationId,
+      customerId: data.customerId,
+      total: data.total,
+      status: data.status,
+      createdAt: data.createdAt?.toDate() || new Date()
     } as Invoice;
   }
 
@@ -745,13 +757,14 @@ export class FirestoreStorage implements IStorage {
     data: z.infer<typeof insertInvoiceSchema>,
   ): Promise<Invoice> {
     const validatedData = insertInvoiceSchema.parse(data);
-    const invoiceDoc = doc(collection(db, "invoices"));
-    await setDoc(invoiceDoc, {
+    const invoicesRef = db.collection("invoices");
+    
+    const invoiceDoc = await invoicesRef.add({
       ...validatedData,
-      id: invoiceDoc.id,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     });
+    
     return {
       id: invoiceDoc.id,
       ...validatedData,
@@ -764,30 +777,33 @@ export class FirestoreStorage implements IStorage {
     data: Partial<z.infer<typeof insertInvoiceSchema>>,
   ): Promise<Invoice> {
     const validatedData = insertInvoiceSchema.partial().parse(data);
-    const invoiceDoc = doc(db, "invoices", id);
-    await updateDoc(invoiceDoc, {
+    const invoiceDoc = db.collection("invoices").doc(id);
+    
+    await invoiceDoc.update({
       ...validatedData,
       updatedAt: Timestamp.now(),
     });
-    const updatedDoc = await getDoc(invoiceDoc);
-    if (!updatedDoc.exists()) throw new Error("Invoice not found");
-    const updatedData = updatedDoc.data();
+    
+    const updatedDoc = await invoiceDoc.get();
+    if (!updatedDoc.exists) throw new Error("Invoice not found");
+    
+    const updatedData = updatedDoc.data() || {};
     return {
       id: updatedDoc.id,
       ...updatedData,
-      createdAt: updatedData.createdAt.toDate(),
+      createdAt: updatedData.createdAt?.toDate() || new Date(),
     } as Invoice;
   }
 
   async deleteInvoice(id: string): Promise<void> {
-    const invoiceDoc = doc(db, "invoices", id);
-    await deleteDoc(invoiceDoc);
+    const invoiceDoc = db.collection("invoices").doc(id);
+    await invoiceDoc.delete();
   }
 
   async createAttendance(
     data: z.infer<typeof insertAttendanceSchema>,
   ): Promise<Attendance> {
-    const userDoc = await getDoc(doc(db, "users", data.userId));
+    const userDoc = await db.collection("users").doc(data.userId).get();
     const validatedData = insertAttendanceSchema.parse({
       ...data,
       date: data.date ? Timestamp.fromDate(data.date) : Timestamp.now(),
@@ -798,20 +814,21 @@ export class FirestoreStorage implements IStorage {
         ? Timestamp.fromDate(data.checkOutTime)
         : undefined,
     });
-    const attendanceDoc = doc(collection(db, "attendance"));
-    await setDoc(attendanceDoc, {
+    
+    const attendanceRef = db.collection("attendance");
+    const attendanceDoc = await attendanceRef.add({
       ...validatedData,
-      id: attendanceDoc.id,
-      userEmail: userDoc.exists() ? userDoc.data().email : "",
-      userDepartment: userDoc.exists() ? userDoc.data().department : null,
+      userEmail: userDoc.exists ? userDoc.data()?.email || "" : "",
+      userDepartment: userDoc.exists ? userDoc.data()?.department || null : null,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     });
+    
     return {
       id: attendanceDoc.id,
       ...validatedData,
-      userEmail: userDoc.exists() ? userDoc.data().email : "",
-      userDepartment: userDoc.exists() ? userDoc.data().department : null,
+      userEmail: userDoc.exists ? userDoc.data()?.email || "" : "",
+      userDepartment: userDoc.exists ? userDoc.data()?.department || null : null,
       date: validatedData.date.toDate(),
       checkInTime: validatedData.checkInTime?.toDate(),
       checkOutTime: validatedData.checkOutTime?.toDate(),
