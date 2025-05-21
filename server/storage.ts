@@ -384,38 +384,49 @@ export class FirestoreStorage implements IStorage {
     id: string,
     data: Partial<z.infer<typeof insertDepartmentSchema>>,
   ): Promise<Department> {
-    const deptDoc = doc(db, "departments", id);
+    const deptDoc = db.collection("departments").doc(id);
     const validatedData = insertDepartmentSchema.partial().parse(data);
-    await updateDoc(deptDoc, { ...validatedData, updatedAt: Timestamp.now() });
-    const updatedDoc = await getDoc(deptDoc);
-    if (!updatedDoc.exists()) throw new Error("Department not found");
-    return { id: updatedDoc.id, ...updatedDoc.data() } as Department;
+    
+    await deptDoc.update({ 
+      ...validatedData, 
+      updatedAt: Timestamp.now() 
+    });
+    
+    const updatedDoc = await deptDoc.get();
+    if (!updatedDoc.exists) throw new Error("Department not found");
+    
+    const docData = updatedDoc.data() || {};
+    return { id: updatedDoc.id, name: docData.name } as Department;
   }
 
   async deleteDepartment(id: string): Promise<boolean> {
-    const deptDoc = doc(db, "departments", id);
-    await deleteDoc(deptDoc);
+    const deptDoc = db.collection("departments").doc(id);
+    await deptDoc.delete();
     return true;
   }
 
   async listOfficeLocations(): Promise<OfficeLocation[]> {
-    const locationsCollection = collection(db, "office_locations");
-    const snapshot = await getDocs(locationsCollection);
-    return snapshot.docs.map(
-      (doc) =>
-        ({
-          id: doc.id,
-          ...doc.data(),
-          createdAt: doc.data().createdAt.toDate(),
-        }) as OfficeLocation,
-    );
+    const locationsCollection = db.collection("office_locations");
+    const snapshot = await locationsCollection.get();
+    
+    return snapshot.docs.map(doc => {
+      const data = doc.data() || {};
+      return {
+        id: doc.id,
+        name: data.name,
+        latitude: data.latitude,
+        longitude: data.longitude,
+        radius: data.radius,
+        createdAt: data.createdAt?.toDate() || new Date()
+      } as OfficeLocation;
+    });
   }
 
   async getOfficeLocation(id: string): Promise<OfficeLocation | undefined> {
-    const locationDoc = doc(db, "office_locations", id);
-    const docSnap = await getDoc(locationDoc);
-    if (!docSnap.exists()) return undefined;
-    const data = docSnap.data();
+    const locationDoc = db.collection("office_locations").doc(id);
+    const docSnap = await locationDoc.get();
+    if (!docSnap.exists) return undefined;
+    const data = docSnap.data() || {};
     return { id: docSnap.id, ...data } as OfficeLocation;
   }
 
@@ -423,14 +434,18 @@ export class FirestoreStorage implements IStorage {
     data: z.infer<typeof insertOfficeLocationSchema>,
   ): Promise<OfficeLocation> {
     const validatedData = insertOfficeLocationSchema.parse(data);
-    const locationDoc = doc(collection(db, "office_locations"));
-    await setDoc(locationDoc, {
+    const locationsRef = db.collection("office_locations");
+    
+    const locationDoc = await locationsRef.add({
       ...validatedData,
-      id: locationDoc.id,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     });
-    return { id: locationDoc.id, ...validatedData } as OfficeLocation;
+    
+    return { 
+      id: locationDoc.id,
+      ...validatedData 
+    } as OfficeLocation;
   }
 
   async updateOfficeLocation(
@@ -438,14 +453,24 @@ export class FirestoreStorage implements IStorage {
     data: Partial<z.infer<typeof insertOfficeLocationSchema>>,
   ): Promise<OfficeLocation> {
     const validatedData = insertOfficeLocationSchema.partial().parse(data);
-    const locationDoc = doc(db, "office_locations", id);
-    await updateDoc(locationDoc, {
+    const locationDoc = db.collection("office_locations").doc(id);
+    
+    await locationDoc.update({
       ...validatedData,
       updatedAt: Timestamp.now(),
     });
-    const updatedDoc = await getDoc(locationDoc);
-    if (!updatedDoc.exists()) throw new Error("Office location not found");
-    return { id: updatedDoc.id, ...updatedDoc.data() } as OfficeLocation;
+    
+    const updatedDoc = await locationDoc.get();
+    if (!updatedDoc.exists) throw new Error("Office location not found");
+    
+    const docData = updatedDoc.data() || {};
+    return { 
+      id: updatedDoc.id, 
+      name: docData.name,
+      latitude: docData.latitude,
+      longitude: docData.longitude,
+      radius: docData.radius
+    } as OfficeLocation;
   }
 
   async deleteOfficeLocation(id: string): Promise<void> {
