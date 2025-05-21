@@ -255,7 +255,7 @@ export class FirestoreStorage implements IStorage {
     this.db = db;
   }
   async getUser(id: string): Promise<User | undefined> {
-    const userDoc = db.collection("users").doc(id);
+    const userDoc = this.this.db.collection("users").doc(id);
     const docSnap = await userDoc.get();
     if (!docSnap.exists) return undefined;
     const data = docSnap.data();
@@ -272,7 +272,7 @@ export class FirestoreStorage implements IStorage {
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    const usersRef = db.collection("users");
+    const usersRef = this.this.db.collection("users");
     const snapshot = await usersRef.where("email", "==", email).get();
     if (snapshot.empty) return undefined;
     const doc = snapshot.docs[0];
@@ -290,7 +290,7 @@ export class FirestoreStorage implements IStorage {
   }
 
   async listUsers(): Promise<User[]> {
-    const usersCollection = db.collection("users");
+    const usersCollection = this.db.collection("users");
     const snapshot = await usersCollection.get();
     return snapshot.docs.map((doc) => {
       const data = doc.data();
@@ -309,7 +309,7 @@ export class FirestoreStorage implements IStorage {
 
   async createUser(data: z.infer<typeof insertUserSchema>): Promise<User> {
     const validatedData = insertUserSchema.parse(data);
-    const userDoc = db.collection("users").doc(validatedData.uid);
+    const userDoc = this.db.collection("users").doc(validatedData.uid);
     
     await userDoc.set({
       ...validatedData,
@@ -326,7 +326,7 @@ export class FirestoreStorage implements IStorage {
   }
 
   async updateUser(id: string, data: Partial<User>): Promise<User> {
-    const userDoc = db.collection("users").doc(id);
+    const userDoc = this.db.collection("users").doc(id);
     const updateData: any = { ...data, updatedAt: Timestamp.now() };
     
     if (data.createdAt) {
@@ -352,7 +352,7 @@ export class FirestoreStorage implements IStorage {
   }
 
   async getDepartment(id: string): Promise<Department | undefined> {
-    const deptDoc = db.collection("departments").doc(id);
+    const deptDoc = this.db.collection("departments").doc(id);
     const docSnap = await deptDoc.get();
     if (!docSnap.exists) return undefined;
     const data = docSnap.data();
@@ -360,7 +360,7 @@ export class FirestoreStorage implements IStorage {
   }
 
   async getDepartmentByName(name: string): Promise<Department | undefined> {
-    const departmentsRef = db.collection("departments");
+    const departmentsRef = this.db.collection("departments");
     const snapshot = await departmentsRef.where("name", "==", name).get();
     if (snapshot.empty) return undefined;
     const doc = snapshot.docs[0];
@@ -376,7 +376,7 @@ export class FirestoreStorage implements IStorage {
     data: z.infer<typeof insertDepartmentSchema>,
   ): Promise<Department> {
     const validatedData = insertDepartmentSchema.parse(data);
-    const departmentsRef = db.collection("departments");
+    const departmentsRef = this.db.collection("departments");
     const deptDoc = await departmentsRef.add({
       ...validatedData,
       createdAt: Timestamp.now(),
@@ -390,7 +390,7 @@ export class FirestoreStorage implements IStorage {
     id: string,
     data: Partial<z.infer<typeof insertDepartmentSchema>>,
   ): Promise<Department> {
-    const deptDoc = db.collection("departments").doc(id);
+    const deptDoc = this.db.collection("departments").doc(id);
     const validatedData = insertDepartmentSchema.partial().parse(data);
     
     await deptDoc.update({ 
@@ -406,13 +406,13 @@ export class FirestoreStorage implements IStorage {
   }
 
   async deleteDepartment(id: string): Promise<boolean> {
-    const deptDoc = db.collection("departments").doc(id);
+    const deptDoc = this.db.collection("departments").doc(id);
     await deptDoc.delete();
     return true;
   }
 
   async listOfficeLocations(): Promise<OfficeLocation[]> {
-    const locationsCollection = db.collection("office_locations");
+    const locationsCollection = this.db.collection("office_locations");
     const snapshot = await locationsCollection.get();
     
     return snapshot.docs.map(doc => {
@@ -429,7 +429,7 @@ export class FirestoreStorage implements IStorage {
   }
 
   async getOfficeLocation(id: string): Promise<OfficeLocation | undefined> {
-    const locationDoc = db.collection("office_locations").doc(id);
+    const locationDoc = this.db.collection("office_locations").doc(id);
     const docSnap = await locationDoc.get();
     if (!docSnap.exists) return undefined;
     const data = docSnap.data() || {};
@@ -440,7 +440,7 @@ export class FirestoreStorage implements IStorage {
     data: z.infer<typeof insertOfficeLocationSchema>,
   ): Promise<OfficeLocation> {
     const validatedData = insertOfficeLocationSchema.parse(data);
-    const locationsRef = db.collection("office_locations");
+    const locationsRef = this.db.collection("office_locations");
     
     const locationDoc = await locationsRef.add({
       ...validatedData,
@@ -459,7 +459,7 @@ export class FirestoreStorage implements IStorage {
     data: Partial<z.infer<typeof insertOfficeLocationSchema>>,
   ): Promise<OfficeLocation> {
     const validatedData = insertOfficeLocationSchema.partial().parse(data);
-    const locationDoc = db.collection("office_locations").doc(id);
+    const locationDoc = this.db.collection("office_locations").doc(id);
     
     await locationDoc.update({
       ...validatedData,
@@ -480,12 +480,12 @@ export class FirestoreStorage implements IStorage {
   }
 
   async deleteOfficeLocation(id: string): Promise<void> {
-    const locationDoc = db.collection("office_locations").doc(id);
+    const locationDoc = this.db.collection("office_locations").doc(id);
     await locationDoc.delete();
   }
 
   async listCustomers(): Promise<Customer[]> {
-    const customersCollection = db.collection("customers");
+    const customersCollection = this.db.collection("customers");
     const snapshot = await customersCollection.get();
     
     return snapshot.docs.map(doc => {
@@ -502,7 +502,7 @@ export class FirestoreStorage implements IStorage {
   }
 
   async getCustomer(id: string): Promise<Customer | undefined> {
-    const customerDoc = db.collection("customers").doc(id);
+    const customerDoc = this.db.collection("customers").doc(id);
     const docSnap = await customerDoc.get();
     
     if (!docSnap.exists) return undefined;
@@ -522,7 +522,7 @@ export class FirestoreStorage implements IStorage {
     data: z.infer<typeof insertCustomerSchema>,
   ): Promise<Customer> {
     const validatedData = insertCustomerSchema.parse(data);
-    const customersRef = db.collection("customers");
+    const customersRef = this.db.collection("customers");
     
     const customerDoc = await customersRef.add({
       ...validatedData,
@@ -542,7 +542,7 @@ export class FirestoreStorage implements IStorage {
     data: Partial<z.infer<typeof insertCustomerSchema>>,
   ): Promise<Customer> {
     const validatedData = insertCustomerSchema.partial().parse(data);
-    const customerDoc = db.collection("customers").doc(id);
+    const customerDoc = this.db.collection("customers").doc(id);
     
     await customerDoc.update({
       ...validatedData,
@@ -561,12 +561,12 @@ export class FirestoreStorage implements IStorage {
   }
 
   async deleteCustomer(id: string): Promise<void> {
-    const customerDoc = db.collection("customers").doc(id);
+    const customerDoc = this.db.collection("customers").doc(id);
     await customerDoc.delete();
   }
 
   async listProducts(): Promise<Product[]> {
-    const productsCollection = db.collection("products");
+    const productsCollection = this.db.collection("products");
     const snapshot = await productsCollection.get();
     
     return snapshot.docs.map(doc => {
@@ -582,7 +582,7 @@ export class FirestoreStorage implements IStorage {
   }
 
   async getProduct(id: string): Promise<Product | undefined> {
-    const productDoc = db.collection("products").doc(id);
+    const productDoc = this.db.collection("products").doc(id);
     const docSnap = await productDoc.get();
     
     if (!docSnap.exists) return undefined;
@@ -601,7 +601,7 @@ export class FirestoreStorage implements IStorage {
     data: z.infer<typeof insertProductSchema>,
   ): Promise<Product> {
     const validatedData = insertProductSchema.parse(data);
-    const productsRef = db.collection("products");
+    const productsRef = this.db.collection("products");
     
     const productDoc = await productsRef.add({
       ...validatedData,
@@ -621,7 +621,7 @@ export class FirestoreStorage implements IStorage {
     data: Partial<z.infer<typeof insertProductSchema>>,
   ): Promise<Product> {
     const validatedData = insertProductSchema.partial().parse(data);
-    const productDoc = db.collection("products").doc(id);
+    const productDoc = this.db.collection("products").doc(id);
     
     await productDoc.update({
       ...validatedData,
@@ -640,12 +640,12 @@ export class FirestoreStorage implements IStorage {
   }
 
   async deleteProduct(id: string): Promise<void> {
-    const productDoc = db.collection("products").doc(id);
+    const productDoc = this.db.collection("products").doc(id);
     await productDoc.delete();
   }
 
   async listQuotations(): Promise<Quotation[]> {
-    const quotationsCollection = db.collection("quotations");
+    const quotationsCollection = this.db.collection("quotations");
     const snapshot = await quotationsCollection.get();
     
     return snapshot.docs.map(doc => {
@@ -662,7 +662,7 @@ export class FirestoreStorage implements IStorage {
   }
 
   async getQuotation(id: string): Promise<Quotation | undefined> {
-    const quotationDoc = db.collection("quotations").doc(id);
+    const quotationDoc = this.db.collection("quotations").doc(id);
     const docSnap = await quotationDoc.get();
     
     if (!docSnap.exists) return undefined;
@@ -682,7 +682,7 @@ export class FirestoreStorage implements IStorage {
     data: z.infer<typeof insertQuotationSchema>,
   ): Promise<Quotation> {
     const validatedData = insertQuotationSchema.parse(data);
-    const quotationsRef = db.collection("quotations");
+    const quotationsRef = this.db.collection("quotations");
     
     const quotationDoc = await quotationsRef.add({
       ...validatedData,
@@ -702,7 +702,7 @@ export class FirestoreStorage implements IStorage {
     data: Partial<z.infer<typeof insertQuotationSchema>>,
   ): Promise<Quotation> {
     const validatedData = insertQuotationSchema.partial().parse(data);
-    const quotationDoc = db.collection("quotations").doc(id);
+    const quotationDoc = this.db.collection("quotations").doc(id);
     
     await quotationDoc.update({
       ...validatedData,
@@ -721,12 +721,12 @@ export class FirestoreStorage implements IStorage {
   }
 
   async deleteQuotation(id: string): Promise<void> {
-    const quotationDoc = db.collection("quotations").doc(id);
+    const quotationDoc = this.db.collection("quotations").doc(id);
     await quotationDoc.delete();
   }
 
   async listInvoices(): Promise<Invoice[]> {
-    const invoicesCollection = db.collection("invoices");
+    const invoicesCollection = this.db.collection("invoices");
     const snapshot = await invoicesCollection.get();
     
     return snapshot.docs.map(doc => {
@@ -743,7 +743,7 @@ export class FirestoreStorage implements IStorage {
   }
 
   async getInvoice(id: string): Promise<Invoice | undefined> {
-    const invoiceDoc = db.collection("invoices").doc(id);
+    const invoiceDoc = this.db.collection("invoices").doc(id);
     const docSnap = await invoiceDoc.get();
     
     if (!docSnap.exists) return undefined;
@@ -763,7 +763,7 @@ export class FirestoreStorage implements IStorage {
     data: z.infer<typeof insertInvoiceSchema>,
   ): Promise<Invoice> {
     const validatedData = insertInvoiceSchema.parse(data);
-    const invoicesRef = db.collection("invoices");
+    const invoicesRef = this.db.collection("invoices");
     
     const invoiceDoc = await invoicesRef.add({
       ...validatedData,
@@ -783,7 +783,7 @@ export class FirestoreStorage implements IStorage {
     data: Partial<z.infer<typeof insertInvoiceSchema>>,
   ): Promise<Invoice> {
     const validatedData = insertInvoiceSchema.partial().parse(data);
-    const invoiceDoc = db.collection("invoices").doc(id);
+    const invoiceDoc = this.db.collection("invoices").doc(id);
     
     await invoiceDoc.update({
       ...validatedData,
@@ -802,14 +802,14 @@ export class FirestoreStorage implements IStorage {
   }
 
   async deleteInvoice(id: string): Promise<void> {
-    const invoiceDoc = db.collection("invoices").doc(id);
+    const invoiceDoc = this.db.collection("invoices").doc(id);
     await invoiceDoc.delete();
   }
 
   async createAttendance(
     data: z.infer<typeof insertAttendanceSchema>,
   ): Promise<Attendance> {
-    const userDoc = await db.collection("users").doc(data.userId).get();
+    const userDoc = await this.db.collection("users").doc(data.userId).get();
     const validatedData = insertAttendanceSchema.parse({
       ...data,
       date: data.date ? Timestamp.fromDate(data.date) : Timestamp.now(),
@@ -821,7 +821,7 @@ export class FirestoreStorage implements IStorage {
         : undefined,
     });
     
-    const attendanceRef = db.collection("attendance");
+    const attendanceRef = this.db.collection("attendance");
     const attendanceDoc = await attendanceRef.add({
       ...validatedData,
       userEmail: userDoc.exists ? userDoc.data()?.email || "" : "",
@@ -856,7 +856,7 @@ export class FirestoreStorage implements IStorage {
         : undefined,
     });
     
-    const attendanceDoc = db.collection("attendance").doc(id);
+    const attendanceDoc = this.db.collection("attendance").doc(id);
     
     await attendanceDoc.update({
       ...validatedData,
@@ -885,7 +885,7 @@ export class FirestoreStorage implements IStorage {
       new Date(date.setHours(23, 59, 59, 999)),
     );
     
-    const attendanceRef = db.collection("attendance");
+    const attendanceRef = this.db.collection("attendance");
     const snapshot = await attendanceRef
       .where("userId", "==", userId)
       .where("date", ">=", startOfDay)
@@ -907,7 +907,7 @@ export class FirestoreStorage implements IStorage {
   }
 
   async listAttendanceByUser(userId: string): Promise<Attendance[]> {
-    const attendanceRef = db.collection("attendance");
+    const attendanceRef = this.db.collection("attendance");
     const snapshot = await attendanceRef
       .where("userId", "==", userId)
       .get();
@@ -930,7 +930,7 @@ export class FirestoreStorage implements IStorage {
       new Date(date.setHours(23, 59, 59, 999)),
     );
     
-    const attendanceRef = db.collection("attendance");
+    const attendanceRef = this.db.collection("attendance");
     const snapshot = await attendanceRef
       .where("date", ">=", startOfDay)
       .where("date", "<=", endOfDay)
@@ -955,7 +955,7 @@ export class FirestoreStorage implements IStorage {
     const start = Timestamp.fromDate(startDate);
     const end = Timestamp.fromDate(endDate);
     
-    const attendanceRef = db.collection("attendance");
+    const attendanceRef = this.db.collection("attendance");
     const snapshot = await attendanceRef
       .where("date", ">=", start)
       .where("date", "<=", end)
@@ -974,7 +974,7 @@ export class FirestoreStorage implements IStorage {
   }
 
   async getLeave(id: string): Promise<Leave | undefined> {
-    const leaveDoc = db.collection("leaves").doc(id);
+    const leaveDoc = this.db.collection("leaves").doc(id);
     const docSnap = await leaveDoc.get();
     
     if (!docSnap.exists) return undefined;
@@ -990,7 +990,7 @@ export class FirestoreStorage implements IStorage {
   }
 
   async listLeavesByUser(userId: string): Promise<Leave[]> {
-    const leavesRef = db.collection("leaves");
+    const leavesRef = this.db.collection("leaves");
     const snapshot = await leavesRef
       .where("userId", "==", userId)
       .get();
@@ -1008,7 +1008,7 @@ export class FirestoreStorage implements IStorage {
   }
 
   async listPendingLeaves(): Promise<Leave[]> {
-    const leavesRef = db.collection("leaves");
+    const leavesRef = this.db.collection("leaves");
     const snapshot = await leavesRef
       .where("status", "==", "pending")
       .get();
@@ -1032,7 +1032,7 @@ export class FirestoreStorage implements IStorage {
       endDate: Timestamp.fromDate(data.endDate),
     });
     
-    const leavesRef = db.collection("leaves");
+    const leavesRef = this.db.collection("leaves");
     const leaveDoc = await leavesRef.add({
       ...validatedData,
       createdAt: Timestamp.now(),
@@ -1060,7 +1060,7 @@ export class FirestoreStorage implements IStorage {
       endDate: data.endDate ? Timestamp.fromDate(data.endDate) : undefined,
     });
     
-    const leaveDoc = db.collection("leaves").doc(id);
+    const leaveDoc = this.db.collection("leaves").doc(id);
     
     await leaveDoc.update({ 
       ...validatedData, 
