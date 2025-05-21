@@ -1,7 +1,8 @@
 import { db } from "./firebase";
 import {
   FieldValue,
-  Timestamp
+  Timestamp,
+  Firestore
 } from "firebase-admin/firestore";
 import { z } from "zod";
 import {
@@ -248,6 +249,11 @@ export interface IStorage {
 }
 
 export class FirestoreStorage implements IStorage {
+  private db: Firestore;
+  
+  constructor() {
+    this.db = db;
+  }
   async getUser(id: string): Promise<User | undefined> {
     const userDoc = db.collection("users").doc(id);
     const docSnap = await userDoc.get();
@@ -984,31 +990,37 @@ export class FirestoreStorage implements IStorage {
   }
 
   async listLeavesByUser(userId: string): Promise<Leave[]> {
-    const q = query(collection(db, "leaves"), where("userId", "==", userId));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map((doc) => {
-      const data = doc.data();
+    const leavesRef = db.collection("leaves");
+    const snapshot = await leavesRef
+      .where("userId", "==", userId)
+      .get();
+    
+    return snapshot.docs.map(doc => {
+      const data = doc.data() || {};
       return {
         id: doc.id,
         ...data,
-        startDate: data.startDate.toDate(),
-        endDate: data.endDate.toDate(),
-        createdAt: data.createdAt.toDate(),
+        startDate: data.startDate?.toDate() || new Date(),
+        endDate: data.endDate?.toDate() || new Date(),
+        createdAt: data.createdAt?.toDate() || new Date(),
       } as Leave;
     });
   }
 
   async listPendingLeaves(): Promise<Leave[]> {
-    const q = query(collection(db, "leaves"), where("status", "==", "pending"));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map((doc) => {
-      const data = doc.data();
+    const leavesRef = db.collection("leaves");
+    const snapshot = await leavesRef
+      .where("status", "==", "pending")
+      .get();
+    
+    return snapshot.docs.map(doc => {
+      const data = doc.data() || {};
       return {
         id: doc.id,
         ...data,
-        startDate: data.startDate.toDate(),
-        endDate: data.endDate.toDate(),
-        createdAt: data.createdAt.toDate(),
+        startDate: data.startDate?.toDate() || new Date(),
+        endDate: data.endDate?.toDate() || new Date(),
+        createdAt: data.createdAt?.toDate() || new Date(),
       } as Leave;
     });
   }
@@ -1019,13 +1031,14 @@ export class FirestoreStorage implements IStorage {
       startDate: Timestamp.fromDate(data.startDate),
       endDate: Timestamp.fromDate(data.endDate),
     });
-    const leaveDoc = doc(collection(db, "leaves"));
-    await setDoc(leaveDoc, {
+    
+    const leavesRef = db.collection("leaves");
+    const leaveDoc = await leavesRef.add({
       ...validatedData,
-      id: leaveDoc.id,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     });
+    
     return {
       id: leaveDoc.id,
       ...validatedData,
@@ -1046,17 +1059,24 @@ export class FirestoreStorage implements IStorage {
         : undefined,
       endDate: data.endDate ? Timestamp.fromDate(data.endDate) : undefined,
     });
-    const leaveDoc = doc(db, "leaves", id);
-    await updateDoc(leaveDoc, { ...validatedData, updatedAt: Timestamp.now() });
-    const updatedDoc = await getDoc(leaveDoc);
-    if (!updatedDoc.exists()) throw new Error("Leave not found");
-    const updatedData = updatedDoc.data();
+    
+    const leaveDoc = db.collection("leaves").doc(id);
+    
+    await leaveDoc.update({ 
+      ...validatedData, 
+      updatedAt: Timestamp.now() 
+    });
+    
+    const updatedDoc = await leaveDoc.get();
+    if (!updatedDoc.exists) throw new Error("Leave not found");
+    
+    const updatedData = updatedDoc.data() || {};
     return {
       id: updatedDoc.id,
       ...updatedData,
-      startDate: updatedData.startDate.toDate(),
-      endDate: updatedData.endDate.toDate(),
-      createdAt: updatedData.createdAt.toDate(),
+      startDate: updatedData.startDate?.toDate() || new Date(),
+      endDate: updatedData.endDate?.toDate() || new Date(),
+      createdAt: updatedData.createdAt?.toDate() || new Date(),
     } as Leave;
   }
 }
