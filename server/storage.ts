@@ -284,8 +284,8 @@ export class FirestoreStorage implements IStorage {
   }
 
   async listUsers(): Promise<User[]> {
-    const usersCollection = collection(db, "users");
-    const snapshot = await getDocs(usersCollection);
+    const usersCollection = db.collection("users");
+    const snapshot = await usersCollection.get();
     return snapshot.docs.map((doc) => {
       const data = doc.data();
       return {
@@ -295,7 +295,7 @@ export class FirestoreStorage implements IStorage {
         displayName: data.displayName,
         role: data.role,
         department: data.department,
-        createdAt: data.createdAt.toDate(),
+        createdAt: data.createdAt?.toDate() || new Date(),
         photoURL: data.photoURL,
       } as User;
     });
@@ -303,25 +303,36 @@ export class FirestoreStorage implements IStorage {
 
   async createUser(data: z.infer<typeof insertUserSchema>): Promise<User> {
     const validatedData = insertUserSchema.parse(data);
-    const userDoc = doc(db, "users", validatedData.uid);
-    await setDoc(userDoc, {
+    const userDoc = db.collection("users").doc(validatedData.uid);
+    
+    await userDoc.set({
       ...validatedData,
       id: validatedData.uid,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     });
-    return { ...validatedData, createdAt: new Date() } as User;
+    
+    return { 
+      id: validatedData.uid,
+      ...validatedData, 
+      createdAt: new Date() 
+    } as User;
   }
 
   async updateUser(id: string, data: Partial<User>): Promise<User> {
-    const userDoc = doc(db, "users", id);
+    const userDoc = db.collection("users").doc(id);
     const updateData: any = { ...data, updatedAt: Timestamp.now() };
-    if (data.createdAt)
+    
+    if (data.createdAt) {
       updateData.createdAt = Timestamp.fromDate(data.createdAt);
-    await updateDoc(userDoc, updateData);
-    const updatedDoc = await getDoc(userDoc);
-    if (!updatedDoc.exists()) throw new Error("User not found");
-    const updatedData = updatedDoc.data();
+    }
+    
+    await userDoc.update(updateData);
+    const updatedDoc = await userDoc.get();
+    
+    if (!updatedDoc.exists) throw new Error("User not found");
+    const updatedData = updatedDoc.data() || {};
+    
     return {
       id: updatedDoc.id,
       uid: updatedData.uid,
@@ -329,22 +340,22 @@ export class FirestoreStorage implements IStorage {
       displayName: updatedData.displayName,
       role: updatedData.role,
       department: updatedData.department,
-      createdAt: updatedData.createdAt.toDate(),
+      createdAt: updatedData.createdAt?.toDate() || new Date(),
       photoURL: updatedData.photoURL,
     } as User;
   }
 
   async getDepartment(id: string): Promise<Department | undefined> {
-    const deptDoc = doc(db, "departments", id);
-    const docSnap = await getDoc(deptDoc);
-    if (!docSnap.exists()) return undefined;
+    const deptDoc = db.collection("departments").doc(id);
+    const docSnap = await deptDoc.get();
+    if (!docSnap.exists) return undefined;
     const data = docSnap.data();
-    return { id: docSnap.id, name: data.name } as Department;
+    return { id: docSnap.id, name: data?.name } as Department;
   }
 
   async getDepartmentByName(name: string): Promise<Department | undefined> {
-    const q = query(collection(db, "departments"), where("name", "==", name));
-    const snapshot = await getDocs(q);
+    const departmentsRef = db.collection("departments");
+    const snapshot = await departmentsRef.where("name", "==", name).get();
     if (snapshot.empty) return undefined;
     const doc = snapshot.docs[0];
     const data = doc.data();
@@ -359,13 +370,13 @@ export class FirestoreStorage implements IStorage {
     data: z.infer<typeof insertDepartmentSchema>,
   ): Promise<Department> {
     const validatedData = insertDepartmentSchema.parse(data);
-    const deptDoc = doc(collection(db, "departments"));
-    await setDoc(deptDoc, {
+    const departmentsRef = db.collection("departments");
+    const deptDoc = await departmentsRef.add({
       ...validatedData,
-      id: deptDoc.id,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     });
+    
     return { id: deptDoc.id, ...validatedData } as Department;
   }
 
