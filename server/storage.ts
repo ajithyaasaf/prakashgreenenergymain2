@@ -560,27 +560,34 @@ export class FirestoreStorage implements IStorage {
   }
 
   async listProducts(): Promise<Product[]> {
-    const productsCollection = collection(db, "products");
-    const snapshot = await getDocs(productsCollection);
-    return snapshot.docs.map(
-      (doc) =>
-        ({
-          id: doc.id,
-          ...doc.data(),
-          createdAt: doc.data().createdAt.toDate(),
-        }) as Product,
-    );
+    const productsCollection = db.collection("products");
+    const snapshot = await productsCollection.get();
+    
+    return snapshot.docs.map(doc => {
+      const data = doc.data() || {};
+      return {
+        id: doc.id,
+        name: data.name,
+        description: data.description,
+        price: data.price,
+        createdAt: data.createdAt?.toDate() || new Date()
+      } as Product;
+    });
   }
 
   async getProduct(id: string): Promise<Product | undefined> {
-    const productDoc = doc(db, "products", id);
-    const docSnap = await getDoc(productDoc);
-    if (!docSnap.exists()) return undefined;
-    const data = docSnap.data();
+    const productDoc = db.collection("products").doc(id);
+    const docSnap = await productDoc.get();
+    
+    if (!docSnap.exists) return undefined;
+    
+    const data = docSnap.data() || {};
     return {
       id: docSnap.id,
-      ...data,
-      createdAt: data.createdAt.toDate(),
+      name: data.name,
+      description: data.description,
+      price: data.price,
+      createdAt: data.createdAt?.toDate() || new Date()
     } as Product;
   }
 
@@ -588,13 +595,14 @@ export class FirestoreStorage implements IStorage {
     data: z.infer<typeof insertProductSchema>,
   ): Promise<Product> {
     const validatedData = insertProductSchema.parse(data);
-    const productDoc = doc(collection(db, "products"));
-    await setDoc(productDoc, {
+    const productsRef = db.collection("products");
+    
+    const productDoc = await productsRef.add({
       ...validatedData,
-      id: productDoc.id,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     });
+    
     return {
       id: productDoc.id,
       ...validatedData,
@@ -607,48 +615,60 @@ export class FirestoreStorage implements IStorage {
     data: Partial<z.infer<typeof insertProductSchema>>,
   ): Promise<Product> {
     const validatedData = insertProductSchema.partial().parse(data);
-    const productDoc = doc(db, "products", id);
-    await updateDoc(productDoc, {
+    const productDoc = db.collection("products").doc(id);
+    
+    await productDoc.update({
       ...validatedData,
       updatedAt: Timestamp.now(),
     });
-    const updatedDoc = await getDoc(productDoc);
-    if (!updatedDoc.exists()) throw new Error("Product not found");
-    const updatedData = updatedDoc.data();
+    
+    const updatedDoc = await productDoc.get();
+    if (!updatedDoc.exists) throw new Error("Product not found");
+    
+    const updatedData = updatedDoc.data() || {};
     return {
       id: updatedDoc.id,
       ...updatedData,
-      createdAt: updatedData.createdAt.toDate(),
+      createdAt: updatedData.createdAt?.toDate() || new Date(),
     } as Product;
   }
 
   async deleteProduct(id: string): Promise<void> {
-    const productDoc = doc(db, "products", id);
-    await deleteDoc(productDoc);
+    const productDoc = db.collection("products").doc(id);
+    await productDoc.delete();
   }
 
   async listQuotations(): Promise<Quotation[]> {
-    const quotationsCollection = collection(db, "quotations");
-    const snapshot = await getDocs(quotationsCollection);
-    return snapshot.docs.map(
-      (doc) =>
-        ({
-          id: doc.id,
-          ...doc.data(),
-          createdAt: doc.data().createdAt.toDate(),
-        }) as Quotation,
-    );
+    const quotationsCollection = db.collection("quotations");
+    const snapshot = await quotationsCollection.get();
+    
+    return snapshot.docs.map(doc => {
+      const data = doc.data() || {};
+      return {
+        id: doc.id,
+        customerId: data.customerId,
+        products: data.products,
+        total: data.total,
+        status: data.status,
+        createdAt: data.createdAt?.toDate() || new Date()
+      } as Quotation;
+    });
   }
 
   async getQuotation(id: string): Promise<Quotation | undefined> {
-    const quotationDoc = doc(db, "quotations", id);
-    const docSnap = await getDoc(quotationDoc);
-    if (!docSnap.exists()) return undefined;
-    const data = docSnap.data();
+    const quotationDoc = db.collection("quotations").doc(id);
+    const docSnap = await quotationDoc.get();
+    
+    if (!docSnap.exists) return undefined;
+    
+    const data = docSnap.data() || {};
     return {
       id: docSnap.id,
-      ...data,
-      createdAt: data.createdAt.toDate(),
+      customerId: data.customerId,
+      products: data.products,
+      total: data.total,
+      status: data.status,
+      createdAt: data.createdAt?.toDate() || new Date()
     } as Quotation;
   }
 
@@ -656,13 +676,14 @@ export class FirestoreStorage implements IStorage {
     data: z.infer<typeof insertQuotationSchema>,
   ): Promise<Quotation> {
     const validatedData = insertQuotationSchema.parse(data);
-    const quotationDoc = doc(collection(db, "quotations"));
-    await setDoc(quotationDoc, {
+    const quotationsRef = db.collection("quotations");
+    
+    const quotationDoc = await quotationsRef.add({
       ...validatedData,
-      id: quotationDoc.id,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     });
+    
     return {
       id: quotationDoc.id,
       ...validatedData,
