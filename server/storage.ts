@@ -474,32 +474,41 @@ export class FirestoreStorage implements IStorage {
   }
 
   async deleteOfficeLocation(id: string): Promise<void> {
-    const locationDoc = doc(db, "office_locations", id);
-    await deleteDoc(locationDoc);
+    const locationDoc = db.collection("office_locations").doc(id);
+    await locationDoc.delete();
   }
 
   async listCustomers(): Promise<Customer[]> {
-    const customersCollection = collection(db, "customers");
-    const snapshot = await getDocs(customersCollection);
-    return snapshot.docs.map(
-      (doc) =>
-        ({
-          id: doc.id,
-          ...doc.data(),
-          createdAt: doc.data().createdAt.toDate(),
-        }) as Customer,
-    );
+    const customersCollection = db.collection("customers");
+    const snapshot = await customersCollection.get();
+    
+    return snapshot.docs.map(doc => {
+      const data = doc.data() || {};
+      return {
+        id: doc.id,
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        address: data.address,
+        createdAt: data.createdAt?.toDate() || new Date()
+      } as Customer;
+    });
   }
 
   async getCustomer(id: string): Promise<Customer | undefined> {
-    const customerDoc = doc(db, "customers", id);
-    const docSnap = await getDoc(customerDoc);
-    if (!docSnap.exists()) return undefined;
-    const data = docSnap.data();
+    const customerDoc = db.collection("customers").doc(id);
+    const docSnap = await customerDoc.get();
+    
+    if (!docSnap.exists) return undefined;
+    
+    const data = docSnap.data() || {};
     return {
       id: docSnap.id,
-      ...data,
-      createdAt: data.createdAt.toDate(),
+      name: data.name,
+      email: data.email,
+      phone: data.phone,
+      address: data.address,
+      createdAt: data.createdAt?.toDate() || new Date()
     } as Customer;
   }
 
@@ -507,13 +516,14 @@ export class FirestoreStorage implements IStorage {
     data: z.infer<typeof insertCustomerSchema>,
   ): Promise<Customer> {
     const validatedData = insertCustomerSchema.parse(data);
-    const customerDoc = doc(collection(db, "customers"));
-    await setDoc(customerDoc, {
+    const customersRef = db.collection("customers");
+    
+    const customerDoc = await customersRef.add({
       ...validatedData,
-      id: customerDoc.id,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     });
+    
     return {
       id: customerDoc.id,
       ...validatedData,
@@ -526,24 +536,27 @@ export class FirestoreStorage implements IStorage {
     data: Partial<z.infer<typeof insertCustomerSchema>>,
   ): Promise<Customer> {
     const validatedData = insertCustomerSchema.partial().parse(data);
-    const customerDoc = doc(db, "customers", id);
-    await updateDoc(customerDoc, {
+    const customerDoc = db.collection("customers").doc(id);
+    
+    await customerDoc.update({
       ...validatedData,
       updatedAt: Timestamp.now(),
     });
-    const updatedDoc = await getDoc(customerDoc);
-    if (!updatedDoc.exists()) throw new Error("Customer not found");
-    const updatedData = updatedDoc.data();
+    
+    const updatedDoc = await customerDoc.get();
+    if (!updatedDoc.exists) throw new Error("Customer not found");
+    
+    const updatedData = updatedDoc.data() || {};
     return {
       id: updatedDoc.id,
       ...updatedData,
-      createdAt: updatedData.createdAt.toDate(),
+      createdAt: updatedData.createdAt?.toDate() || new Date(),
     } as Customer;
   }
 
   async deleteCustomer(id: string): Promise<void> {
-    const customerDoc = doc(db, "customers", id);
-    await deleteDoc(customerDoc);
+    const customerDoc = db.collection("customers").doc(id);
+    await customerDoc.delete();
   }
 
   async listProducts(): Promise<Product[]> {
