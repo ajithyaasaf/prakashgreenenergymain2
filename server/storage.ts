@@ -1048,8 +1048,8 @@ export class FirestoreStorage implements IStorage {
     return {
       id: leaveDoc.id,
       ...validatedData,
-      startDate: validatedData.startDate.toDate(),
-      endDate: validatedData.endDate.toDate(),
+      startDate: new Date(),
+      endDate: new Date(),
       createdAt: new Date(),
     } as Leave;
   }

@@ -1,15 +1,18 @@
-import { Pool, neonConfig } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-serverless';
-import ws from "ws";
-import * as schema from "@shared/schema";
+// This file is kept for backward compatibility during the Firestore migration
+// It provides a no-op implementation for any code still expecting the PostgreSQL connection
 
-neonConfig.webSocketConstructor = ws;
+console.log("PostgreSQL connection is deprecated - using Firestore instead");
 
-if (!process.env.DATABASE_URL) {
-  throw new Error(
-    "DATABASE_URL must be set. Did you forget to provision a database?",
-  );
-}
+// Mock objects to prevent errors in case any code is still using these
+export const pool = {
+  connect: () => Promise.resolve(null),
+  query: () => Promise.resolve({ rows: [] }),
+  end: () => Promise.resolve(),
+};
 
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-export const db = drizzle({ client: pool, schema });
+export const db = {
+  select: () => ({ from: () => Promise.resolve([]) }),
+  insert: () => ({ values: () => ({ returning: () => Promise.resolve([]) }) }),
+  update: () => ({ set: () => ({ where: () => ({ returning: () => Promise.resolve([]) }) }) }),
+  delete: () => ({ where: () => ({ returning: () => Promise.resolve([]) }) }),
+};
