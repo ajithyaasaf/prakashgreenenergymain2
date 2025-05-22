@@ -163,25 +163,15 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AppRoot />
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
 
-// Root component to handle authentication state
-function AppRoot() {
-  return (
-    <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <AuthenticatedContent />
-      </TooltipProvider>
-    </AuthProvider>
-  );
-}
-
-// This component can safely use useAuthContext since it's inside AuthProvider
-function AuthenticatedContent() {
+// This component sits inside the AuthProvider
+function AppContent() {
   const { loading } = useAuthContext();
   
   // Prevent login screen flash by showing a loading screen during auth check
@@ -189,7 +179,13 @@ function AuthenticatedContent() {
     return <AppLoader />;
   }
   
-  return <Router />;
+  // Only wrap in these providers when the auth state is determined
+  return (
+    <TooltipProvider>
+      <Toaster />
+      <Router />
+    </TooltipProvider>
+  );
 }
 
 export default App;
