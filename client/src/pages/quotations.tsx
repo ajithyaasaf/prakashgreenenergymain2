@@ -99,7 +99,7 @@ export default function Quotations() {
     queryFn: async () => {
       let url = `/api/quotations?page=${currentPage}&limit=${itemsPerPage}&search=${debouncedSearch}&sortBy=${sortBy}&sortOrder=${sortOrder}`;
       
-      if (statusFilter) {
+      if (statusFilter && statusFilter !== "all") {
         url += `&status=${statusFilter}`;
       }
       
@@ -122,7 +122,7 @@ export default function Quotations() {
         queryFn: async () => {
           let url = `/api/quotations?page=${currentPage + 1}&limit=${itemsPerPage}&search=${debouncedSearch}&sortBy=${sortBy}&sortOrder=${sortOrder}`;
           
-          if (statusFilter) {
+          if (statusFilter && statusFilter !== "all") {
             url += `&status=${statusFilter}`;
           }
           
@@ -214,7 +214,7 @@ export default function Quotations() {
                 <SelectValue placeholder="All Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Status</SelectItem>
+                <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="draft">Draft</SelectItem>
                 <SelectItem value="sent">Sent</SelectItem>
                 <SelectItem value="accepted">Accepted</SelectItem>
