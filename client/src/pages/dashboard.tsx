@@ -232,9 +232,9 @@ export default function Dashboard() {
   // Loading state
   if (loadingSummary || loadingCustomers || loadingProducts || loadingQuotations || loadingInvoices) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <span className="ml-2 text-lg">Loading dashboard data...</span>
+      <div className="flex h-full items-center justify-center p-4">
+        <Loader2 className="h-6 w-6 sm:h-8 sm:w-8 animate-spin text-primary" />
+        <span className="ml-2 text-base sm:text-lg">Loading dashboard data...</span>
       </div>
     );
   }
@@ -242,7 +242,7 @@ export default function Dashboard() {
   return (
     <>
       {/* Dashboard Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-5 md:gap-6 mb-4 sm:mb-6">
         {/* Overall Stats Card */}
         <StatsCard
           title="Overall Performance"
@@ -276,7 +276,7 @@ export default function Dashboard() {
       </div>
 
       {/* Recent Customers & Products */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 md:gap-6 mb-4 sm:mb-6">
         {/* Recent Customers */}
         <RecentCustomersTable customers={recentCustomers} />
 
@@ -285,7 +285,7 @@ export default function Dashboard() {
       </div>
 
       {/* Recent Activity */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-5 md:gap-6 mb-4 sm:mb-6">
         {/* Recent Quotations Card */}
         <RecentQuotations quotations={recentQuotations} />
 
@@ -293,7 +293,9 @@ export default function Dashboard() {
         <RecentInvoices invoices={recentInvoices} />
 
         {/* Recent Activity Card */}
-        <ActivityTimeline activities={recentActivity} />
+        <div className="sm:col-span-2 md:col-span-1">
+          <ActivityTimeline activities={recentActivity} />
+        </div>
       </div>
 
       {/* Quick Actions */}
