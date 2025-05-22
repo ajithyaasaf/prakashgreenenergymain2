@@ -107,16 +107,7 @@ export default function Customers() {
     isFetching,
     isError 
   } = useQuery({
-    queryKey: ["/api/customers", currentPage, itemsPerPage, debouncedSearch, sortBy, sortOrder],
-    queryFn: async () => {
-      const response = await fetch(
-        `/api/customers?page=${currentPage}&limit=${itemsPerPage}&search=${debouncedSearch}&sortBy=${sortBy}&sortOrder=${sortOrder}`
-      );
-      if (!response.ok) {
-        throw new Error("Failed to fetch customers");
-      }
-      return response.json() as Promise<CustomersResponse>;
-    }
+    queryKey: [`/api/customers?page=${currentPage}&limit=${itemsPerPage}&search=${debouncedSearch}&sortBy=${sortBy}&sortOrder=${sortOrder}`]
   });
   
   const customers = customersResponse?.data || [];

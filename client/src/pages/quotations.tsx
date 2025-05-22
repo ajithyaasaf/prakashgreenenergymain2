@@ -95,20 +95,7 @@ export default function Quotations() {
     isFetching,
     isError 
   } = useQuery({
-    queryKey: ["/api/quotations", currentPage, itemsPerPage, debouncedSearch, sortBy, sortOrder, statusFilter],
-    queryFn: async () => {
-      let url = `/api/quotations?page=${currentPage}&limit=${itemsPerPage}&search=${debouncedSearch}&sortBy=${sortBy}&sortOrder=${sortOrder}`;
-      
-      if (statusFilter && statusFilter !== "all") {
-        url += `&status=${statusFilter}`;
-      }
-      
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error("Failed to fetch quotations");
-      }
-      return response.json() as Promise<QuotationsResponse>;
-    }
+    queryKey: [`/api/quotations?page=${currentPage}&limit=${itemsPerPage}&search=${debouncedSearch}&sortBy=${sortBy}&sortOrder=${sortOrder}${statusFilter && statusFilter !== "all" ? `&status=${statusFilter}` : ''}`]
   });
   
   const quotations = quotationsResponse?.data || [];
@@ -118,20 +105,7 @@ export default function Quotations() {
   useEffect(() => {
     if (pagination?.hasNextPage) {
       queryClient.prefetchQuery({
-        queryKey: ["/api/quotations", currentPage + 1, itemsPerPage, debouncedSearch, sortBy, sortOrder, statusFilter],
-        queryFn: async () => {
-          let url = `/api/quotations?page=${currentPage + 1}&limit=${itemsPerPage}&search=${debouncedSearch}&sortBy=${sortBy}&sortOrder=${sortOrder}`;
-          
-          if (statusFilter && statusFilter !== "all") {
-            url += `&status=${statusFilter}`;
-          }
-          
-          const response = await fetch(url);
-          if (!response.ok) {
-            throw new Error("Failed to fetch quotations");
-          }
-          return response.json();
-        }
+        queryKey: [`/api/quotations?page=${currentPage + 1}&limit=${itemsPerPage}&search=${debouncedSearch}&sortBy=${sortBy}&sortOrder=${sortOrder}${statusFilter && statusFilter !== "all" ? `&status=${statusFilter}` : ''}`]
       });
     }
   }, [queryClient, currentPage, itemsPerPage, debouncedSearch, pagination?.hasNextPage, sortBy, sortOrder, statusFilter]);

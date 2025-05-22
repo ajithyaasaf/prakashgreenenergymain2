@@ -95,20 +95,7 @@ export default function Invoices() {
     isFetching,
     isError 
   } = useQuery({
-    queryKey: ["/api/invoices", currentPage, itemsPerPage, debouncedSearch, sortBy, sortOrder, statusFilter],
-    queryFn: async () => {
-      let url = `/api/invoices?page=${currentPage}&limit=${itemsPerPage}&search=${debouncedSearch}&sortBy=${sortBy}&sortOrder=${sortOrder}`;
-      
-      if (statusFilter && statusFilter !== "all") {
-        url += `&status=${statusFilter}`;
-      }
-      
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error("Failed to fetch invoices");
-      }
-      return response.json() as Promise<InvoicesResponse>;
-    }
+    queryKey: [`/api/invoices?page=${currentPage}&limit=${itemsPerPage}&search=${debouncedSearch}&sortBy=${sortBy}&sortOrder=${sortOrder}${statusFilter && statusFilter !== "all" ? `&status=${statusFilter}` : ''}`],
   });
   
   const invoices = invoicesResponse?.data || [];
@@ -118,20 +105,7 @@ export default function Invoices() {
   useEffect(() => {
     if (pagination?.hasNextPage) {
       queryClient.prefetchQuery({
-        queryKey: ["/api/invoices", currentPage + 1, itemsPerPage, debouncedSearch, sortBy, sortOrder, statusFilter],
-        queryFn: async () => {
-          let url = `/api/invoices?page=${currentPage + 1}&limit=${itemsPerPage}&search=${debouncedSearch}&sortBy=${sortBy}&sortOrder=${sortOrder}`;
-          
-          if (statusFilter && statusFilter !== "all") {
-            url += `&status=${statusFilter}`;
-          }
-          
-          const response = await fetch(url);
-          if (!response.ok) {
-            throw new Error("Failed to fetch invoices");
-          }
-          return response.json();
-        }
+        queryKey: [`/api/invoices?page=${currentPage + 1}&limit=${itemsPerPage}&search=${debouncedSearch}&sortBy=${sortBy}&sortOrder=${sortOrder}${statusFilter && statusFilter !== "all" ? `&status=${statusFilter}` : ''}`],
       });
     }
   }, [queryClient, currentPage, itemsPerPage, debouncedSearch, pagination?.hasNextPage, sortBy, sortOrder, statusFilter]);
