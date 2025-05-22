@@ -150,9 +150,12 @@ export const getFirestoreUserData = async (uid: string) => {
     const userDoc = await getDoc(userDocRef);
     
     if (userDoc.exists()) {
+      const userData = userDoc.data();
+      console.log("Firestore user data:", uid, userData);
+      console.log("Firestore user role:", userData.role);
       return {
         uid,
-        ...userDoc.data()
+        ...userData
       };
     }
     
@@ -200,15 +203,41 @@ export const syncUser = async (uid: string, forceFull = false) => {
     // Get user auth data if available
     const authUser = await getAuthUserData(uid);
     
-    // Get existing user from our API
-    const existingUsersResponse = await fetch('/api/users');
-    const existingUsers = await existingUsersResponse.json();
-    const existingUser = existingUsers.find((user: any) => user.uid === uid);
+    // If we have Firestore data with a master_admin role, use it directly
+    if (firestoreUser && firestoreUser.role === "master_admin") {
+      console.log("Found master_admin in Firestore, using it directly");
+      return { 
+        status: 'direct_firestore', 
+        user: {
+          uid: uid,
+          id: uid,
+          email: authUser?.email || firestoreUser.email || `user-${uid}@example.com`,
+          displayName: authUser?.displayName || firestoreUser.displayName || "Admin User",
+          role: "master_admin",
+          department: firestoreUser.department || null,
+          createdAt: new Date()
+        }
+      };
+    }
+    
+    // Try to get existing user from our API
+    let existingUser = null;
+    try {
+      const existingUsersResponse = await fetch('/api/users');
+      const existingUsers = await existingUsersResponse.json();
+      existingUser = existingUsers.find((user: any) => user.uid === uid);
+    } catch (error) {
+      console.error("Error fetching users from API:", error);
+    }
     
     // Merge data with priority to auth data
     let email = authUser?.email || firestoreUser?.email || `user-${uid}@example.com`;
     let displayName = authUser?.displayName || firestoreUser?.displayName || email.split('@')[0] || "User";
+    
+    // Make sure we correctly get the role from Firestore
     const role = firestoreUser?.role || "employee";
+    console.log("SyncUser - User role from Firestore:", uid, firestoreUser?.role);
+    
     const department = firestoreUser?.department || null;
     
     // Create or update user
