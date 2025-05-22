@@ -271,7 +271,7 @@ export class FirestoreStorage implements IStorage {
       displayName: data?.displayName,
       role: data?.role,
       department: data?.department,
-      createdAt: data?.createdAt.toDate(),
+      createdAt: data?.createdAt?.toDate ? data.createdAt.toDate() : new Date(data?.createdAt || Date.now()),
       photoURL: data?.photoURL,
     } as User;
   }
