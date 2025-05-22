@@ -50,9 +50,9 @@ export default function Quotations() {
     const customerName = customer?.name?.toLowerCase() || '';
     
     return (
-      quotation.quotationNumber.toLowerCase().includes(query) ||
+      quotation.quotationNumber?.toLowerCase().includes(query) ||
       customerName.includes(query) ||
-      quotation.status.toLowerCase().includes(query)
+      quotation.status?.toLowerCase().includes(query)
     );
   });
 
