@@ -916,7 +916,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Products
+  // Products with pagination and performance optimizations
   app.get("/api/products", verifyAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.user.uid);
@@ -928,8 +928,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ) {
         return res.status(403).json({ message: "Access denied" });
       }
+      
+      // Parse pagination parameters
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 20;
+      const search = (req.query.search as string) || '';
+      const sortBy = (req.query.sortBy as string) || 'name';
+      const sortOrder = (req.query.sortOrder as string) || 'asc';
+      
+      // Get products with pagination
       const products = await storage.listProducts();
-      res.json(products);
+      
+      // Apply search filter if provided
+      let filteredProducts = products;
+      if (search) {
+        const searchLower = search.toLowerCase();
+        filteredProducts = products.filter((product: any) => 
+          product.name?.toLowerCase().includes(searchLower) ||
+          product.type?.toLowerCase().includes(searchLower) ||
+          product.make?.toLowerCase().includes(searchLower)
+        );
+      }
+      
+      // Sort products
+      filteredProducts.sort((a: any, b: any) => {
+        const aValue = a[sortBy] || '';
+        const bValue = b[sortBy] || '';
+        
+        if (typeof aValue === 'string' && typeof bValue === 'string') {
+          return sortOrder === 'asc' 
+            ? aValue.localeCompare(bValue)
+            : bValue.localeCompare(aValue);
+        } else {
+          return sortOrder === 'asc'
+            ? (aValue > bValue ? 1 : -1)
+            : (bValue > aValue ? 1 : -1);
+        }
+      });
+      
+      // Calculate pagination values
+      const totalItems = filteredProducts.length;
+      const totalPages = Math.ceil(totalItems / limit);
+      const startIndex = (page - 1) * limit;
+      const endIndex = Math.min(startIndex + limit, totalItems);
+      
+      // Get paginated subset
+      const paginatedProducts = filteredProducts.slice(startIndex, endIndex);
+      
+      // Return with pagination metadata
+      res.json({
+        data: paginatedProducts,
+        pagination: {
+          page,
+          limit,
+          totalItems,
+          totalPages,
+          hasNextPage: page < totalPages,
+          hasPrevPage: page > 1
+        }
+      });
     } catch (error) {
       console.error("Error fetching products:", error);
       res.status(500).json({ message: "Failed to fetch products" });
