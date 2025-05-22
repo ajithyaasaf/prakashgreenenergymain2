@@ -148,57 +148,71 @@ export default function Dashboard() {
     queryKey: ["/api/activity-logs"],
   });
 
-  // Generate activity timeline from real data
-  // If we don't have actual activity logs, derive them from other data sources
-  const recentActivity = [];
+  // Format activity logs from API data
+  const recentActivity = Array.isArray(activityLogsData) ? activityLogsData.slice(0, 4).map((activity: any) => {
+    // Determine icon and background color based on activity type
+    let icon = "ri-history-line";
+    let iconBgColor = "bg-gray-500";
+    
+    if (activity.type === 'customer_created') {
+      icon = "ri-user-add-line";
+      iconBgColor = "bg-primary";
+    } else if (activity.type === 'quotation_created') {
+      icon = "ri-file-list-3-line";
+      iconBgColor = "bg-secondary";
+    } else if (activity.type === 'attendance') {
+      icon = "ri-time-line";
+      iconBgColor = "bg-purple-500";
+    } else if (activity.type === 'invoice_paid') {
+      icon = "ri-bill-line";
+      iconBgColor = "bg-green-500";
+    } else if (activity.type === 'product_created') {
+      icon = "ri-store-2-line";
+      iconBgColor = "bg-yellow-500";
+    }
+    
+    // Format the time as a relative time string (e.g., "2 hours ago")
+    const activityTime = activity.createdAt 
+      ? formatRelativeTime(new Date(activity.createdAt)) 
+      : "Recently";
+    
+    return {
+      id: activity.id,
+      icon,
+      iconBgColor,
+      title: activity.title,
+      description: activity.description,
+      time: activityTime
+    };
+  }) : [];
   
-  // Add recent customers to activity
-  if (Array.isArray(customersData) && customersData.length > 0) {
-    const recentCustomers = [...customersData]
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      .slice(0, 2);
-      
-    recentCustomers.forEach((customer, index) => {
-      recentActivity.push({
-        id: `customer-${customer.id}`,
-        icon: "ri-user-add-line",
-        iconBgColor: "bg-primary",
-        title: "New customer added",
-        description: `${customer.name}, ${customer.address || 'Location unknown'}`,
-        time: `${1 + index} hours ago`
-      });
-    });
+  // Helper function to format relative time
+  function formatRelativeTime(date: Date): string {
+    const now = new Date();
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+    
+    if (diffInSeconds < 60) {
+      return "Just now";
+    }
+    
+    const diffInMinutes = Math.floor(diffInSeconds / 60);
+    if (diffInMinutes < 60) {
+      return `${diffInMinutes} ${diffInMinutes === 1 ? 'minute' : 'minutes'} ago`;
+    }
+    
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24) {
+      return `${diffInHours} ${diffInHours === 1 ? 'hour' : 'hours'} ago`;
+    }
+    
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays < 30) {
+      return `${diffInDays} ${diffInDays === 1 ? 'day' : 'days'} ago`;
+    }
+    
+    const diffInMonths = Math.floor(diffInDays / 30);
+    return `${diffInMonths} ${diffInMonths === 1 ? 'month' : 'months'} ago`;
   }
-  
-  // Add recent quotations to activity
-  if (Array.isArray(quotationsData) && quotationsData.length > 0) {
-    const recentQuotation = quotationsData[0];
-    recentActivity.push({
-      id: `quotation-${recentQuotation.id}`,
-      icon: "ri-file-list-3-line",
-      iconBgColor: "bg-secondary",
-      title: "Quotation created",
-      description: `${recentQuotation.quotationNumber} for ${formatCurrency(recentQuotation.totalAmount || 0)}`,
-      time: "3 hours ago"
-    });
-  }
-  
-  // Add recent invoices to activity
-  if (Array.isArray(invoicesData) && invoicesData.length > 0) {
-    const recentInvoice = invoicesData[0];
-    recentActivity.push({
-      id: `invoice-${recentInvoice.id}`,
-      icon: "ri-bill-line",
-      iconBgColor: "bg-green-500",
-      title: "Invoice paid",
-      description: `${recentInvoice.invoiceNumber} for ${formatCurrency(recentInvoice.totalAmount || 0)}`,
-      time: "6 hours ago"
-    });
-  }
-  
-  // Sort and slice to ensure we have at most 4 activities
-  // This is a temporary solution until we have a proper activity logs API
-  // We're generating this from existing API data to avoid showing dummy data
 
   // Quick actions
   const quickActions = [

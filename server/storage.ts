@@ -283,6 +283,48 @@ export class FirestoreStorage implements IStorage {
     // Use the db imported at the top of the file
     this.db = db;
   }
+  
+  // Activity logs implementation
+  async createActivityLog(data: z.infer<typeof insertActivityLogSchema>): Promise<ActivityLog> {
+    const id = this.db.collection("activity_logs").doc().id;
+    const activityLog: ActivityLog = {
+      id,
+      type: data.type,
+      title: data.title,
+      description: data.description,
+      entityId: data.entityId || '',
+      entityType: data.entityType || '',
+      userId: data.userId,
+      createdAt: new Date()
+    };
+    
+    await this.db.collection("activity_logs").doc(id).set({
+      ...activityLog,
+      createdAt: Timestamp.fromDate(activityLog.createdAt)
+    });
+    
+    return activityLog;
+  }
+  
+  async listActivityLogs(limit = 10): Promise<ActivityLog[]> {
+    const snapshot = await this.db.collection("activity_logs")
+      .orderBy("createdAt", "desc")
+      .limit(limit)
+      .get();
+    
+    if (snapshot.empty) {
+      return [];
+    }
+    
+    return snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        ...data,
+        id: doc.id,
+        createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt || Date.now())
+      } as ActivityLog;
+    });
+  }
   async getUser(id: string): Promise<User | undefined> {
     const userDoc = this.db.collection("users").doc(id);
     const docSnap = await userDoc.get();
@@ -323,6 +365,19 @@ export class FirestoreStorage implements IStorage {
     const snapshot = await usersCollection.get();
     return snapshot.docs.map((doc) => {
       const data = doc.data();
+      // Handle different date formats safely
+      let createdAt: Date;
+      if (data.createdAt?.toDate) {
+        // Firestore Timestamp
+        createdAt = data.createdAt.toDate();
+      } else if (data.createdAt) {
+        // ISO string or similar
+        createdAt = new Date(data.createdAt);
+      } else {
+        // Fallback
+        createdAt = new Date();
+      }
+      
       return {
         id: doc.id,
         uid: data.uid,
@@ -330,7 +385,7 @@ export class FirestoreStorage implements IStorage {
         displayName: data.displayName,
         role: data.role,
         department: data.department,
-        createdAt: data.createdAt?.toDate() || new Date(),
+        createdAt: createdAt,
         photoURL: data.photoURL,
       } as User;
     });

@@ -36,6 +36,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   };
 
+  // Activity Logs
+  app.get("/api/activity-logs", verifyAuth, async (req, res) => {
+    try {
+      // For activity logs, generate them from other data if they don't exist yet
+      const activities = [];
+      
+      // Get recent customers
+      const customers = await storage.listCustomers();
+      if (customers.length > 0) {
+        // Sort by newest first
+        const recentCustomers = [...customers]
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+          .slice(0, 2);
+          
+        recentCustomers.forEach((customer, index) => {
+          activities.push({
+            id: `customer-${customer.id}`,
+            type: 'customer_created',
+            title: "New customer added",
+            description: `${customer.name}, ${customer.address || 'Location unknown'}`,
+            createdAt: customer.createdAt,
+            entityId: customer.id,
+            entityType: 'customer',
+            userId: 'system' // Since we don't have actual user info for this action
+          });
+        });
+      }
+      
+      // Get recent quotations
+      const quotations = await storage.listQuotations();
+      if (quotations.length > 0) {
+        const recentQuotation = quotations[0];
+        activities.push({
+          id: `quotation-${recentQuotation.id}`,
+          type: 'quotation_created',
+          title: "Quotation created",
+          description: `${recentQuotation.quotationNumber || 'New quotation'} for ₹${recentQuotation.total || 0}`,
+          createdAt: recentQuotation.createdAt,
+          entityId: recentQuotation.id,
+          entityType: 'quotation',
+          userId: 'system'
+        });
+      }
+      
+      // Get recent invoices
+      const invoices = await storage.listInvoices();
+      if (invoices.length > 0) {
+        const recentInvoice = invoices[0];
+        activities.push({
+          id: `invoice-${recentInvoice.id}`,
+          type: 'invoice_paid',
+          title: "Invoice paid",
+          description: `${recentInvoice.invoiceNumber || 'Invoice'} for ₹${recentInvoice.total || 0}`,
+          createdAt: recentInvoice.createdAt,
+          entityId: recentInvoice.id,
+          entityType: 'invoice',
+          userId: 'system'
+        });
+      }
+      
+      // Sort by creation date (newest first)
+      activities.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      
+      res.json(activities);
+    } catch (error) {
+      console.error("Error generating activity logs:", error);
+      res.status(500).json({ message: "Failed to fetch activity logs" });
+    }
+  });
+
   // Users
   app.get("/api/users", verifyAuth, async (req, res) => {
     try {
