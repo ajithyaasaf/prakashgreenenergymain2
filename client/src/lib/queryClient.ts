@@ -12,13 +12,27 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
-  const res = await fetch(url, {
+  // For GET requests, append data as query parameters if provided
+  let finalUrl = url;
+  const options: RequestInit = {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
-    body: data ? JSON.stringify(data) : undefined,
+    headers: data && method !== 'GET' ? { "Content-Type": "application/json" } : {},
     credentials: "include",
-  });
-
+  };
+  
+  // Only add body for non-GET requests
+  if (data && method !== 'GET') {
+    options.body = JSON.stringify(data);
+  } else if (data && method === 'GET') {
+    // Convert data to query params for GET requests
+    const params = new URLSearchParams();
+    Object.entries(data as Record<string, any>).forEach(([key, value]) => {
+      params.append(key, String(value));
+    });
+    finalUrl = `${url}${url.includes('?') ? '&' : '?'}${params.toString()}`;
+  }
+  
+  const res = await fetch(finalUrl, options);
   await throwIfResNotOk(res);
   return res;
 }
