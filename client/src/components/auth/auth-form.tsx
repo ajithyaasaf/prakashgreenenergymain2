@@ -13,11 +13,12 @@ interface AuthFormProps {
 export function AuthForm({ title, description, children, footer }: AuthFormProps) {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 p-4 sm:p-6">
-      <div className="mb-6 flex items-center gap-2">
-        <div className="h-10 w-10 rounded-md bg-primary flex items-center justify-center">
-          <Leaf className="h-6 w-6 text-white" />
-        </div>
-        <span className="text-2xl font-bold">Prakash Greens Energy</span>
+      <div className="mb-6 flex items-center justify-center">
+        <img 
+          src={logoPath} 
+          alt="Prakash Green Energy" 
+          className="h-16 w-auto object-contain"
+        />
       </div>
       
       <Card className="w-full max-w-md">
