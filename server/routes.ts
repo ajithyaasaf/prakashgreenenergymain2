@@ -808,7 +808,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Customers
+  // Customers with pagination and performance optimizations
   app.get("/api/customers", verifyAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.user.uid);
@@ -820,8 +820,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ) {
         return res.status(403).json({ message: "Access denied" });
       }
+      
+      // Parse pagination parameters
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 20;
+      const search = (req.query.search as string) || '';
+      const sortBy = (req.query.sortBy as string) || 'name';
+      const sortOrder = (req.query.sortOrder as string) || 'asc';
+      
+      // Get customers
       const customers = await storage.listCustomers();
-      res.json(customers);
+      
+      // Apply search filter if provided
+      let filteredCustomers = customers;
+      if (search) {
+        const searchLower = search.toLowerCase();
+        filteredCustomers = customers.filter((customer: any) => 
+          customer.name?.toLowerCase().includes(searchLower) ||
+          customer.email?.toLowerCase().includes(searchLower) ||
+          customer.phone?.toLowerCase().includes(searchLower) ||
+          customer.address?.toLowerCase().includes(searchLower)
+        );
+      }
+      
+      // Sort customers
+      filteredCustomers.sort((a: any, b: any) => {
+        const aValue = a[sortBy] || '';
+        const bValue = b[sortBy] || '';
+        
+        if (typeof aValue === 'string' && typeof bValue === 'string') {
+          return sortOrder === 'asc' 
+            ? aValue.localeCompare(bValue)
+            : bValue.localeCompare(aValue);
+        } else {
+          return sortOrder === 'asc'
+            ? (aValue > bValue ? 1 : -1)
+            : (bValue > aValue ? 1 : -1);
+        }
+      });
+      
+      // Calculate pagination values
+      const totalItems = filteredCustomers.length;
+      const totalPages = Math.ceil(totalItems / limit);
+      const startIndex = (page - 1) * limit;
+      const endIndex = Math.min(startIndex + limit, totalItems);
+      
+      // Get paginated subset
+      const paginatedCustomers = filteredCustomers.slice(startIndex, endIndex);
+      
+      // Return with pagination metadata
+      res.json({
+        data: paginatedCustomers,
+        pagination: {
+          page,
+          limit,
+          totalItems,
+          totalPages,
+          hasNextPage: page < totalPages,
+          hasPrevPage: page > 1
+        }
+      });
     } catch (error) {
       console.error("Error fetching customers:", error);
       res.status(500).json({ message: "Failed to fetch customers" });
@@ -1081,7 +1139,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Quotations
+  // Quotations with pagination and performance optimizations
   app.get("/api/quotations", verifyAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.user.uid);
@@ -1093,8 +1151,110 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ) {
         return res.status(403).json({ message: "Access denied" });
       }
+      
+      // Parse pagination parameters
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 20;
+      const search = (req.query.search as string) || '';
+      const sortBy = (req.query.sortBy as string) || 'createdAt';
+      const sortOrder = (req.query.sortOrder as string) || 'desc'; // Default newest first
+      const status = (req.query.status as string) || '';
+      
+      // Get quotations
       const quotations = await storage.listQuotations();
-      res.json(quotations);
+      
+      // Apply search & status filter if provided
+      let filteredQuotations = quotations;
+      
+      if (status) {
+        filteredQuotations = filteredQuotations.filter((quotation: any) => 
+          quotation.status?.toLowerCase() === status.toLowerCase()
+        );
+      }
+      
+      if (search) {
+        const searchLower = search.toLowerCase();
+        // Get customer details for better search
+        const customers = await storage.listCustomers();
+        const customerMap = new Map();
+        customers.forEach((customer: any) => {
+          customerMap.set(customer.id, customer);
+        });
+        
+        filteredQuotations = filteredQuotations.filter((quotation: any) => {
+          const customer = customerMap.get(quotation.customerId);
+          // Search by quotation ID, amount, status, or customer name
+          return (
+            quotation.id?.toLowerCase().includes(searchLower) ||
+            quotation.status?.toLowerCase().includes(searchLower) ||
+            (customer && customer.name?.toLowerCase().includes(searchLower))
+          );
+        });
+      }
+      
+      // Sort quotations
+      filteredQuotations.sort((a: any, b: any) => {
+        let aValue = a[sortBy];
+        let bValue = b[sortBy];
+        
+        // Handle dates for proper sorting
+        if (sortBy === 'createdAt') {
+          aValue = new Date(aValue).getTime();
+          bValue = new Date(bValue).getTime();
+        }
+        
+        if (typeof aValue === 'string' && typeof bValue === 'string') {
+          return sortOrder === 'asc' 
+            ? aValue.localeCompare(bValue)
+            : bValue.localeCompare(aValue);
+        } else {
+          return sortOrder === 'asc'
+            ? (aValue > bValue ? 1 : -1)
+            : (bValue > aValue ? 1 : -1);
+        }
+      });
+      
+      // Calculate pagination values
+      const totalItems = filteredQuotations.length;
+      const totalPages = Math.ceil(totalItems / limit);
+      const startIndex = (page - 1) * limit;
+      const endIndex = Math.min(startIndex + limit, totalItems);
+      
+      // Get paginated subset
+      const paginatedQuotations = filteredQuotations.slice(startIndex, endIndex);
+      
+      // Enhance with customer data
+      const enhancedQuotations = await Promise.all(
+        paginatedQuotations.map(async (quotation: any) => {
+          let customerName = "Unknown Customer";
+          try {
+            const customer = await storage.getCustomer(quotation.customerId);
+            if (customer) {
+              customerName = customer.name;
+            }
+          } catch (error) {
+            console.error("Error fetching customer for quotation:", error);
+          }
+          
+          return {
+            ...quotation,
+            customerName
+          };
+        })
+      );
+      
+      // Return with pagination metadata
+      res.json({
+        data: enhancedQuotations,
+        pagination: {
+          page,
+          limit,
+          totalItems,
+          totalPages,
+          hasNextPage: page < totalPages,
+          hasPrevPage: page > 1
+        }
+      });
     } catch (error) {
       console.error("Error fetching quotations:", error);
       res.status(500).json({ message: "Failed to fetch quotations" });
@@ -1189,7 +1349,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Invoices
+  // Invoices with pagination and performance optimizations
   app.get("/api/invoices", verifyAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.user.uid);
@@ -1201,8 +1361,110 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ) {
         return res.status(403).json({ message: "Access denied" });
       }
+      
+      // Parse pagination parameters
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 20;
+      const search = (req.query.search as string) || '';
+      const sortBy = (req.query.sortBy as string) || 'createdAt';
+      const sortOrder = (req.query.sortOrder as string) || 'desc'; // Default newest first
+      const status = (req.query.status as string) || '';
+      
+      // Get invoices
       const invoices = await storage.listInvoices();
-      res.json(invoices);
+      
+      // Apply search & status filter if provided
+      let filteredInvoices = invoices;
+      
+      if (status) {
+        filteredInvoices = filteredInvoices.filter((invoice: any) => 
+          invoice.status?.toLowerCase() === status.toLowerCase()
+        );
+      }
+      
+      if (search) {
+        const searchLower = search.toLowerCase();
+        // Get customer details for better search
+        const customers = await storage.listCustomers();
+        const customerMap = new Map();
+        customers.forEach((customer: any) => {
+          customerMap.set(customer.id, customer);
+        });
+        
+        filteredInvoices = filteredInvoices.filter((invoice: any) => {
+          const customer = customerMap.get(invoice.customerId);
+          // Search by invoice ID, amount, status, or customer name
+          return (
+            invoice.id?.toLowerCase().includes(searchLower) ||
+            invoice.status?.toLowerCase().includes(searchLower) ||
+            (customer && customer.name?.toLowerCase().includes(searchLower))
+          );
+        });
+      }
+      
+      // Sort invoices
+      filteredInvoices.sort((a: any, b: any) => {
+        let aValue = a[sortBy];
+        let bValue = b[sortBy];
+        
+        // Handle dates for proper sorting
+        if (sortBy === 'createdAt') {
+          aValue = new Date(aValue).getTime();
+          bValue = new Date(bValue).getTime();
+        }
+        
+        if (typeof aValue === 'string' && typeof bValue === 'string') {
+          return sortOrder === 'asc' 
+            ? aValue.localeCompare(bValue)
+            : bValue.localeCompare(aValue);
+        } else {
+          return sortOrder === 'asc'
+            ? (aValue > bValue ? 1 : -1)
+            : (bValue > aValue ? 1 : -1);
+        }
+      });
+      
+      // Calculate pagination values
+      const totalItems = filteredInvoices.length;
+      const totalPages = Math.ceil(totalItems / limit);
+      const startIndex = (page - 1) * limit;
+      const endIndex = Math.min(startIndex + limit, totalItems);
+      
+      // Get paginated subset
+      const paginatedInvoices = filteredInvoices.slice(startIndex, endIndex);
+      
+      // Enhance with customer data
+      const enhancedInvoices = await Promise.all(
+        paginatedInvoices.map(async (invoice: any) => {
+          let customerName = "Unknown Customer";
+          try {
+            const customer = await storage.getCustomer(invoice.customerId);
+            if (customer) {
+              customerName = customer.name;
+            }
+          } catch (error) {
+            console.error("Error fetching customer for invoice:", error);
+          }
+          
+          return {
+            ...invoice,
+            customerName
+          };
+        })
+      );
+      
+      // Return with pagination metadata
+      res.json({
+        data: enhancedInvoices,
+        pagination: {
+          page,
+          limit,
+          totalItems,
+          totalPages,
+          hasNextPage: page < totalPages,
+          hasPrevPage: page > 1
+        }
+      });
     } catch (error) {
       console.error("Error fetching invoices:", error);
       res.status(500).json({ message: "Failed to fetch invoices" });

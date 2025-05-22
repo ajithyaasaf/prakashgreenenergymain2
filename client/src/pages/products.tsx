@@ -118,9 +118,7 @@ export default function Products() {
         throw new Error("Failed to fetch products");
       }
       return response.json() as Promise<ProductsResponse>;
-    },
-    // Keep previous data while loading new data to avoid flashes
-    keepPreviousData: true
+    }
   });
   
   const products = productsResponse?.data || [];
