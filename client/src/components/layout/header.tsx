@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { PlusCircle, Bell, Search, Menu } from "lucide-react";
 import { CheckInModal } from "@/components/dashboard/check-in-modal";
+import { useAuthContext } from "@/contexts/auth-context";
 
 interface HeaderProps {
   onMenuClick: (e: React.MouseEvent) => void;
@@ -20,6 +21,7 @@ interface HeaderProps {
 export function Header({ onMenuClick }: HeaderProps) {
   const [location] = useLocation();
   const [showCheckInModal, setShowCheckInModal] = useState(false);
+  const { user } = useAuthContext();
   
   // Map of routes to display names
   const routeTitles: Record<string, string> = {
@@ -86,7 +88,9 @@ export function Header({ onMenuClick }: HeaderProps) {
 
             <div>
               <h1 className="text-lg sm:text-xl md:text-2xl font-bold truncate max-w-[180px] sm:max-w-[250px] md:max-w-none">{pageTitle}</h1>
-              <p className="text-xs md:text-sm text-gray-500 truncate max-w-[180px] sm:max-w-[250px] md:max-w-none">Welcome back, Rajesh!</p>
+              <p className="text-xs md:text-sm text-gray-500 truncate max-w-[180px] sm:max-w-[250px] md:max-w-none">
+                Welcome back, {user?.displayName || user?.email || 'User'}!
+              </p>
             </div>
           </div>
           
