@@ -164,6 +164,27 @@ export interface Leave {
   createdAt: Date;
 }
 
+// Activity Log interface
+export interface ActivityLog {
+  id: string;
+  type: 'customer_created' | 'customer_updated' | 'quotation_created' | 'invoice_paid' | 'product_created' | 'attendance' | 'leave_requested';
+  title: string;
+  description: string;
+  createdAt: Date;
+  entityId: string;
+  entityType: string;
+  userId: string;
+}
+
+export const insertActivityLogSchema = z.object({
+  type: z.enum(['customer_created', 'customer_updated', 'quotation_created', 'invoice_paid', 'product_created', 'attendance', 'leave_requested']),
+  title: z.string(),
+  description: z.string(),
+  entityId: z.string().optional(),
+  entityType: z.string().optional(),
+  userId: z.string(),
+});
+
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
@@ -250,6 +271,9 @@ export interface IStorage {
     id: string,
     data: Partial<z.infer<typeof insertLeaveSchema>>,
   ): Promise<Leave>;
+  // Activity logs
+  createActivityLog(data: z.infer<typeof insertActivityLogSchema>): Promise<ActivityLog>;
+  listActivityLogs(limit?: number): Promise<ActivityLog[]>;
 }
 
 export class FirestoreStorage implements IStorage {
