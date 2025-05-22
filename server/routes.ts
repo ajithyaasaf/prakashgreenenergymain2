@@ -36,73 +36,217 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   };
 
-  // Activity Logs
+  // Activity Logs with optimized performance
   app.get("/api/activity-logs", verifyAuth, async (req, res) => {
     try {
-      // For activity logs, generate them from other data if they don't exist yet
-      const activities = [];
+      // Check if user is authenticated
+      const user = await storage.getUser(req.user.uid);
+      if (!user) {
+        return res.status(403).json({ message: "Access denied" });
+      }
       
-      // Get recent customers
-      const customers = await storage.listCustomers();
-      if (customers.length > 0) {
-        // Sort by newest first
-        const recentCustomers = [...customers]
-          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-          .slice(0, 2);
+      // Get limit parameter with fallback and validation
+      const limitParam = req.query.limit;
+      const limit = limitParam ? Math.min(Math.max(parseInt(limitParam as string, 10) || 10, 1), 50) : 10;
+      
+      // Try to fetch stored activity logs first
+      try {
+        const storedLogs = await storage.listActivityLogs(limit);
+        
+        // If we have enough stored logs, return them directly
+        if (storedLogs.length >= limit) {
+          return res.json(storedLogs);
+        }
+        
+        // If we have some logs but not enough, supplement with generated logs
+        const activities = [...storedLogs];
+        const remainingCount = limit - storedLogs.length;
+        
+        // Get supplementary data and generate activities
+        const [customers, quotations, invoices] = await Promise.all([
+          storage.listCustomers(),
+          storage.listQuotations(),
+          storage.listInvoices()
+        ]);
+        
+        // Generate from customers if needed
+        if (customers.length > 0 && activities.length < limit) {
+          const existingCustomerIds = new Set(
+            activities
+              .filter(a => a.entityType === 'customer')
+              .map(a => a.entityId)
+          );
           
-        recentCustomers.forEach((customer, index) => {
-          activities.push({
-            id: `customer-${customer.id}`,
-            type: 'customer_created',
-            title: "New customer added",
-            description: `${customer.name}, ${customer.address || 'Location unknown'}`,
-            createdAt: customer.createdAt,
-            entityId: customer.id,
-            entityType: 'customer',
-            userId: 'system' // Since we don't have actual user info for this action
+          const newCustomerActivities = customers
+            .filter(c => !existingCustomerIds.has(c.id))
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            .slice(0, remainingCount)
+            .map(customer => ({
+              id: `customer-${customer.id}`,
+              type: 'customer_created' as const,
+              title: "New customer added",
+              description: `${customer.name}, ${customer.address || 'Location unknown'}`,
+              createdAt: customer.createdAt,
+              entityId: customer.id,
+              entityType: 'customer',
+              userId: user.id
+            }));
+            
+          activities.push(...newCustomerActivities);
+        }
+        
+        // Generate from quotations if needed
+        if (quotations.length > 0 && activities.length < limit) {
+          const existingQuotationIds = new Set(
+            activities
+              .filter(a => a.entityType === 'quotation')
+              .map(a => a.entityId)
+          );
+          
+          const newQuotationActivities = quotations
+            .filter(q => !existingQuotationIds.has(q.id))
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            .slice(0, limit - activities.length)
+            .map(quotation => ({
+              id: `quotation-${quotation.id}`,
+              type: 'quotation_created' as const,
+              title: "Quotation created",
+              description: `${quotation.quotationNumber || 'New quotation'} for ₹${quotation.total || 0}`,
+              createdAt: quotation.createdAt,
+              entityId: quotation.id,
+              entityType: 'quotation',
+              userId: user.id
+            }));
+            
+          activities.push(...newQuotationActivities);
+        }
+        
+        // Generate from invoices if needed
+        if (invoices.length > 0 && activities.length < limit) {
+          const existingInvoiceIds = new Set(
+            activities
+              .filter(a => a.entityType === 'invoice')
+              .map(a => a.entityId)
+          );
+          
+          const newInvoiceActivities = invoices
+            .filter(i => !existingInvoiceIds.has(i.id))
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            .slice(0, limit - activities.length)
+            .map(invoice => ({
+              id: `invoice-${invoice.id}`,
+              type: 'invoice_paid' as const,
+              title: "Invoice paid",
+              description: `${invoice.invoiceNumber || 'Invoice'} for ₹${invoice.total || 0}`,
+              createdAt: invoice.createdAt,
+              entityId: invoice.id,
+              entityType: 'invoice',
+              userId: user.id
+            }));
+            
+          activities.push(...newInvoiceActivities);
+        }
+        
+        // Sort all activities by date (newest first)
+        activities.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        
+        // Try to store generated activities for future use
+        try {
+          for (const activity of activities) {
+            if (!storedLogs.some(log => log.id === activity.id)) {
+              await storage.createActivityLog({
+                type: activity.type,
+                title: activity.title,
+                description: activity.description,
+                entityId: activity.entityId,
+                entityType: activity.entityType,
+                userId: activity.userId
+              });
+            }
+          }
+        } catch (storeError) {
+          console.error("Error storing activity logs:", storeError);
+          // Continue to return the activities even if storing fails
+        }
+        
+        return res.json(activities.slice(0, limit));
+      } catch (error) {
+        console.error("Error with stored logs, falling back to generated logs:", error);
+        
+        // Fallback to fully generated logs
+        const activities = [];
+        
+        const [customers, quotations, invoices] = await Promise.all([
+          storage.listCustomers(),
+          storage.listQuotations(),
+          storage.listInvoices()
+        ]);
+        
+        // Generate from customers (up to 2)
+        if (customers.length > 0) {
+          const recentCustomers = [...customers]
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            .slice(0, 2);
+            
+          recentCustomers.forEach(customer => {
+            activities.push({
+              id: `customer-${customer.id}`,
+              type: 'customer_created' as const,
+              title: "New customer added",
+              description: `${customer.name}, ${customer.address || 'Location unknown'}`,
+              createdAt: customer.createdAt,
+              entityId: customer.id,
+              entityType: 'customer',
+              userId: user.id
+            });
           });
-        });
+        }
+        
+        // Generate from most recent quotation
+        if (quotations.length > 0) {
+          const recentQuotation = quotations
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+            
+          activities.push({
+            id: `quotation-${recentQuotation.id}`,
+            type: 'quotation_created' as const,
+            title: "Quotation created",
+            description: `${recentQuotation.quotationNumber || 'New quotation'} for ₹${recentQuotation.total || 0}`,
+            createdAt: recentQuotation.createdAt,
+            entityId: recentQuotation.id,
+            entityType: 'quotation',
+            userId: user.id
+          });
+        }
+        
+        // Generate from most recent invoice
+        if (invoices.length > 0) {
+          const recentInvoice = invoices
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+            
+          activities.push({
+            id: `invoice-${recentInvoice.id}`,
+            type: 'invoice_paid' as const,
+            title: "Invoice paid", 
+            description: `${recentInvoice.invoiceNumber || 'Invoice'} for ₹${recentInvoice.total || 0}`,
+            createdAt: recentInvoice.createdAt,
+            entityId: recentInvoice.id,
+            entityType: 'invoice',
+            userId: user.id
+          });
+        }
+        
+        // Sort by creation date (newest first)
+        activities.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        
+        return res.json(activities.slice(0, limit));
       }
-      
-      // Get recent quotations
-      const quotations = await storage.listQuotations();
-      if (quotations.length > 0) {
-        const recentQuotation = quotations[0];
-        activities.push({
-          id: `quotation-${recentQuotation.id}`,
-          type: 'quotation_created',
-          title: "Quotation created",
-          description: `${recentQuotation.quotationNumber || 'New quotation'} for ₹${recentQuotation.total || 0}`,
-          createdAt: recentQuotation.createdAt,
-          entityId: recentQuotation.id,
-          entityType: 'quotation',
-          userId: 'system'
-        });
-      }
-      
-      // Get recent invoices
-      const invoices = await storage.listInvoices();
-      if (invoices.length > 0) {
-        const recentInvoice = invoices[0];
-        activities.push({
-          id: `invoice-${recentInvoice.id}`,
-          type: 'invoice_paid',
-          title: "Invoice paid",
-          description: `${recentInvoice.invoiceNumber || 'Invoice'} for ₹${recentInvoice.total || 0}`,
-          createdAt: recentInvoice.createdAt,
-          entityId: recentInvoice.id,
-          entityType: 'invoice',
-          userId: 'system'
-        });
-      }
-      
-      // Sort by creation date (newest first)
-      activities.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      
-      res.json(activities);
     } catch (error) {
       console.error("Error generating activity logs:", error);
-      res.status(500).json({ message: "Failed to fetch activity logs" });
+      res.status(500).json({ 
+        message: "Failed to fetch activity logs",
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
     }
   });
 
