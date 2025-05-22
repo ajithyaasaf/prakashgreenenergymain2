@@ -19,6 +19,7 @@ import OfficeLocations from "@/pages/office-locations";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { AuthProvider, useAuthContext } from "@/contexts/auth-context";
 import { Loader2 } from "lucide-react";
+import { AppLoader } from "@/components/app-loader";
 
 import { ProtectedRoute } from "@/components/auth/protected-route";
 
@@ -165,11 +166,23 @@ function App() {
       <AuthProvider>
         <TooltipProvider>
           <Toaster />
-          <Router />
+          <AuthenticatedContent />
         </TooltipProvider>
       </AuthProvider>
     </QueryClientProvider>
   );
+}
+
+// This component is called after AuthProvider is initialized
+function AuthenticatedContent() {
+  const { loading } = useAuthContext();
+  
+  // Prevent login screen flash by showing a loading screen during auth check
+  if (loading) {
+    return <AppLoader />;
+  }
+  
+  return <Router />;
 }
 
 export default App;

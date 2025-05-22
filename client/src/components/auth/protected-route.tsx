@@ -47,10 +47,20 @@ export function ProtectedRoute({
     );
   }
 
-  // Redirect to login if not authenticated
-  if (!user) {
-    window.location.href = "/login";
-    return null;
+  // Redirect to login if not authenticated (but avoid redirecting during initial load)
+  if (!user && !loading) {
+    // Use a more gradual transition to avoid UI flashes
+    setTimeout(() => {
+      window.location.href = "/login";
+    }, 100);
+    
+    // Show a loading indicator while redirecting instead of null
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2 text-lg">Redirecting...</span>
+      </div>
+    );
   }
 
   // Master admin can access everything

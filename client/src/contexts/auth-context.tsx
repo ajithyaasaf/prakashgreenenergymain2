@@ -104,18 +104,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let currentUser: AuthUser | null = null;
     let isInitialAuth = true;
     
+    // Keep track of auth state in localStorage to prevent flashes
+    const persistedAuth = localStorage.getItem('authState');
+    if (persistedAuth) {
+      try {
+        const parsedAuth = JSON.parse(persistedAuth);
+        // Set the persisted user immediately to prevent login screen flash
+        setUser(parsedAuth);
+      } catch (e) {
+        // If parsing fails, ignore the persisted data
+        console.error("Failed to parse persisted auth state");
+      }
+    }
+    
     const unsubscribe = onAuthChange(async (firebaseUser) => {
       // Handle logout
       if (!firebaseUser) {
         setUser(null);
+        localStorage.removeItem('authState');
         setLoading(false);
         return;
       }
       
       // If this is the first auth event or we're changing users
       if (isInitialAuth || !currentUser || currentUser.uid !== firebaseUser.uid) {
-        // Set loading state immediately
-        setLoading(true);
+        // Don't set loading to true if we already have a user (prevents login screen flash)
+        if (!user) {
+          setLoading(true);
+        }
         
         // Create temporary user object
         currentUser = {
@@ -127,9 +143,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           department: null,
         };
         
-        // Only set the temporary user if this is not the initial auth
-        // For initial auth, wait for full data to prevent the login screen flash
-        if (!isInitialAuth) {
+        // For initial auth, don't update user state if we already have persisted data
+        // This prevents unnecessary re-renders and UI flicker
+        if (!isInitialAuth || !user) {
           setUser(currentUser);
         }
         
@@ -162,6 +178,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           
           // Set the complete user data
           setUser(currentUser);
+          
+          // Persist the auth state to prevent login flashes on page refresh
+          localStorage.setItem('authState', JSON.stringify(currentUser));
+          
           // Mark that we've completed the initial auth
           isInitialAuth = false;
         } catch (error) {
@@ -175,7 +195,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     return () => unsubscribe();
-  }, [toast]);
+  }, [toast, user]);
 
   const createUserProfile = async (userData: Partial<AuthUser>) => {
     if (!user) return;
