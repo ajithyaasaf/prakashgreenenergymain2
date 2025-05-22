@@ -94,14 +94,14 @@ export function MobileSidebar({ isOpen, setIsOpen }: MobileSidebarProps) {
         className={cn(
           "fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-gray-200 transition-all duration-300 ease-in-out transform md:hidden",
           isOpen ? "translate-y-0 opacity-100" : "translate-y-full opacity-0 pointer-events-none",
-          "max-h-[80vh] overflow-y-auto rounded-t-xl shadow-xl"
+          "max-h-[85vh] overflow-y-auto rounded-t-xl shadow-xl"
         )}
       >
-        <div className="p-4 border-b border-gray-200 flex justify-between items-center">
+        <div className="sticky top-0 z-10 p-4 border-b border-gray-200 flex justify-between items-center bg-white">
           <h2 className="font-bold text-lg">Menu</h2>
           <button 
             onClick={() => setIsOpen(false)}
-            className="text-gray-500 hover:text-gray-700"
+            className="text-gray-500 hover:text-gray-700 p-2 rounded-full hover:bg-gray-100"
             aria-label="Close menu"
           >
             <i className="ri-close-line text-xl"></i>
@@ -109,19 +109,19 @@ export function MobileSidebar({ isOpen, setIsOpen }: MobileSidebarProps) {
         </div>
         
         <div className="p-3">
-          <nav className={cn("grid gap-2", getGridCols())}>
+          <nav className={cn("grid gap-3", getGridCols())}>
             {filteredNavItems.map((item, index) => (
               <Link 
                 key={index} 
                 href={item.href}
                 onClick={() => setIsOpen(false)}
                 className={cn(
-                  "flex flex-col items-center p-3 rounded-md hover:bg-gray-100 text-gray-700 transition-colors duration-200",
-                  location === item.href && "active bg-primary/10 border-b-4 border-primary"
+                  "flex flex-col items-center p-3 rounded-lg hover:bg-gray-100 text-gray-700 transition-colors duration-200 active:scale-95 touch-manipulation",
+                  location === item.href && "active bg-primary/10 border-b-2 md:border-b-4 border-primary"
                 )}
               >
-                <i className={`${item.icon} text-xl ${location === item.href ? 'text-primary' : ''}`}></i>
-                <span className="text-xs mt-1 text-center">{item.label}</span>
+                <i className={`${item.icon} text-xl mb-1 ${location === item.href ? 'text-primary' : ''}`}></i>
+                <span className="text-[10px] sm:text-xs font-medium text-center leading-tight">{item.label}</span>
               </Link>
             ))}
           </nav>

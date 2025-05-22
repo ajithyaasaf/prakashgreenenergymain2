@@ -151,10 +151,10 @@ export function Sidebar() {
     <aside 
       className={cn(
         "hidden md:flex flex-col bg-white border-r border-gray-200 h-full transition-all duration-300 ease-in-out",
-        isCollapsed ? "md:w-20" : "md:w-64",
+        isCollapsed ? "md:w-[70px] lg:w-20" : "md:w-56 lg:w-64",
       )}
     >
-      <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+      <div className="py-3 px-3 md:p-4 border-b border-gray-200 flex items-center justify-between">
         <div className={cn(
           "flex items-center gap-2",
           isCollapsed && "justify-center w-full"
@@ -162,26 +162,29 @@ export function Sidebar() {
           <div className="h-8 w-8 rounded-md bg-primary flex items-center justify-center flex-shrink-0">
             <Leaf className="h-5 w-5 text-white" />
           </div>
-          {!isCollapsed && <span className="font-bold text-xl whitespace-nowrap">Prakash Greens</span>}
+          {!isCollapsed && (
+            <span className="font-bold text-base lg:text-xl truncate max-w-[130px] lg:max-w-[170px]">Prakash Greens</span>
+          )}
         </div>
         {isMd && (
           <button 
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className="text-gray-500 hover:text-gray-700"
+            className="text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-100"
             aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             <i className={`${isCollapsed ? 'ri-menu-unfold-line' : 'ri-menu-fold-line'} text-lg`}></i>
           </button>
         )}
       </div>
-      <div className="overflow-y-auto flex-grow p-2">
-        <nav className={cn("space-y-1", isCollapsed && "flex flex-col items-center")}>
+      
+      <div className="overflow-y-auto flex-grow p-1 md:p-2">
+        <nav className={cn("space-y-0.5 md:space-y-1", isCollapsed && "flex flex-col items-center")}>
           {filteredNavItems.map((item, index) => (
             <Link 
               key={index} 
               href={item.href}
               className={cn(
-                "sidebar-item flex items-center px-4 py-3 rounded-md hover:bg-gray-100 text-gray-700 transition-colors duration-200",
+                "sidebar-item flex items-center px-3 py-2.5 md:px-4 md:py-3 rounded-md hover:bg-gray-100 text-gray-700 transition-colors duration-200",
                 isCollapsed && "justify-center px-2",
                 location === item.href && "active bg-primary/10",
                 !isCollapsed && location === item.href && "border-l-4 border-primary"
@@ -189,31 +192,36 @@ export function Sidebar() {
               title={isCollapsed ? item.label : undefined}
             >
               <div className={isCollapsed ? "mx-auto" : ""}>{item.icon}</div>
-              {!isCollapsed && <span className="truncate">{item.label}</span>}
+              {!isCollapsed && <span className="text-sm md:text-base truncate">{item.label}</span>}
             </Link>
           ))}
         </nav>
       </div>
+      
       <div className={cn(
-        "p-4 border-t border-gray-200",
+        "p-3 md:p-4 border-t border-gray-200",
         isCollapsed && "flex justify-center"
       )}>
         {!isCollapsed ? (
           <div className="flex items-center">
-            <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
+            <div className="h-9 w-9 md:h-10 md:w-10 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
               {user?.photoURL ? (
                 <img 
                   src={user.photoURL} 
                   alt={user.displayName || "User"} 
-                  className="h-10 w-10 rounded-full object-cover"
+                  className="h-9 w-9 md:h-10 md:w-10 rounded-full object-cover"
                 />
               ) : (
                 <i className="ri-user-line text-gray-500"></i>
               )}
             </div>
-            <div className="ml-3 min-w-0">
-              <p className="font-medium text-sm truncate">{user?.displayName || "User"}</p>
-              <p className="text-xs text-gray-500 truncate">{user?.role === "master_admin" ? "Master Admin" : user?.role === "admin" ? "Admin" : "Employee"}</p>
+            <div className="ml-2 md:ml-3 min-w-0">
+              <p className="font-medium text-xs md:text-sm truncate max-w-[80px] md:max-w-[100px] lg:max-w-none">
+                {user?.displayName || "User"}
+              </p>
+              <p className="text-xs text-gray-500 truncate max-w-[80px] md:max-w-[100px] lg:max-w-none">
+                {user?.role === "master_admin" ? "Master Admin" : user?.role === "admin" ? "Admin" : "Employee"}
+              </p>
             </div>
             <button 
               onClick={() => {
@@ -223,10 +231,10 @@ export function Sidebar() {
                   });
                 });
               }} 
-              className="ml-auto text-gray-500 hover:text-gray-700 cursor-pointer"
+              className="ml-auto text-gray-500 hover:text-gray-700 p-1.5 rounded-full hover:bg-gray-100"
               aria-label="Logout"
             >
-              <LogOut className="h-5 w-5" />
+              <LogOut className="h-4 w-4 md:h-5 md:w-5" />
             </button>
           </div>
         ) : (
@@ -238,7 +246,7 @@ export function Sidebar() {
                 });
               });
             }} 
-            className="text-gray-500 hover:text-gray-700 cursor-pointer"
+            className="text-gray-500 hover:text-gray-700 p-1.5 rounded-full hover:bg-gray-100"
             aria-label="Logout"
           >
             <LogOut className="h-5 w-5" />
