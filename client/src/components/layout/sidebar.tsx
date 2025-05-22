@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 import { useAuthContext } from "@/contexts/auth-context";
 import { Leaf, LogOut } from "lucide-react";
 import { useEffect, useState } from "react";
+import logoPath from "@assets/new logo 2.png";
 
 interface NavItem {
   href: string;
@@ -159,12 +160,14 @@ export function Sidebar() {
           "flex items-center gap-2",
           isCollapsed && "justify-center w-full"
         )}>
-          <div className="h-8 w-8 rounded-md bg-primary flex items-center justify-center flex-shrink-0">
-            <Leaf className="h-5 w-5 text-white" />
-          </div>
-          {!isCollapsed && (
-            <span className="font-bold text-base lg:text-xl truncate max-w-[130px] lg:max-w-[170px]">Prakash Greens</span>
-          )}
+          <img 
+            src={logoPath} 
+            alt="Prakash Green Energy" 
+            className={cn(
+              "object-contain",
+              isCollapsed ? "h-8 w-8" : "h-10 w-auto max-w-[200px]"
+            )}
+          />
         </div>
         {isMd && (
           <button 

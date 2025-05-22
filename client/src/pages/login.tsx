@@ -4,6 +4,7 @@ import { AuthForm } from "@/components/auth/auth-form";
 import { LoginForm } from "@/components/auth/login-form";
 import { auth } from "@/lib/firebase";
 import { AuthLoading } from "@/components/auth/auth-loading";
+import logoPath from "@assets/new logo 2.png";
 
 export default function Login() {
   const [, setLocation] = useLocation();
