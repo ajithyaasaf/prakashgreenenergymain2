@@ -117,16 +117,7 @@ export default function Customers() {
   useEffect(() => {
     if (pagination?.hasNextPage) {
       queryClient.prefetchQuery({
-        queryKey: ["/api/customers", currentPage + 1, itemsPerPage, debouncedSearch, sortBy, sortOrder],
-        queryFn: async () => {
-          const response = await fetch(
-            `/api/customers?page=${currentPage + 1}&limit=${itemsPerPage}&search=${debouncedSearch}&sortBy=${sortBy}&sortOrder=${sortOrder}`
-          );
-          if (!response.ok) {
-            throw new Error("Failed to fetch customers");
-          }
-          return response.json();
-        }
+        queryKey: [`/api/customers?page=${currentPage + 1}&limit=${itemsPerPage}&search=${debouncedSearch}&sortBy=${sortBy}&sortOrder=${sortOrder}`]
       });
     }
   }, [queryClient, currentPage, itemsPerPage, debouncedSearch, pagination?.hasNextPage, sortBy, sortOrder]);

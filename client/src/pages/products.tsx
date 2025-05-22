@@ -109,16 +109,7 @@ export default function Products() {
     isFetching,
     isError 
   } = useQuery({
-    queryKey: ["/api/products", currentPage, itemsPerPage, debouncedSearch, sortBy, sortOrder],
-    queryFn: async () => {
-      const response = await fetch(
-        `/api/products?page=${currentPage}&limit=${itemsPerPage}&search=${debouncedSearch}&sortBy=${sortBy}&sortOrder=${sortOrder}`
-      );
-      if (!response.ok) {
-        throw new Error("Failed to fetch products");
-      }
-      return response.json() as Promise<ProductsResponse>;
-    }
+    queryKey: [`/api/products?page=${currentPage}&limit=${itemsPerPage}&search=${debouncedSearch}&sortBy=${sortBy}&sortOrder=${sortOrder}`]
   });
   
   const products = productsResponse?.data || [];
@@ -128,16 +119,7 @@ export default function Products() {
   useEffect(() => {
     if (pagination?.hasNextPage) {
       queryClient.prefetchQuery({
-        queryKey: ["/api/products", currentPage + 1, itemsPerPage, debouncedSearch, sortBy, sortOrder],
-        queryFn: async () => {
-          const response = await fetch(
-            `/api/products?page=${currentPage + 1}&limit=${itemsPerPage}&search=${debouncedSearch}&sortBy=${sortBy}&sortOrder=${sortOrder}`
-          );
-          if (!response.ok) {
-            throw new Error("Failed to fetch products");
-          }
-          return response.json();
-        }
+        queryKey: [`/api/products?page=${currentPage + 1}&limit=${itemsPerPage}&search=${debouncedSearch}&sortBy=${sortBy}&sortOrder=${sortOrder}`]
       });
     }
   }, [queryClient, currentPage, itemsPerPage, debouncedSearch, pagination?.hasNextPage, sortBy, sortOrder]);
