@@ -1,10 +1,10 @@
 import { Loader2 } from 'lucide-react';
 
 /**
- * App-wide loading indicator
- * Used for initial app loading states
+ * A consistent loading component for authentication transitions
+ * This prevents UI flashing between login and dashboard
  */
-export function AppLoader() {
+export function AuthLoading() {
   return (
     <div className="fixed inset-0 flex flex-col items-center justify-center bg-white z-50">
       <div className="flex flex-col items-center space-y-4">
@@ -18,8 +18,8 @@ export function AppLoader() {
             </span>
           </div>
         </div>
-        <h2 className="text-xl font-medium text-gray-700 mt-4">Loading Application</h2>
-        <p className="text-sm text-gray-500">Please wait while we prepare your experience</p>
+        <h2 className="text-xl font-medium text-gray-700 mt-4">Preparing your dashboard</h2>
+        <p className="text-sm text-gray-500">Please wait while we securely sign you in</p>
       </div>
     </div>
   );

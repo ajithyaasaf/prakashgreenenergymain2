@@ -163,17 +163,24 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <AuthenticatedContent />
-        </TooltipProvider>
-      </AuthProvider>
+      <AppRoot />
     </QueryClientProvider>
   );
 }
 
-// This component is called after AuthProvider is initialized
+// Root component to handle authentication state
+function AppRoot() {
+  return (
+    <AuthProvider>
+      <TooltipProvider>
+        <Toaster />
+        <AuthenticatedContent />
+      </TooltipProvider>
+    </AuthProvider>
+  );
+}
+
+// This component can safely use useAuthContext since it's inside AuthProvider
 function AuthenticatedContent() {
   const { loading } = useAuthContext();
   
