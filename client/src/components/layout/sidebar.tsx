@@ -215,7 +215,19 @@ export function Sidebar() {
                   className="h-9 w-9 md:h-10 md:w-10 rounded-full object-cover"
                 />
               ) : (
-                <i className="ri-user-line text-gray-500"></i>
+                <svg 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  viewBox="0 0 24 24" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  strokeWidth="2" 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round" 
+                  className="h-5 w-5 text-gray-500"
+                >
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
               )}
             </div>
             <div className="ml-2 md:ml-3 min-w-0">
