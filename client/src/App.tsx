@@ -22,6 +22,7 @@ import { Loader2 } from "lucide-react";
 import { AppLoader } from "@/components/app-loader";
 
 import { ProtectedRoute } from "@/components/auth/protected-route";
+import { RootHandler } from "@/components/auth/root-handler";
 
 function Router() {
   return (
@@ -30,14 +31,8 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
       
-      {/* Dashboard - accessible to all authenticated users */}
-      <Route path="/">
-        <ProtectedRoute>
-          <DashboardLayout>
-            <Dashboard />
-          </DashboardLayout>
-        </ProtectedRoute>
-      </Route>
+      {/* Root route - intelligent redirect based on auth state */}
+      <Route path="/" component={RootHandler} />
       <Route path="/dashboard">
         <ProtectedRoute>
           <DashboardLayout>
