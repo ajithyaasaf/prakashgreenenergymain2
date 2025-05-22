@@ -2,17 +2,17 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
-import {
+import { insertAttendanceSchema, insertOfficeLocationSchema, insertPermissionSchema } from "@shared/schema";
+// Import all the necessary schemas from storage.ts since they've been moved there
+import { 
   insertUserSchema,
   insertDepartmentSchema,
-  insertOfficeLocationSchema,
   insertCustomerSchema,
   insertProductSchema,
   insertQuotationSchema,
   insertInvoiceSchema,
-  insertAttendanceSchema,
-  insertLeaveSchema,
-} from "@shared/schema";
+  insertLeaveSchema
+} from "./storage";
 import { isWithinGeoFence } from "./utils";
 import { auth } from "./firebase";
 

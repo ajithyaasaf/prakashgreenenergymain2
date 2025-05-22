@@ -16,7 +16,7 @@ import {
 } from "@shared/schema";
 
 // Define our schemas since we're not using drizzle anymore
-const insertUserSchema = z.object({
+export const insertUserSchema = z.object({
   uid: z.string(),
   email: z.string().email(),
   displayName: z.string().optional(),
@@ -25,24 +25,24 @@ const insertUserSchema = z.object({
   photoURL: z.string().optional()
 });
 
-const insertDepartmentSchema = z.object({
+export const insertDepartmentSchema = z.object({
   name: z.string()
 });
 
-const insertCustomerSchema = z.object({
+export const insertCustomerSchema = z.object({
   name: z.string(),
   email: z.string().email(),
   phone: z.string(),
   address: z.string()
 });
 
-const insertProductSchema = z.object({
+export const insertProductSchema = z.object({
   name: z.string(),
   description: z.string(),
   price: z.number()
 });
 
-const insertQuotationSchema = z.object({
+export const insertQuotationSchema = z.object({
   customerId: z.string(),
   products: z.array(z.object({
     productId: z.string(),
@@ -52,14 +52,14 @@ const insertQuotationSchema = z.object({
   status: z.string().default("pending")
 });
 
-const insertInvoiceSchema = z.object({
+export const insertInvoiceSchema = z.object({
   quotationId: z.string(),
   customerId: z.string(),
   total: z.number(),
   status: z.string().default("pending")
 });
 
-const insertLeaveSchema = z.object({
+export const insertLeaveSchema = z.object({
   userId: z.string(),
   startDate: z.date(),
   endDate: z.date(),
@@ -256,8 +256,7 @@ export class FirestoreStorage implements IStorage {
   private db: Firestore;
   
   constructor() {
-    // Import from firebase.ts file which provides the initialized Firestore instance
-    const { db } = require('./firebase');
+    // Use the db imported at the top of the file
     this.db = db;
   }
   async getUser(id: string): Promise<User | undefined> {
