@@ -40,23 +40,16 @@ export function ProtectedRoute({
   // Track if we're in the process of redirecting
   const [isRedirecting, setIsRedirecting] = useState(false);
   
-  // This effect handles the redirect to login with a smoother transition
+  // This effect handles the redirect to login with proper React navigation
   useEffect(() => {
     if (!user && !loading && !isRedirecting) {
       // Set redirecting state to prevent multiple redirects
       setIsRedirecting(true);
       
-      // Store a transitioning flag to prevent login UI flash
-      sessionStorage.setItem('auth_transitioning', 'true');
-      
-      // Use a slight delay to ensure smooth transition
-      const redirectTimer = setTimeout(() => {
-        window.location.href = "/login";
-      }, 100);
-      
-      return () => clearTimeout(redirectTimer);
+      // Use React Router navigation instead of full page reload
+      setLocation("/login");
     }
-  }, [user, loading, isRedirecting]);
+  }, [user, loading, isRedirecting, setLocation]);
 
   // Show custom loading state during authentication check or redirect
   if (loading || isRedirecting || !user) {
