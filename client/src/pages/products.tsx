@@ -144,8 +144,15 @@ export default function Products() {
     },
     onSuccess: () => {
       // Invalidate all product queries to refresh the UI immediately
-      queryClient.invalidateQueries({ queryKey: ['/api/products'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/activity-logs'] });
+      queryClient.invalidateQueries({ 
+        predicate: (query) => {
+          const queryKey = query.queryKey[0];
+          if (typeof queryKey === 'string') {
+            return queryKey.includes('/api/products') || queryKey.includes('/api/activity-logs');
+          }
+          return false;
+        }
+      });
       
       toast({
         title: "Product deleted",

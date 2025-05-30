@@ -133,8 +133,15 @@ export default function Customers() {
     },
     onSuccess: () => {
       // Invalidate all customer queries to refresh the UI immediately
-      queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/activity-logs'] });
+      queryClient.invalidateQueries({ 
+        predicate: (query) => {
+          const queryKey = query.queryKey[0];
+          if (typeof queryKey === 'string') {
+            return queryKey.includes('/api/customers') || queryKey.includes('/api/activity-logs');
+          }
+          return false;
+        }
+      });
       
       toast({
         title: "Customer deleted",

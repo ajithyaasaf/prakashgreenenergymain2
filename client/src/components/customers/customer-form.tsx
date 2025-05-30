@@ -56,8 +56,15 @@ export function CustomerForm({ initialData, onSuccess, isEditing = false }: Cust
     },
     onSuccess: () => {
       // Invalidate all customer-related queries to refresh the UI
-      queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/activity-logs'] });
+      queryClient.invalidateQueries({ 
+        predicate: (query) => {
+          const queryKey = query.queryKey[0];
+          if (typeof queryKey === 'string') {
+            return queryKey.includes('/api/customers') || queryKey.includes('/api/activity-logs');
+          }
+          return false;
+        }
+      });
       
       toast({
         title: `Customer ${isEditing ? "updated" : "created"} successfully`,
