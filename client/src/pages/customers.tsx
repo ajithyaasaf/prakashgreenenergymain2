@@ -132,11 +132,13 @@ export default function Customers() {
       return customerId;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
+      // Invalidate all customer queries to refresh the UI immediately
+      queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/activity-logs'] });
+      
       toast({
         title: "Customer deleted",
         description: "The customer has been deleted successfully",
-        variant: "success",
       });
       setShowDeleteDialog(false);
     },
