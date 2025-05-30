@@ -96,7 +96,15 @@ export default function Departments() {
       return apiRequest('/api/departments', 'POST', departmentData);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/departments"] });
+      queryClient.invalidateQueries({ 
+        predicate: (query) => {
+          const queryKey = query.queryKey[0];
+          if (typeof queryKey === 'string') {
+            return queryKey.includes('/api/departments') || queryKey.includes('/api/users');
+          }
+          return false;
+        }
+      });
       toast({
         title: "Department created",
         description: "The department has been successfully created.",
@@ -121,7 +129,15 @@ export default function Departments() {
       return apiRequest(`/api/departments/${id}`, 'PATCH', data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/departments"] });
+      queryClient.invalidateQueries({ 
+        predicate: (query) => {
+          const queryKey = query.queryKey[0];
+          if (typeof queryKey === 'string') {
+            return queryKey.includes('/api/departments') || queryKey.includes('/api/users');
+          }
+          return false;
+        }
+      });
       toast({
         title: "Department updated",
         description: "The department has been successfully updated.",
@@ -145,7 +161,15 @@ export default function Departments() {
       return apiRequest(`/api/departments/${id}`, 'DELETE');
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/departments"] });
+      queryClient.invalidateQueries({ 
+        predicate: (query) => {
+          const queryKey = query.queryKey[0];
+          if (typeof queryKey === 'string') {
+            return queryKey.includes('/api/departments') || queryKey.includes('/api/users');
+          }
+          return false;
+        }
+      });
       toast({
         title: "Department deleted",
         description: "The department has been successfully deleted.",

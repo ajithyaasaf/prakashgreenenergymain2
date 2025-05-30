@@ -114,11 +114,18 @@ export default function UserManagement() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["users"] });
+      queryClient.invalidateQueries({ 
+        predicate: (query) => {
+          const queryKey = query.queryKey[0];
+          if (typeof queryKey === 'string') {
+            return queryKey.includes('/api/users') || queryKey.includes('users');
+          }
+          return false;
+        }
+      });
       toast({
         title: "User updated",
         description: "User details have been successfully updated.",
-        variant: "success",
       });
       setShowEditDialog(false);
     },

@@ -99,7 +99,15 @@ export function CheckInModal({ open, onOpenChange }: CheckInModalProps) {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/attendance'] });
+      queryClient.invalidateQueries({ 
+        predicate: (query) => {
+          const queryKey = query.queryKey[0];
+          if (typeof queryKey === 'string') {
+            return queryKey.includes('/api/attendance') || queryKey.includes('/api/activity-logs');
+          }
+          return false;
+        }
+      });
       toast({
         title: "Check-in Successful",
         description: "You have successfully checked in for today.",
@@ -145,7 +153,15 @@ export function CheckInModal({ open, onOpenChange }: CheckInModalProps) {
       return response.json();
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/attendance'] });
+      queryClient.invalidateQueries({ 
+        predicate: (query) => {
+          const queryKey = query.queryKey[0];
+          if (typeof queryKey === 'string') {
+            return queryKey.includes('/api/attendance') || queryKey.includes('/api/activity-logs');
+          }
+          return false;
+        }
+      });
       
       // Check if overtime was recorded
       if (data.overtimeHours && data.overtimeHours > 0) {
