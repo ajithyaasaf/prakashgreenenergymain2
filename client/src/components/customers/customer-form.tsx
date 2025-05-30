@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
@@ -24,13 +25,13 @@ const customerFormSchema = z.object({
 type CustomerFormValues = z.infer<typeof customerFormSchema>;
 
 interface CustomerFormProps {
-  initialData?: CustomerFormValues;
+  initialData?: CustomerFormValues & { id?: string };
   onSuccess: () => void;
   isEditing?: boolean;
 }
 
 export function CustomerForm({ initialData, onSuccess, isEditing = false }: CustomerFormProps) {
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const queryClient = useQueryClient();
   const { toast } = useToast();
 
   const defaultValues: Partial<CustomerFormValues> = {
@@ -43,41 +44,42 @@ export function CustomerForm({ initialData, onSuccess, isEditing = false }: Cust
     ...initialData,
   };
 
-  const form = useForm<CustomerFormValues>({
-    resolver: zodResolver(customerFormSchema),
-    defaultValues,
-  });
-
-  const onSubmit = async (data: CustomerFormValues) => {
-    setIsSubmitting(true);
-    try {
+  // Create/Update customer mutation with cache invalidation
+  const customerMutation = useMutation({
+    mutationFn: async (data: CustomerFormValues) => {
       const endpoint = isEditing 
         ? `/api/customers/${initialData?.id}` 
         : "/api/customers";
         
       const method = isEditing ? "PATCH" : "POST";
+      return apiRequest(method, endpoint, data);
+    },
+    onSuccess: () => {
+      // Invalidate all customer-related queries to refresh the UI
+      queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/activity-logs'] });
       
-      const response = await apiRequest(method, endpoint, data);
-      
-      if (response.ok) {
-        toast({
-          title: `Customer ${isEditing ? "updated" : "created"} successfully`,
-          variant: "success",
-        });
-        onSuccess();
-      } else {
-        const error = await response.json();
-        throw new Error(error.message || "Something went wrong");
-      }
-    } catch (error: any) {
+      toast({
+        title: `Customer ${isEditing ? "updated" : "created"} successfully`,
+      });
+      onSuccess();
+    },
+    onError: (error: any) => {
       toast({
         title: "Error",
         description: error.message || "Failed to save customer",
         variant: "destructive",
       });
-    } finally {
-      setIsSubmitting(false);
     }
+  });
+
+  const form = useForm<CustomerFormValues>({
+    resolver: zodResolver(customerFormSchema),
+    defaultValues,
+  });
+
+  const onSubmit = (data: CustomerFormValues) => {
+    customerMutation.mutate(data);
   };
 
   return (
@@ -201,9 +203,9 @@ export function CustomerForm({ initialData, onSuccess, isEditing = false }: Cust
             <Button 
               type="submit" 
               className="bg-primary hover:bg-primary-dark text-white"
-              disabled={isSubmitting}
+              disabled={customerMutation.isPending}
             >
-              {isSubmitting ? (
+              {customerMutation.isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Saving...
