@@ -99,7 +99,15 @@ export function CheckInModal({ open, onOpenChange }: CheckInModalProps) {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/attendance'] });
+      queryClient.invalidateQueries({ 
+        predicate: (query) => {
+          const queryKey = query.queryKey[0];
+          if (typeof queryKey === 'string') {
+            return queryKey.includes('/api/attendance') || queryKey.includes('/api/activity-logs');
+          }
+          return false;
+        }
+      });
       toast({
         title: "Check-in Successful",
         description: "You have successfully checked in for today.",
@@ -145,7 +153,15 @@ export function CheckInModal({ open, onOpenChange }: CheckInModalProps) {
       return response.json();
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/attendance'] });
+      queryClient.invalidateQueries({ 
+        predicate: (query) => {
+          const queryKey = query.queryKey[0];
+          if (typeof queryKey === 'string') {
+            return queryKey.includes('/api/attendance') || queryKey.includes('/api/activity-logs');
+          }
+          return false;
+        }
+      });
       
       // Check if overtime was recorded
       if (data.overtimeHours && data.overtimeHours > 0) {
@@ -221,7 +237,7 @@ export function CheckInModal({ open, onOpenChange }: CheckInModalProps) {
     setIsCameraActive(false);
   };
   
-  // Capture photo
+  // Capture photo with location and timestamp data
   const capturePhoto = () => {
     if (videoRef.current && canvasRef.current) {
       const video = videoRef.current;
@@ -234,14 +250,55 @@ export function CheckInModal({ open, onOpenChange }: CheckInModalProps) {
       // Draw the current video frame on the canvas
       const ctx = canvas.getContext('2d');
       if (ctx) {
+        // First draw the video frame
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         
-        // Convert canvas to data URL
-        const dataUrl = canvas.toDataURL('image/jpeg');
+        // Add a dark overlay at the bottom for text
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillRect(0, canvas.height - 80, canvas.width, 80);
+        
+        // Add timestamp and location data with white text
+        ctx.fillStyle = 'white';
+        ctx.font = '16px Arial';
+        
+        // Current date and time
+        const now = new Date();
+        const timestamp = now.toLocaleString('en-IN', { 
+          timeZone: 'Asia/Kolkata',
+          dateStyle: 'medium', 
+          timeStyle: 'medium' 
+        });
+        ctx.fillText(`Time: ${timestamp}`, 10, canvas.height - 50);
+        
+        // Location data if available
+        if (geolocation.latitude && geolocation.longitude) {
+          ctx.fillText(
+            `Location: ${geolocation.latitude.toFixed(6)}, ${geolocation.longitude.toFixed(6)}`, 
+            10, 
+            canvas.height - 25
+          );
+          
+          // Office proximity data
+          if (geolocation.officeLocation) {
+            const distanceText = geolocation.isWithinOffice 
+              ? "Inside office perimeter" 
+              : `${Math.round(geolocation.distanceFromOffice || 0)}m from ${geolocation.officeLocation.name}`;
+            ctx.fillText(distanceText, 10, canvas.height - 5);
+          }
+        }
+        
+        // Convert canvas to data URL with better quality
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
         setPhotoDataUrl(dataUrl);
         
         // Stop the camera stream
         stopCamera();
+        
+        toast({
+          title: "Photo Captured",
+          description: "Verification photo has been taken successfully.",
+          variant: "default",
+        });
       }
     }
   };
@@ -256,6 +313,16 @@ export function CheckInModal({ open, onOpenChange }: CheckInModalProps) {
   const handleSubmit = () => {
     if (checkMode === 'in') {
       // Validate check-in
+      // Enforce 9:30 AM start time requirement - uses the isBeforeCheckInTime variable defined earlier
+      if (isBeforeCheckInTime) {
+        toast({
+          title: "Early Check-in",
+          description: "Office hours start at 9:30 AM. Please wait until the official start time.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
       if (location === 'field') {
         if (!customer) {
           toast({
@@ -454,10 +521,10 @@ export function CheckInModal({ open, onOpenChange }: CheckInModalProps) {
           {checkMode === 'out' && (
             <>
               {isBeforeCheckOutTime && (
-                <Alert variant="warning" className="mb-4">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertTitle>Early Check-out</AlertTitle>
-                  <AlertDescription>
+                <Alert className="mb-4 bg-amber-50 border-amber-200">
+                  <AlertCircle className="h-4 w-4 text-amber-600" />
+                  <AlertTitle className="text-amber-800">Early Check-out</AlertTitle>
+                  <AlertDescription className="text-amber-700">
                     You are checking out before your scheduled time 
                     ({isFieldStaff ? "7:30 PM" : "6:30 PM"}). 
                     Please provide a reason.
@@ -466,10 +533,10 @@ export function CheckInModal({ open, onOpenChange }: CheckInModalProps) {
               )}
               
               {!geolocation.isWithinOffice && (
-                <Alert variant="warning" className="mb-4">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertTitle>Remote Check-out</AlertTitle>
-                  <AlertDescription>
+                <Alert className="mb-4 bg-amber-50 border-amber-200">
+                  <AlertCircle className="h-4 w-4 text-amber-600" />
+                  <AlertTitle className="text-amber-800">Remote Check-out</AlertTitle>
+                  <AlertDescription className="text-amber-700">
                     You are checking out from outside the office. 
                     A photo verification is required.
                   </AlertDescription>

@@ -22,6 +22,24 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     }
   }, [user, loading, setLocation]);
 
+  // Close mobile menu when clicking outside of it
+  useEffect(() => {
+    const handleClickOutside = () => {
+      if (isMobileMenuOpen) {
+        setIsMobileMenuOpen(false);
+      }
+    };
+
+    // Add event listener only when mobile menu is open
+    if (isMobileMenuOpen) {
+      document.addEventListener('click', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [isMobileMenuOpen]);
+
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -40,17 +58,25 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* Sidebar for desktop */}
       <Sidebar />
 
+      {/* Mobile sidebar */}
+      <MobileSidebar 
+        isOpen={isMobileMenuOpen} 
+        setIsOpen={setIsMobileMenuOpen} 
+      />
+
       {/* Main content area */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Mobile Header */}
-        <MobileSidebar isOpen={isMobileMenuOpen} setIsOpen={setIsMobileMenuOpen} />
-
         {/* Page header with actions */}
-        <Header onMenuClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} />
+        <Header onMenuClick={(e: React.MouseEvent) => {
+          e.stopPropagation(); // Prevent event bubbling
+          setIsMobileMenuOpen(!isMobileMenuOpen);
+        }} />
 
         {/* Main content */}
-        <main className="flex-1 overflow-y-auto p-6 bg-gray-50">
-          {children}
+        <main className="flex-1 overflow-y-auto px-3 py-4 sm:p-4 md:p-6 bg-gray-50">
+          <div className="max-w-[1600px] mx-auto">
+            {children}
+          </div>
         </main>
       </div>
     </div>

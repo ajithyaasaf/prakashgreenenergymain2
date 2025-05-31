@@ -15,11 +15,14 @@ import Attendance from "@/pages/attendance";
 import Leave from "@/pages/leave";
 import UserManagement from "@/pages/user-management";
 import Departments from "@/pages/departments";
+import OfficeLocations from "@/pages/office-locations";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { AuthProvider, useAuthContext } from "@/contexts/auth-context";
 import { Loader2 } from "lucide-react";
+import { AppLoader } from "@/components/app-loader";
 
 import { ProtectedRoute } from "@/components/auth/protected-route";
+import { RootHandler } from "@/components/auth/root-handler";
 
 function Router() {
   return (
@@ -28,14 +31,8 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
       
-      {/* Dashboard - accessible to all authenticated users */}
-      <Route path="/">
-        <ProtectedRoute>
-          <DashboardLayout>
-            <Dashboard />
-          </DashboardLayout>
-        </ProtectedRoute>
-      </Route>
+      {/* Root route - intelligent redirect based on auth state */}
+      <Route path="/" component={RootHandler} />
       <Route path="/dashboard">
         <ProtectedRoute>
           <DashboardLayout>
@@ -140,6 +137,18 @@ function Router() {
         </ProtectedRoute>
       </Route>
       
+      {/* Office Locations for geo-fencing - accessible only to Master Admins */}
+      <Route path="/office-locations">
+        <ProtectedRoute 
+          requiredPermission="set_office_locations"
+          requiredRole="master_admin"
+        >
+          <DashboardLayout>
+            <OfficeLocations />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      
       {/* Fallback to 404 */}
       <Route component={NotFound} />
     </Switch>
@@ -150,12 +159,27 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Router />
-        </TooltipProvider>
+        <AppContent />
       </AuthProvider>
     </QueryClientProvider>
+  );
+}
+
+// This component sits inside the AuthProvider
+function AppContent() {
+  const { loading } = useAuthContext();
+  
+  // Prevent login screen flash by showing a loading screen during auth check
+  if (loading) {
+    return <AppLoader />;
+  }
+  
+  // Only wrap in these providers when the auth state is determined
+  return (
+    <TooltipProvider>
+      <Toaster />
+      <Router />
+    </TooltipProvider>
   );
 }
 

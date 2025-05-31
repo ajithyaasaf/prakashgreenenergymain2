@@ -33,17 +33,77 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  // Helper function for basic auth without Firestore
-  const handleBasicAuth = (firebaseUser: User) => {
-    // Just set basic user data from Firebase
-    setUser({
-      uid: firebaseUser.uid,
-      email: firebaseUser.email,
-      displayName: firebaseUser.displayName,
-      photoURL: firebaseUser.photoURL,
-      role: "employee",
-      department: null,
-    });
+  // Helper function for basic auth with unified data sync
+  const handleBasicAuth = async (firebaseUser: User) => {
+    try {
+      // Get user data from our unified backend API
+      const token = await firebaseUser.getIdToken();
+      const response = await fetch(`/api/users/${firebaseUser.uid}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const userData = await response.json();
+        setUser({
+          uid: userData.uid,
+          email: userData.email,
+          displayName: userData.displayName,
+          photoURL: firebaseUser.photoURL,
+          role: userData.role,
+          department: userData.department,
+          id: userData.id
+        });
+      } else {
+        // If user doesn't exist in our system, sync them
+        const syncResponse = await fetch('/api/auth/sync', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            displayName: firebaseUser.displayName,
+            role: "employee"
+          })
+        });
+        
+        if (syncResponse.ok) {
+          const syncData = await syncResponse.json();
+          setUser({
+            uid: syncData.user.uid,
+            email: syncData.user.email,
+            displayName: syncData.user.displayName,
+            photoURL: firebaseUser.photoURL,
+            role: syncData.user.role,
+            department: syncData.user.department,
+            id: syncData.user.id
+          });
+        } else {
+          // Fallback to basic user data
+          setUser({
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            displayName: firebaseUser.displayName,
+            photoURL: firebaseUser.photoURL,
+            role: "employee",
+            department: null,
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Error syncing user data:", error);
+      // Fallback to basic user data
+      setUser({
+        uid: firebaseUser.uid,
+        email: firebaseUser.email,
+        displayName: firebaseUser.displayName,
+        photoURL: firebaseUser.photoURL,
+        role: "employee",
+        department: null,
+      });
+    }
     
     setLoading(false);
   };
@@ -100,93 +160,102 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
   
   useEffect(() => {
-    const unsubscribe = onAuthChange((firebaseUser) => {
-      if (firebaseUser) {
-        // Get all users first to find the user by UID
-        fetch('/api/users')
-          .then(response => response.ok ? response.json() : [])
-          .then(users => {
-            const existingUser = users.find((u: any) => u.uid === firebaseUser.uid);
-            
-            if (existingUser) {
-              console.log("Found existing user:", existingUser);
-              setUser({
-                uid: firebaseUser.uid,
-                email: firebaseUser.email,
-                displayName: firebaseUser.displayName || existingUser.displayName,
-                photoURL: firebaseUser.photoURL,
-                role: existingUser.role,
-                department: existingUser.department,
-                id: existingUser.id,
-              });
-              setLoading(false);
-              
-              // Check Firebase to get user data with Firestore
-              import("firebase/firestore")
-                .then(({ getFirestore, doc, getDoc }) => {
-                  const db = getFirestore();
-                  const userDocRef = doc(db, "users", firebaseUser.uid);
-                  return getDoc(userDocRef);
-                })
-                .then(userDoc => {
-                  if (userDoc && userDoc.exists()) {
-                    const firestoreData = userDoc.data();
-                    console.log("Firestore data:", firestoreData);
-                    
-                    // If the Firestore role is different from the existing user's role, update it
-                    if (firestoreData.role && firestoreData.role !== existingUser.role) {
-                      console.log("Updating role to:", firestoreData.role);
-                      
-                      return fetch(`/api/users/${existingUser.id}`, {
-                        method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ role: firestoreData.role }),
-                        credentials: 'include'
-                      })
-                      .then(updateResponse => {
-                        if (updateResponse.ok) {
-                          return updateResponse.json();
-                        } else {
-                          throw new Error("Failed to update role");
-                        }
-                      })
-                      .then(updatedUser => {
-                        setUser(prevUser => ({
-                          ...prevUser!,
-                          role: updatedUser.role,
-                        }));
-                      })
-                      .catch(updateError => {
-                        console.error("Error updating user role:", updateError);
-                        // Still update the local state with Firestore role
-                        setUser(prevUser => ({
-                          ...prevUser!,
-                          role: firestoreData.role as UserRole,
-                        }));
-                      });
-                    }
-                  }
-                })
-                .catch(firestoreError => {
-                  console.error("Error fetching Firestore data:", firestoreError);
-                });
-            } else {
-              // User doesn't exist in our database yet, create a new one
-              handleNewUser(firebaseUser);
-            }
-          })
-          .catch(error => {
-            console.error("Error in auth flow:", error);
-            handleBasicAuth(firebaseUser);
-          });
-      } else {
+    // Keep existing user during transitions to prevent UI flicker
+    let currentUser: AuthUser | null = null;
+    let isInitialAuth = true;
+    
+    // Keep track of auth state in localStorage to prevent flashes
+    const persistedAuth = localStorage.getItem('authState');
+    if (persistedAuth) {
+      try {
+        const parsedAuth = JSON.parse(persistedAuth);
+        // Set the persisted user immediately to prevent login screen flash
+        setUser(parsedAuth);
+      } catch (e) {
+        // If parsing fails, ignore the persisted data
+        console.error("Failed to parse persisted auth state");
+      }
+    }
+    
+    const unsubscribe = onAuthChange(async (firebaseUser) => {
+      // Handle logout
+      if (!firebaseUser) {
         setUser(null);
+        localStorage.removeItem('authState');
         setLoading(false);
+        return;
+      }
+      
+      // If this is the first auth event or we're changing users
+      if (isInitialAuth || !currentUser || currentUser.uid !== firebaseUser.uid) {
+        // Don't set loading to true if we already have a user (prevents login screen flash)
+        if (!user) {
+          setLoading(true);
+        }
+        
+        // Create temporary user object
+        currentUser = {
+          uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          displayName: firebaseUser.displayName,
+          photoURL: firebaseUser.photoURL,
+          role: "employee", // Default role, will be updated
+          department: null,
+        };
+        
+        // For initial auth, don't update user state if we already have persisted data
+        // This prevents unnecessary re-renders and UI flicker
+        if (!isInitialAuth || !user) {
+          setUser(currentUser);
+        }
+        
+        try {
+          // Import syncUser function for auto-sync
+          const { syncUser } = await import("@/lib/firebase");
+          
+          // Sync this user with our database
+          const result = await syncUser(firebaseUser.uid, true);
+          
+          if (result.status === 'error') {
+            // If there was an error syncing, fall back to basic auth
+            handleBasicAuth(firebaseUser);
+            return;
+          }
+          
+          // Get the user data and update state
+          const userData = result.user;
+          
+          // Update our current user reference
+          currentUser = {
+            uid: firebaseUser.uid,
+            email: userData.email || firebaseUser.email,
+            displayName: userData.displayName || firebaseUser.displayName,
+            photoURL: firebaseUser.photoURL,
+            role: userData.role,
+            department: userData.department,
+            id: userData.id,
+          };
+          
+          // Set the complete user data
+          setUser(currentUser);
+          
+          // Persist the auth state to prevent login flashes on page refresh
+          localStorage.setItem('authState', JSON.stringify(currentUser));
+          
+          // Mark that we've completed the initial auth
+          isInitialAuth = false;
+        } catch (error) {
+          console.error("Error syncing user data:", error);
+          // Fall back to basic auth if there was an error
+          handleBasicAuth(firebaseUser);
+        } finally {
+          setLoading(false);
+        }
       }
     });
 
     return () => unsubscribe();
-  }, [toast]);
+  }, [toast, user]);
 
   const createUserProfile = async (userData: Partial<AuthUser>) => {
     if (!user) return;

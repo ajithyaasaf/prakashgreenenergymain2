@@ -1,542 +1,1168 @@
-import { 
-  users, type User, type InsertUser,
-  departments, type Department, type InsertDepartment,
-  officeLocations, type OfficeLocation, type InsertOfficeLocation,
-  customers, type Customer, type InsertCustomer,
-  products, type Product, type InsertProduct,
-  quotations, type Quotation, type InsertQuotation,
-  invoices, type Invoice, type InsertInvoice,
-  attendance, type Attendance, type InsertAttendance,
-  leaves, type Leave, type InsertLeave
+import { db } from "./firebase";
+import {
+  FieldValue,
+  Timestamp,
+  Firestore,
+  CollectionReference,
+  DocumentReference,
+  DocumentData,
+  Query
+} from "firebase-admin/firestore";
+import { z } from "zod";
+import {
+  insertAttendanceSchema,
+  insertOfficeLocationSchema,
+  insertPermissionSchema
 } from "@shared/schema";
 
-export interface IStorage {
-  // User Management
-  getUser(id: number): Promise<User | undefined>;
-  getUserByUid(uid: string): Promise<User | undefined>;
-  getUserByEmail(email: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
-  updateUser(id: number, user: Partial<InsertUser>): Promise<User | undefined>;
-  listUsers(): Promise<User[]>;
-  
-  // Department Management
-  getDepartment(id: number): Promise<Department | undefined>;
-  getDepartmentByName(name: string): Promise<Department | undefined>;
-  createDepartment(department: InsertDepartment): Promise<Department>;
-  updateDepartment(id: number, department: Partial<InsertDepartment>): Promise<Department | undefined>;
-  deleteDepartment(id: number): Promise<boolean>;
-  listDepartments(): Promise<Department[]>;
-  
-  // Office Location Management
-  getOfficeLocation(id: number): Promise<OfficeLocation | undefined>;
-  createOfficeLocation(location: InsertOfficeLocation): Promise<OfficeLocation>;
-  updateOfficeLocation(id: number, location: Partial<InsertOfficeLocation>): Promise<OfficeLocation | undefined>;
-  deleteOfficeLocation(id: number): Promise<boolean>;
-  listOfficeLocations(): Promise<OfficeLocation[]>;
-  
-  // Customer Management
-  getCustomer(id: number): Promise<Customer | undefined>;
-  createCustomer(customer: InsertCustomer): Promise<Customer>;
-  updateCustomer(id: number, customer: Partial<InsertCustomer>): Promise<Customer | undefined>;
-  deleteCustomer(id: number): Promise<boolean>;
-  listCustomers(): Promise<Customer[]>;
-  
-  // Product Management
-  getProduct(id: number): Promise<Product | undefined>;
-  createProduct(product: InsertProduct): Promise<Product>;
-  updateProduct(id: number, product: Partial<InsertProduct>): Promise<Product | undefined>;
-  deleteProduct(id: number): Promise<boolean>;
-  listProducts(): Promise<Product[]>;
-  
-  // Quotation Management
-  getQuotation(id: number): Promise<Quotation | undefined>;
-  createQuotation(quotation: InsertQuotation): Promise<Quotation>;
-  updateQuotation(id: number, quotation: Partial<InsertQuotation>): Promise<Quotation | undefined>;
-  deleteQuotation(id: number): Promise<boolean>;
-  listQuotations(): Promise<Quotation[]>;
-  
-  // Invoice Management
-  getInvoice(id: number): Promise<Invoice | undefined>;
-  createInvoice(invoice: InsertInvoice): Promise<Invoice>;
-  updateInvoice(id: number, invoice: Partial<InsertInvoice>): Promise<Invoice | undefined>;
-  deleteInvoice(id: number): Promise<boolean>;
-  listInvoices(): Promise<Invoice[]>;
-  
-  // Attendance Management
-  getAttendance(id: number): Promise<Attendance | undefined>;
-  getAttendanceByUserAndDate(userId: number, date: Date): Promise<Attendance | undefined>;
-  createAttendance(attendance: InsertAttendance): Promise<Attendance>;
-  updateAttendance(id: number, attendance: Partial<InsertAttendance>): Promise<Attendance | undefined>;
-  listAttendanceByUser(userId: number): Promise<Attendance[]>;
-  listAttendanceByDate(date: Date): Promise<Attendance[]>;
-  listAttendanceByUserBetweenDates(userId: number, fromDate: Date, toDate: Date): Promise<Attendance[]>;
-  listAttendanceBetweenDates(fromDate: Date, toDate: Date): Promise<Attendance[]>;
-  
-  // Leave Management
-  getLeave(id: number): Promise<Leave | undefined>;
-  createLeave(leave: InsertLeave): Promise<Leave>;
-  updateLeave(id: number, leave: Partial<InsertLeave>): Promise<Leave | undefined>;
-  listLeavesByUser(userId: number): Promise<Leave[]>;
-  listPendingLeaves(): Promise<Leave[]>;
+// Define our schemas since we're not using drizzle anymore
+export const insertUserSchema = z.object({
+  uid: z.string(),
+  email: z.string().email(),
+  displayName: z.string().nullable().optional().transform(val => val || "User"),
+  role: z.enum(["master_admin", "admin", "employee"]).default("employee"),
+  department: z.enum(["cre", "accounts", "hr", "sales_and_marketing", "technical_team"]).nullable().optional(),
+  photoURL: z.string().nullable().optional()
+});
+
+export const insertDepartmentSchema = z.object({
+  name: z.string()
+});
+
+export const insertCustomerSchema = z.object({
+  name: z.string(),
+  email: z.string().email(),
+  phone: z.string(),
+  address: z.string()
+});
+
+export const insertProductSchema = z.object({
+  name: z.string(),
+  description: z.string(),
+  price: z.number()
+});
+
+export const insertQuotationSchema = z.object({
+  customerId: z.string(),
+  products: z.array(z.object({
+    productId: z.string(),
+    quantity: z.number()
+  })),
+  total: z.number(),
+  status: z.string().default("pending")
+});
+
+export const insertInvoiceSchema = z.object({
+  quotationId: z.string(),
+  customerId: z.string(),
+  total: z.number(),
+  status: z.string().default("pending")
+});
+
+export const insertLeaveSchema = z.object({
+  userId: z.string(),
+  startDate: z.date(),
+  endDate: z.date(),
+  reason: z.string(),
+  status: z.enum(["pending", "approved", "rejected"]).default("pending")
+});
+
+export interface User {
+  id: string;
+  uid: string;
+  email: string;
+  displayName: string;
+  role: "master_admin" | "admin" | "employee";
+  department:
+    | "cre"
+    | "accounts"
+    | "hr"
+    | "sales_and_marketing"
+    | "technical_team"
+    | null;
+  createdAt: Date;
+  photoURL?: string;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<number, User>;
-  private departments: Map<number, Department>;
-  private officeLocations: Map<number, OfficeLocation>;
-  private customers: Map<number, Customer>;
-  private products: Map<number, Product>;
-  private quotations: Map<number, Quotation>;
-  private invoices: Map<number, Invoice>;
-  private attendance: Map<number, Attendance>;
-  private leaves: Map<number, Leave>;
+export interface Department {
+  id: string;
+  name: string;
+}
+
+export interface OfficeLocation {
+  id: string;
+  name: string;
+  latitude: string;
+  longitude: string;
+  radius: number;
+}
+
+export interface Customer {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  createdAt: Date;
+}
+
+export interface Product {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  createdAt: Date;
+}
+
+export interface Quotation {
+  id: string;
+  customerId: string;
+  products: { productId: string; quantity: number }[];
+  total: number;
+  status: string;
+  createdAt: Date;
+}
+
+export interface Invoice {
+  id: string;
+  quotationId: string;
+  customerId: string;
+  total: number;
+  status: string;
+  createdAt: Date;
+}
+
+export interface Attendance {
+  id: string;
+  userId: string;
+  userEmail: string;
+  userDepartment: string | null;
+  date: Date;
+  checkInTime?: Date;
+  checkOutTime?: Date;
+  location: string;
+  customerId?: number;
+  reason?: string;
+  checkInLatitude?: string;
+  checkInLongitude?: string;
+  checkInImageUrl?: string;
+  checkOutLatitude?: string;
+  checkOutLongitude?: string;
+  checkOutImageUrl?: string;
+  status: string;
+  overtimeHours?: number;
+  otReason?: string;
+}
+
+export interface Leave {
+  id: string;
+  userId: string;
+  startDate: Date;
+  endDate: Date;
+  reason: string;
+  status: "pending" | "approved" | "rejected";
+  createdAt: Date;
+}
+
+// Activity Log interface
+export interface ActivityLog {
+  id: string;
+  type: 'customer_created' | 'customer_updated' | 'quotation_created' | 'invoice_paid' | 'product_created' | 'attendance' | 'leave_requested';
+  title: string;
+  description: string;
+  createdAt: Date;
+  entityId: string;
+  entityType: string;
+  userId: string;
+}
+
+export const insertActivityLogSchema = z.object({
+  type: z.enum(['customer_created', 'customer_updated', 'quotation_created', 'invoice_paid', 'product_created', 'attendance', 'leave_requested']),
+  title: z.string(),
+  description: z.string(),
+  entityId: z.string().optional(),
+  entityType: z.string().optional(),
+  userId: z.string(),
+});
+
+export interface IStorage {
+  getUser(id: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  listUsers(): Promise<User[]>;
+  createUser(data: z.infer<typeof insertUserSchema>): Promise<User>;
+  updateUser(id: string, data: Partial<User>): Promise<User>;
+  getDepartment(id: string): Promise<Department | undefined>;
+  getDepartmentByName(name: string): Promise<Department | undefined>;
+  listDepartments(): Promise<string[]>;
+  createDepartment(
+    data: z.infer<typeof insertDepartmentSchema>,
+  ): Promise<Department>;
+  updateDepartment(
+    id: string,
+    data: Partial<z.infer<typeof insertDepartmentSchema>>,
+  ): Promise<Department>;
+  deleteDepartment(id: string): Promise<boolean>;
+  listOfficeLocations(): Promise<OfficeLocation[]>;
+  getOfficeLocation(id: string): Promise<OfficeLocation | undefined>;
+  createOfficeLocation(
+    data: z.infer<typeof insertOfficeLocationSchema>,
+  ): Promise<OfficeLocation>;
+  updateOfficeLocation(
+    id: string,
+    data: Partial<z.infer<typeof insertOfficeLocationSchema>>,
+  ): Promise<OfficeLocation>;
+  deleteOfficeLocation(id: string): Promise<void>;
+  listCustomers(): Promise<Customer[]>;
+  getCustomer(id: string): Promise<Customer | undefined>;
+  createCustomer(data: z.infer<typeof insertCustomerSchema>): Promise<Customer>;
+  updateCustomer(
+    id: string,
+    data: Partial<z.infer<typeof insertCustomerSchema>>,
+  ): Promise<Customer>;
+  deleteCustomer(id: string): Promise<void>;
+  listProducts(): Promise<Product[]>;
+  getProduct(id: string): Promise<Product | undefined>;
+  createProduct(data: z.infer<typeof insertProductSchema>): Promise<Product>;
+  updateProduct(
+    id: string,
+    data: Partial<z.infer<typeof insertProductSchema>>,
+  ): Promise<Product>;
+  deleteProduct(id: string): Promise<void>;
+  listQuotations(): Promise<Quotation[]>;
+  getQuotation(id: string): Promise<Quotation | undefined>;
+  createQuotation(
+    data: z.infer<typeof insertQuotationSchema>,
+  ): Promise<Quotation>;
+  updateQuotation(
+    id: string,
+    data: Partial<z.infer<typeof insertQuotationSchema>>,
+  ): Promise<Quotation>;
+  deleteQuotation(id: string): Promise<void>;
+  listInvoices(): Promise<Invoice[]>;
+  getInvoice(id: string): Promise<Invoice | undefined>;
+  createInvoice(data: z.infer<typeof insertInvoiceSchema>): Promise<Invoice>;
+  updateInvoice(
+    id: string,
+    data: Partial<z.infer<typeof insertInvoiceSchema>>,
+  ): Promise<Invoice>;
+  deleteInvoice(id: string): Promise<void>;
+  createAttendance(
+    data: z.infer<typeof insertAttendanceSchema>,
+  ): Promise<Attendance>;
+  updateAttendance(
+    id: string,
+    data: Partial<z.infer<typeof insertAttendanceSchema>>,
+  ): Promise<Attendance>;
+  getAttendanceByUserAndDate(
+    userId: string,
+    date: Date,
+  ): Promise<Attendance | undefined>;
+  listAttendanceByUser(userId: string): Promise<Attendance[]>;
+  listAttendanceByDate(date: Date): Promise<Attendance[]>;
+  listAttendanceBetweenDates(
+    startDate: Date,
+    endDate: Date,
+  ): Promise<Attendance[]>;
+  getLeave(id: string): Promise<Leave | undefined>;
+  listLeavesByUser(userId: string): Promise<Leave[]>;
+  listPendingLeaves(): Promise<Leave[]>;
+  createLeave(data: z.infer<typeof insertLeaveSchema>): Promise<Leave>;
+  updateLeave(
+    id: string,
+    data: Partial<z.infer<typeof insertLeaveSchema>>,
+  ): Promise<Leave>;
+  // Activity logs
+  createActivityLog(data: z.infer<typeof insertActivityLogSchema>): Promise<ActivityLog>;
+  listActivityLogs(limit?: number): Promise<ActivityLog[]>;
+}
+
+export class FirestoreStorage implements IStorage {
+  private db: Firestore;
   
-  private nextUserId = 1;
-  private nextDepartmentId = 1;
-  private nextOfficeLocationId = 1;
-  private nextCustomerId = 1;
-  private nextProductId = 1;
-  private nextQuotationId = 1;
-  private nextInvoiceId = 1;
-  private nextAttendanceId = 1;
-  private nextLeaveId = 1;
-
   constructor() {
-    this.users = new Map();
-    this.departments = new Map();
-    this.officeLocations = new Map();
-    this.customers = new Map();
-    this.products = new Map();
-    this.quotations = new Map();
-    this.invoices = new Map();
-    this.attendance = new Map();
-    this.leaves = new Map();
-    
-    // Initialize with sample data
-    this.initSampleData();
+    // Use the db imported at the top of the file
+    this.db = db;
   }
-
-  private initSampleData() {
-    // Add sample departments
-    const departments = [
-      { name: "CRE", description: "Customer Relations" },
-      { name: "Accounts", description: "Financial Management" },
-      { name: "HR", description: "Human Resources" },
-      { name: "Sales and Marketing", description: "Business Development" },
-      { name: "Technical Team", description: "Product Support" }
-    ];
+  
+  // Activity logs implementation
+  async createActivityLog(data: z.infer<typeof insertActivityLogSchema>): Promise<ActivityLog> {
+    const id = this.db.collection("activity_logs").doc().id;
+    const activityLog: ActivityLog = {
+      id,
+      type: data.type,
+      title: data.title,
+      description: data.description,
+      entityId: data.entityId || '',
+      entityType: data.entityType || '',
+      userId: data.userId,
+      createdAt: new Date()
+    };
     
-    departments.forEach(dept => {
-      this.createDepartment(dept);
+    await this.db.collection("activity_logs").doc(id).set({
+      ...activityLog,
+      createdAt: Timestamp.fromDate(activityLog.createdAt)
     });
     
-    // Add sample products
-    const products = [
-      { name: "Solar Panel 500W", type: "Panel", voltage: "24V", rating: "500W", make: "Monocrystalline", quantity: 5, unit: "Piece", price: 1850000 },
-      { name: "Inverter 2KVA", type: "Inverter", voltage: "220V", rating: "2KVA", make: "Pure Sine Wave", quantity: 8, unit: "Piece", price: 1520000 },
-      { name: "Charge Controller", type: "Controller", voltage: "48V", rating: "60A", make: "MPPT", quantity: 7, unit: "Piece", price: 1280000 },
-      { name: "Battery 200Ah", type: "Battery", voltage: "12V", rating: "200Ah", make: "Lithium Ion", quantity: 15, unit: "Piece", price: 950000 }
-    ];
+    return activityLog;
+  }
+  
+  async listActivityLogs(limit = 10): Promise<ActivityLog[]> {
+    const snapshot = await this.db.collection("activity_logs")
+      .orderBy("createdAt", "desc")
+      .limit(limit)
+      .get();
     
-    products.forEach(product => {
-      this.createProduct(product);
-    });
+    if (snapshot.empty) {
+      return [];
+    }
     
-    // Add sample customers
-    const customers = [
-      { name: "Sundar Designs", address: "123 Main St, Chennai", email: "info@sundardesigns.com", phone: "9876543210", location: "Chennai", scope: "Solar installation for office building" },
-      { name: "Vijay Tech Solutions", address: "456 Tech Park, Bangalore", email: "contact@vijaytech.in", phone: "8765432109", location: "Bangalore", scope: "Backup power solution for data center" },
-      { name: "Ramesh Properties", address: "789 Hillside, Hyderabad", email: "ramesh@properties.co.in", phone: "7654321098", location: "Hyderabad", scope: "Residential solar setup for apartment complex" }
-    ];
-    
-    customers.forEach(customer => {
-      this.createCustomer(customer);
-    });
-    
-    // Add sample quotations
-    const quotations = [
-      { 
-        quotationNumber: "QT-2023-051", 
-        customerId: 1, 
-        totalAmount: 12450000, 
-        status: "sent", 
-        items: [
-          { productId: 1, quantity: 5, unitPrice: 1850000, totalPrice: 9250000 },
-          { productId: 2, quantity: 2, unitPrice: 1520000, totalPrice: 3040000 }
-        ],
-        warranty: "1 year parts, 5 years service",
-        termsAndConditions: "Standard terms apply"
-      },
-      {
-        quotationNumber: "QT-2023-050", 
-        customerId: 2, 
-        totalAmount: 8520000, 
-        status: "accepted", 
-        items: [
-          { productId: 2, quantity: 3, unitPrice: 1520000, totalPrice: 4560000 },
-          { productId: 3, quantity: 3, unitPrice: 1280000, totalPrice: 3840000 }
-        ],
-        warranty: "1 year parts, 5 years service",
-        termsAndConditions: "Standard terms apply"
-      }
-    ];
-    
-    quotations.forEach(quotation => {
-      this.createQuotation(quotation);
-    });
-    
-    // Add sample invoices
-    const invoices = [
-      {
-        invoiceNumber: "INV-2023-073",
-        customerId: 1,
-        quotationId: 1,
-        totalAmount: 11520000,
-        status: "paid",
-        dueDate: new Date(2023, 7, 30),
-        items: [
-          { productId: 1, quantity: 5, unitPrice: 1850000, totalPrice: 9250000 },
-          { productId: 2, quantity: 1.5, unitPrice: 1520000, totalPrice: 2280000 }
-        ],
-        paymentDetails: {
-          method: "Bank Transfer",
-          transactionId: "TRX123456",
-          paidOn: new Date(2023, 7, 25)
-        }
-      },
-      {
-        invoiceNumber: "INV-2023-072",
-        customerId: 2,
-        quotationId: 2,
-        totalAmount: 7500000,
-        status: "pending",
-        dueDate: new Date(2023, 8, 15),
-        items: [
-          { productId: 2, quantity: 3, unitPrice: 1520000, totalPrice: 4560000 },
-          { productId: 3, quantity: 2.3, unitPrice: 1280000, totalPrice: 2944000 }
-        ],
-        paymentDetails: null
-      }
-    ];
-    
-    invoices.forEach(invoice => {
-      this.createInvoice(invoice);
+    return snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        ...data,
+        id: doc.id,
+        createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt || Date.now())
+      } as ActivityLog;
     });
   }
-
-  // User Management
-  async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
-  }
-
-  async getUserByUid(uid: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(user => user.uid === uid);
+  async getUser(id: string): Promise<User | undefined> {
+    const userDoc = this.db.collection("users").doc(id);
+    const docSnap = await userDoc.get();
+    if (!docSnap.exists) return undefined;
+    const data = docSnap.data();
+    return {
+      id: docSnap.id,
+      uid: data?.uid,
+      email: data?.email,
+      displayName: data?.displayName,
+      role: data?.role,
+      department: data?.department,
+      createdAt: data?.createdAt?.toDate ? data.createdAt.toDate() : new Date(data?.createdAt || Date.now()),
+      photoURL: data?.photoURL,
+    } as User;
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(user => user.email === email);
-  }
-
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = this.nextUserId++;
-    const now = new Date();
-    const user = { ...insertUser, id, createdAt: now, updatedAt: now };
-    this.users.set(id, user);
-    return user;
-  }
-
-  async updateUser(id: number, userData: Partial<InsertUser>): Promise<User | undefined> {
-    const user = this.users.get(id);
-    if (!user) return undefined;
-    
-    const updatedUser = { ...user, ...userData, updatedAt: new Date() };
-    this.users.set(id, updatedUser);
-    return updatedUser;
+    const usersRef = this.db.collection("users");
+    const snapshot = await usersRef.where("email", "==", email).get();
+    if (snapshot.empty) return undefined;
+    const doc = snapshot.docs[0];
+    const data = doc.data();
+    return {
+      id: doc.id,
+      uid: data.uid,
+      email: data.email,
+      displayName: data.displayName,
+      role: data.role,
+      department: data.department,
+      createdAt: data.createdAt.toDate(),
+      photoURL: data.photoURL,
+    } as User;
   }
 
   async listUsers(): Promise<User[]> {
-    return Array.from(this.users.values());
+    const usersCollection = this.db.collection("users");
+    const snapshot = await usersCollection.get();
+    return snapshot.docs.map((doc) => {
+      const data = doc.data();
+      // Handle different date formats safely
+      let createdAt: Date;
+      if (data.createdAt?.toDate) {
+        // Firestore Timestamp
+        createdAt = data.createdAt.toDate();
+      } else if (data.createdAt) {
+        // ISO string or similar
+        createdAt = new Date(data.createdAt);
+      } else {
+        // Fallback
+        createdAt = new Date();
+      }
+      
+      return {
+        id: doc.id,
+        uid: data.uid,
+        email: data.email,
+        displayName: data.displayName,
+        role: data.role,
+        department: data.department,
+        createdAt: createdAt,
+        photoURL: data.photoURL,
+      } as User;
+    });
   }
 
-  // Department Management
-  async getDepartment(id: number): Promise<Department | undefined> {
-    return this.departments.get(id);
+  async createUser(data: z.infer<typeof insertUserSchema>): Promise<User> {
+    const validatedData = insertUserSchema.parse(data);
+    const userDoc = this.db.collection("users").doc(validatedData.uid);
+    
+    await userDoc.set({
+      ...validatedData,
+      id: validatedData.uid,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
+    
+    return { 
+      id: validatedData.uid,
+      ...validatedData, 
+      createdAt: new Date() 
+    } as User;
+  }
+
+  async updateUser(id: string, data: Partial<User>): Promise<User> {
+    const userDoc = this.db.collection("users").doc(id);
+    const updateData: any = { ...data, updatedAt: Timestamp.now() };
+    
+    if (data.createdAt) {
+      updateData.createdAt = Timestamp.fromDate(data.createdAt);
+    }
+    
+    await userDoc.update(updateData);
+    const updatedDoc = await userDoc.get();
+    
+    if (!updatedDoc.exists) throw new Error("User not found");
+    const updatedData = updatedDoc.data() || {};
+    
+    return {
+      id: updatedDoc.id,
+      uid: updatedData.uid,
+      email: updatedData.email,
+      displayName: updatedData.displayName,
+      role: updatedData.role,
+      department: updatedData.department,
+      createdAt: updatedData.createdAt?.toDate() || new Date(),
+      photoURL: updatedData.photoURL,
+    } as User;
+  }
+
+  async getDepartment(id: string): Promise<Department | undefined> {
+    const deptDoc = this.db.collection("departments").doc(id);
+    const docSnap = await deptDoc.get();
+    if (!docSnap.exists) return undefined;
+    const data = docSnap.data();
+    return { id: docSnap.id, name: data?.name } as Department;
   }
 
   async getDepartmentByName(name: string): Promise<Department | undefined> {
-    return Array.from(this.departments.values()).find(
-      dept => dept.name.toLowerCase() === name.toLowerCase()
-    );
+    const departmentsRef = this.db.collection("departments");
+    const snapshot = await departmentsRef.where("name", "==", name).get();
+    if (snapshot.empty) return undefined;
+    const doc = snapshot.docs[0];
+    const data = doc.data();
+    return { id: doc.id, name: data.name } as Department;
   }
 
-  async createDepartment(insertDepartment: InsertDepartment): Promise<Department> {
-    const id = this.nextDepartmentId++;
-    const now = new Date();
-    const department = { ...insertDepartment, id, createdAt: now, updatedAt: now };
-    this.departments.set(id, department);
-    return department;
+  async listDepartments(): Promise<string[]> {
+    return ["cre", "accounts", "hr", "sales_and_marketing", "technical_team"];
   }
 
-  async updateDepartment(id: number, departmentData: Partial<InsertDepartment>): Promise<Department | undefined> {
-    const department = this.departments.get(id);
-    if (!department) return undefined;
+  async createDepartment(
+    data: z.infer<typeof insertDepartmentSchema>,
+  ): Promise<Department> {
+    const validatedData = insertDepartmentSchema.parse(data);
+    const departmentsRef = this.db.collection("departments");
+    const deptDoc = await departmentsRef.add({
+      ...validatedData,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
     
-    const updatedDepartment = { ...department, ...departmentData, updatedAt: new Date() };
-    this.departments.set(id, updatedDepartment);
-    return updatedDepartment;
+    return { id: deptDoc.id, ...validatedData } as Department;
   }
 
-  async deleteDepartment(id: number): Promise<boolean> {
-    return this.departments.delete(id);
-  }
-
-  async listDepartments(): Promise<Department[]> {
-    return Array.from(this.departments.values());
-  }
-
-  // Office Location Management
-  async getOfficeLocation(id: number): Promise<OfficeLocation | undefined> {
-    return this.officeLocations.get(id);
-  }
-
-  async createOfficeLocation(insertLocation: InsertOfficeLocation): Promise<OfficeLocation> {
-    const id = this.nextOfficeLocationId++;
-    const now = new Date();
-    const location = { ...insertLocation, id, createdAt: now, updatedAt: now };
-    this.officeLocations.set(id, location);
-    return location;
-  }
-
-  async updateOfficeLocation(id: number, locationData: Partial<InsertOfficeLocation>): Promise<OfficeLocation | undefined> {
-    const location = this.officeLocations.get(id);
-    if (!location) return undefined;
+  async updateDepartment(
+    id: string,
+    data: Partial<z.infer<typeof insertDepartmentSchema>>,
+  ): Promise<Department> {
+    const deptDoc = this.db.collection("departments").doc(id);
+    const validatedData = insertDepartmentSchema.partial().parse(data);
     
-    const updatedLocation = { ...location, ...locationData, updatedAt: new Date() };
-    this.officeLocations.set(id, updatedLocation);
-    return updatedLocation;
+    await deptDoc.update({ 
+      ...validatedData, 
+      updatedAt: Timestamp.now() 
+    });
+    
+    const updatedDoc = await deptDoc.get();
+    if (!updatedDoc.exists) throw new Error("Department not found");
+    
+    const docData = updatedDoc.data() || {};
+    return { id: updatedDoc.id, name: docData.name } as Department;
   }
 
-  async deleteOfficeLocation(id: number): Promise<boolean> {
-    return this.officeLocations.delete(id);
+  async deleteDepartment(id: string): Promise<boolean> {
+    const deptDoc = this.db.collection("departments").doc(id);
+    await deptDoc.delete();
+    return true;
   }
 
   async listOfficeLocations(): Promise<OfficeLocation[]> {
-    return Array.from(this.officeLocations.values());
-  }
-
-  // Customer Management
-  async getCustomer(id: number): Promise<Customer | undefined> {
-    return this.customers.get(id);
-  }
-
-  async createCustomer(insertCustomer: InsertCustomer): Promise<Customer> {
-    const id = this.nextCustomerId++;
-    const now = new Date();
-    const customer = { ...insertCustomer, id, createdAt: now, updatedAt: now };
-    this.customers.set(id, customer);
-    return customer;
-  }
-
-  async updateCustomer(id: number, customerData: Partial<InsertCustomer>): Promise<Customer | undefined> {
-    const customer = this.customers.get(id);
-    if (!customer) return undefined;
+    const locationsCollection = this.db.collection("office_locations");
+    const snapshot = await locationsCollection.get();
     
-    const updatedCustomer = { ...customer, ...customerData, updatedAt: new Date() };
-    this.customers.set(id, updatedCustomer);
-    return updatedCustomer;
+    return snapshot.docs.map(doc => {
+      const data = doc.data() || {};
+      return {
+        id: doc.id,
+        name: data.name,
+        latitude: data.latitude,
+        longitude: data.longitude,
+        radius: data.radius,
+        createdAt: data.createdAt?.toDate() || new Date()
+      } as OfficeLocation;
+    });
   }
 
-  async deleteCustomer(id: number): Promise<boolean> {
-    return this.customers.delete(id);
+  async getOfficeLocation(id: string): Promise<OfficeLocation | undefined> {
+    const locationDoc = this.db.collection("office_locations").doc(id);
+    const docSnap = await locationDoc.get();
+    if (!docSnap.exists) return undefined;
+    const data = docSnap.data() || {};
+    return { id: docSnap.id, ...data } as OfficeLocation;
+  }
+
+  async createOfficeLocation(
+    data: z.infer<typeof insertOfficeLocationSchema>,
+  ): Promise<OfficeLocation> {
+    const validatedData = insertOfficeLocationSchema.parse(data);
+    const locationsRef = this.db.collection("office_locations");
+    
+    const locationDoc = await locationsRef.add({
+      ...validatedData,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
+    
+    return { 
+      id: locationDoc.id,
+      ...validatedData 
+    } as OfficeLocation;
+  }
+
+  async updateOfficeLocation(
+    id: string,
+    data: Partial<z.infer<typeof insertOfficeLocationSchema>>,
+  ): Promise<OfficeLocation> {
+    const validatedData = insertOfficeLocationSchema.partial().parse(data);
+    const locationDoc = this.db.collection("office_locations").doc(id);
+    
+    await locationDoc.update({
+      ...validatedData,
+      updatedAt: Timestamp.now(),
+    });
+    
+    const updatedDoc = await locationDoc.get();
+    if (!updatedDoc.exists) throw new Error("Office location not found");
+    
+    const docData = updatedDoc.data() || {};
+    return { 
+      id: updatedDoc.id, 
+      name: docData.name,
+      latitude: docData.latitude,
+      longitude: docData.longitude,
+      radius: docData.radius
+    } as OfficeLocation;
+  }
+
+  async deleteOfficeLocation(id: string): Promise<void> {
+    const locationDoc = this.db.collection("office_locations").doc(id);
+    await locationDoc.delete();
   }
 
   async listCustomers(): Promise<Customer[]> {
-    return Array.from(this.customers.values());
-  }
-
-  // Product Management
-  async getProduct(id: number): Promise<Product | undefined> {
-    return this.products.get(id);
-  }
-
-  async createProduct(insertProduct: InsertProduct): Promise<Product> {
-    const id = this.nextProductId++;
-    const now = new Date();
-    const product = { ...insertProduct, id, createdAt: now, updatedAt: now };
-    this.products.set(id, product);
-    return product;
-  }
-
-  async updateProduct(id: number, productData: Partial<InsertProduct>): Promise<Product | undefined> {
-    const product = this.products.get(id);
-    if (!product) return undefined;
+    const customersCollection = this.db.collection("customers");
+    const snapshot = await customersCollection.get();
     
-    const updatedProduct = { ...product, ...productData, updatedAt: new Date() };
-    this.products.set(id, updatedProduct);
-    return updatedProduct;
+    return snapshot.docs.map(doc => {
+      const data = doc.data() || {};
+      return {
+        id: doc.id,
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        address: data.address,
+        createdAt: data.createdAt?.toDate() || new Date()
+      } as Customer;
+    });
   }
 
-  async deleteProduct(id: number): Promise<boolean> {
-    return this.products.delete(id);
+  async getCustomer(id: string): Promise<Customer | undefined> {
+    const customerDoc = this.db.collection("customers").doc(id);
+    const docSnap = await customerDoc.get();
+    
+    if (!docSnap.exists) return undefined;
+    
+    const data = docSnap.data() || {};
+    return {
+      id: docSnap.id,
+      name: data.name,
+      email: data.email,
+      phone: data.phone,
+      address: data.address,
+      createdAt: data.createdAt?.toDate() || new Date()
+    } as Customer;
+  }
+
+  async createCustomer(
+    data: z.infer<typeof insertCustomerSchema>,
+  ): Promise<Customer> {
+    const validatedData = insertCustomerSchema.parse(data);
+    const customersRef = this.db.collection("customers");
+    
+    const customerDoc = await customersRef.add({
+      ...validatedData,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
+    
+    return {
+      id: customerDoc.id,
+      ...validatedData,
+      createdAt: new Date(),
+    } as Customer;
+  }
+
+  async updateCustomer(
+    id: string,
+    data: Partial<z.infer<typeof insertCustomerSchema>>,
+  ): Promise<Customer> {
+    const validatedData = insertCustomerSchema.partial().parse(data);
+    const customerDoc = this.db.collection("customers").doc(id);
+    
+    await customerDoc.update({
+      ...validatedData,
+      updatedAt: Timestamp.now(),
+    });
+    
+    const updatedDoc = await customerDoc.get();
+    if (!updatedDoc.exists) throw new Error("Customer not found");
+    
+    const updatedData = updatedDoc.data() || {};
+    return {
+      id: updatedDoc.id,
+      ...updatedData,
+      createdAt: updatedData.createdAt?.toDate() || new Date(),
+    } as Customer;
+  }
+
+  async deleteCustomer(id: string): Promise<void> {
+    const customerDoc = this.db.collection("customers").doc(id);
+    await customerDoc.delete();
   }
 
   async listProducts(): Promise<Product[]> {
-    return Array.from(this.products.values());
-  }
-
-  // Quotation Management
-  async getQuotation(id: number): Promise<Quotation | undefined> {
-    return this.quotations.get(id);
-  }
-
-  async createQuotation(insertQuotation: InsertQuotation): Promise<Quotation> {
-    const id = this.nextQuotationId++;
-    const now = new Date();
-    const quotation = { ...insertQuotation, id, createdAt: now, updatedAt: now };
-    this.quotations.set(id, quotation);
-    return quotation;
-  }
-
-  async updateQuotation(id: number, quotationData: Partial<InsertQuotation>): Promise<Quotation | undefined> {
-    const quotation = this.quotations.get(id);
-    if (!quotation) return undefined;
+    const productsCollection = this.db.collection("products");
+    const snapshot = await productsCollection.get();
     
-    const updatedQuotation = { ...quotation, ...quotationData, updatedAt: new Date() };
-    this.quotations.set(id, updatedQuotation);
-    return updatedQuotation;
+    return snapshot.docs.map(doc => {
+      const data = doc.data() || {};
+      return {
+        id: doc.id,
+        name: data.name,
+        description: data.description,
+        price: data.price,
+        createdAt: data.createdAt?.toDate() || new Date()
+      } as Product;
+    });
   }
 
-  async deleteQuotation(id: number): Promise<boolean> {
-    return this.quotations.delete(id);
+  async getProduct(id: string): Promise<Product | undefined> {
+    const productDoc = this.db.collection("products").doc(id);
+    const docSnap = await productDoc.get();
+    
+    if (!docSnap.exists) return undefined;
+    
+    const data = docSnap.data() || {};
+    return {
+      id: docSnap.id,
+      name: data.name,
+      description: data.description,
+      price: data.price,
+      createdAt: data.createdAt?.toDate() || new Date()
+    } as Product;
+  }
+
+  async createProduct(
+    data: z.infer<typeof insertProductSchema>,
+  ): Promise<Product> {
+    const validatedData = insertProductSchema.parse(data);
+    const productsRef = this.db.collection("products");
+    
+    const productDoc = await productsRef.add({
+      ...validatedData,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
+    
+    return {
+      id: productDoc.id,
+      ...validatedData,
+      createdAt: new Date(),
+    } as Product;
+  }
+
+  async updateProduct(
+    id: string,
+    data: Partial<z.infer<typeof insertProductSchema>>,
+  ): Promise<Product> {
+    const validatedData = insertProductSchema.partial().parse(data);
+    const productDoc = this.db.collection("products").doc(id);
+    
+    await productDoc.update({
+      ...validatedData,
+      updatedAt: Timestamp.now(),
+    });
+    
+    const updatedDoc = await productDoc.get();
+    if (!updatedDoc.exists) throw new Error("Product not found");
+    
+    const updatedData = updatedDoc.data() || {};
+    return {
+      id: updatedDoc.id,
+      ...updatedData,
+      createdAt: updatedData.createdAt?.toDate() || new Date(),
+    } as Product;
+  }
+
+  async deleteProduct(id: string): Promise<void> {
+    const productDoc = this.db.collection("products").doc(id);
+    await productDoc.delete();
   }
 
   async listQuotations(): Promise<Quotation[]> {
-    return Array.from(this.quotations.values());
-  }
-
-  // Invoice Management
-  async getInvoice(id: number): Promise<Invoice | undefined> {
-    return this.invoices.get(id);
-  }
-
-  async createInvoice(insertInvoice: InsertInvoice): Promise<Invoice> {
-    const id = this.nextInvoiceId++;
-    const now = new Date();
-    const invoice = { ...insertInvoice, id, createdAt: now, updatedAt: now };
-    this.invoices.set(id, invoice);
-    return invoice;
-  }
-
-  async updateInvoice(id: number, invoiceData: Partial<InsertInvoice>): Promise<Invoice | undefined> {
-    const invoice = this.invoices.get(id);
-    if (!invoice) return undefined;
+    const quotationsCollection = this.db.collection("quotations");
+    const snapshot = await quotationsCollection.get();
     
-    const updatedInvoice = { ...invoice, ...invoiceData, updatedAt: new Date() };
-    this.invoices.set(id, updatedInvoice);
-    return updatedInvoice;
+    return snapshot.docs.map(doc => {
+      const data = doc.data() || {};
+      return {
+        id: doc.id,
+        customerId: data.customerId,
+        products: data.products,
+        total: data.total,
+        status: data.status,
+        createdAt: data.createdAt?.toDate() || new Date()
+      } as Quotation;
+    });
   }
 
-  async deleteInvoice(id: number): Promise<boolean> {
-    return this.invoices.delete(id);
+  async getQuotation(id: string): Promise<Quotation | undefined> {
+    const quotationDoc = this.db.collection("quotations").doc(id);
+    const docSnap = await quotationDoc.get();
+    
+    if (!docSnap.exists) return undefined;
+    
+    const data = docSnap.data() || {};
+    return {
+      id: docSnap.id,
+      customerId: data.customerId,
+      products: data.products,
+      total: data.total,
+      status: data.status,
+      createdAt: data.createdAt?.toDate() || new Date()
+    } as Quotation;
+  }
+
+  async createQuotation(
+    data: z.infer<typeof insertQuotationSchema>,
+  ): Promise<Quotation> {
+    const validatedData = insertQuotationSchema.parse(data);
+    const quotationsRef = this.db.collection("quotations");
+    
+    const quotationDoc = await quotationsRef.add({
+      ...validatedData,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
+    
+    return {
+      id: quotationDoc.id,
+      ...validatedData,
+      createdAt: new Date(),
+    } as Quotation;
+  }
+
+  async updateQuotation(
+    id: string,
+    data: Partial<z.infer<typeof insertQuotationSchema>>,
+  ): Promise<Quotation> {
+    const validatedData = insertQuotationSchema.partial().parse(data);
+    const quotationDoc = this.db.collection("quotations").doc(id);
+    
+    await quotationDoc.update({
+      ...validatedData,
+      updatedAt: Timestamp.now(),
+    });
+    
+    const updatedDoc = await quotationDoc.get();
+    if (!updatedDoc.exists) throw new Error("Quotation not found");
+    
+    const updatedData = updatedDoc.data() || {};
+    return {
+      id: updatedDoc.id,
+      ...updatedData,
+      createdAt: updatedData.createdAt?.toDate() || new Date(),
+    } as Quotation;
+  }
+
+  async deleteQuotation(id: string): Promise<void> {
+    const quotationDoc = this.db.collection("quotations").doc(id);
+    await quotationDoc.delete();
   }
 
   async listInvoices(): Promise<Invoice[]> {
-    return Array.from(this.invoices.values());
-  }
-
-  // Attendance Management
-  async getAttendance(id: number): Promise<Attendance | undefined> {
-    return this.attendance.get(id);
-  }
-
-  async getAttendanceByUserAndDate(userId: number, date: Date): Promise<Attendance | undefined> {
-    const dateString = date.toISOString().split('T')[0];
-    return Array.from(this.attendance.values()).find(att => {
-      const attDateString = att.date.toISOString().split('T')[0];
-      return att.userId === userId && attDateString === dateString;
+    const invoicesCollection = this.db.collection("invoices");
+    const snapshot = await invoicesCollection.get();
+    
+    return snapshot.docs.map(doc => {
+      const data = doc.data() || {};
+      return {
+        id: doc.id,
+        quotationId: data.quotationId,
+        customerId: data.customerId,
+        total: data.total,
+        status: data.status,
+        createdAt: data.createdAt?.toDate() || new Date()
+      } as Invoice;
     });
   }
 
-  async createAttendance(insertAttendance: InsertAttendance): Promise<Attendance> {
-    const id = this.nextAttendanceId++;
-    const now = new Date();
-    const attendance = { ...insertAttendance, id, createdAt: now, updatedAt: now };
-    this.attendance.set(id, attendance);
-    return attendance;
-  }
-
-  async updateAttendance(id: number, attendanceData: Partial<InsertAttendance>): Promise<Attendance | undefined> {
-    const attendance = this.attendance.get(id);
-    if (!attendance) return undefined;
+  async getInvoice(id: string): Promise<Invoice | undefined> {
+    const invoiceDoc = this.db.collection("invoices").doc(id);
+    const docSnap = await invoiceDoc.get();
     
-    const updatedAttendance = { ...attendance, ...attendanceData, updatedAt: new Date() };
-    this.attendance.set(id, updatedAttendance);
-    return updatedAttendance;
+    if (!docSnap.exists) return undefined;
+    
+    const data = docSnap.data() || {};
+    return {
+      id: docSnap.id,
+      quotationId: data.quotationId,
+      customerId: data.customerId,
+      total: data.total,
+      status: data.status,
+      createdAt: data.createdAt?.toDate() || new Date()
+    } as Invoice;
   }
 
-  async listAttendanceByUser(userId: number): Promise<Attendance[]> {
-    return Array.from(this.attendance.values()).filter(att => att.userId === userId);
+  async createInvoice(
+    data: z.infer<typeof insertInvoiceSchema>,
+  ): Promise<Invoice> {
+    const validatedData = insertInvoiceSchema.parse(data);
+    const invoicesRef = this.db.collection("invoices");
+    
+    const invoiceDoc = await invoicesRef.add({
+      ...validatedData,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
+    
+    return {
+      id: invoiceDoc.id,
+      ...validatedData,
+      createdAt: new Date(),
+    } as Invoice;
+  }
+
+  async updateInvoice(
+    id: string,
+    data: Partial<z.infer<typeof insertInvoiceSchema>>,
+  ): Promise<Invoice> {
+    const validatedData = insertInvoiceSchema.partial().parse(data);
+    const invoiceDoc = this.db.collection("invoices").doc(id);
+    
+    await invoiceDoc.update({
+      ...validatedData,
+      updatedAt: Timestamp.now(),
+    });
+    
+    const updatedDoc = await invoiceDoc.get();
+    if (!updatedDoc.exists) throw new Error("Invoice not found");
+    
+    const updatedData = updatedDoc.data() || {};
+    return {
+      id: updatedDoc.id,
+      ...updatedData,
+      createdAt: updatedData.createdAt?.toDate() || new Date(),
+    } as Invoice;
+  }
+
+  async deleteInvoice(id: string): Promise<void> {
+    const invoiceDoc = this.db.collection("invoices").doc(id);
+    await invoiceDoc.delete();
+  }
+
+  async createAttendance(
+    data: z.infer<typeof insertAttendanceSchema>,
+  ): Promise<Attendance> {
+    const userDoc = await this.db.collection("users").doc(data.userId).get();
+    const validatedData = insertAttendanceSchema.parse({
+      ...data,
+      date: data.date ? Timestamp.fromDate(data.date) : Timestamp.now(),
+      checkInTime: data.checkInTime
+        ? Timestamp.fromDate(data.checkInTime)
+        : undefined,
+      checkOutTime: data.checkOutTime
+        ? Timestamp.fromDate(data.checkOutTime)
+        : undefined,
+    });
+    
+    const attendanceRef = this.db.collection("attendance");
+    const attendanceDoc = await attendanceRef.add({
+      ...validatedData,
+      userEmail: userDoc.exists ? userDoc.data()?.email || "" : "",
+      userDepartment: userDoc.exists ? userDoc.data()?.department || null : null,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
+    
+    return {
+      id: attendanceDoc.id,
+      ...validatedData,
+      userEmail: userDoc.exists ? userDoc.data()?.email || "" : "",
+      userDepartment: userDoc.exists ? userDoc.data()?.department || null : null,
+      date: new Date(),
+      checkInTime: validatedData.checkInTime instanceof Timestamp ? validatedData.checkInTime.toDate() : undefined,
+      checkOutTime: validatedData.checkOutTime instanceof Timestamp ? validatedData.checkOutTime.toDate() : undefined,
+    } as Attendance;
+  }
+
+  async updateAttendance(
+    id: string,
+    data: Partial<z.infer<typeof insertAttendanceSchema>>,
+  ): Promise<Attendance> {
+    const validatedData = insertAttendanceSchema.partial().parse({
+      ...data,
+      date: data.date ? Timestamp.fromDate(data.date) : undefined,
+      checkInTime: data.checkInTime
+        ? Timestamp.fromDate(data.checkInTime)
+        : undefined,
+      checkOutTime: data.checkOutTime
+        ? Timestamp.fromDate(data.checkOutTime)
+        : undefined,
+    });
+    
+    const attendanceDoc = this.db.collection("attendance").doc(id);
+    
+    await attendanceDoc.update({
+      ...validatedData,
+      updatedAt: Timestamp.now(),
+    });
+    
+    const updatedDoc = await attendanceDoc.get();
+    if (!updatedDoc.exists) throw new Error("Attendance not found");
+    
+    const updatedData = updatedDoc.data() || {};
+    return {
+      id: updatedDoc.id,
+      ...updatedData,
+      date: updatedData.date?.toDate() || new Date(),
+      checkInTime: updatedData.checkInTime?.toDate() || null,
+      checkOutTime: updatedData.checkOutTime?.toDate() || null,
+    } as Attendance;
+  }
+
+  async getAttendanceByUserAndDate(
+    userId: string,
+    date: Date,
+  ): Promise<Attendance | undefined> {
+    const startOfDay = Timestamp.fromDate(new Date(date.setHours(0, 0, 0, 0)));
+    const endOfDay = Timestamp.fromDate(
+      new Date(date.setHours(23, 59, 59, 999)),
+    );
+    
+    const attendanceRef = this.db.collection("attendance");
+    const snapshot = await attendanceRef
+      .where("userId", "==", userId)
+      .where("date", ">=", startOfDay)
+      .where("date", "<=", endOfDay)
+      .get();
+    
+    if (snapshot.empty) return undefined;
+    
+    const record = snapshot.docs[0];
+    const data = record.data() || {};
+    
+    return {
+      id: record.id,
+      ...data,
+      date: data.date?.toDate() || new Date(),
+      checkInTime: data.checkInTime?.toDate() || null,
+      checkOutTime: data.checkOutTime?.toDate() || null,
+    } as Attendance;
+  }
+
+  async listAttendanceByUser(userId: string): Promise<Attendance[]> {
+    const attendanceRef = this.db.collection("attendance");
+    const snapshot = await attendanceRef
+      .where("userId", "==", userId)
+      .get();
+    
+    return snapshot.docs.map(doc => {
+      const data = doc.data() || {};
+      return {
+        id: doc.id,
+        ...data,
+        date: data.date?.toDate() || new Date(),
+        checkInTime: data.checkInTime?.toDate() || null,
+        checkOutTime: data.checkOutTime?.toDate() || null,
+      } as Attendance;
+    });
   }
 
   async listAttendanceByDate(date: Date): Promise<Attendance[]> {
-    const dateString = date.toISOString().split('T')[0];
-    return Array.from(this.attendance.values()).filter(att => {
-      const attDateString = att.date.toISOString().split('T')[0];
-      return attDateString === dateString;
-    });
-  }
-  
-  async listAttendanceByUserBetweenDates(userId: number, fromDate: Date, toDate: Date): Promise<Attendance[]> {
-    const fromDateStr = fromDate.toISOString().split('T')[0];
-    const toDateStr = toDate.toISOString().split('T')[0];
+    const startOfDay = Timestamp.fromDate(new Date(date.setHours(0, 0, 0, 0)));
+    const endOfDay = Timestamp.fromDate(
+      new Date(date.setHours(23, 59, 59, 999)),
+    );
     
-    return Array.from(this.attendance.values()).filter(att => {
-      const attDateStr = att.date.toISOString().split('T')[0];
-      return att.userId === userId && 
-             attDateStr >= fromDateStr && 
-             attDateStr <= toDateStr;
-    });
-  }
-  
-  async listAttendanceBetweenDates(fromDate: Date, toDate: Date): Promise<Attendance[]> {
-    const fromDateStr = fromDate.toISOString().split('T')[0];
-    const toDateStr = toDate.toISOString().split('T')[0];
+    const attendanceRef = this.db.collection("attendance");
+    const snapshot = await attendanceRef
+      .where("date", ">=", startOfDay)
+      .where("date", "<=", endOfDay)
+      .get();
     
-    return Array.from(this.attendance.values()).filter(att => {
-      const attDateStr = att.date.toISOString().split('T')[0];
-      return attDateStr >= fromDateStr && attDateStr <= toDateStr;
+    return snapshot.docs.map(doc => {
+      const data = doc.data() || {};
+      return {
+        id: doc.id,
+        ...data,
+        date: data.date?.toDate() || new Date(),
+        checkInTime: data.checkInTime?.toDate() || null,
+        checkOutTime: data.checkOutTime?.toDate() || null,
+      } as Attendance;
     });
   }
 
-  // Leave Management
-  async getLeave(id: number): Promise<Leave | undefined> {
-    return this.leaves.get(id);
-  }
-
-  async createLeave(insertLeave: InsertLeave): Promise<Leave> {
-    const id = this.nextLeaveId++;
-    const now = new Date();
-    const leave = { ...insertLeave, id, createdAt: now, updatedAt: now };
-    this.leaves.set(id, leave);
-    return leave;
-  }
-
-  async updateLeave(id: number, leaveData: Partial<InsertLeave>): Promise<Leave | undefined> {
-    const leave = this.leaves.get(id);
-    if (!leave) return undefined;
+  async listAttendanceBetweenDates(
+    startDate: Date,
+    endDate: Date,
+  ): Promise<Attendance[]> {
+    const start = Timestamp.fromDate(startDate);
+    const end = Timestamp.fromDate(endDate);
     
-    const updatedLeave = { ...leave, ...leaveData, updatedAt: new Date() };
-    this.leaves.set(id, updatedLeave);
-    return updatedLeave;
+    const attendanceRef = this.db.collection("attendance");
+    const snapshot = await attendanceRef
+      .where("date", ">=", start)
+      .where("date", "<=", end)
+      .get();
+    
+    return snapshot.docs.map(doc => {
+      const data = doc.data() || {};
+      return {
+        id: doc.id,
+        ...data,
+        date: data.date?.toDate() || new Date(),
+        checkInTime: data.checkInTime?.toDate() || null,
+        checkOutTime: data.checkOutTime?.toDate() || null,
+      } as Attendance;
+    });
   }
 
-  async listLeavesByUser(userId: number): Promise<Leave[]> {
-    return Array.from(this.leaves.values()).filter(leave => leave.userId === userId);
+  async getLeave(id: string): Promise<Leave | undefined> {
+    const leaveDoc = this.db.collection("leaves").doc(id);
+    const docSnap = await leaveDoc.get();
+    
+    if (!docSnap.exists) return undefined;
+    
+    const data = docSnap.data() || {};
+    return {
+      id: docSnap.id,
+      ...data,
+      startDate: data.startDate?.toDate() || new Date(),
+      endDate: data.endDate?.toDate() || new Date(),
+      createdAt: data.createdAt?.toDate() || new Date(),
+    } as Leave;
+  }
+
+  async listLeavesByUser(userId: string): Promise<Leave[]> {
+    const leavesRef = this.db.collection("leaves");
+    const snapshot = await leavesRef
+      .where("userId", "==", userId)
+      .get();
+    
+    return snapshot.docs.map(doc => {
+      const data = doc.data() || {};
+      return {
+        id: doc.id,
+        ...data,
+        startDate: data.startDate?.toDate() || new Date(),
+        endDate: data.endDate?.toDate() || new Date(),
+        createdAt: data.createdAt?.toDate() || new Date(),
+      } as Leave;
+    });
   }
 
   async listPendingLeaves(): Promise<Leave[]> {
-    return Array.from(this.leaves.values()).filter(leave => leave.status === 'pending' || leave.status === 'escalated');
+    const leavesRef = this.db.collection("leaves");
+    const snapshot = await leavesRef
+      .where("status", "==", "pending")
+      .get();
+    
+    return snapshot.docs.map(doc => {
+      const data = doc.data() || {};
+      return {
+        id: doc.id,
+        ...data,
+        startDate: data.startDate?.toDate() || new Date(),
+        endDate: data.endDate?.toDate() || new Date(),
+        createdAt: data.createdAt?.toDate() || new Date(),
+      } as Leave;
+    });
+  }
+
+  async createLeave(data: z.infer<typeof insertLeaveSchema>): Promise<Leave> {
+    const validatedData = insertLeaveSchema.parse({
+      ...data,
+      startDate: Timestamp.fromDate(data.startDate),
+      endDate: Timestamp.fromDate(data.endDate),
+    });
+    
+    const leavesRef = this.db.collection("leaves");
+    const leaveDoc = await leavesRef.add({
+      ...validatedData,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
+    
+    return {
+      id: leaveDoc.id,
+      ...validatedData,
+      startDate: new Date(),
+      endDate: new Date(),
+      createdAt: new Date(),
+    } as Leave;
+  }
+
+  async updateLeave(
+    id: string,
+    data: Partial<z.infer<typeof insertLeaveSchema>>,
+  ): Promise<Leave> {
+    const validatedData = insertLeaveSchema.partial().parse({
+      ...data,
+      startDate: data.startDate
+        ? Timestamp.fromDate(data.startDate)
+        : undefined,
+      endDate: data.endDate ? Timestamp.fromDate(data.endDate) : undefined,
+    });
+    
+    const leaveDoc = this.db.collection("leaves").doc(id);
+    
+    await leaveDoc.update({ 
+      ...validatedData, 
+      updatedAt: Timestamp.now() 
+    });
+    
+    const updatedDoc = await leaveDoc.get();
+    if (!updatedDoc.exists) throw new Error("Leave not found");
+    
+    const updatedData = updatedDoc.data() || {};
+    return {
+      id: updatedDoc.id,
+      ...updatedData,
+      startDate: updatedData.startDate?.toDate() || new Date(),
+      endDate: updatedData.endDate?.toDate() || new Date(),
+      createdAt: updatedData.createdAt?.toDate() || new Date(),
+    } as Leave;
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new FirestoreStorage();

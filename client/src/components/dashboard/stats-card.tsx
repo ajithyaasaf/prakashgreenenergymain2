@@ -16,22 +16,28 @@ interface StatsCardProps {
 
 export function StatsCard({ title, growthPercent, stats }: StatsCardProps) {
   return (
-    <Card className="border border-gray-200">
-      <CardContent className="p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="font-semibold text-lg">{title}</h2>
-          <div className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-medium">
+    <Card className="border border-gray-200 h-full">
+      <CardContent className="p-4 sm:p-5 md:p-6">
+        <div className="flex items-center justify-between mb-3 sm:mb-4">
+          <h2 className="font-semibold text-base sm:text-lg">{title}</h2>
+          <div className="bg-green-100 text-green-800 px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-xs font-medium">
             +{growthPercent}%
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           {stats.map((stat, index) => (
-            <div key={index} className={index < stats.length - 1 ? "border-r border-gray-200 pr-4" : ""}>
-              <p className="text-gray-500 text-sm mb-1">{stat.label}</p>
-              <p className="text-2xl font-bold">{stat.value}</p>
-              <p className="text-green-500 text-xs mt-1 flex items-center">
-                <ArrowUpIcon className="mr-1 h-3 w-3" /> 
-                {stat.change.value}% from {stat.change.period}
+            <div 
+              key={index} 
+              className={
+                `${index < stats.length - 1 && 'sm:border-r sm:border-gray-200 sm:pr-4'} 
+                 ${index === 0 && 'pb-2 border-b border-gray-200 sm:border-b-0 sm:pb-0'}`
+              }
+            >
+              <p className="text-gray-500 text-xs sm:text-sm mb-0.5 sm:mb-1">{stat.label}</p>
+              <p className="text-xl sm:text-2xl font-bold">{stat.value}</p>
+              <p className="text-green-500 text-[10px] sm:text-xs mt-0.5 sm:mt-1 flex items-center">
+                <ArrowUpIcon className="mr-0.5 sm:mr-1 h-2.5 w-2.5 sm:h-3 sm:w-3" /> 
+                <span className="truncate">{stat.change.value}% from {stat.change.period}</span>
               </p>
             </div>
           ))}

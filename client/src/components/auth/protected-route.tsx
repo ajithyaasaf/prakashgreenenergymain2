@@ -1,9 +1,9 @@
-import { ReactNode } from "react";
+import { ReactNode, useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useAuthContext } from "@/contexts/auth-context";
-import { Loader2 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
+import { AuthLoading } from "@/components/auth/auth-loading";
 
 type Permission = 
   | "manage_departments" 
@@ -37,20 +37,23 @@ export function ProtectedRoute({
   const { user, loading, hasPermission, isDepartmentMember } = useAuthContext();
   const [, setLocation] = useLocation();
 
-  // Show loading state while authentication is being checked
-  if (loading) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <span className="ml-2 text-lg">Loading...</span>
-      </div>
-    );
-  }
+  // Track if we're in the process of redirecting
+  const [isRedirecting, setIsRedirecting] = useState(false);
+  
+  // This effect handles the redirect to login with proper React navigation
+  useEffect(() => {
+    if (!user && !loading && !isRedirecting) {
+      // Set redirecting state to prevent multiple redirects
+      setIsRedirecting(true);
+      
+      // Use React Router navigation instead of full page reload
+      setLocation("/login");
+    }
+  }, [user, loading, isRedirecting, setLocation]);
 
-  // Redirect to login if not authenticated
-  if (!user) {
-    window.location.href = "/login";
-    return null;
+  // Show custom loading state during authentication check or redirect
+  if (loading || isRedirecting || !user) {
+    return <AuthLoading />;
   }
 
   // Master admin can access everything
@@ -89,7 +92,12 @@ export function ProtectedRoute({
 
   // For employees, check department-specific permissions
   if (user.role === "employee") {
-    // Employees can only access features related to their department
+    // Allow access to basic dashboard for employees without department
+    if (!requiredPermission && (!requiredDepartment || window.location.pathname === "/" || window.location.pathname === "/dashboard")) {
+      return <>{children}</>;
+    }
+    
+    // For other features, employees need a department
     if (!user.department) {
       return renderAccessDenied(setLocation, fallbackUrl);
     }

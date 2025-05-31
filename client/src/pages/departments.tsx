@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuthContext } from "@/contexts/auth-context";
 import { formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import {
   Table,
   TableBody,
@@ -26,12 +28,31 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Search, PlusCircle, Pencil, Trash2, UserCog, Users, Loader2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from "@/components/ui/alert-dialog";
+import { Search, PlusCircle, Pencil, Trash2, UserCog, Users, Loader2, Check } from "lucide-react";
 
 export default function Departments() {
   const { user } = useAuthContext();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddDepartmentDialog, setShowAddDepartmentDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [currentDepartment, setCurrentDepartment] = useState<any>(null);
+  const [formState, setFormState] = useState({
+    name: "",
+    description: ""
+  });
   
   // Only master_admin can access this page
   if (user?.role !== "master_admin") {
@@ -59,13 +80,124 @@ export default function Departments() {
   const { data: users } = useQuery({
     queryKey: ["/api/users"],
   });
+  
+  // Helper function to reset form state
+  const resetForm = () => {
+    setFormState({
+      name: "",
+      description: ""
+    });
+    setCurrentDepartment(null);
+  };
+  
+  // Create department mutation
+  const createDepartmentMutation = useMutation({
+    mutationFn: (departmentData: { name: string; description: string }) => {
+      return apiRequest('/api/departments', 'POST', departmentData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ 
+        predicate: (query) => {
+          const queryKey = query.queryKey[0];
+          if (typeof queryKey === 'string') {
+            return queryKey.includes('/api/departments') || queryKey.includes('/api/users');
+          }
+          return false;
+        }
+      });
+      toast({
+        title: "Department created",
+        description: "The department has been successfully created.",
+        variant: "default"
+      });
+      setShowAddDepartmentDialog(false);
+      resetForm();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create department",
+        variant: "destructive"
+      });
+    }
+  });
+  
+  // Update department mutation
+  const updateDepartmentMutation = useMutation({
+    mutationFn: (departmentData: { id: number; name: string; description: string }) => {
+      const { id, ...data } = departmentData;
+      return apiRequest(`/api/departments/${id}`, 'PATCH', data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ 
+        predicate: (query) => {
+          const queryKey = query.queryKey[0];
+          if (typeof queryKey === 'string') {
+            return queryKey.includes('/api/departments') || queryKey.includes('/api/users');
+          }
+          return false;
+        }
+      });
+      toast({
+        title: "Department updated",
+        description: "The department has been successfully updated.",
+        variant: "default"
+      });
+      setShowEditDialog(false);
+      resetForm();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update department",
+        variant: "destructive"
+      });
+    }
+  });
+  
+  // Delete department mutation
+  const deleteDepartmentMutation = useMutation({
+    mutationFn: (id: number) => {
+      return apiRequest(`/api/departments/${id}`, 'DELETE');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ 
+        predicate: (query) => {
+          const queryKey = query.queryKey[0];
+          if (typeof queryKey === 'string') {
+            return queryKey.includes('/api/departments') || queryKey.includes('/api/users');
+          }
+          return false;
+        }
+      });
+      toast({
+        title: "Department deleted",
+        description: "The department has been successfully deleted.",
+        variant: "default"
+      });
+      setShowDeleteDialog(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete department",
+        variant: "destructive"
+      });
+    }
+  });
 
-  // Filter departments by search query
-  const filteredDepartments = departments?.filter((department: any) => {
+  // Transform department strings to objects and filter by search query
+  const departmentObjects = departments?.map((dept: string) => ({
+    id: dept,
+    name: dept.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+    description: `${dept.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} Department`
+  })) || [];
+
+  const filteredDepartments = departmentObjects.filter((department: any) => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
     return (
-      department.name.toLowerCase().includes(query) ||
+      department.name?.toLowerCase().includes(query) ||
       department.description?.toLowerCase().includes(query)
     );
   });
@@ -147,10 +279,30 @@ export default function Departments() {
                       <TableCell>{formatDate(department.createdAt)}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end space-x-2">
-                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-8 w-8 p-0"
+                            onClick={() => {
+                              setCurrentDepartment(department);
+                              setFormState({
+                                name: department.name,
+                                description: department.description || ""
+                              });
+                              setShowEditDialog(true);
+                            }}
+                          >
                             <Pencil className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-destructive">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-8 w-8 p-0 text-destructive"
+                            onClick={() => {
+                              setCurrentDepartment(department);
+                              setShowDeleteDialog(true);
+                            }}
+                          >
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
@@ -164,20 +316,114 @@ export default function Departments() {
         </CardContent>
       </Card>
 
-      {/* Add Department Dialog */}
-      <Dialog open={showAddDepartmentDialog} onOpenChange={setShowAddDepartmentDialog}>
+      {/* Add/Edit Department Dialog */}
+      <Dialog 
+        open={showAddDepartmentDialog || showEditDialog} 
+        onOpenChange={(open) => {
+          if (!open) {
+            resetForm();
+            setShowAddDepartmentDialog(false);
+            setShowEditDialog(false);
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>Add New Department</DialogTitle>
+            <DialogTitle>{showEditDialog ? 'Edit Department' : 'Add New Department'}</DialogTitle>
             <DialogDescription>
-              Create a new department in the organization.
+              {showEditDialog ? 'Update department information.' : 'Create a new department in the organization.'}
             </DialogDescription>
           </DialogHeader>
-          <div className="py-4">
-            <p>Department form will be implemented here.</p>
-          </div>
+          <form className="space-y-4 py-4" onSubmit={(e) => {
+            e.preventDefault();
+            if (showEditDialog) {
+              updateDepartmentMutation.mutate({ 
+                id: currentDepartment.id, 
+                name: formState.name, 
+                description: formState.description 
+              });
+            } else {
+              createDepartmentMutation.mutate(formState);
+            }
+          }}>
+            <div className="grid gap-4">
+              <div className="space-y-2">
+                <label htmlFor="name" className="text-sm font-medium">Department Name</label>
+                <Input
+                  id="name"
+                  placeholder="Enter department name"
+                  required
+                  value={formState.name}
+                  onChange={(e) => setFormState({...formState, name: e.target.value})}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <label htmlFor="description" className="text-sm font-medium">Description</label>
+                <Input
+                  id="description"
+                  placeholder="Brief description of the department"
+                  value={formState.description}
+                  onChange={(e) => setFormState({...formState, description: e.target.value})}
+                />
+              </div>
+            </div>
+            
+            <div className="flex justify-end space-x-2 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  resetForm();
+                  if (showEditDialog) {
+                    setShowEditDialog(false);
+                  } else {
+                    setShowAddDepartmentDialog(false);
+                  }
+                }}
+              >
+                Cancel
+              </Button>
+              <Button 
+                type="submit"
+                disabled={createDepartmentMutation.isPending || updateDepartmentMutation.isPending}
+              >
+                {(createDepartmentMutation.isPending || updateDepartmentMutation.isPending) && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                {showEditDialog ? 'Update Department' : 'Create Department'}
+              </Button>
+            </div>
+          </form>
         </DialogContent>
       </Dialog>
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the department
+              {currentDepartment ? ` "${currentDepartment.name}"` : ''} and all related data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (currentDepartment) {
+                  deleteDepartmentMutation.mutate(currentDepartment.id);
+                }
+              }}
+              disabled={deleteDepartmentMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteDepartmentMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin inline" /> : null}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

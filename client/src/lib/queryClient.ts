@@ -1,4 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { getAuth } from "firebase/auth";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -12,13 +13,36 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
-  const res = await fetch(url, {
+  // Get the Firebase auth token
+  const auth = getAuth();
+  const token = await auth.currentUser?.getIdToken();
+  
+  // For GET requests, append data as query parameters if provided
+  let finalUrl = url;
+  const headers: Record<string, string> = {
+    ...(data && method !== 'GET' ? { "Content-Type": "application/json" } : {}),
+    ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+  };
+  
+  const options: RequestInit = {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
-    body: data ? JSON.stringify(data) : undefined,
+    headers,
     credentials: "include",
-  });
-
+  };
+  
+  // Only add body for non-GET requests
+  if (data && method !== 'GET') {
+    options.body = JSON.stringify(data);
+  } else if (data && method === 'GET') {
+    // Convert data to query params for GET requests
+    const params = new URLSearchParams();
+    Object.entries(data as Record<string, any>).forEach(([key, value]) => {
+      params.append(key, String(value));
+    });
+    finalUrl = `${url}${url.includes('?') ? '&' : '?'}${params.toString()}`;
+  }
+  
+  const res = await fetch(finalUrl, options);
   await throwIfResNotOk(res);
   return res;
 }
@@ -29,8 +53,17 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
+    // Get the Firebase auth token
+    const auth = getAuth();
+    const token = await auth.currentUser?.getIdToken();
+    
+    const headers: Record<string, string> = {
+      ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+    };
+    
     const res = await fetch(queryKey[0] as string, {
       credentials: "include",
+      headers,
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {

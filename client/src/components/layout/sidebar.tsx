@@ -2,6 +2,8 @@ import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { useAuthContext } from "@/contexts/auth-context";
 import { Leaf, LogOut } from "lucide-react";
+import { useEffect, useState } from "react";
+import logoPath from "@assets/new logo 2.png";
 
 interface NavItem {
   href: string;
@@ -15,6 +17,8 @@ interface NavItem {
 export function Sidebar() {
   const [location] = useLocation();
   const { user, hasPermission, isDepartmentMember } = useAuthContext();
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isMd, setIsMd] = useState(false);
   
   // Import permissions hook
   const permissions = (() => {
@@ -25,6 +29,22 @@ export function Sidebar() {
       return {};
     }
   })();
+
+  // Handle responsive window resizing
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMd(window.innerWidth >= 768);
+    };
+    
+    // Set initial state
+    handleResize();
+    
+    // Add event listener
+    window.addEventListener('resize', handleResize);
+    
+    // Clean up
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Define navigation items with role-based and department-based visibility
   const navItems: NavItem[] = [
@@ -90,6 +110,13 @@ export function Sidebar() {
       permission: "manage_departments"
     },
     { 
+      href: "/office-locations", 
+      label: "Office Locations", 
+      icon: <i className="ri-map-pin-line mr-3 text-xl"></i>,
+      roles: ["master_admin"],
+      permission: "set_office_locations"
+    },
+    { 
       href: "/settings", 
       label: "Settings", 
       icon: <i className="ri-settings-4-line mr-3 text-xl"></i>
@@ -122,49 +149,110 @@ export function Sidebar() {
   });
 
   return (
-    <aside className="hidden md:flex md:w-64 flex-col bg-white border-r border-gray-200 h-full">
-      <div className="p-4 border-b border-gray-200 flex items-center justify-center">
-        <div className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-md bg-primary flex items-center justify-center">
-            <Leaf className="h-5 w-5 text-white" />
-          </div>
-          <span className="font-bold text-xl">Prakash Greens</span>
+    <aside 
+      className={cn(
+        "hidden md:flex flex-col bg-white border-r border-gray-200 h-full transition-all duration-300 ease-in-out",
+        isCollapsed ? "md:w-[70px] lg:w-20" : "md:w-56 lg:w-64",
+      )}
+    >
+      <div className="py-3 px-3 md:p-4 border-b border-gray-200 flex items-center justify-between">
+        <div className={cn(
+          "flex items-center gap-2",
+          isCollapsed && "justify-center w-full"
+        )}>
+          <img 
+            src={logoPath} 
+            alt="Prakash Green Energy" 
+            className={cn(
+              "object-contain",
+              isCollapsed ? "h-8 w-8" : "h-10 w-auto max-w-[200px]"
+            )}
+          />
         </div>
+        {isMd && (
+          <button 
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-100"
+            aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            <i className={`${isCollapsed ? 'ri-menu-unfold-line' : 'ri-menu-fold-line'} text-lg`}></i>
+          </button>
+        )}
       </div>
-      <div className="overflow-y-auto flex-grow p-2">
-        <nav className="space-y-1">
+      
+      <div className="overflow-y-auto flex-grow p-1 md:p-2">
+        <nav className={cn("space-y-0.5 md:space-y-1", isCollapsed && "flex flex-col items-center")}>
           {filteredNavItems.map((item, index) => (
             <Link 
               key={index} 
               href={item.href}
               className={cn(
-                "sidebar-item flex items-center px-4 py-3 rounded-md hover:bg-gray-100 text-gray-700",
-                location === item.href && "active border-l-4 border-primary bg-primary/10"
+                "sidebar-item flex items-center px-3 py-2.5 md:px-4 md:py-3 rounded-md hover:bg-gray-100 text-gray-700 transition-colors duration-200",
+                isCollapsed && "justify-center px-2",
+                location === item.href && "active bg-primary/10",
+                !isCollapsed && location === item.href && "border-l-4 border-primary"
               )}
+              title={isCollapsed ? item.label : undefined}
             >
-              {item.icon}
-              <span>{item.label}</span>
+              <div className={isCollapsed ? "mx-auto" : ""}>{item.icon}</div>
+              {!isCollapsed && <span className="text-sm md:text-base truncate">{item.label}</span>}
             </Link>
           ))}
         </nav>
       </div>
-      <div className="p-4 border-t border-gray-200">
-        <div className="flex items-center">
-          <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
-            {user?.photoURL ? (
-              <img 
-                src={user.photoURL} 
-                alt={user.displayName || "User"} 
-                className="h-10 w-10 rounded-full"
-              />
-            ) : (
-              <i className="ri-user-line text-gray-500"></i>
-            )}
+      
+      <div className={cn(
+        "p-3 md:p-4 border-t border-gray-200",
+        isCollapsed && "flex justify-center"
+      )}>
+        {!isCollapsed ? (
+          <div className="flex items-center">
+            <div className="h-9 w-9 md:h-10 md:w-10 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
+              {user?.photoURL ? (
+                <img 
+                  src={user.photoURL} 
+                  alt={user.displayName || "User"} 
+                  className="h-9 w-9 md:h-10 md:w-10 rounded-full object-cover"
+                />
+              ) : (
+                <svg 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  viewBox="0 0 24 24" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  strokeWidth="2" 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round" 
+                  className="h-5 w-5 text-gray-500"
+                >
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+              )}
+            </div>
+            <div className="ml-2 md:ml-3 min-w-0">
+              <p className="font-medium text-xs md:text-sm truncate max-w-[80px] md:max-w-[100px] lg:max-w-none">
+                {user?.displayName || "User"}
+              </p>
+              <p className="text-xs text-gray-500 truncate max-w-[80px] md:max-w-[100px] lg:max-w-none">
+                {user?.role === "master_admin" ? "Master Admin" : user?.role === "admin" ? "Admin" : "Employee"}
+              </p>
+            </div>
+            <button 
+              onClick={() => {
+                import("@/lib/firebase").then(({ logoutUser }) => {
+                  logoutUser().then(() => {
+                    window.location.href = "/login";
+                  });
+                });
+              }} 
+              className="ml-auto text-gray-500 hover:text-gray-700 p-1.5 rounded-full hover:bg-gray-100"
+              aria-label="Logout"
+            >
+              <LogOut className="h-4 w-4 md:h-5 md:w-5" />
+            </button>
           </div>
-          <div className="ml-3">
-            <p className="font-medium text-sm">{user?.displayName || "User"}</p>
-            <p className="text-xs text-gray-500">{user?.role === "master_admin" ? "Master Admin" : user?.role === "admin" ? "Admin" : "Employee"}</p>
-          </div>
+        ) : (
           <button 
             onClick={() => {
               import("@/lib/firebase").then(({ logoutUser }) => {
@@ -173,11 +261,12 @@ export function Sidebar() {
                 });
               });
             }} 
-            className="ml-auto text-gray-500 hover:text-gray-700 cursor-pointer"
+            className="text-gray-500 hover:text-gray-700 p-1.5 rounded-full hover:bg-gray-100"
+            aria-label="Logout"
           >
             <LogOut className="h-5 w-5" />
           </button>
-        </div>
+        )}
       </div>
     </aside>
   );

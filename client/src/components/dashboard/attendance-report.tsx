@@ -194,14 +194,14 @@ export function AttendanceReport() {
             <div className="space-y-2">
               <label className="text-sm font-medium">Department</label>
               <Select
-                value={selectedDepartment || ""}
-                onValueChange={(value) => setSelectedDepartment(value === "" ? null : value)}
+                value={selectedDepartment || "all_departments"}
+                onValueChange={(value) => setSelectedDepartment(value === "all_departments" ? null : value)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="All Departments" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Departments</SelectItem>
+                  <SelectItem value="all_departments">All Departments</SelectItem>
                   {departments.map((dept: any) => (
                     <SelectItem key={dept.id} value={dept.name.toLowerCase()}>
                       {dept.name}
@@ -214,14 +214,14 @@ export function AttendanceReport() {
             <div className="space-y-2">
               <label className="text-sm font-medium">Employee</label>
               <Select
-                value={selectedEmployee || ""}
-                onValueChange={(value) => setSelectedEmployee(value === "" ? null : value)}
+                value={selectedEmployee || "all_employees"}
+                onValueChange={(value) => setSelectedEmployee(value === "all_employees" ? null : value)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="All Employees" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Employees</SelectItem>
+                  <SelectItem value="all_employees">All Employees</SelectItem>
                   {employees.map((emp: any) => (
                     <SelectItem key={emp.id} value={emp.id.toString()}>
                       {emp.displayName}

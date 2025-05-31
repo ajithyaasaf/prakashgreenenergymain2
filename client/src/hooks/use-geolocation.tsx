@@ -54,8 +54,30 @@ export function useGeolocation(checkOfficeProximity = true) {
         const { latitude, longitude } = position.coords;
         
         try {
-          // Fetch office locations from API
-          const response = await fetch('/api/office-locations');
+          // Fetch office locations from API with authentication
+          const { getAuth } = await import('firebase/auth');
+          const auth = getAuth();
+          const user = auth.currentUser;
+          
+          if (!user) {
+            setState({
+              latitude,
+              longitude,
+              error: "User not authenticated",
+              loading: false,
+              isWithinOffice: false,
+              distanceFromOffice: null,
+              officeLocation: null,
+            });
+            return;
+          }
+          
+          const token = await user.getIdToken();
+          const response = await fetch('/api/office-locations', {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
           if (response.ok) {
             const officeLocations = await response.json();
             
