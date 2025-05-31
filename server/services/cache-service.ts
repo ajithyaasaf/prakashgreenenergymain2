@@ -171,22 +171,22 @@ class CacheService {
    * Batch invalidate users (useful for role/department changes)
    */
   invalidateUsersByDepartment(department: string): void {
-    for (const [uid, cached] of this.userCache.entries()) {
+    this.userCache.forEach((cached, uid) => {
       if (cached.data.department === department) {
         this.userCache.delete(uid);
       }
-    }
+    });
   }
 
   /**
    * Batch invalidate users by role
    */
   invalidateUsersByRole(role: string): void {
-    for (const [uid, cached] of this.userCache.entries()) {
+    this.userCache.forEach((cached, uid) => {
       if (cached.data.role === role) {
         this.userCache.delete(uid);
       }
-    }
+    });
   }
 }
 

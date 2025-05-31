@@ -132,6 +132,9 @@ export class UserService {
       // Update in our storage
       const updatedUser = await storage.updateUser(uid, validatedData);
       
+      // Update cache with new user data
+      cacheService.updateUser(uid, updatedUser);
+      
       // Update Firebase Auth if display name changed
       if (validatedData.displayName) {
         await adminAuth.updateUser(uid, {
@@ -160,20 +163,46 @@ export class UserService {
   }
 
   /**
-   * Get all users with proper data validation
+   * Get all users with proper data validation and caching
    */
   async getAllUsers() {
     try {
+      console.log('[UserService] Getting all users');
+      
+      // Try to get from cache first
+      const cachedUsers = cacheService.getAllUsers();
+      if (cachedUsers.length > 0) {
+        console.log(`[UserService] Retrieved ${cachedUsers.length} users from cache`);
+        return cachedUsers.map(user => ({
+          id: user.uid,
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName || null,
+          role: user.role,
+          department: user.department,
+          createdAt: user.createdAt,
+          photoURL: user.photoURL || null
+        }));
+      }
+      
       const users = await storage.listUsers();
       
-      // Validate each user has required fields
-      const validatedUsers = users.map(user => ({
-        ...user,
-        displayName: user.displayName || 'Unknown User',
-        email: user.email || 'no-email@example.com',
-        department: user.department || null,
-        role: user.role || 'employee'
-      }));
+      // Validate and cache each user
+      const validatedUsers = users.map(user => {
+        // Cache the user data
+        cacheService.setUser(user.uid, user);
+        
+        return {
+          id: user.uid,
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName || null,
+          role: user.role,
+          department: user.department,
+          createdAt: user.createdAt,
+          photoURL: user.photoURL || null
+        };
+      });
 
       return { success: true, users: validatedUsers };
     } catch (error: any) {
