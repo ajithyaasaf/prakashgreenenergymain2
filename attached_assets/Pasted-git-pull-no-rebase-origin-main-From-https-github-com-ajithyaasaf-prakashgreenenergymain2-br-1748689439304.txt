@@ -1,0 +1,74 @@
+git pull --no-rebase origin main
+From https://github.com/ajithyaasaf/prakashgreenenergymain2
+ * branch            main       -> FETCH_HEAD
+Auto-merging client/src/App.tsx
+CONFLICT (add/add): Merge conflict in client/src/App.tsx
+Auto-merging client/src/components/auth/auth-form.tsx
+CONFLICT (add/add): Merge conflict in client/src/components/auth/auth-form.tsx
+Auto-merging client/src/components/auth/protected-route.tsx
+CONFLICT (add/add): Merge conflict in client/src/components/auth/protected-route.tsx
+Auto-merging client/src/components/customers/customer-form.tsx
+CONFLICT (add/add): Merge conflict in client/src/components/customers/customer-form.tsx
+Auto-merging client/src/components/dashboard/attendance-report.tsx
+CONFLICT (add/add): Merge conflict in client/src/components/dashboard/attendance-report.tsx
+Auto-merging client/src/components/dashboard/check-in-modal.tsx
+CONFLICT (add/add): Merge conflict in client/src/components/dashboard/check-in-modal.tsx
+Auto-merging client/src/components/dashboard/quick-actions.tsx
+CONFLICT (add/add): Merge conflict in client/src/components/dashboard/quick-actions.tsx
+Auto-merging client/src/components/dashboard/recent-customers-table.tsx
+CONFLICT (add/add): Merge conflict in client/src/components/dashboard/recent-customers-table.tsx
+Auto-merging client/src/components/dashboard/stats-card.tsx
+CONFLICT (add/add): Merge conflict in client/src/components/dashboard/stats-card.tsx
+Auto-merging client/src/components/layout/dashboard-layout.tsx
+CONFLICT (add/add): Merge conflict in client/src/components/layout/dashboard-layout.tsx
+Auto-merging client/src/components/layout/header.tsx
+CONFLICT (add/add): Merge conflict in client/src/components/layout/header.tsx
+Auto-merging client/src/components/layout/mobile-sidebar.tsx
+CONFLICT (add/add): Merge conflict in client/src/components/layout/mobile-sidebar.tsx
+Auto-merging client/src/components/layout/sidebar.tsx
+CONFLICT (add/add): Merge conflict in client/src/components/layout/sidebar.tsx
+Auto-merging client/src/contexts/auth-context.tsx
+CONFLICT (add/add): Merge conflict in client/src/contexts/auth-context.tsx
+Auto-merging client/src/hooks/use-auth.tsx
+CONFLICT (add/add): Merge conflict in client/src/hooks/use-auth.tsx
+Auto-merging client/src/hooks/use-basic-auth.tsx
+CONFLICT (add/add): Merge conflict in client/src/hooks/use-basic-auth.tsx
+Auto-merging client/src/hooks/use-geolocation.tsx
+CONFLICT (add/add): Merge conflict in client/src/hooks/use-geolocation.tsx
+Auto-merging client/src/lib/firebase.ts
+CONFLICT (add/add): Merge conflict in client/src/lib/firebase.ts
+Auto-merging client/src/lib/queryClient.ts
+CONFLICT (add/add): Merge conflict in client/src/lib/queryClient.ts
+Auto-merging client/src/main.tsx
+CONFLICT (add/add): Merge conflict in client/src/main.tsx
+Auto-merging client/src/pages/attendance.tsx
+CONFLICT (add/add): Merge conflict in client/src/pages/attendance.tsx
+Auto-merging client/src/pages/customers.tsx
+CONFLICT (add/add): Merge conflict in client/src/pages/customers.tsx
+Auto-merging client/src/pages/dashboard.tsx
+CONFLICT (add/add): Merge conflict in client/src/pages/dashboard.tsx
+Auto-merging client/src/pages/departments.tsx
+CONFLICT (add/add): Merge conflict in client/src/pages/departments.tsx
+Auto-merging client/src/pages/invoices.tsx
+CONFLICT (add/add): Merge conflict in client/src/pages/invoices.tsx
+Auto-merging client/src/pages/leave.tsx
+CONFLICT (add/add): Merge conflict in client/src/pages/leave.tsx
+Auto-merging client/src/pages/login.tsx
+CONFLICT (add/add): Merge conflict in client/src/pages/login.tsx
+Auto-merging client/src/pages/products.tsx
+CONFLICT (add/add): Merge conflict in client/src/pages/products.tsx
+Auto-merging client/src/pages/quotations.tsx
+CONFLICT (add/add): Merge conflict in client/src/pages/quotations.tsx
+Auto-merging client/src/pages/user-management.tsx
+CONFLICT (add/add): Merge conflict in client/src/pages/user-management.tsx
+Auto-merging package-lock.json
+CONFLICT (add/add): Merge conflict in package-lock.json
+Auto-merging package.json
+CONFLICT (add/add): Merge conflict in package.json
+Auto-merging server/routes.ts
+CONFLICT (add/add): Merge conflict in server/routes.ts
+Auto-merging server/storage.ts
+CONFLICT (add/add): Merge conflict in server/storage.ts
+Auto-merging shared/schema.ts
+CONFLICT (add/add): Merge conflict in shared/schema.ts
+Automatic merge failed; fix conflicts and then commit the result.
