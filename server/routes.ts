@@ -254,7 +254,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Users
   app.get("/api/users", verifyAuth, async (req, res) => {
     try {
-      const user = await storage.getUser(req.user.uid);
+      // Try to get user first, if not found, sync from Firebase Auth
+      let user = await storage.getUser(req.user.uid);
+      if (!user) {
+        // Sync user from Firebase Auth if not found in storage
+        const syncResult = await userService.syncUserProfile(req.user.uid, { role: 'employee' });
+        if (syncResult.success) {
+          user = syncResult.user;
+        }
+      }
+      
       if (!user || (user.role !== "master_admin" && user.role !== "admin")) {
         return res.status(403).json({ message: "Access denied" });
       }
