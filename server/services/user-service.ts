@@ -169,23 +169,9 @@ export class UserService {
     try {
       console.log('[UserService] Getting all users');
       
-      // Try to get from cache first
-      const cachedUsers = cacheService.getAllUsers();
-      if (cachedUsers.length > 0) {
-        console.log(`[UserService] Retrieved ${cachedUsers.length} users from cache`);
-        return cachedUsers.map(user => ({
-          id: user.uid,
-          uid: user.uid,
-          email: user.email,
-          displayName: user.displayName || null,
-          role: user.role,
-          department: user.department,
-          createdAt: user.createdAt,
-          photoURL: user.photoURL || null
-        }));
-      }
-      
+      // Always fetch fresh data from Firestore to ensure we get new users
       const users = await storage.listUsers();
+      console.log(`[UserService] Retrieved ${users.length} users from Firestore`);
       
       // Validate and cache each user
       const validatedUsers = users.map(user => {
