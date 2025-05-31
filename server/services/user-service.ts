@@ -1,5 +1,6 @@
 import { auth as adminAuth } from '../firebase';
 import { storage } from '../storage';
+import { cacheService } from './cache-service';
 import { z } from 'zod';
 
 // Unified user creation schema

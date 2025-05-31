@@ -186,12 +186,18 @@ export default function Departments() {
     }
   });
 
-  // Filter departments by search query
-  const filteredDepartments = departments?.filter((department: any) => {
+  // Transform department strings to objects and filter by search query
+  const departmentObjects = departments?.map((dept: string) => ({
+    id: dept,
+    name: dept.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+    description: `${dept.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} Department`
+  })) || [];
+
+  const filteredDepartments = departmentObjects.filter((department: any) => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
     return (
-      department.name.toLowerCase().includes(query) ||
+      department.name?.toLowerCase().includes(query) ||
       department.description?.toLowerCase().includes(query)
     );
   });
