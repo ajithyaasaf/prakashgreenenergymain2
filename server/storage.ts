@@ -19,10 +19,10 @@ import {
 export const insertUserSchema = z.object({
   uid: z.string(),
   email: z.string().email(),
-  displayName: z.string().optional(),
+  displayName: z.string().nullable().optional().transform(val => val || "User"),
   role: z.enum(["master_admin", "admin", "employee"]).default("employee"),
   department: z.enum(["cre", "accounts", "hr", "sales_and_marketing", "technical_team"]).nullable().optional(),
-  photoURL: z.string().optional()
+  photoURL: z.string().nullable().optional()
 });
 
 export const insertDepartmentSchema = z.object({
