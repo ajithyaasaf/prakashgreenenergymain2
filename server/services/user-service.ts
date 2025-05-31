@@ -102,13 +102,15 @@ export class UserService {
         return { success: true, user: updatedUser, action: 'updated' };
       } else {
         // Create new user profile from Firebase Auth data
+        // Preserve the displayName from Firebase Auth or use the one from additionalData
+        const displayName = additionalData?.displayName || firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User';
+        
         const newUser = await storage.createUser({
           uid: firebaseUser.uid,
           email: firebaseUser.email || '',
-          displayName: firebaseUser.displayName || 'User',
-          role: 'employee',
-          department: null,
-          ...additionalData
+          displayName: displayName,
+          role: additionalData?.role || 'employee',
+          department: additionalData?.department || null
         });
         return { success: true, user: newUser, action: 'created' };
       }

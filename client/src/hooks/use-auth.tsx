@@ -55,7 +55,10 @@ export function useAuth() {
         displayName: displayName,
       });
       
-      // Create user profile in the backend
+      // Force refresh the Firebase user to get updated profile
+      await userCredential.user.reload();
+      
+      // Create user profile in the backend with the displayName
       await createUserProfile({
         displayName,
         role: "employee", // Default role for new users

@@ -377,7 +377,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Sync user endpoint to fix existing user data
   app.post("/api/auth/sync", verifyAuth, async (req, res) => {
     try {
-      const result = await userService.syncUserProfile(req.user.uid, req.body);
+      // Pass any displayName from the request body to preserve user registration data
+      const syncData = req.body.displayName ? { displayName: req.body.displayName } : {};
+      const result = await userService.syncUserProfile(req.user.uid, syncData);
       
       if (!result.success) {
         return res.status(400).json({ message: result.error });
