@@ -299,19 +299,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user || user.role !== "master_admin") {
         return res.status(403).json({ message: "Access denied" });
       }
-      const userData = insertUserSchema.parse(req.body);
-      const existingUser = await storage.getUserByEmail(userData.email);
-      if (existingUser) {
-        return res
-          .status(400)
-          .json({ message: "User with this email already exists" });
+      
+      const result = await userService.createUser(req.body);
+      if (!result.success) {
+        return res.status(400).json({ message: result.error });
       }
-      const newUser = await storage.createUser(userData);
-      res.status(201).json(newUser);
+      
+      res.status(201).json(result.user);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ errors: error.errors });
-      }
       console.error("Error creating user:", error);
       res.status(500).json({ message: "Failed to create user" });
     }
@@ -328,18 +323,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .status(403)
           .json({ message: "Only master admins can assign master_admin role" });
       }
-      const userData = insertUserSchema.partial().parse(req.body);
-      const updatedUser = await storage.updateUser(req.params.id, userData);
-      if (!updatedUser) {
-        return res.status(404).json({ message: "User not found" });
+      
+      const result = await userService.updateUserProfile(req.params.id, req.body);
+      if (!result.success) {
+        return res.status(400).json({ message: result.error });
       }
-      res.json(updatedUser);
+      
+      res.json(result.user);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ errors: error.errors });
-      }
       console.error("Error updating user:", error);
       res.status(500).json({ message: "Failed to update user" });
+    }
+  });
+
+  // Registration endpoint for new users (public)
+  app.post("/api/auth/register", async (req, res) => {
+    try {
+      const result = await userService.createUser({
+        ...req.body,
+        role: "employee" // Force employee role for public registration
+      });
+      
+      if (!result.success) {
+        return res.status(400).json({ message: result.error });
+      }
+      
+      res.status(201).json({ 
+        message: "User registered successfully",
+        user: {
+          uid: result.user.uid,
+          email: result.user.email,
+          displayName: result.user.displayName,
+          role: result.user.role
+        }
+      });
+    } catch (error) {
+      console.error("Error registering user:", error);
+      res.status(500).json({ message: "Failed to register user" });
+    }
+  });
+
+  // Sync user endpoint to fix existing user data
+  app.post("/api/auth/sync", verifyAuth, async (req, res) => {
+    try {
+      const result = await userService.syncUserProfile(req.user.uid, req.body);
+      
+      if (!result.success) {
+        return res.status(400).json({ message: result.error });
+      }
+      
+      res.json({
+        message: "User profile synced successfully",
+        user: result.user,
+        action: result.action
+      });
+    } catch (error) {
+      console.error("Error syncing user:", error);
+      res.status(500).json({ message: "Failed to sync user profile" });
     }
   });
 

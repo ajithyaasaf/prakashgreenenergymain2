@@ -52,44 +52,41 @@ export function useBasicAuth() {
   const register = async (email: string, password: string, displayName: string) => {
     setIsLoading(true);
     try {
-      const userCredential = await registerWithEmail(email, password);
-      
-      // Update user profile with display name
-      await userCredential.user.updateProfile({
-        displayName: displayName,
-      });
-      
-      // Create a basic user profile in the backend
-      fetch('/api/users', {
+      // Use the unified backend registration endpoint
+      const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          uid: userCredential.user.uid,
-          email: userCredential.user.email,
-          displayName: displayName,
-          role: "employee", // Default role for new users
-          department: null
+          email,
+          password,
+          displayName
         }),
         credentials: 'include'
-      }).catch(error => {
-        console.error("Failed to create user profile:", error);
       });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Registration failed");
+      }
       
       toast({
         title: "Registration Successful",
-        description: "Your account has been created.",
+        description: "Your account has been created. Please sign in.",
         variant: "success",
       });
       return true;
     } catch (error: any) {
       let message = "Failed to create account. Please try again.";
       
-      if (error.code === "auth/email-already-in-use") {
+      if (error.message.includes("email-already-in-use") || error.message.includes("already exists")) {
         message = "Email already in use. Please try another email.";
-      } else if (error.code === "auth/invalid-email") {
+      } else if (error.message.includes("invalid-email")) {
         message = "Invalid email address.";
-      } else if (error.code === "auth/weak-password") {
+      } else if (error.message.includes("weak-password")) {
         message = "Password is too weak. Please use a stronger password.";
+      } else if (error.message) {
+        message = error.message;
       }
       
       toast({

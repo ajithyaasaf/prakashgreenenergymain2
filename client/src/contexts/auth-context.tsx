@@ -33,17 +33,77 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  // Helper function for basic auth without Firestore
-  const handleBasicAuth = (firebaseUser: User) => {
-    // Just set basic user data from Firebase
-    setUser({
-      uid: firebaseUser.uid,
-      email: firebaseUser.email,
-      displayName: firebaseUser.displayName,
-      photoURL: firebaseUser.photoURL,
-      role: "employee",
-      department: null,
-    });
+  // Helper function for basic auth with unified data sync
+  const handleBasicAuth = async (firebaseUser: User) => {
+    try {
+      // Get user data from our unified backend API
+      const token = await firebaseUser.getIdToken();
+      const response = await fetch(`/api/users/${firebaseUser.uid}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const userData = await response.json();
+        setUser({
+          uid: userData.uid,
+          email: userData.email,
+          displayName: userData.displayName,
+          photoURL: firebaseUser.photoURL,
+          role: userData.role,
+          department: userData.department,
+          id: userData.id
+        });
+      } else {
+        // If user doesn't exist in our system, sync them
+        const syncResponse = await fetch('/api/auth/sync', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            displayName: firebaseUser.displayName,
+            role: "employee"
+          })
+        });
+        
+        if (syncResponse.ok) {
+          const syncData = await syncResponse.json();
+          setUser({
+            uid: syncData.user.uid,
+            email: syncData.user.email,
+            displayName: syncData.user.displayName,
+            photoURL: firebaseUser.photoURL,
+            role: syncData.user.role,
+            department: syncData.user.department,
+            id: syncData.user.id
+          });
+        } else {
+          // Fallback to basic user data
+          setUser({
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            displayName: firebaseUser.displayName,
+            photoURL: firebaseUser.photoURL,
+            role: "employee",
+            department: null,
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Error syncing user data:", error);
+      // Fallback to basic user data
+      setUser({
+        uid: firebaseUser.uid,
+        email: firebaseUser.email,
+        displayName: firebaseUser.displayName,
+        photoURL: firebaseUser.photoURL,
+        role: "employee",
+        department: null,
+      });
+    }
     
     setLoading(false);
   };
