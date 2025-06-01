@@ -22,7 +22,35 @@ export const insertUserSchema = z.object({
   displayName: z.string().nullable().optional().transform(val => val || "User"),
   role: z.enum(["master_admin", "admin", "employee"]).default("employee"),
   department: z.enum(["cre", "accounts", "hr", "sales_and_marketing", "technical_team"]).nullable().optional(),
+  designation: z.enum([
+    "director", "manager", "assistant_manager", "senior_executive", 
+    "executive", "junior_executive", "trainee", "intern"
+  ]).nullable().optional(),
+  employeeId: z.string().optional(),
+  reportingManagerId: z.string().nullable().optional(),
+  payrollGrade: z.enum(["A1", "A2", "B1", "B2", "C1", "C2", "D1", "D2"]).nullable().optional(),
+  joinDate: z.date().optional(),
+  isActive: z.boolean().default(true),
   photoURL: z.string().nullable().optional()
+});
+
+export const insertDesignationSchema = z.object({
+  name: z.string(),
+  level: z.number(),
+  description: z.string().optional(),
+  permissions: z.array(z.string()).default([])
+});
+
+export const insertPermissionGroupSchema = z.object({
+  name: z.string(),
+  department: z.enum(["cre", "accounts", "hr", "sales_and_marketing", "technical_team"]),
+  designation: z.enum([
+    "director", "manager", "assistant_manager", "senior_executive", 
+    "executive", "junior_executive", "trainee", "intern"
+  ]),
+  permissions: z.array(z.string()),
+  canApprove: z.boolean().default(false),
+  maxApprovalAmount: z.number().nullable().optional()
 });
 
 export const insertDepartmentSchema = z.object({
@@ -80,8 +108,43 @@ export interface User {
     | "sales_and_marketing"
     | "technical_team"
     | null;
+  designation:
+    | "director"
+    | "manager"
+    | "assistant_manager"
+    | "senior_executive"
+    | "executive"
+    | "junior_executive"
+    | "trainee"
+    | "intern"
+    | null;
+  employeeId?: string;
+  reportingManagerId?: string | null;
+  payrollGrade?: "A1" | "A2" | "B1" | "B2" | "C1" | "C2" | "D1" | "D2" | null;
+  joinDate?: Date;
+  isActive: boolean;
   createdAt: Date;
   photoURL?: string;
+}
+
+export interface Designation {
+  id: string;
+  name: string;
+  level: number;
+  description?: string;
+  permissions: string[];
+  createdAt: Date;
+}
+
+export interface PermissionGroup {
+  id: string;
+  name: string;
+  department: "cre" | "accounts" | "hr" | "sales_and_marketing" | "technical_team";
+  designation: "director" | "manager" | "assistant_manager" | "senior_executive" | "executive" | "junior_executive" | "trainee" | "intern";
+  permissions: string[];
+  canApprove: boolean;
+  maxApprovalAmount?: number | null;
+  createdAt: Date;
 }
 
 export interface Department {
@@ -186,11 +249,17 @@ export const insertActivityLogSchema = z.object({
 });
 
 export interface IStorage {
+  // User management
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
+  getUsersByDepartment(department: string): Promise<User[]>;
+  getUsersByDesignation(designation: string): Promise<User[]>;
+  getUsersByReportingManager(managerId: string): Promise<User[]>;
   listUsers(): Promise<User[]>;
   createUser(data: z.infer<typeof insertUserSchema>): Promise<User>;
   updateUser(id: string, data: Partial<User>): Promise<User>;
+  
+  // Department management
   getDepartment(id: string): Promise<Department | undefined>;
   getDepartmentByName(name: string): Promise<Department | undefined>;
   listDepartments(): Promise<string[]>;
@@ -202,6 +271,27 @@ export interface IStorage {
     data: Partial<z.infer<typeof insertDepartmentSchema>>,
   ): Promise<Department>;
   deleteDepartment(id: string): Promise<boolean>;
+  
+  // Designation management
+  getDesignation(id: string): Promise<Designation | undefined>;
+  getDesignationByName(name: string): Promise<Designation | undefined>;
+  listDesignations(): Promise<Designation[]>;
+  createDesignation(data: z.infer<typeof insertDesignationSchema>): Promise<Designation>;
+  updateDesignation(id: string, data: Partial<z.infer<typeof insertDesignationSchema>>): Promise<Designation>;
+  deleteDesignation(id: string): Promise<boolean>;
+  
+  // Permission management
+  getPermissionGroup(id: string): Promise<PermissionGroup | undefined>;
+  getPermissionsByDepartmentAndDesignation(department: string, designation: string): Promise<PermissionGroup | undefined>;
+  listPermissionGroups(): Promise<PermissionGroup[]>;
+  createPermissionGroup(data: z.infer<typeof insertPermissionGroupSchema>): Promise<PermissionGroup>;
+  updatePermissionGroup(id: string, data: Partial<z.infer<typeof insertPermissionGroupSchema>>): Promise<PermissionGroup>;
+  deletePermissionGroup(id: string): Promise<boolean>;
+  
+  // User permission utilities
+  getUserPermissions(userId: string): Promise<string[]>;
+  checkUserPermission(userId: string, permission: string): Promise<boolean>;
+  getUserApprovalLimits(userId: string): Promise<{ canApprove: boolean; maxAmount: number | null }>;
   listOfficeLocations(): Promise<OfficeLocation[]>;
   getOfficeLocation(id: string): Promise<OfficeLocation | undefined>;
   createOfficeLocation(
@@ -385,6 +475,12 @@ export class FirestoreStorage implements IStorage {
         displayName: data.displayName,
         role: data.role,
         department: data.department,
+        designation: data.designation || null,
+        employeeId: data.employeeId,
+        reportingManagerId: data.reportingManagerId || null,
+        payrollGrade: data.payrollGrade || null,
+        joinDate: data.joinDate ? (data.joinDate.toDate ? data.joinDate.toDate() : new Date(data.joinDate)) : undefined,
+        isActive: data.isActive !== false,
         createdAt: createdAt,
         photoURL: data.photoURL,
       } as User;
@@ -405,8 +501,81 @@ export class FirestoreStorage implements IStorage {
     return { 
       id: validatedData.uid,
       ...validatedData, 
-      createdAt: new Date() 
+      createdAt: new Date(),
+      isActive: validatedData.isActive || true
     } as User;
+  }
+
+  async getUsersByDepartment(department: string): Promise<User[]> {
+    const usersCollection = this.db.collection("users");
+    const snapshot = await usersCollection.where("department", "==", department).get();
+    return snapshot.docs.map((doc: any) => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        uid: data.uid,
+        email: data.email,
+        displayName: data.displayName,
+        role: data.role,
+        department: data.department,
+        designation: data.designation || null,
+        employeeId: data.employeeId,
+        reportingManagerId: data.reportingManagerId || null,
+        payrollGrade: data.payrollGrade || null,
+        joinDate: data.joinDate ? (data.joinDate.toDate ? data.joinDate.toDate() : new Date(data.joinDate)) : undefined,
+        isActive: data.isActive !== false,
+        createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt || Date.now()),
+        photoURL: data.photoURL,
+      } as User;
+    });
+  }
+
+  async getUsersByDesignation(designation: string): Promise<User[]> {
+    const usersCollection = this.db.collection("users");
+    const snapshot = await usersCollection.where("designation", "==", designation).get();
+    return snapshot.docs.map((doc: any) => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        uid: data.uid,
+        email: data.email,
+        displayName: data.displayName,
+        role: data.role,
+        department: data.department,
+        designation: data.designation || null,
+        employeeId: data.employeeId,
+        reportingManagerId: data.reportingManagerId || null,
+        payrollGrade: data.payrollGrade || null,
+        joinDate: data.joinDate ? (data.joinDate.toDate ? data.joinDate.toDate() : new Date(data.joinDate)) : undefined,
+        isActive: data.isActive !== false,
+        createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt || Date.now()),
+        photoURL: data.photoURL,
+      } as User;
+    });
+  }
+
+  async getUsersByReportingManager(managerId: string): Promise<User[]> {
+    const usersCollection = this.db.collection("users");
+    const snapshot = await usersCollection.where("reportingManagerId", "==", managerId).get();
+    return snapshot.docs.map((doc: any) => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        uid: data.uid,
+        email: data.email,
+        displayName: data.displayName,
+        role: data.role,
+        department: data.department,
+        designation: data.designation || null,
+        employeeId: data.employeeId,
+        reportingManagerId: data.reportingManagerId || null,
+        payrollGrade: data.payrollGrade || null,
+        joinDate: data.joinDate ? (data.joinDate.toDate ? data.joinDate.toDate() : new Date(data.joinDate)) : undefined,
+        isActive: data.isActive !== false,
+        createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt || Date.now()),
+        photoURL: data.photoURL,
+      } as User;
+    });
   }
 
   async updateUser(id: string, data: Partial<User>): Promise<User> {
@@ -430,6 +599,12 @@ export class FirestoreStorage implements IStorage {
       displayName: updatedData.displayName,
       role: updatedData.role,
       department: updatedData.department,
+      designation: updatedData.designation || null,
+      employeeId: updatedData.employeeId,
+      reportingManagerId: updatedData.reportingManagerId || null,
+      payrollGrade: updatedData.payrollGrade || null,
+      joinDate: updatedData.joinDate ? (updatedData.joinDate.toDate ? updatedData.joinDate.toDate() : new Date(updatedData.joinDate)) : undefined,
+      isActive: updatedData.isActive !== false,
       createdAt: updatedData.createdAt?.toDate() || new Date(),
       photoURL: updatedData.photoURL,
     } as User;
@@ -493,6 +668,230 @@ export class FirestoreStorage implements IStorage {
     const deptDoc = this.db.collection("departments").doc(id);
     await deptDoc.delete();
     return true;
+  }
+
+  // Designation management methods
+  async getDesignation(id: string): Promise<Designation | undefined> {
+    const designationDoc = this.db.collection("designations").doc(id);
+    const docSnap = await designationDoc.get();
+    if (!docSnap.exists) return undefined;
+    const data = docSnap.data();
+    return {
+      id: docSnap.id,
+      name: data?.name,
+      level: data?.level || 1,
+      description: data?.description,
+      permissions: data?.permissions || [],
+      createdAt: data?.createdAt?.toDate() || new Date()
+    } as Designation;
+  }
+
+  async getDesignationByName(name: string): Promise<Designation | undefined> {
+    const designationsRef = this.db.collection("designations");
+    const snapshot = await designationsRef.where("name", "==", name).get();
+    if (snapshot.empty) return undefined;
+    const doc = snapshot.docs[0];
+    const data = doc.data();
+    return {
+      id: doc.id,
+      name: data.name,
+      level: data.level || 1,
+      description: data.description,
+      permissions: data.permissions || [],
+      createdAt: data.createdAt?.toDate() || new Date()
+    } as Designation;
+  }
+
+  async listDesignations(): Promise<Designation[]> {
+    const designationsCollection = this.db.collection("designations");
+    const snapshot = await designationsCollection.orderBy("level", "desc").get();
+    return snapshot.docs.map((doc: any) => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        name: data.name,
+        level: data.level || 1,
+        description: data.description,
+        permissions: data.permissions || [],
+        createdAt: data.createdAt?.toDate() || new Date()
+      } as Designation;
+    });
+  }
+
+  async createDesignation(data: z.infer<typeof insertDesignationSchema>): Promise<Designation> {
+    const validatedData = insertDesignationSchema.parse(data);
+    const designationRef = this.db.collection("designations").doc();
+    
+    const designationData = {
+      ...validatedData,
+      createdAt: Timestamp.now()
+    };
+    
+    await designationRef.set(designationData);
+    
+    return {
+      id: designationRef.id,
+      ...validatedData,
+      createdAt: new Date()
+    } as Designation;
+  }
+
+  async updateDesignation(id: string, data: Partial<z.infer<typeof insertDesignationSchema>>): Promise<Designation> {
+    const designationDoc = this.db.collection("designations").doc(id);
+    const updateData = { ...data, updatedAt: Timestamp.now() };
+    
+    await designationDoc.update(updateData);
+    const updatedDoc = await designationDoc.get();
+    
+    if (!updatedDoc.exists) throw new Error("Designation not found");
+    const updatedData = updatedDoc.data() || {};
+    
+    return {
+      id: updatedDoc.id,
+      name: updatedData.name,
+      level: updatedData.level || 1,
+      description: updatedData.description,
+      permissions: updatedData.permissions || [],
+      createdAt: updatedData.createdAt?.toDate() || new Date()
+    } as Designation;
+  }
+
+  async deleteDesignation(id: string): Promise<boolean> {
+    const designationDoc = this.db.collection("designations").doc(id);
+    await designationDoc.delete();
+    return true;
+  }
+
+  // Permission management methods
+  async getPermissionGroup(id: string): Promise<PermissionGroup | undefined> {
+    const permissionDoc = this.db.collection("permission_groups").doc(id);
+    const docSnap = await permissionDoc.get();
+    if (!docSnap.exists) return undefined;
+    const data = docSnap.data();
+    return {
+      id: docSnap.id,
+      name: data?.name,
+      department: data?.department,
+      designation: data?.designation,
+      permissions: data?.permissions || [],
+      canApprove: data?.canApprove || false,
+      maxApprovalAmount: data?.maxApprovalAmount || null,
+      createdAt: data?.createdAt?.toDate() || new Date()
+    } as PermissionGroup;
+  }
+
+  async getPermissionsByDepartmentAndDesignation(department: string, designation: string): Promise<PermissionGroup | undefined> {
+    const permissionsRef = this.db.collection("permission_groups");
+    const snapshot = await permissionsRef
+      .where("department", "==", department)
+      .where("designation", "==", designation)
+      .get();
+    
+    if (snapshot.empty) return undefined;
+    const doc = snapshot.docs[0];
+    const data = doc.data();
+    
+    return {
+      id: doc.id,
+      name: data.name,
+      department: data.department,
+      designation: data.designation,
+      permissions: data.permissions || [],
+      canApprove: data.canApprove || false,
+      maxApprovalAmount: data.maxApprovalAmount || null,
+      createdAt: data.createdAt?.toDate() || new Date()
+    } as PermissionGroup;
+  }
+
+  async listPermissionGroups(): Promise<PermissionGroup[]> {
+    const permissionsCollection = this.db.collection("permission_groups");
+    const snapshot = await permissionsCollection.get();
+    return snapshot.docs.map((doc: any) => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        name: data.name,
+        department: data.department,
+        designation: data.designation,
+        permissions: data.permissions || [],
+        canApprove: data.canApprove || false,
+        maxApprovalAmount: data.maxApprovalAmount || null,
+        createdAt: data.createdAt?.toDate() || new Date()
+      } as PermissionGroup;
+    });
+  }
+
+  async createPermissionGroup(data: z.infer<typeof insertPermissionGroupSchema>): Promise<PermissionGroup> {
+    const validatedData = insertPermissionGroupSchema.parse(data);
+    const permissionRef = this.db.collection("permission_groups").doc();
+    
+    const permissionData = {
+      ...validatedData,
+      createdAt: Timestamp.now()
+    };
+    
+    await permissionRef.set(permissionData);
+    
+    return {
+      id: permissionRef.id,
+      ...validatedData,
+      createdAt: new Date()
+    } as PermissionGroup;
+  }
+
+  async updatePermissionGroup(id: string, data: Partial<z.infer<typeof insertPermissionGroupSchema>>): Promise<PermissionGroup> {
+    const permissionDoc = this.db.collection("permission_groups").doc(id);
+    const updateData = { ...data, updatedAt: Timestamp.now() };
+    
+    await permissionDoc.update(updateData);
+    const updatedDoc = await permissionDoc.get();
+    
+    if (!updatedDoc.exists) throw new Error("Permission group not found");
+    const updatedData = updatedDoc.data() || {};
+    
+    return {
+      id: updatedDoc.id,
+      name: updatedData.name,
+      department: updatedData.department,
+      designation: updatedData.designation,
+      permissions: updatedData.permissions || [],
+      canApprove: updatedData.canApprove || false,
+      maxApprovalAmount: updatedData.maxApprovalAmount || null,
+      createdAt: updatedData.createdAt?.toDate() || new Date()
+    } as PermissionGroup;
+  }
+
+  async deletePermissionGroup(id: string): Promise<boolean> {
+    const permissionDoc = this.db.collection("permission_groups").doc(id);
+    await permissionDoc.delete();
+    return true;
+  }
+
+  // User permission utility methods
+  async getUserPermissions(userId: string): Promise<string[]> {
+    const user = await this.getUser(userId);
+    if (!user || !user.department || !user.designation) return [];
+    
+    const permissionGroup = await this.getPermissionsByDepartmentAndDesignation(user.department, user.designation);
+    return permissionGroup?.permissions || [];
+  }
+
+  async checkUserPermission(userId: string, permission: string): Promise<boolean> {
+    const userPermissions = await this.getUserPermissions(userId);
+    return userPermissions.includes(permission);
+  }
+
+  async getUserApprovalLimits(userId: string): Promise<{ canApprove: boolean; maxAmount: number | null }> {
+    const user = await this.getUser(userId);
+    if (!user || !user.department || !user.designation) {
+      return { canApprove: false, maxAmount: null };
+    }
+    
+    const permissionGroup = await this.getPermissionsByDepartmentAndDesignation(user.department, user.designation);
+    return {
+      canApprove: permissionGroup?.canApprove || false,
+      maxAmount: permissionGroup?.maxApprovalAmount || null
+    };
   }
 
   async listOfficeLocations(): Promise<OfficeLocation[]> {
