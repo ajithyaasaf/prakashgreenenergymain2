@@ -234,6 +234,27 @@ export default function UserManagement() {
     technical_team: "Technical Team",
   };
 
+  // Designation display names
+  const designationNames: Record<string, string> = {
+    director: "Director",
+    manager: "Manager",
+    assistant_manager: "Assistant Manager",
+    senior_executive: "Senior Executive",
+    executive: "Executive",
+    junior_executive: "Junior Executive",
+    trainee: "Trainee",
+    intern: "Intern",
+  };
+
+  // Fetch designations for form dropdown
+  const { data: designations = [] } = useQuery({
+    queryKey: ["designations"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/designations");
+      return res.json();
+    },
+  });
+
   // Handle opening edit dialog
   const handleEditUser = (userData: any) => {
     setEditUser(userData);
@@ -298,6 +319,7 @@ export default function UserManagement() {
                   <TableHead>Email</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead>Department</TableHead>
+                  <TableHead>Designation</TableHead>
                   <TableHead>Joined</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -305,7 +327,7 @@ export default function UserManagement() {
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8">
+                    <TableCell colSpan={7} className="text-center py-8">
                       <div className="flex justify-center">
                         <Loader2 className="h-6 w-6 animate-spin text-primary" />
                       </div>
@@ -314,7 +336,7 @@ export default function UserManagement() {
                 ) : filteredUsers.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={6}
+                      colSpan={7}
                       className="text-center py-8 text-gray-500"
                     >
                       {searchQuery
@@ -370,6 +392,17 @@ export default function UserManagement() {
                         {userData.department ? (
                           departmentNames[userData.department] ||
                           userData.department
+                        ) : (
+                          <div className="flex items-center text-amber-600">
+                            <AlertTriangle className="h-4 w-4 mr-1" />
+                            <span className="text-xs">Not assigned</span>
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {userData.designation ? (
+                          designationNames[userData.designation] ||
+                          userData.designation
                         ) : (
                           <div className="flex items-center text-amber-600">
                             <AlertTriangle className="h-4 w-4 mr-1" />
@@ -532,6 +565,36 @@ export default function UserManagement() {
                   <p className="text-xs text-amber-600 mt-1">
                     Employees without a department can only access the basic
                     dashboard.
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="edit-designation">Designation</Label>
+                <Select
+                  value={editUser.designation || "none"}
+                  onValueChange={(value) =>
+                    setEditUser({
+                      ...editUser,
+                      designation: value === "none" ? null : value,
+                    })
+                  }
+                >
+                  <SelectTrigger id="edit-designation">
+                    <SelectValue placeholder="Assign designation" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No Designation</SelectItem>
+                    {Object.entries(designationNames).map(([key, label]) => (
+                      <SelectItem key={key} value={key}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {!editUser.designation && (
+                  <p className="text-xs text-amber-600 mt-1">
+                    Designation determines permission level within the department.
                   </p>
                 )}
               </div>
