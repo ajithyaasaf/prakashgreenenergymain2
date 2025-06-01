@@ -273,6 +273,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             photoURL: firebaseUser.photoURL,
             role: userData.role,
             department: userData.department,
+            designation: userData.designation || null,
+            employeeId: userData.employeeId,
+            reportingManagerId: userData.reportingManagerId || null,
+            payrollGrade: userData.payrollGrade || null,
+            joinDate: userData.joinDate ? new Date(userData.joinDate) : undefined,
+            isActive: userData.isActive !== false,
             id: userData.id,
           };
           
@@ -354,17 +360,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Role-based permission check
-  const hasPermission = (roles: UserRole[] | UserRole): boolean => {
-    if (!user) return false;
-    
-    if (Array.isArray(roles)) {
-      return roles.includes(user.role);
-    }
-    
-    return user.role === roles;
-  };
-  
   // Department-based permission check
   const isDepartmentMember = (departments: Department[] | Department): boolean => {
     if (!user || !user.department) return false;
@@ -376,15 +371,90 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return user.department === departments;
   };
 
+  // Enterprise permission functions
+  const hasPermission = (permission: SystemPermission | SystemPermission[]): boolean => {
+    if (!user || user.role === "master_admin") return true; // Master admin has all permissions
+    
+    if (Array.isArray(permission)) {
+      return permission.some(p => permissions.includes(p));
+    }
+    
+    return permissions.includes(permission);
+  };
+
+  const hasRole = (role: UserRole | UserRole[]): boolean => {
+    if (!user) return false;
+    
+    if (Array.isArray(role)) {
+      return role.includes(user.role);
+    }
+    
+    return user.role === role;
+  };
+
+  const hasDesignation = (designation: Designation | Designation[]): boolean => {
+    if (!user || !user.designation) return false;
+    
+    if (Array.isArray(designation)) {
+      return designation.includes(user.designation);
+    }
+    
+    return user.designation === designation;
+  };
+
+  const canAccessModule = (module: string): boolean => {
+    if (!user) return false;
+    if (user.role === "master_admin") return true;
+    
+    const viewPermission = `${module}.view` as SystemPermission;
+    const fullAccessPermission = `${module}.full_access` as SystemPermission;
+    
+    return permissions.includes(viewPermission) || permissions.includes(fullAccessPermission);
+  };
+
+  const refreshPermissions = async (): Promise<void> => {
+    if (!user?.uid) return;
+    
+    try {
+      const response = await fetch(`/api/users/${user.uid}/permissions`);
+      if (response.ok) {
+        const permissionData = await response.json();
+        setPermissions(permissionData.permissions || []);
+        setCanApprove(permissionData.canApprove || false);
+        setMaxApprovalAmount(permissionData.maxApprovalAmount || null);
+      }
+    } catch (error) {
+      console.error("Error refreshing permissions:", error);
+    }
+  };
+
+  // Load permissions when user changes
+  useEffect(() => {
+    if (user?.uid && user.department && user.designation) {
+      refreshPermissions();
+    } else {
+      setPermissions([]);
+      setCanApprove(false);
+      setMaxApprovalAmount(null);
+    }
+  }, [user?.uid, user?.department, user?.designation]);
+
   return (
     <AuthContext.Provider
       value={{
         user,
         loading,
+        permissions,
+        canApprove,
+        maxApprovalAmount,
         createUserProfile,
         updateUserProfile,
         hasPermission,
+        hasRole,
         isDepartmentMember,
+        hasDesignation,
+        canAccessModule,
+        refreshPermissions,
       }}
     >
       {children}

@@ -7,6 +7,8 @@ import { insertAttendanceSchema, insertOfficeLocationSchema, insertPermissionSch
 import { 
   insertUserSchema,
   insertDepartmentSchema,
+  insertDesignationSchema,
+  insertPermissionGroupSchema,
   insertCustomerSchema,
   insertProductSchema,
   insertQuotationSchema,
