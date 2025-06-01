@@ -3,9 +3,9 @@ import { User } from "firebase/auth";
 import { apiRequest } from "@/lib/queryClient";
 import { onAuthChange } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
+import type { Department, Designation, PayrollGrade, SystemPermission } from "@shared/schema";
 
 type UserRole = "master_admin" | "admin" | "employee";
-type Department = "cre" | "accounts" | "hr" | "sales_and_marketing" | "technical_team" | null;
 
 interface AuthUser {
   uid: string;
@@ -13,17 +13,30 @@ interface AuthUser {
   displayName: string | null;
   photoURL: string | null;
   role: UserRole;
-  department: Department;
+  department: Department | null;
+  designation: Designation | null;
+  employeeId?: string;
+  reportingManagerId?: string | null;
+  payrollGrade?: PayrollGrade | null;
+  joinDate?: Date;
+  isActive: boolean;
   id?: number;
 }
 
 interface AuthContextType {
   user: AuthUser | null;
   loading: boolean;
+  permissions: SystemPermission[];
+  canApprove: boolean;
+  maxApprovalAmount: number | null;
   createUserProfile: (userData: Partial<AuthUser>) => Promise<void>;
   updateUserProfile: (userData: Partial<AuthUser>) => Promise<void>;
-  hasPermission: (role: UserRole[] | UserRole) => boolean;
+  hasPermission: (permission: SystemPermission | SystemPermission[]) => boolean;
+  hasRole: (role: UserRole[] | UserRole) => boolean;
   isDepartmentMember: (department: Department[] | Department) => boolean;
+  hasDesignation: (designation: Designation[] | Designation) => boolean;
+  canAccessModule: (module: string) => boolean;
+  refreshPermissions: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -31,6 +44,9 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [permissions, setPermissions] = useState<SystemPermission[]>([]);
+  const [canApprove, setCanApprove] = useState(false);
+  const [maxApprovalAmount, setMaxApprovalAmount] = useState<number | null>(null);
   const { toast } = useToast();
 
   // Helper function for basic auth with unified data sync
@@ -53,6 +69,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           photoURL: firebaseUser.photoURL,
           role: userData.role,
           department: userData.department,
+          designation: userData.designation || null,
+          employeeId: userData.employeeId,
+          reportingManagerId: userData.reportingManagerId || null,
+          payrollGrade: userData.payrollGrade || null,
+          joinDate: userData.joinDate ? new Date(userData.joinDate) : undefined,
+          isActive: userData.isActive !== false,
           id: userData.id
         });
       } else {
@@ -78,6 +100,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             photoURL: firebaseUser.photoURL,
             role: syncData.user.role,
             department: syncData.user.department,
+            designation: syncData.user.designation || null,
+            employeeId: syncData.user.employeeId,
+            reportingManagerId: syncData.user.reportingManagerId || null,
+            payrollGrade: syncData.user.payrollGrade || null,
+            joinDate: syncData.user.joinDate ? new Date(syncData.user.joinDate) : undefined,
+            isActive: syncData.user.isActive !== false,
             id: syncData.user.id
           });
         } else {
@@ -89,6 +117,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             photoURL: firebaseUser.photoURL,
             role: "employee",
             department: null,
+            designation: null,
+            isActive: true
           });
         }
       }
@@ -102,6 +132,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         photoURL: firebaseUser.photoURL,
         role: "employee",
         department: null,
+        designation: null,
+        isActive: true
       });
     }
     
@@ -140,6 +172,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         photoURL: firebaseUser.photoURL,
         role: newUserData.role,
         department: newUserData.department,
+        designation: newUserData.designation || null,
+        employeeId: newUserData.employeeId,
+        reportingManagerId: newUserData.reportingManagerId || null,
+        payrollGrade: newUserData.payrollGrade || null,
+        joinDate: newUserData.joinDate ? new Date(newUserData.joinDate) : undefined,
+        isActive: newUserData.isActive !== false,
         id: newUserData.id,
       });
       
@@ -201,6 +239,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           photoURL: firebaseUser.photoURL,
           role: "employee", // Default role, will be updated
           department: null,
+          designation: null,
+          isActive: true
         };
         
         // For initial auth, don't update user state if we already have persisted data
