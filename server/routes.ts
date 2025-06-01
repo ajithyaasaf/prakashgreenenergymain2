@@ -398,6 +398,205 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Enterprise-grade user permission routes
+  app.get("/api/users/:id/permissions", verifyAuth, async (req, res) => {
+    try {
+      const requestingUser = await storage.getUser(req.user.uid);
+      if (!requestingUser) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // Allow users to check their own permissions or admins to check others
+      if (req.params.id !== req.user.uid && requestingUser.role !== "master_admin" && requestingUser.role !== "admin") {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const permissions = await storage.getUserPermissions(req.params.id);
+      const approvalLimits = await storage.getUserApprovalLimits(req.params.id);
+      
+      res.json({
+        permissions,
+        canApprove: approvalLimits.canApprove,
+        maxApprovalAmount: approvalLimits.maxAmount
+      });
+    } catch (error) {
+      console.error("Error fetching user permissions:", error);
+      res.status(500).json({ message: "Failed to fetch user permissions" });
+    }
+  });
+
+  app.get("/api/users/department/:department", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || (user.role !== "master_admin" && user.role !== "admin")) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const users = await storage.getUsersByDepartment(req.params.department);
+      res.json(users);
+    } catch (error) {
+      console.error("Error fetching users by department:", error);
+      res.status(500).json({ message: "Failed to fetch users by department" });
+    }
+  });
+
+  app.get("/api/users/designation/:designation", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || (user.role !== "master_admin" && user.role !== "admin")) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const users = await storage.getUsersByDesignation(req.params.designation);
+      res.json(users);
+    } catch (error) {
+      console.error("Error fetching users by designation:", error);
+      res.status(500).json({ message: "Failed to fetch users by designation" });
+    }
+  });
+
+  app.get("/api/users/:managerId/subordinates", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // Allow users to check their own subordinates or admins to check others
+      if (req.params.managerId !== req.user.uid && user.role !== "master_admin" && user.role !== "admin") {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const subordinates = await storage.getUsersByReportingManager(req.params.managerId);
+      res.json(subordinates);
+    } catch (error) {
+      console.error("Error fetching subordinates:", error);
+      res.status(500).json({ message: "Failed to fetch subordinates" });
+    }
+  });
+
+  // Designation Management Routes
+  app.get("/api/designations", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || (user.role !== "master_admin" && user.role !== "admin")) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const designations = await storage.listDesignations();
+      res.json(designations);
+    } catch (error) {
+      console.error("Error fetching designations:", error);
+      res.status(500).json({ message: "Failed to fetch designations" });
+    }
+  });
+
+  app.post("/api/designations", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || user.role !== "master_admin") {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const designation = await storage.createDesignation(req.body);
+      res.status(201).json(designation);
+    } catch (error) {
+      console.error("Error creating designation:", error);
+      res.status(500).json({ message: "Failed to create designation" });
+    }
+  });
+
+  app.patch("/api/designations/:id", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || user.role !== "master_admin") {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const designation = await storage.updateDesignation(req.params.id, req.body);
+      res.json(designation);
+    } catch (error) {
+      console.error("Error updating designation:", error);
+      res.status(500).json({ message: "Failed to update designation" });
+    }
+  });
+
+  app.delete("/api/designations/:id", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || user.role !== "master_admin") {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      await storage.deleteDesignation(req.params.id);
+      res.json({ message: "Designation deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting designation:", error);
+      res.status(500).json({ message: "Failed to delete designation" });
+    }
+  });
+
+  // Permission Group Management Routes
+  app.get("/api/permission-groups", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || user.role !== "master_admin") {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const permissionGroups = await storage.listPermissionGroups();
+      res.json(permissionGroups);
+    } catch (error) {
+      console.error("Error fetching permission groups:", error);
+      res.status(500).json({ message: "Failed to fetch permission groups" });
+    }
+  });
+
+  app.post("/api/permission-groups", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || user.role !== "master_admin") {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const permissionGroup = await storage.createPermissionGroup(req.body);
+      res.status(201).json(permissionGroup);
+    } catch (error) {
+      console.error("Error creating permission group:", error);
+      res.status(500).json({ message: "Failed to create permission group" });
+    }
+  });
+
+  app.patch("/api/permission-groups/:id", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || user.role !== "master_admin") {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const permissionGroup = await storage.updatePermissionGroup(req.params.id, req.body);
+      res.json(permissionGroup);
+    } catch (error) {
+      console.error("Error updating permission group:", error);
+      res.status(500).json({ message: "Failed to update permission group" });
+    }
+  });
+
+  app.delete("/api/permission-groups/:id", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || user.role !== "master_admin") {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      await storage.deletePermissionGroup(req.params.id);
+      res.json({ message: "Permission group deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting permission group:", error);
+      res.status(500).json({ message: "Failed to delete permission group" });
+    }
+  });
+
   // Departments
   app.get("/api/departments", verifyAuth, async (req, res) => {
     try {
