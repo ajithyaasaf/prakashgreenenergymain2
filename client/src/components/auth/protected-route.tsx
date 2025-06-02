@@ -4,37 +4,28 @@ import { useAuthContext } from "@/contexts/auth-context";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { AuthLoading } from "@/components/auth/auth-loading";
-
-type Permission = 
-  | "manage_departments" 
-  | "set_office_locations" 
-  | "manage_access"
-  | "assign_departments" 
-  | "manage_customers" 
-  | "manage_products"
-  | "manage_quotations"
-  | "manage_invoices"
-  | "manage_attendance"
-  | "manage_leaves";
-
-type Department = "cre" | "accounts" | "hr" | "sales_and_marketing" | "technical_team";
+import type { SystemPermission, Department } from "@shared/schema";
 
 interface ProtectedRouteProps {
   children: ReactNode;
-  requiredPermission?: Permission;
+  requiredPermissions?: SystemPermission | SystemPermission[];
   requiredRole?: "master_admin" | "admin" | "employee" | Array<"master_admin" | "admin" | "employee">;
   requiredDepartment?: Department | Department[];
   fallbackUrl?: string;
+  requiresApproval?: boolean;
+  minApprovalAmount?: number;
 }
 
 export function ProtectedRoute({ 
   children, 
-  requiredPermission,
+  requiredPermissions,
   requiredRole,
   requiredDepartment,
-  fallbackUrl = "/dashboard"
+  fallbackUrl = "/dashboard",
+  requiresApproval = false,
+  minApprovalAmount
 }: ProtectedRouteProps) {
-  const { user, loading, hasPermission, isDepartmentMember } = useAuthContext();
+  const { user, loading, hasPermission, hasRole, isDepartmentMember, canApprove, maxApprovalAmount } = useAuthContext();
   const [, setLocation] = useLocation();
 
   // Track if we're in the process of redirecting
@@ -56,65 +47,31 @@ export function ProtectedRoute({
     return <AuthLoading />;
   }
 
-  // Master admin can access everything
-  if (user.role === "master_admin") {
-    return <>{children}</>;
-  }
-
+  // Enterprise RBAC Permission Checking
+  
   // Check role-based access if required
-  if (requiredRole) {
-    const roles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
-    if (!roles.includes(user.role)) {
-      return renderAccessDenied(setLocation, fallbackUrl);
-    }
+  if (requiredRole && !hasRole(requiredRole)) {
+    return renderAccessDenied(setLocation, fallbackUrl);
   }
 
   // Check department-based access if required
-  if (requiredDepartment && user.department) {
-    const departments = Array.isArray(requiredDepartment) 
-      ? requiredDepartment 
-      : [requiredDepartment];
-    
-    if (!departments.includes(user.department) && user.role === "employee") {
-      return renderAccessDenied(setLocation, fallbackUrl);
-    }
+  if (requiredDepartment && !isDepartmentMember(requiredDepartment)) {
+    return renderAccessDenied(setLocation, fallbackUrl);
   }
 
-  // Admin can access most features except those explicitly restricted
-  if (user.role === "admin") {
-    // Admins can't access department management
-    if (requiredPermission === "manage_departments") {
-      return renderAccessDenied(setLocation, fallbackUrl);
-    }
-    
-    return <>{children}</>;
+  // Check enterprise permissions using the sophisticated permission system
+  if (requiredPermissions && !hasPermission(requiredPermissions)) {
+    return renderAccessDenied(setLocation, fallbackUrl);
   }
 
-  // For employees, check department-specific permissions
-  if (user.role === "employee") {
-    // Allow access to basic dashboard for employees without department
-    if (!requiredPermission && (!requiredDepartment || window.location.pathname === "/" || window.location.pathname === "/dashboard")) {
-      return <>{children}</>;
+  // Check approval limits if required
+  if (requiresApproval) {
+    if (!canApprove) {
+      return renderAccessDenied(setLocation, fallbackUrl, "You don't have approval permissions for this action.");
     }
     
-    // For other features, employees need a department
-    if (!user.department) {
-      return renderAccessDenied(setLocation, fallbackUrl);
-    }
-    
-    // Department-specific permissions
-    const deptPermissions: Record<Department, Permission[]> = {
-      "hr": ["manage_attendance", "manage_leaves"],
-      "accounts": ["manage_invoices"],
-      "sales_and_marketing": ["manage_customers", "manage_quotations"],
-      "technical_team": ["manage_products"],
-      "cre": []
-    };
-    
-    // Check if the required permission is allowed for the user's department
-    if (requiredPermission && 
-        !deptPermissions[user.department].includes(requiredPermission)) {
-      return renderAccessDenied(setLocation, fallbackUrl);
+    if (minApprovalAmount && maxApprovalAmount && maxApprovalAmount < minApprovalAmount) {
+      return renderAccessDenied(setLocation, fallbackUrl, `Your approval limit (₹${maxApprovalAmount}) is insufficient for this action (requires ₹${minApprovalAmount}).`);
     }
   }
 
@@ -122,15 +79,15 @@ export function ProtectedRoute({
   return <>{children}</>;
 }
 
-// Helper function to render access denied message
-function renderAccessDenied(setLocation: (url: string) => void, fallbackUrl: string) {
+// Helper function to render access denied message with enterprise messaging
+function renderAccessDenied(setLocation: (url: string) => void, fallbackUrl: string, customMessage?: string) {
   return (
     <div className="container mx-auto py-6">
       <Alert variant="destructive" className="mb-6">
         <AlertCircle className="h-4 w-4" />
         <AlertTitle>Access Denied</AlertTitle>
         <AlertDescription>
-          You don't have permission to access this feature.
+          {customMessage || "You don't have the required permissions to access this feature. Contact your administrator if you believe this is an error."}
           {fallbackUrl && (
             <button 
               className="ml-2 text-primary underline"

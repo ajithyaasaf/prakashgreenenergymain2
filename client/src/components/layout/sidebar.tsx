@@ -5,30 +5,24 @@ import { Leaf, LogOut } from "lucide-react";
 import { useEffect, useState } from "react";
 import logoPath from "@assets/new logo 2.png";
 
+import type { SystemPermission } from "@shared/schema";
+
 interface NavItem {
   href: string;
   label: string;
   icon: React.ReactNode;
+  requiredPermissions?: SystemPermission | SystemPermission[];
   roles?: ("master_admin" | "admin" | "employee")[];
-  departments?: ("cre" | "accounts" | "hr" | "sales_and_marketing" | "technical_team")[];
-  permission?: string;
+  requiresApproval?: boolean;
 }
 
 export function Sidebar() {
   const [location] = useLocation();
-  const { user, hasPermission, isDepartmentMember } = useAuthContext();
+  const { user, hasPermission, hasRole, canApprove } = useAuthContext();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMd, setIsMd] = useState(false);
   
-  // Import permissions hook
-  const permissions = (() => {
-    try {
-      const { Permission } = require("@/hooks/use-permissions");
-      return Permission;
-    } catch {
-      return {};
-    }
-  })();
+  // Remove legacy permission hook - now using enterprise RBAC
 
   // Handle responsive window resizing
   useEffect(() => {
@@ -46,75 +40,70 @@ export function Sidebar() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Define navigation items with role-based and department-based visibility
+  // Define navigation items with enterprise RBAC permissions
   const navItems: NavItem[] = [
     { 
       href: "/dashboard", 
       label: "Dashboard", 
-      icon: <i className="ri-dashboard-line mr-3 text-xl"></i>
+      icon: <i className="ri-dashboard-line mr-3 text-xl"></i>,
+      requiredPermissions: "dashboard.view"
     },
     { 
       href: "/customers", 
       label: "Customers", 
       icon: <i className="ri-user-3-line mr-3 text-xl"></i>,
-      permission: "manage_customers",
-      departments: ["sales_and_marketing"]
+      requiredPermissions: ["customers.view", "customers.create"]
     },
     { 
       href: "/products", 
       label: "Products", 
       icon: <i className="ri-store-2-line mr-3 text-xl"></i>,
-      permission: "manage_products",
-      departments: ["technical_team"]
+      requiredPermissions: ["products.view", "products.create"]
     },
     { 
       href: "/quotations", 
       label: "Quotations", 
       icon: <i className="ri-file-list-3-line mr-3 text-xl"></i>,
-      permission: "manage_quotations",
-      departments: ["sales_and_marketing"]
+      requiredPermissions: ["quotations.view", "quotations.create"]
     },
     { 
       href: "/invoices", 
       label: "Invoices", 
       icon: <i className="ri-bill-line mr-3 text-xl"></i>,
-      permission: "manage_invoices",
-      departments: ["accounts"]
+      requiredPermissions: ["invoices.view", "invoices.create"]
     },
     { 
       href: "/attendance", 
       label: "Attendance", 
       icon: <i className="ri-time-line mr-3 text-xl"></i>,
-      permission: "manage_attendance",
-      departments: ["hr"]
+      requiredPermissions: ["attendance.view_own", "attendance.view_team", "attendance.view_all"]
     },
     { 
       href: "/leave", 
       label: "Leave Management", 
       icon: <i className="ri-calendar-check-line mr-3 text-xl"></i>,
-      permission: "manage_leaves",
-      departments: ["hr"]
+      requiredPermissions: ["leave.view_own", "leave.view_team", "leave.view_all"]
     },
     { 
       href: "/user-management", 
       label: "User Management", 
       icon: <i className="ri-user-settings-line mr-3 text-xl"></i>,
       roles: ["master_admin", "admin"],
-      permission: "manage_access"
+      requiredPermissions: ["users.view", "users.create"]
     },
     { 
       href: "/departments", 
       label: "Departments", 
       icon: <i className="ri-building-line mr-3 text-xl"></i>,
       roles: ["master_admin"],
-      permission: "manage_departments"
+      requiredPermissions: ["departments.view", "departments.create"]
     },
     { 
       href: "/office-locations", 
       label: "Office Locations", 
       icon: <i className="ri-map-pin-line mr-3 text-xl"></i>,
       roles: ["master_admin"],
-      permission: "set_office_locations"
+      requiredPermissions: "system.settings"
     },
     { 
       href: "/settings", 
@@ -123,27 +112,22 @@ export function Sidebar() {
     },
   ];
 
-  // Filter items based on user role, department, and permissions
+  // Filter items based on enterprise RBAC permissions
   const filteredNavItems = navItems.filter(item => {
     // Always show items with no restrictions
-    if (!item.roles && !item.departments && !item.permission) return true;
+    if (!item.roles && !item.requiredPermissions && !item.requiresApproval) return true;
     
     // If no user, don't show restricted items
     if (!user) return false;
     
-    // Check role-based access
-    if (item.roles && !item.roles.includes(user.role)) return false;
+    // Check role-based access if specified
+    if (item.roles && !hasRole(item.roles)) return false;
     
-    // Master admin can access everything
-    if (user.role === "master_admin") return true;
+    // Check enterprise permissions
+    if (item.requiredPermissions && !hasPermission(item.requiredPermissions)) return false;
     
-    // Check department-based access for employees
-    if (item.departments && user.department) {
-      if (!item.departments.includes(user.department)) {
-        // Department doesn't match and user is an employee
-        if (user.role === "employee") return false;
-      }
-    }
+    // Check approval permissions if required
+    if (item.requiresApproval && !canApprove) return false;
     
     return true;
   });
