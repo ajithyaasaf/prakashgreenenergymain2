@@ -2,7 +2,15 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
-import { insertAttendanceSchema, insertOfficeLocationSchema, insertPermissionSchema } from "@shared/schema";
+import { 
+  insertAttendanceSchema, 
+  insertOfficeLocationSchema, 
+  insertPermissionSchema,
+  insertRoleSchema,
+  insertUserRoleAssignmentSchema,
+  insertPermissionOverrideSchema,
+  insertAuditLogSchema
+} from "@shared/schema";
 // Import all the necessary schemas from storage.ts since they've been moved there
 import { 
   insertUserSchema,
@@ -1931,6 +1939,343 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       console.error("Error updating leave:", error);
       res.status(500).json({ message: "Failed to update leave" });
+    }
+  });
+
+  // ===================== Phase 2: Enterprise RBAC API Routes =====================
+
+  // Role Management Routes
+  app.get("/api/roles", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || !["master_admin", "admin"].includes(user.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      const roles = await storage.listRoles();
+      res.json(roles);
+    } catch (error) {
+      console.error("Error fetching roles:", error);
+      res.status(500).json({ message: "Failed to fetch roles" });
+    }
+  });
+
+  app.get("/api/roles/:id", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || !["master_admin", "admin"].includes(user.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      const role = await storage.getRole(req.params.id);
+      if (!role) {
+        return res.status(404).json({ message: "Role not found" });
+      }
+      res.json(role);
+    } catch (error) {
+      console.error("Error fetching role:", error);
+      res.status(500).json({ message: "Failed to fetch role" });
+    }
+  });
+
+  app.post("/api/roles", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || user.role !== "master_admin") {
+        return res.status(403).json({ message: "Access denied - Master Admin only" });
+      }
+      const roleData = insertRoleSchema.parse(req.body);
+      const role = await storage.createRole(roleData);
+      
+      // Create audit log
+      await storage.createAuditLog({
+        userId: user.id,
+        action: "role_created",
+        entityType: "role",
+        entityId: role.id,
+        changes: { name: role.name, permissions: role.permissions },
+        department: user.department,
+        designation: user.designation
+      });
+      
+      res.status(201).json(role);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ errors: error.errors });
+      }
+      console.error("Error creating role:", error);
+      res.status(500).json({ message: "Failed to create role" });
+    }
+  });
+
+  app.patch("/api/roles/:id", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || user.role !== "master_admin") {
+        return res.status(403).json({ message: "Access denied - Master Admin only" });
+      }
+      const roleData = insertRoleSchema.partial().parse(req.body);
+      const updatedRole = await storage.updateRole(req.params.id, roleData);
+      
+      // Create audit log
+      await storage.createAuditLog({
+        userId: user.id,
+        action: "role_updated",
+        entityType: "role",
+        entityId: req.params.id,
+        changes: roleData,
+        department: user.department,
+        designation: user.designation
+      });
+      
+      res.json(updatedRole);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ errors: error.errors });
+      }
+      console.error("Error updating role:", error);
+      res.status(500).json({ message: "Failed to update role" });
+    }
+  });
+
+  app.delete("/api/roles/:id", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || user.role !== "master_admin") {
+        return res.status(403).json({ message: "Access denied - Master Admin only" });
+      }
+      const success = await storage.deleteRole(req.params.id);
+      if (!success) {
+        return res.status(404).json({ message: "Role not found" });
+      }
+      
+      // Create audit log
+      await storage.createAuditLog({
+        userId: user.id,
+        action: "role_deleted",
+        entityType: "role",
+        entityId: req.params.id,
+        department: user.department,
+        designation: user.designation
+      });
+      
+      res.json({ message: "Role deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting role:", error);
+      res.status(500).json({ message: "Failed to delete role" });
+    }
+  });
+
+  // User Role Assignment Routes
+  app.get("/api/users/:userId/roles", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || (!["master_admin", "admin"].includes(user.role) && user.id !== req.params.userId)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      const roleAssignments = await storage.getUserRoleAssignments(req.params.userId);
+      res.json(roleAssignments);
+    } catch (error) {
+      console.error("Error fetching user roles:", error);
+      res.status(500).json({ message: "Failed to fetch user roles" });
+    }
+  });
+
+  app.post("/api/users/:userId/roles", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || !["master_admin", "admin"].includes(user.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      const assignmentData = insertUserRoleAssignmentSchema.parse({
+        ...req.body,
+        userId: req.params.userId,
+        assignedBy: user.id
+      });
+      const assignment = await storage.assignUserRole(assignmentData);
+      
+      // Create audit log
+      await storage.createAuditLog({
+        userId: user.id,
+        action: "role_assigned",
+        entityType: "user_role_assignment",
+        entityId: assignment.id,
+        changes: { targetUserId: req.params.userId, roleId: req.body.roleId },
+        department: user.department,
+        designation: user.designation
+      });
+      
+      res.status(201).json(assignment);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ errors: error.errors });
+      }
+      console.error("Error assigning role:", error);
+      res.status(500).json({ message: "Failed to assign role" });
+    }
+  });
+
+  app.delete("/api/users/:userId/roles/:roleId", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || !["master_admin", "admin"].includes(user.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      const success = await storage.revokeUserRole(req.params.userId, req.params.roleId);
+      if (!success) {
+        return res.status(404).json({ message: "Role assignment not found" });
+      }
+      
+      // Create audit log
+      await storage.createAuditLog({
+        userId: user.id,
+        action: "role_revoked",
+        entityType: "user_role_assignment",
+        entityId: `${req.params.userId}_${req.params.roleId}`,
+        changes: { targetUserId: req.params.userId, roleId: req.params.roleId },
+        department: user.department,
+        designation: user.designation
+      });
+      
+      res.json({ message: "Role revoked successfully" });
+    } catch (error) {
+      console.error("Error revoking role:", error);
+      res.status(500).json({ message: "Failed to revoke role" });
+    }
+  });
+
+  // Permission Override Routes
+  app.get("/api/users/:userId/permission-overrides", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || (!["master_admin", "admin"].includes(user.role) && user.id !== req.params.userId)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      const overrides = await storage.getUserPermissionOverrides(req.params.userId);
+      res.json(overrides);
+    } catch (error) {
+      console.error("Error fetching permission overrides:", error);
+      res.status(500).json({ message: "Failed to fetch permission overrides" });
+    }
+  });
+
+  app.post("/api/users/:userId/permission-overrides", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || user.role !== "master_admin") {
+        return res.status(403).json({ message: "Access denied - Master Admin only" });
+      }
+      const overrideData = insertPermissionOverrideSchema.parse({
+        ...req.body,
+        userId: req.params.userId,
+        grantedBy: user.id
+      });
+      const override = await storage.createPermissionOverride(overrideData);
+      
+      // Create audit log
+      await storage.createAuditLog({
+        userId: user.id,
+        action: "permission_override_created",
+        entityType: "permission_override",
+        entityId: override.id,
+        changes: { 
+          targetUserId: req.params.userId, 
+          permission: req.body.permission, 
+          granted: req.body.granted 
+        },
+        department: user.department,
+        designation: user.designation
+      });
+      
+      res.status(201).json(override);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ errors: error.errors });
+      }
+      console.error("Error creating permission override:", error);
+      res.status(500).json({ message: "Failed to create permission override" });
+    }
+  });
+
+  app.delete("/api/permission-overrides/:id", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || user.role !== "master_admin") {
+        return res.status(403).json({ message: "Access denied - Master Admin only" });
+      }
+      const success = await storage.revokePermissionOverride(req.params.id);
+      if (!success) {
+        return res.status(404).json({ message: "Permission override not found" });
+      }
+      
+      // Create audit log
+      await storage.createAuditLog({
+        userId: user.id,
+        action: "permission_override_revoked",
+        entityType: "permission_override",
+        entityId: req.params.id,
+        department: user.department,
+        designation: user.designation
+      });
+      
+      res.json({ message: "Permission override revoked successfully" });
+    } catch (error) {
+      console.error("Error revoking permission override:", error);
+      res.status(500).json({ message: "Failed to revoke permission override" });
+    }
+  });
+
+  // Enhanced Permission Checking Routes
+  app.get("/api/users/:userId/effective-permissions", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || (!["master_admin", "admin"].includes(user.role) && user.id !== req.params.userId)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      const permissions = await storage.getEffectiveUserPermissions(req.params.userId);
+      const approvalLimits = await storage.getEffectiveUserApprovalLimits(req.params.userId);
+      res.json({ permissions, approvalLimits });
+    } catch (error) {
+      console.error("Error fetching effective permissions:", error);
+      res.status(500).json({ message: "Failed to fetch effective permissions" });
+    }
+  });
+
+  app.post("/api/users/:userId/check-permission", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || (!["master_admin", "admin"].includes(user.role) && user.id !== req.params.userId)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      const { permission } = req.body;
+      if (!permission) {
+        return res.status(400).json({ message: "Permission parameter required" });
+      }
+      const hasPermission = await storage.checkEffectiveUserPermission(req.params.userId, permission);
+      res.json({ hasPermission, permission });
+    } catch (error) {
+      console.error("Error checking permission:", error);
+      res.status(500).json({ message: "Failed to check permission" });
+    }
+  });
+
+  // Audit Log Routes
+  app.get("/api/audit-logs", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || !["master_admin", "admin"].includes(user.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const filters: any = {};
+      if (req.query.userId) filters.userId = req.query.userId as string;
+      if (req.query.entityType) filters.entityType = req.query.entityType as string;
+      if (req.query.startDate) filters.startDate = new Date(req.query.startDate as string);
+      if (req.query.endDate) filters.endDate = new Date(req.query.endDate as string);
+      
+      const logs = await storage.getAuditLogs(filters);
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching audit logs:", error);
+      res.status(500).json({ message: "Failed to fetch audit logs" });
     }
   });
 

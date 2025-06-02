@@ -12,7 +12,11 @@ import { z } from "zod";
 import {
   insertAttendanceSchema,
   insertOfficeLocationSchema,
-  insertPermissionSchema
+  insertPermissionSchema,
+  insertRoleSchema,
+  insertUserRoleAssignmentSchema,
+  insertPermissionOverrideSchema,
+  insertAuditLogSchema
 } from "@shared/schema";
 
 // Define our schemas since we're not using drizzle anymore
