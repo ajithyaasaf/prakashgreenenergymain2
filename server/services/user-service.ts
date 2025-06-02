@@ -16,7 +16,17 @@ export const createUserSchema = z.object({
 export const updateUserSchema = z.object({
   displayName: z.string().min(2).optional(),
   role: z.enum(["master_admin", "admin", "employee"]).optional(),
-  department: z.enum(["cre", "accounts", "hr", "sales_and_marketing", "technical_team"]).nullable().optional()
+  department: z.enum(["cre", "accounts", "hr", "sales_and_marketing", "technical_team"]).nullable().optional(),
+  designation: z.enum([
+    "director", "manager", "assistant_manager", "senior_executive", 
+    "executive", "junior_executive", "trainee", "intern"
+  ]).nullable().optional(),
+  employeeId: z.string().optional(),
+  reportingManagerId: z.string().nullable().optional(),
+  payrollGrade: z.enum(["A1", "A2", "B1", "B2", "C1", "C2", "D1", "D2"]).nullable().optional(),
+  joinDate: z.date().optional(),
+  isActive: z.boolean().optional(),
+  photoURL: z.string().nullable().optional()
 });
 
 export class UserService {
