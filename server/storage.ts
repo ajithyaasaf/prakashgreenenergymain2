@@ -248,6 +248,63 @@ export const insertActivityLogSchema = z.object({
   userId: z.string(),
 });
 
+// Phase 2: Enterprise RBAC Interfaces
+export interface Role {
+  id: string;
+  name: string;
+  description?: string;
+  isSystemRole: boolean;
+  department?: string | null;
+  designation?: string | null;
+  permissions: string[];
+  approvalLimits?: {
+    quotations?: number | null;
+    invoices?: number | null;
+    expenses?: number | null;
+    leave?: boolean;
+    overtime?: boolean;
+  };
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface UserRoleAssignment {
+  id: string;
+  userId: string;
+  roleId: string;
+  assignedBy: string;
+  effectiveFrom: Date;
+  effectiveTo?: Date | null;
+  isActive: boolean;
+  createdAt: Date;
+}
+
+export interface PermissionOverride {
+  id: string;
+  userId: string;
+  permission: string;
+  granted: boolean;
+  reason: string;
+  grantedBy: string;
+  effectiveFrom: Date;
+  effectiveTo?: Date | null;
+  createdAt: Date;
+}
+
+export interface AuditLog {
+  id: string;
+  userId: string;
+  action: string;
+  entityType: string;
+  entityId: string;
+  changes?: Record<string, any>;
+  ipAddress?: string;
+  userAgent?: string;
+  department?: string | null;
+  designation?: string | null;
+  createdAt: Date;
+}
+
 export interface IStorage {
   // User management
   getUser(id: string): Promise<User | undefined>;
@@ -288,10 +345,39 @@ export interface IStorage {
   updatePermissionGroup(id: string, data: Partial<z.infer<typeof insertPermissionGroupSchema>>): Promise<PermissionGroup>;
   deletePermissionGroup(id: string): Promise<boolean>;
   
-  // User permission utilities
+  // User permission utilities (Phase 1 - backward compatible)
   getUserPermissions(userId: string): Promise<string[]>;
   checkUserPermission(userId: string, permission: string): Promise<boolean>;
   getUserApprovalLimits(userId: string): Promise<{ canApprove: boolean; maxAmount: number | null }>;
+  
+  // Phase 2: Enterprise RBAC methods
+  // Role management
+  getRole(id: string): Promise<Role | undefined>;
+  getRoleByName(name: string): Promise<Role | undefined>;
+  listRoles(): Promise<Role[]>;
+  createRole(data: z.infer<typeof insertRoleSchema>): Promise<Role>;
+  updateRole(id: string, data: Partial<z.infer<typeof insertRoleSchema>>): Promise<Role>;
+  deleteRole(id: string): Promise<boolean>;
+  
+  // User role assignments
+  getUserRoleAssignments(userId: string): Promise<UserRoleAssignment[]>;
+  getRoleAssignment(id: string): Promise<UserRoleAssignment | undefined>;
+  assignUserRole(data: z.infer<typeof insertUserRoleAssignmentSchema>): Promise<UserRoleAssignment>;
+  revokeUserRole(userId: string, roleId: string): Promise<boolean>;
+  
+  // Permission overrides
+  getUserPermissionOverrides(userId: string): Promise<PermissionOverride[]>;
+  createPermissionOverride(data: z.infer<typeof insertPermissionOverrideSchema>): Promise<PermissionOverride>;
+  revokePermissionOverride(id: string): Promise<boolean>;
+  
+  // Enterprise permission resolution
+  getEffectiveUserPermissions(userId: string): Promise<string[]>;
+  checkEffectiveUserPermission(userId: string, permission: string): Promise<boolean>;
+  getEffectiveUserApprovalLimits(userId: string): Promise<{ canApprove: boolean; maxAmount: Record<string, number | null> }>;
+  
+  // Audit logging
+  createAuditLog(data: z.infer<typeof insertAuditLogSchema>): Promise<AuditLog>;
+  getAuditLogs(filters?: { userId?: string; entityType?: string; startDate?: Date; endDate?: Date }): Promise<AuditLog[]>;
   listOfficeLocations(): Promise<OfficeLocation[]>;
   getOfficeLocation(id: string): Promise<OfficeLocation | undefined>;
   createOfficeLocation(
@@ -1561,6 +1647,371 @@ export class FirestoreStorage implements IStorage {
       endDate: updatedData.endDate?.toDate() || new Date(),
       createdAt: updatedData.createdAt?.toDate() || new Date(),
     } as Leave;
+  }
+
+  // ===================== Phase 2: Enterprise RBAC Implementation =====================
+
+  // Role management
+  async getRole(id: string): Promise<Role | undefined> {
+    const roleDoc = this.db.collection("roles").doc(id);
+    const docSnap = await roleDoc.get();
+    if (!docSnap.exists) return undefined;
+    
+    const data = docSnap.data() || {};
+    return {
+      id: docSnap.id,
+      ...data,
+      createdAt: data.createdAt?.toDate() || new Date(),
+      updatedAt: data.updatedAt?.toDate() || new Date(),
+    } as Role;
+  }
+
+  async getRoleByName(name: string): Promise<Role | undefined> {
+    const rolesRef = this.db.collection("roles");
+    const snapshot = await rolesRef.where("name", "==", name).get();
+    if (snapshot.empty) return undefined;
+    
+    const doc = snapshot.docs[0];
+    const data = doc.data() || {};
+    return {
+      id: doc.id,
+      ...data,
+      createdAt: data.createdAt?.toDate() || new Date(),
+      updatedAt: data.updatedAt?.toDate() || new Date(),
+    } as Role;
+  }
+
+  async listRoles(): Promise<Role[]> {
+    const rolesRef = this.db.collection("roles");
+    const snapshot = await rolesRef.get();
+    
+    return snapshot.docs.map(doc => {
+      const data = doc.data() || {};
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: data.createdAt?.toDate() || new Date(),
+        updatedAt: data.updatedAt?.toDate() || new Date(),
+      } as Role;
+    });
+  }
+
+  async createRole(data: z.infer<typeof insertRoleSchema>): Promise<Role> {
+    const validatedData = insertRoleSchema.parse(data);
+    const roleDoc = this.db.collection("roles").doc();
+    
+    const roleData = {
+      ...validatedData,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    };
+    
+    await roleDoc.set(roleData);
+    
+    return {
+      id: roleDoc.id,
+      ...validatedData,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as Role;
+  }
+
+  async updateRole(id: string, data: Partial<z.infer<typeof insertRoleSchema>>): Promise<Role> {
+    const validatedData = insertRoleSchema.partial().parse(data);
+    const roleDoc = this.db.collection("roles").doc(id);
+    
+    await roleDoc.update({ 
+      ...validatedData, 
+      updatedAt: Timestamp.now() 
+    });
+    
+    const updatedDoc = await roleDoc.get();
+    if (!updatedDoc.exists) throw new Error("Role not found");
+    
+    const updatedData = updatedDoc.data() || {};
+    return {
+      id: updatedDoc.id,
+      ...updatedData,
+      createdAt: updatedData.createdAt?.toDate() || new Date(),
+      updatedAt: updatedData.updatedAt?.toDate() || new Date(),
+    } as Role;
+  }
+
+  async deleteRole(id: string): Promise<boolean> {
+    try {
+      await this.db.collection("roles").doc(id).delete();
+      return true;
+    } catch (error) {
+      console.error("Error deleting role:", error);
+      return false;
+    }
+  }
+
+  // User role assignments
+  async getUserRoleAssignments(userId: string): Promise<UserRoleAssignment[]> {
+    const assignmentsRef = this.db.collection("user_role_assignments");
+    const snapshot = await assignmentsRef
+      .where("userId", "==", userId)
+      .where("isActive", "==", true)
+      .get();
+    
+    return snapshot.docs.map(doc => {
+      const data = doc.data() || {};
+      return {
+        id: doc.id,
+        ...data,
+        effectiveFrom: data.effectiveFrom?.toDate() || new Date(),
+        effectiveTo: data.effectiveTo?.toDate() || null,
+        createdAt: data.createdAt?.toDate() || new Date(),
+      } as UserRoleAssignment;
+    });
+  }
+
+  async getRoleAssignment(id: string): Promise<UserRoleAssignment | undefined> {
+    const assignmentDoc = this.db.collection("user_role_assignments").doc(id);
+    const docSnap = await assignmentDoc.get();
+    if (!docSnap.exists) return undefined;
+    
+    const data = docSnap.data() || {};
+    return {
+      id: docSnap.id,
+      ...data,
+      effectiveFrom: data.effectiveFrom?.toDate() || new Date(),
+      effectiveTo: data.effectiveTo?.toDate() || null,
+      createdAt: data.createdAt?.toDate() || new Date(),
+    } as UserRoleAssignment;
+  }
+
+  async assignUserRole(data: z.infer<typeof insertUserRoleAssignmentSchema>): Promise<UserRoleAssignment> {
+    const validatedData = insertUserRoleAssignmentSchema.parse(data);
+    const assignmentDoc = this.db.collection("user_role_assignments").doc();
+    
+    const assignmentData = {
+      ...validatedData,
+      effectiveFrom: Timestamp.fromDate(validatedData.effectiveFrom),
+      effectiveTo: validatedData.effectiveTo ? Timestamp.fromDate(validatedData.effectiveTo) : null,
+      createdAt: Timestamp.now(),
+    };
+    
+    await assignmentDoc.set(assignmentData);
+    
+    return {
+      id: assignmentDoc.id,
+      ...validatedData,
+    } as UserRoleAssignment;
+  }
+
+  async revokeUserRole(userId: string, roleId: string): Promise<boolean> {
+    try {
+      const assignmentsRef = this.db.collection("user_role_assignments");
+      const snapshot = await assignmentsRef
+        .where("userId", "==", userId)
+        .where("roleId", "==", roleId)
+        .where("isActive", "==", true)
+        .get();
+      
+      const batch = this.db.batch();
+      snapshot.docs.forEach(doc => {
+        batch.update(doc.ref, { isActive: false, updatedAt: Timestamp.now() });
+      });
+      
+      await batch.commit();
+      return true;
+    } catch (error) {
+      console.error("Error revoking user role:", error);
+      return false;
+    }
+  }
+
+  // Permission overrides
+  async getUserPermissionOverrides(userId: string): Promise<PermissionOverride[]> {
+    const overridesRef = this.db.collection("permission_overrides");
+    const snapshot = await overridesRef
+      .where("userId", "==", userId)
+      .get();
+    
+    return snapshot.docs.map(doc => {
+      const data = doc.data() || {};
+      return {
+        id: doc.id,
+        ...data,
+        effectiveFrom: data.effectiveFrom?.toDate() || new Date(),
+        effectiveTo: data.effectiveTo?.toDate() || null,
+        createdAt: data.createdAt?.toDate() || new Date(),
+      } as PermissionOverride;
+    });
+  }
+
+  async createPermissionOverride(data: z.infer<typeof insertPermissionOverrideSchema>): Promise<PermissionOverride> {
+    const validatedData = insertPermissionOverrideSchema.parse(data);
+    const overrideDoc = this.db.collection("permission_overrides").doc();
+    
+    const overrideData = {
+      ...validatedData,
+      effectiveFrom: Timestamp.fromDate(validatedData.effectiveFrom),
+      effectiveTo: validatedData.effectiveTo ? Timestamp.fromDate(validatedData.effectiveTo) : null,
+      createdAt: Timestamp.now(),
+    };
+    
+    await overrideDoc.set(overrideData);
+    
+    return {
+      id: overrideDoc.id,
+      ...validatedData,
+    } as PermissionOverride;
+  }
+
+  async revokePermissionOverride(id: string): Promise<boolean> {
+    try {
+      await this.db.collection("permission_overrides").doc(id).delete();
+      return true;
+    } catch (error) {
+      console.error("Error revoking permission override:", error);
+      return false;
+    }
+  }
+
+  // Enterprise permission resolution
+  async getEffectiveUserPermissions(userId: string): Promise<string[]> {
+    const user = await this.getUser(userId);
+    if (!user) return [];
+
+    let permissions: Set<string> = new Set();
+
+    // Phase 1: Department + Designation based permissions (backward compatible)
+    if (user.department && user.designation) {
+      const permissionGroup = await this.getPermissionsByDepartmentAndDesignation(
+        user.department, 
+        user.designation
+      );
+      if (permissionGroup) {
+        permissionGroup.permissions.forEach(p => permissions.add(p));
+      }
+    }
+
+    // Phase 2: Role-based permissions
+    const roleAssignments = await this.getUserRoleAssignments(userId);
+    for (const assignment of roleAssignments) {
+      const role = await this.getRole(assignment.roleId);
+      if (role) {
+        role.permissions.forEach(p => permissions.add(p));
+      }
+    }
+
+    // Permission overrides (can grant or revoke specific permissions)
+    const overrides = await this.getUserPermissionOverrides(userId);
+    const currentDate = new Date();
+    
+    for (const override of overrides) {
+      const isActive = (!override.effectiveTo || override.effectiveTo > currentDate) &&
+                      override.effectiveFrom <= currentDate;
+      
+      if (isActive) {
+        if (override.granted) {
+          permissions.add(override.permission);
+        } else {
+          permissions.delete(override.permission);
+        }
+      }
+    }
+
+    return Array.from(permissions);
+  }
+
+  async checkEffectiveUserPermission(userId: string, permission: string): Promise<boolean> {
+    const permissions = await this.getEffectiveUserPermissions(userId);
+    return permissions.includes(permission);
+  }
+
+  async getEffectiveUserApprovalLimits(userId: string): Promise<{ canApprove: boolean; maxAmount: Record<string, number | null> }> {
+    const user = await this.getUser(userId);
+    if (!user) return { canApprove: false, maxAmount: {} };
+
+    let maxAmount: Record<string, number | null> = {
+      quotations: null,
+      invoices: null,
+      expenses: null,
+    };
+    let canApprove = false;
+
+    // Phase 1: Legacy approval limits
+    const legacyLimits = await this.getUserApprovalLimits(userId);
+    if (legacyLimits.canApprove) {
+      canApprove = true;
+      if (legacyLimits.maxAmount !== null) {
+        maxAmount.quotations = legacyLimits.maxAmount;
+        maxAmount.invoices = legacyLimits.maxAmount;
+        maxAmount.expenses = legacyLimits.maxAmount;
+      }
+    }
+
+    // Phase 2: Role-based approval limits
+    const roleAssignments = await this.getUserRoleAssignments(userId);
+    for (const assignment of roleAssignments) {
+      const role = await this.getRole(assignment.roleId);
+      if (role?.approvalLimits) {
+        canApprove = true;
+        
+        if (role.approvalLimits.quotations !== undefined) {
+          maxAmount.quotations = Math.max(maxAmount.quotations || 0, role.approvalLimits.quotations || 0);
+        }
+        if (role.approvalLimits.invoices !== undefined) {
+          maxAmount.invoices = Math.max(maxAmount.invoices || 0, role.approvalLimits.invoices || 0);
+        }
+        if (role.approvalLimits.expenses !== undefined) {
+          maxAmount.expenses = Math.max(maxAmount.expenses || 0, role.approvalLimits.expenses || 0);
+        }
+      }
+    }
+
+    return { canApprove, maxAmount };
+  }
+
+  // Audit logging
+  async createAuditLog(data: z.infer<typeof insertAuditLogSchema>): Promise<AuditLog> {
+    const validatedData = insertAuditLogSchema.parse(data);
+    const auditDoc = this.db.collection("audit_logs").doc();
+    
+    const auditData = {
+      ...validatedData,
+      createdAt: Timestamp.now(),
+    };
+    
+    await auditDoc.set(auditData);
+    
+    return {
+      id: auditDoc.id,
+      ...validatedData,
+      createdAt: new Date(),
+    } as AuditLog;
+  }
+
+  async getAuditLogs(filters?: { userId?: string; entityType?: string; startDate?: Date; endDate?: Date }): Promise<AuditLog[]> {
+    let query = this.db.collection("audit_logs").orderBy("createdAt", "desc");
+    
+    if (filters?.userId) {
+      query = query.where("userId", "==", filters.userId);
+    }
+    if (filters?.entityType) {
+      query = query.where("entityType", "==", filters.entityType);
+    }
+    if (filters?.startDate) {
+      query = query.where("createdAt", ">=", Timestamp.fromDate(filters.startDate));
+    }
+    if (filters?.endDate) {
+      query = query.where("createdAt", "<=", Timestamp.fromDate(filters.endDate));
+    }
+    
+    const snapshot = await query.limit(1000).get();
+    
+    return snapshot.docs.map(doc => {
+      const data = doc.data() || {};
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: data.createdAt?.toDate() || new Date(),
+      } as AuditLog;
+    });
   }
 }
 

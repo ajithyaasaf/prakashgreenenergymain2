@@ -5,30 +5,79 @@ export const departments = [
   "cre", "accounts", "hr", "sales_and_marketing", "technical_team"
 ] as const;
 
+// Enterprise organizational hierarchy with levels
 export const designations = [
   "director", "manager", "assistant_manager", "senior_executive", 
   "executive", "junior_executive", "trainee", "intern"
 ] as const;
 
+// Designation hierarchy levels (higher number = more authority)
+export const designationLevels = {
+  "director": 8,
+  "manager": 7,
+  "assistant_manager": 6,
+  "senior_executive": 5,
+  "executive": 4,
+  "junior_executive": 3,
+  "trainee": 2,
+  "intern": 1
+} as const;
+
 export const payrollGrades = [
   "A1", "A2", "B1", "B2", "C1", "C2", "D1", "D2"
 ] as const;
 
+// Enterprise-grade granular permission system
 export const systemPermissions = [
-  // Core module access
-  "dashboard.view", "dashboard.full_access",
+  // Dashboard access (Department-level feature access)
+  "dashboard.view", "dashboard.analytics", "dashboard.full_access",
+  
+  // Customer Management (Sales & Marketing focus)
   "customers.view", "customers.create", "customers.edit", "customers.delete",
+  "customers.export", "customers.import", "customers.archive",
+  
+  // Product Management (Technical & Sales focus) 
   "products.view", "products.create", "products.edit", "products.delete",
+  "products.pricing", "products.specifications", "products.inventory",
+  
+  // Quotation Management (Sales primary, others view)
   "quotations.view", "quotations.create", "quotations.edit", "quotations.delete",
+  "quotations.approve", "quotations.send", "quotations.convert",
+  
+  // Invoice Management (Accounts primary)
   "invoices.view", "invoices.create", "invoices.edit", "invoices.delete",
-  "attendance.view", "attendance.manage", "attendance.view_others",
-  "leave.view", "leave.request", "leave.approve", "leave.reject",
+  "invoices.approve", "invoices.send", "invoices.payment_tracking",
+  
+  // Attendance Management (HR primary, self for employees)
+  "attendance.view_own", "attendance.view_team", "attendance.view_all",
+  "attendance.mark", "attendance.approve", "attendance.reports",
+  
+  // Leave Management (HR approvals, self requests)
+  "leave.view_own", "leave.view_team", "leave.view_all",
+  "leave.request", "leave.approve", "leave.reject", "leave.cancel",
+  
+  // User & Access Management (Admin roles)
   "users.view", "users.create", "users.edit", "users.delete",
-  "departments.view", "departments.manage",
-  "reports.view", "reports.advanced",
-  // Approval permissions
-  "approve.quotations", "approve.invoices", "approve.leave",
-  "approve.expenses", "approve.overtime"
+  "users.permissions", "users.activate", "users.deactivate",
+  
+  // Department & Organization (Master Admin)
+  "departments.view", "departments.create", "departments.edit", "departments.delete",
+  "designations.view", "designations.create", "designations.edit", "designations.delete",
+  "permissions.view", "permissions.manage", "permissions.assign",
+  
+  // Reporting & Analytics (Designation-based access levels)
+  "reports.basic", "reports.advanced", "reports.financial", "reports.export",
+  "analytics.view", "analytics.departmental", "analytics.enterprise",
+  
+  // Approval workflows (Designation-based limits)
+  "approve.quotations.basic", "approve.quotations.advanced",
+  "approve.invoices.basic", "approve.invoices.advanced", 
+  "approve.leave.team", "approve.leave.department",
+  "approve.expenses.basic", "approve.expenses.advanced",
+  "approve.overtime.team", "approve.overtime.department",
+  
+  // System Administration (Master Admin only)
+  "system.settings", "system.backup", "system.audit", "system.integrations"
 ] as const;
 
 export const insertUserEnhancedSchema = z.object({
@@ -94,15 +143,99 @@ export const insertPermissionSchema = z.object({
   minutesUsed: z.number().default(0),
 });
 
+// Phase 2: Enterprise Permission Matrix Schemas
+export const insertRoleSchema = z.object({
+  name: z.string().min(2, "Role name must be at least 2 characters"),
+  description: z.string().optional(),
+  isSystemRole: z.boolean().default(false),
+  department: z.enum(departments).nullable().optional(),
+  designation: z.enum(designations).nullable().optional(),
+  permissions: z.array(z.enum(systemPermissions)).default([]),
+  approvalLimits: z.object({
+    quotations: z.number().nullable().optional(),
+    invoices: z.number().nullable().optional(),
+    expenses: z.number().nullable().optional(),
+    leave: z.boolean().default(false),
+    overtime: z.boolean().default(false)
+  }).optional()
+});
+
+export const insertUserRoleAssignmentSchema = z.object({
+  userId: z.string(),
+  roleId: z.string(),
+  assignedBy: z.string(),
+  effectiveFrom: z.date().default(() => new Date()),
+  effectiveTo: z.date().nullable().optional(),
+  isActive: z.boolean().default(true)
+});
+
+export const insertPermissionOverrideSchema = z.object({
+  userId: z.string(),
+  permission: z.enum(systemPermissions),
+  granted: z.boolean(),
+  reason: z.string().min(10, "Reason must be at least 10 characters"),
+  grantedBy: z.string(),
+  effectiveFrom: z.date().default(() => new Date()),
+  effectiveTo: z.date().nullable().optional()
+});
+
+export const insertAuditLogSchema = z.object({
+  userId: z.string(),
+  action: z.string(),
+  entityType: z.string(),
+  entityId: z.string(),
+  changes: z.record(z.any()).optional(),
+  ipAddress: z.string().optional(),
+  userAgent: z.string().optional(),
+  department: z.enum(departments).nullable().optional(),
+  designation: z.enum(designations).nullable().optional()
+});
+
 // Enterprise user types
 export type Department = typeof departments[number];
 export type Designation = typeof designations[number];
 export type PayrollGrade = typeof payrollGrades[number];
 export type SystemPermission = typeof systemPermissions[number];
+export type DesignationLevel = typeof designationLevels[keyof typeof designationLevels];
 
+// Phase 1 types (backward compatible)
 export type InsertUserEnhanced = z.infer<typeof insertUserEnhancedSchema>;
 export type InsertDesignation = z.infer<typeof insertDesignationSchema>;
 export type InsertPermissionGroup = z.infer<typeof insertPermissionGroupSchema>;
 export type InsertAttendance = z.infer<typeof insertAttendanceSchema>;
 export type InsertOfficeLocation = z.infer<typeof insertOfficeLocationSchema>;
 export type InsertPermission = z.infer<typeof insertPermissionSchema>;
+
+// Phase 2 types (enterprise RBAC)
+export type InsertRole = z.infer<typeof insertRoleSchema>;
+export type InsertUserRoleAssignment = z.infer<typeof insertUserRoleAssignmentSchema>;
+export type InsertPermissionOverride = z.infer<typeof insertPermissionOverrideSchema>;
+export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
+
+// Enterprise permission checking utilities
+export const getDesignationLevel = (designation: Designation): number => {
+  return designationLevels[designation];
+};
+
+export const canApproveForDesignation = (userDesignation: Designation, targetDesignation: Designation): boolean => {
+  return getDesignationLevel(userDesignation) > getDesignationLevel(targetDesignation);
+};
+
+export const getDepartmentModuleAccess = (department: Department): SystemPermission[] => {
+  const baseAccess: SystemPermission[] = ["dashboard.view"];
+  
+  switch (department) {
+    case "cre":
+      return [...baseAccess, "customers.view", "customers.create", "customers.edit"];
+    case "accounts":
+      return [...baseAccess, "invoices.view", "invoices.create", "invoices.edit", "reports.financial"];
+    case "hr":
+      return [...baseAccess, "attendance.view_all", "leave.view_all", "users.view"];
+    case "sales_and_marketing":
+      return [...baseAccess, "customers.view", "quotations.view", "quotations.create", "products.view"];
+    case "technical_team":
+      return [...baseAccess, "products.view", "products.create", "products.specifications"];
+    default:
+      return baseAccess;
+  }
+};
