@@ -197,6 +197,7 @@ export class UserService {
           displayName: user.displayName || null,
           role: user.role,
           department: user.department,
+          designation: user.designation || null,
           createdAt: user.createdAt,
           photoURL: user.photoURL || null
         };
