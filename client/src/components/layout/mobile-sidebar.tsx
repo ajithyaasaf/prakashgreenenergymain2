@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 import { LogOut } from "lucide-react";
 import { useAuthContext } from "@/contexts/auth-context";
 import { useEffect, useState } from "react";
+import type { SystemPermission } from "@shared/schema";
 
 interface MobileSidebarProps {
   isOpen: boolean;
@@ -11,7 +12,7 @@ interface MobileSidebarProps {
 
 export function MobileSidebar({ isOpen, setIsOpen }: MobileSidebarProps) {
   const [location] = useLocation();
-  const { user } = useAuthContext();
+  const { user, hasPermission, hasRole, canApprove } = useAuthContext();
   const [screenWidth, setScreenWidth] = useState(window.innerWidth);
 
   // Update screen width on resize
@@ -35,46 +36,41 @@ export function MobileSidebar({ isOpen, setIsOpen }: MobileSidebarProps) {
     href: string;
     label: string;
     icon: string;
+    requiredPermissions?: SystemPermission | SystemPermission[];
     roles?: ("master_admin" | "admin" | "employee")[];
-    departments?: ("cre" | "accounts" | "hr" | "sales_and_marketing" | "technical_team")[];
-    permission?: string;
+    requiresApproval?: boolean;
   }
 
   const navItems: NavItem[] = [
-    { href: "/dashboard", label: "Dashboard", icon: "ri-dashboard-line" },
-    { href: "/customers", label: "Customers", icon: "ri-user-3-line", departments: ["sales_and_marketing"] },
-    { href: "/products", label: "Products", icon: "ri-store-2-line", departments: ["technical_team"] },
-    { href: "/quotations", label: "Quotations", icon: "ri-file-list-3-line", departments: ["sales_and_marketing"] },
-    { href: "/invoices", label: "Invoices", icon: "ri-bill-line", departments: ["accounts"] },
-    { href: "/attendance", label: "Attendance", icon: "ri-time-line", departments: ["hr"] },
-    { href: "/leave", label: "Leave", icon: "ri-calendar-check-line", departments: ["hr"] },
-    { href: "/user-management", label: "Users", icon: "ri-user-settings-line", roles: ["master_admin", "admin"] },
-    { href: "/departments", label: "Departments", icon: "ri-building-line", roles: ["master_admin"] },
-    { href: "/office-locations", label: "Offices", icon: "ri-map-pin-line", roles: ["master_admin"] },
+    { href: "/dashboard", label: "Dashboard", icon: "ri-dashboard-line", requiredPermissions: "dashboard.view" },
+    { href: "/customers", label: "Customers", icon: "ri-user-3-line", requiredPermissions: ["customers.view", "customers.create"] },
+    { href: "/products", label: "Products", icon: "ri-store-2-line", requiredPermissions: ["products.view", "products.create"] },
+    { href: "/quotations", label: "Quotations", icon: "ri-file-list-3-line", requiredPermissions: ["quotations.view", "quotations.create"] },
+    { href: "/invoices", label: "Invoices", icon: "ri-bill-line", requiredPermissions: ["invoices.view", "invoices.create"] },
+    { href: "/attendance", label: "Attendance", icon: "ri-time-line", requiredPermissions: ["attendance.view_own", "attendance.view_team", "attendance.view_all"] },
+    { href: "/leave", label: "Leave", icon: "ri-calendar-check-line", requiredPermissions: ["leave.view_own", "leave.view_team", "leave.view_all"] },
+    { href: "/user-management", label: "Users", icon: "ri-user-settings-line", roles: ["master_admin", "admin"], requiredPermissions: ["users.view", "users.create"] },
+    { href: "/departments", label: "Departments", icon: "ri-building-line", roles: ["master_admin"], requiredPermissions: ["departments.view", "departments.create"] },
+    { href: "/office-locations", label: "Offices", icon: "ri-map-pin-line", roles: ["master_admin"], requiredPermissions: "system.settings" },
     { href: "/settings", label: "Settings", icon: "ri-settings-4-line" },
   ];
 
-  // Filter items based on user role and department
+  // Filter items based on enterprise RBAC permissions
   const filteredNavItems = navItems.filter(item => {
     // Always show items with no restrictions
-    if (!item.roles && !item.departments) return true;
+    if (!item.roles && !item.requiredPermissions && !item.requiresApproval) return true;
     
     // If no user, don't show restricted items
     if (!user) return false;
     
-    // Check role-based access
-    if (item.roles && !item.roles.includes(user.role)) return false;
+    // Check role-based access if specified
+    if (item.roles && !hasRole(item.roles)) return false;
     
-    // Master admin can access everything
-    if (user.role === "master_admin") return true;
+    // Check enterprise permissions
+    if (item.requiredPermissions && !hasPermission(item.requiredPermissions)) return false;
     
-    // Check department-based access for employees
-    if (item.departments && user.department) {
-      if (!item.departments.includes(user.department)) {
-        // Department doesn't match and user is an employee
-        if (user.role === "employee") return false;
-      }
-    }
+    // Check approval permissions if required
+    if (item.requiresApproval && !canApprove) return false;
     
     return true;
   });

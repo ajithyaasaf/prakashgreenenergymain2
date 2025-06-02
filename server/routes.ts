@@ -261,7 +261,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Users
+  // Users - enterprise permission based access
   app.get("/api/users", verifyAuth, async (req, res) => {
     try {
       // Try to get user first, if not found, sync from Firebase Auth
@@ -274,7 +274,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      if (!user || (user.role !== "master_admin" && user.role !== "admin")) {
+      // Check enterprise permissions instead of hardcoded roles
+      if (!user || !(await storage.checkEffectiveUserPermission(user.uid, "users.view"))) {
         return res.status(403).json({ message: "Access denied" });
       }
       
@@ -295,12 +296,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/users/:id", verifyAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.user.uid);
-      if (
-        !user ||
-        (user.role !== "master_admin" &&
-          user.role !== "admin" &&
-          user.id !== req.params.id)
-      ) {
+      // Allow users to view their own profile or check enterprise permissions for viewing others
+      const canViewOwnProfile = user && user.id === req.params.id;
+      const hasViewPermission = user && await storage.checkEffectiveUserPermission(user.uid, "users.view");
+      
+      if (!user || (!canViewOwnProfile && !hasViewPermission)) {
         return res.status(403).json({ message: "Access denied" });
       }
       const targetUser = await storage.getUser(req.params.id);
@@ -317,7 +317,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/users", verifyAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.user.uid);
-      if (!user || user.role !== "master_admin") {
+      // Check enterprise permission for user creation
+      if (!user || !(await storage.checkEffectiveUserPermission(user.uid, "users.create"))) {
         return res.status(403).json({ message: "Access denied" });
       }
       
@@ -336,13 +337,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/users/:id", verifyAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.user.uid);
-      if (!user || (user.role !== "master_admin" && user.role !== "admin")) {
+      // Check enterprise permissions for user editing
+      if (!user || !(await storage.checkEffectiveUserPermission(user.uid, "users.edit"))) {
         return res.status(403).json({ message: "Access denied" });
       }
-      if (req.body.role === "master_admin" && user.role !== "master_admin") {
+      
+      // Check role assignment permissions using enterprise RBAC
+      if (req.body.role === "master_admin" && !(await storage.checkEffectiveUserPermission(user.uid, "permissions.assign"))) {
         return res
           .status(403)
-          .json({ message: "Only master admins can assign master_admin role" });
+          .json({ message: "Insufficient permissions to assign master_admin role" });
       }
       
       const result = await userService.updateUserProfile(req.params.id, req.body);

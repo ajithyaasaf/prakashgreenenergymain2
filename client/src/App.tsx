@@ -41,11 +41,10 @@ function Router() {
         </ProtectedRoute>
       </Route>
       
-      {/* Customer management - accessible to Sales & Marketing */}
+      {/* Customer management - enterprise permission based */}
       <Route path="/customers">
         <ProtectedRoute 
-          requiredPermission="manage_customers"
-          requiredDepartment={["sales_and_marketing"]}
+          requiredPermissions={["customers.view", "customers.create"]}
         >
           <DashboardLayout>
             <Customers />
@@ -53,11 +52,10 @@ function Router() {
         </ProtectedRoute>
       </Route>
       
-      {/* Product management - accessible to Technical Team */}
+      {/* Product management - enterprise permission based */}
       <Route path="/products">
         <ProtectedRoute 
-          requiredPermission="manage_products"
-          requiredDepartment={["technical_team"]}
+          requiredPermissions={["products.view", "products.create"]}
         >
           <DashboardLayout>
             <Products />
@@ -65,11 +63,10 @@ function Router() {
         </ProtectedRoute>
       </Route>
       
-      {/* Quotation management - accessible to Sales & Marketing */}
+      {/* Quotation management - enterprise permission based */}
       <Route path="/quotations">
         <ProtectedRoute 
-          requiredPermission="manage_quotations"
-          requiredDepartment={["sales_and_marketing"]}
+          requiredPermissions={["quotations.view", "quotations.create"]}
         >
           <DashboardLayout>
             <Quotations />
@@ -77,11 +74,10 @@ function Router() {
         </ProtectedRoute>
       </Route>
       
-      {/* Invoice management - accessible to Accounts */}
+      {/* Invoice management - enterprise permission based */}
       <Route path="/invoices">
         <ProtectedRoute 
-          requiredPermission="manage_invoices"
-          requiredDepartment={["accounts"]}
+          requiredPermissions={["invoices.view", "invoices.create"]}
         >
           <DashboardLayout>
             <Invoices />
@@ -89,11 +85,10 @@ function Router() {
         </ProtectedRoute>
       </Route>
       
-      {/* Attendance management - accessible to HR */}
+      {/* Attendance management - enterprise permission based */}
       <Route path="/attendance">
         <ProtectedRoute 
-          requiredPermission="manage_attendance"
-          requiredDepartment={["hr"]}
+          requiredPermissions={["attendance.view_own", "attendance.view_team", "attendance.view_all"]}
         >
           <DashboardLayout>
             <Attendance />
@@ -101,11 +96,10 @@ function Router() {
         </ProtectedRoute>
       </Route>
       
-      {/* Leave management - accessible to HR */}
+      {/* Leave management - enterprise permission based */}
       <Route path="/leave">
         <ProtectedRoute 
-          requiredPermission="manage_leaves"
-          requiredDepartment={["hr"]}
+          requiredPermissions={["leave.view_own", "leave.view_team", "leave.view_all"]}
         >
           <DashboardLayout>
             <Leave />
@@ -113,10 +107,10 @@ function Router() {
         </ProtectedRoute>
       </Route>
       
-      {/* User management - accessible to Admins and Master Admins */}
+      {/* User management - enterprise permission and role based */}
       <Route path="/user-management">
         <ProtectedRoute 
-          requiredPermission="manage_access"
+          requiredPermissions={["users.view", "users.create"]}
           requiredRole={["master_admin", "admin"]}
         >
           <DashboardLayout>
@@ -125,10 +119,10 @@ function Router() {
         </ProtectedRoute>
       </Route>
       
-      {/* Department management - accessible only to Master Admins */}
+      {/* Department management - enterprise permission based */}
       <Route path="/departments">
         <ProtectedRoute 
-          requiredPermission="manage_departments"
+          requiredPermissions={["departments.view", "departments.create"]}
           requiredRole="master_admin"
         >
           <DashboardLayout>
@@ -137,10 +131,10 @@ function Router() {
         </ProtectedRoute>
       </Route>
       
-      {/* Office Locations for geo-fencing - accessible only to Master Admins */}
+      {/* Office Locations - enterprise system administration */}
       <Route path="/office-locations">
         <ProtectedRoute 
-          requiredPermission="set_office_locations"
+          requiredPermissions="system.settings"
           requiredRole="master_admin"
         >
           <DashboardLayout>
