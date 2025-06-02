@@ -423,17 +423,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied" });
       }
 
-      const permissions = await storage.getUserPermissions(req.params.id);
+      const targetUser = await storage.getUser(req.params.id);
+      if (!targetUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Get effective permissions using enterprise RBAC
+      const effectivePermissions = await storage.getEffectiveUserPermissions(req.params.id);
       const approvalLimits = await storage.getUserApprovalLimits(req.params.id);
       
       res.json({
-        permissions,
+        user: {
+          uid: targetUser.uid,
+          email: targetUser.email,
+          displayName: targetUser.displayName,
+          role: targetUser.role,
+          department: targetUser.department,
+          designation: targetUser.designation
+        },
+        permissions: effectivePermissions,
         canApprove: approvalLimits.canApprove,
-        maxApprovalAmount: approvalLimits.maxAmount
+        maxApprovalAmount: approvalLimits.maxAmount,
+        rbacInfo: {
+          departmentAccess: targetUser.department ? `Department: ${targetUser.department} (defines which modules they can access)` : null,
+          designationLevel: targetUser.designation ? `Designation: ${targetUser.designation} (defines what actions they can perform)` : null
+        }
       });
     } catch (error) {
       console.error("Error fetching user permissions:", error);
       res.status(500).json({ message: "Failed to fetch user permissions" });
+    }
+  });
+
+  // Enterprise RBAC testing endpoint
+  app.get("/api/rbac/test", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || user.role !== "master_admin") {
+        return res.status(403).json({ message: "Access denied - Master admin only" });
+      }
+
+      const { getDepartmentModuleAccess, getDesignationActionPermissions, getEffectivePermissions } = await import("@shared/schema");
+      
+      // Test different department + designation combinations
+      const testCases = [
+        { department: "cre", designation: "assistant_manager" },
+        { department: "accounts", designation: "manager" },
+        { department: "hr", designation: "director" },
+        { department: "sales_and_marketing", designation: "executive" },
+        { department: "technical_team", designation: "senior_executive" }
+      ];
+
+      const results = testCases.map(({ department, designation }) => ({
+        combination: `${department} + ${designation}`,
+        departmentAccess: getDepartmentModuleAccess(department as any),
+        designationActions: getDesignationActionPermissions(designation as any),
+        effectivePermissions: getEffectivePermissions(department as any, designation as any)
+      }));
+
+      res.json({
+        message: "Enterprise RBAC Test Results",
+        description: "Department = Feature Access (modules), Designation = Action Permissions (what they can do)",
+        testResults: results,
+        currentUser: {
+          department: user.department,
+          designation: user.designation,
+          effectivePermissions: await storage.getEffectiveUserPermissions(user.uid)
+        }
+      });
+    } catch (error) {
+      console.error("Error testing RBAC:", error);
+      res.status(500).json({ message: "Failed to test RBAC system" });
     }
   });
 

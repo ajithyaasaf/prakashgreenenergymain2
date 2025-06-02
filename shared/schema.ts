@@ -226,16 +226,69 @@ export const getDepartmentModuleAccess = (department: Department): SystemPermiss
   
   switch (department) {
     case "cre":
-      return [...baseAccess, "customers.view", "customers.create", "customers.edit"];
+      return [...baseAccess, "customers.view", "customers.create", "customers.edit", "customers.export"];
     case "accounts":
-      return [...baseAccess, "invoices.view", "invoices.create", "invoices.edit", "reports.financial"];
+      return [...baseAccess, "invoices.view", "invoices.create", "invoices.edit", "invoices.approve", "reports.financial", "reports.export"];
     case "hr":
-      return [...baseAccess, "attendance.view_all", "leave.view_all", "users.view"];
+      return [...baseAccess, "attendance.view_all", "leave.view_all", "leave.approve", "users.view", "users.create", "users.edit"];
     case "sales_and_marketing":
-      return [...baseAccess, "customers.view", "quotations.view", "quotations.create", "products.view"];
+      return [...baseAccess, "customers.view", "quotations.view", "quotations.create", "quotations.edit", "products.view", "reports.basic"];
     case "technical_team":
-      return [...baseAccess, "products.view", "products.create", "products.specifications"];
+      return [...baseAccess, "products.view", "products.create", "products.edit", "products.specifications", "products.inventory"];
     default:
       return baseAccess;
   }
+};
+
+// Designation-based Action Permissions (what actions they can perform within modules)
+export const getDesignationActionPermissions = (designation: Designation): SystemPermission[] => {
+  const level = getDesignationLevel(designation);
+  
+  // Higher designation = more action permissions
+  const permissions: SystemPermission[] = [];
+  
+  // Basic permissions for all designations
+  permissions.push("dashboard.view", "attendance.view_own", "leave.view_own", "leave.request");
+  
+  // Level 3+ (Junior Executive and above)
+  if (level >= 3) {
+    permissions.push("customers.create", "products.create", "quotations.create");
+  }
+  
+  // Level 4+ (Executive and above)
+  if (level >= 4) {
+    permissions.push("customers.edit", "products.edit", "quotations.edit", "invoices.create");
+  }
+  
+  // Level 5+ (Senior Executive and above)
+  if (level >= 5) {
+    permissions.push("approve.quotations.basic", "approve.expenses.basic", "attendance.view_team");
+  }
+  
+  // Level 6+ (Assistant Manager and above)
+  if (level >= 6) {
+    permissions.push("approve.quotations.advanced", "approve.leave.team", "users.view", "reports.advanced");
+  }
+  
+  // Level 7+ (Manager and above)
+  if (level >= 7) {
+    permissions.push("approve.invoices.basic", "approve.leave.department", "users.create", "users.edit", "analytics.departmental");
+  }
+  
+  // Level 8 (Director)
+  if (level >= 8) {
+    permissions.push("approve.invoices.advanced", "users.permissions", "analytics.enterprise", "system.settings");
+  }
+  
+  return permissions;
+};
+
+// Combined Department + Designation permissions
+export const getEffectivePermissions = (department: Department, designation: Designation): SystemPermission[] => {
+  const departmentPermissions = getDepartmentModuleAccess(department);
+  const designationPermissions = getDesignationActionPermissions(designation);
+  
+  // Combine and deduplicate permissions
+  const combinedPermissions = new Set([...departmentPermissions, ...designationPermissions]);
+  return Array.from(combinedPermissions);
 };

@@ -1882,18 +1882,41 @@ export class FirestoreStorage implements IStorage {
 
     let permissions: Set<string> = new Set();
 
-    // Phase 1: Department + Designation based permissions (backward compatible)
+    // Master admin gets all permissions
+    if (user.role === "master_admin") {
+      // Import the required functions
+      const { getEffectivePermissions } = await import("@shared/schema");
+      const allPermissions = getEffectivePermissions(user.department || "cre", user.designation || "director");
+      // Add system-level permissions for master admin
+      allPermissions.forEach(p => permissions.add(p));
+      permissions.add("system.settings");
+      permissions.add("system.backup");
+      permissions.add("system.audit");
+      permissions.add("users.delete");
+      permissions.add("permissions.assign");
+      return Array.from(permissions);
+    }
+
+    // Enterprise RBAC: Department + Designation based permissions
     if (user.department && user.designation) {
-      const permissionGroup = await this.getPermissionsByDepartmentAndDesignation(
-        user.department, 
-        user.designation
-      );
-      if (permissionGroup) {
-        permissionGroup.permissions.forEach(p => permissions.add(p));
+      try {
+        const { getEffectivePermissions } = await import("@shared/schema");
+        const departmentDesignationPermissions = getEffectivePermissions(user.department, user.designation);
+        departmentDesignationPermissions.forEach(p => permissions.add(p));
+      } catch (error) {
+        console.error("Error loading schema functions:", error);
+        // Fallback to permission groups
+        const permissionGroup = await this.getPermissionsByDepartmentAndDesignation(
+          user.department, 
+          user.designation
+        );
+        if (permissionGroup) {
+          permissionGroup.permissions.forEach(p => permissions.add(p));
+        }
       }
     }
 
-    // Phase 2: Role-based permissions
+    // Phase 2: Additional Role-based permissions
     const roleAssignments = await this.getUserRoleAssignments(userId);
     for (const assignment of roleAssignments) {
       const role = await this.getRole(assignment.roleId);
