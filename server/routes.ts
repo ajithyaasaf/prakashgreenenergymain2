@@ -28,7 +28,7 @@ import { auth } from "./firebase";
 import { userService } from "./services/user-service";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Middleware to verify Firebase Auth token
+  // Enhanced middleware to verify Firebase Auth token and load user profile
   const verifyAuth = async (req: any, res: any, next: any) => {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -40,6 +40,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const decodedToken = await auth.verifyIdToken(token);
       req.user = decodedToken;
+      
+      // Load user profile from storage
+      const userProfile = await storage.getUser(decodedToken.uid);
+      if (userProfile) {
+        // Attach enhanced user data for permission checking
+        req.authenticatedUser = {
+          uid: decodedToken.uid,
+          user: userProfile,
+          permissions: [],
+          canApprove: false,
+          maxApprovalAmount: null
+        };
+        
+        // Calculate permissions if user has department and designation
+        if (userProfile.department && userProfile.designation) {
+          try {
+            const { getEffectivePermissions } = await import("@shared/schema");
+            const effectivePermissions = getEffectivePermissions(userProfile.department, userProfile.designation);
+            req.authenticatedUser.permissions = effectivePermissions;
+            
+            // Set approval capabilities based on designation
+            const designationLevels = {
+              "trainee": 1, "intern": 2, "junior_executive": 3, "executive": 4,
+              "senior_executive": 5, "assistant_manager": 6, "manager": 7, "director": 8
+            };
+            const level = designationLevels[userProfile.designation] || 1;
+            req.authenticatedUser.canApprove = level >= 5;
+            req.authenticatedUser.maxApprovalAmount = level >= 7 ? 1000000 : level >= 6 ? 500000 : level >= 5 ? 100000 : null;
+          } catch (error) {
+            console.error("Error calculating permissions:", error);
+          }
+        }
+        
+        // Master admin gets all permissions
+        if (userProfile.role === "master_admin") {
+          req.authenticatedUser.permissions = ["system.settings", "users.view", "users.create", "users.edit", "users.delete", "customers.view", "customers.create", "customers.edit", "products.view", "products.create", "products.edit", "quotations.view", "quotations.create", "quotations.edit", "invoices.view", "invoices.create", "invoices.edit"];
+          req.authenticatedUser.canApprove = true;
+          req.authenticatedUser.maxApprovalAmount = null; // Unlimited
+        }
+      }
+      
       next();
     } catch (error) {
       console.error("Auth verification error:", error);

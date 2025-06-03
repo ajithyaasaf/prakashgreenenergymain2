@@ -984,6 +984,77 @@ export class FirestoreStorage implements IStorage {
     };
   }
 
+  // Check effective user permission based on department + designation
+  async checkEffectiveUserPermission(userId: string, permission: string): Promise<boolean> {
+    try {
+      const user = await this.getUser(userId);
+      if (!user) return false;
+      
+      // Master admin has all permissions
+      if (user.role === "master_admin") return true;
+      
+      // If user doesn't have department or designation, deny access
+      if (!user.department || !user.designation) return false;
+      
+      // Import permission calculation logic from shared schema
+      const { getEffectivePermissions } = await import("@shared/schema");
+      const effectivePermissions = getEffectivePermissions(user.department, user.designation);
+      
+      return effectivePermissions.includes(permission);
+    } catch (error) {
+      console.error("Error checking effective user permission:", error);
+      return false;
+    }
+  }
+
+  // Audit logging implementation
+  async createAuditLog(data: z.infer<typeof insertAuditLogSchema>): Promise<AuditLog> {
+    const auditDoc = this.db.collection("audit_logs").doc();
+    const auditLog = {
+      id: auditDoc.id,
+      ...data,
+      timestamp: new Date(),
+      createdAt: new Date()
+    };
+    
+    await auditDoc.set({
+      ...auditLog,
+      timestamp: Timestamp.fromDate(auditLog.timestamp),
+      createdAt: Timestamp.fromDate(auditLog.createdAt)
+    });
+    
+    return auditLog as AuditLog;
+  }
+
+  async getAuditLogs(filters?: { userId?: string; entityType?: string; startDate?: Date; endDate?: Date }): Promise<AuditLog[]> {
+    let query: Query = this.db.collection("audit_logs");
+    
+    if (filters?.userId) {
+      query = query.where("userId", "==", filters.userId);
+    }
+    if (filters?.entityType) {
+      query = query.where("entityType", "==", filters.entityType);
+    }
+    if (filters?.startDate) {
+      query = query.where("timestamp", ">=", Timestamp.fromDate(filters.startDate));
+    }
+    if (filters?.endDate) {
+      query = query.where("timestamp", "<=", Timestamp.fromDate(filters.endDate));
+    }
+    
+    const snapshot = await query.orderBy("timestamp", "desc").limit(100).get();
+    
+    return snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        timestamp: data.timestamp?.toDate() || new Date(),
+        createdAt: data.createdAt?.toDate() || new Date()
+      } as AuditLog;
+    });
+  }
+
   async listOfficeLocations(): Promise<OfficeLocation[]> {
     const locationsCollection = this.db.collection("office_locations");
     const snapshot = await locationsCollection.get();
