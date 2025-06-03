@@ -413,18 +413,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const refreshPermissions = async (): Promise<void> => {
-    if (!user?.uid) return;
+    if (!user?.uid || !user?.department || !user?.designation) return;
     
     try {
-      const response = await fetch(`/api/users/${user.uid}/permissions`);
-      if (response.ok) {
-        const permissionData = await response.json();
-        setPermissions(permissionData.permissions || []);
-        setCanApprove(permissionData.canApprove || false);
-        setMaxApprovalAmount(permissionData.maxApprovalAmount || null);
-      }
+      // Calculate permissions directly from department + designation
+      const { getEffectivePermissions } = await import("@shared/schema");
+      const effectivePermissions = getEffectivePermissions(user.department, user.designation);
+      
+      console.log("Calculated permissions for", user.department, user.designation, ":", effectivePermissions);
+      
+      setPermissions(effectivePermissions);
+      
+      // Set approval capabilities based on designation level
+      const designationLevels = {
+        "trainee": 1,
+        "junior_executive": 3,
+        "executive": 4,
+        "senior_executive": 5,
+        "assistant_manager": 6,
+        "manager": 7,
+        "director": 8
+      };
+      
+      const level = designationLevels[user.designation] || 1;
+      setCanApprove(level >= 5); // Senior Executive and above can approve
+      setMaxApprovalAmount(level >= 7 ? 1000000 : level >= 6 ? 500000 : level >= 5 ? 100000 : null);
+      
     } catch (error) {
-      console.error("Error refreshing permissions:", error);
+      console.error("Error calculating permissions:", error);
+      setPermissions([]);
+      setCanApprove(false);
+      setMaxApprovalAmount(null);
     }
   };
 
