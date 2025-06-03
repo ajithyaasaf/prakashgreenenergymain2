@@ -1235,9 +1235,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Authentication required" });
       }
       
+      console.log("SERVER PERMISSION CHECK:", {
+        userPermissions: req.authenticatedUser.permissions,
+        hasCustomersView: req.authenticatedUser.permissions.includes("customers.view"),
+        hasCustomersCreate: req.authenticatedUser.permissions.includes("customers.create"),
+        userRole: req.authenticatedUser.user.role,
+        isMasterAdmin: req.authenticatedUser.user.role === "master_admin"
+      });
+      
       const hasPermission = req.authenticatedUser.permissions.includes("customers.view") || 
                            req.authenticatedUser.permissions.includes("customers.create") ||
                            req.authenticatedUser.user.role === "master_admin";
+      
+      console.log("SERVER PERMISSION RESULT:", hasPermission);
       
       if (!hasPermission) {
         return res.status(403).json({ message: "Access denied" });
