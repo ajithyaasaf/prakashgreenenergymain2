@@ -361,9 +361,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Registration endpoint for new users (public)
+  // Registration endpoint for new users (public - no auth required)
   app.post("/api/auth/register", async (req, res) => {
     try {
+      console.log("Registration request received:", req.body);
+      
       const result = await userService.createUser({
         ...req.body,
         role: "employee" // Force employee role for public registration
@@ -385,6 +387,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error registering user:", error);
       res.status(500).json({ message: "Failed to register user" });
+    }
+  });
+
+  // Public endpoint for syncing user profile after Firebase Auth registration
+  app.post("/api/sync-user", async (req, res) => {
+    try {
+      console.log("User sync request received:", req.body);
+      
+      // Get UID from request body or auth token
+      let uid = req.body.uid;
+      
+      if (!uid) {
+        const authHeader = req.headers.authorization;
+        if (authHeader && authHeader.startsWith("Bearer ")) {
+          const token = authHeader.split("Bearer ")[1];
+          try {
+            const decodedToken = await auth.verifyIdToken(token);
+            uid = decodedToken.uid;
+          } catch (error) {
+            console.error("Token verification failed during sync:", error);
+            return res.status(401).json({ message: "Invalid or missing authentication" });
+          }
+        } else {
+          return res.status(400).json({ message: "UID required for user sync" });
+        }
+      }
+      
+      const result = await userService.syncUserProfile(uid, req.body);
+      
+      if (!result.success) {
+        return res.status(400).json({ message: result.error });
+      }
+      
+      res.json({
+        message: "User profile synced successfully",
+        user: result.user,
+        action: result.action
+      });
+    } catch (error) {
+      console.error("Error syncing user:", error);
+      res.status(500).json({ message: "Failed to sync user profile" });
     }
   });
 
