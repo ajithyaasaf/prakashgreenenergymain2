@@ -58,11 +58,27 @@ export function useAuth() {
       // Force refresh the Firebase user to get updated profile
       await userCredential.user.reload();
       
-      // Create user profile in the backend with the displayName
-      await createUserProfile({
-        displayName,
-        role: "employee", // Default role for new users
+      // Get the user's auth token for backend sync
+      const token = await userCredential.user.getIdToken();
+      
+      // Sync user profile with backend using the new endpoint
+      const response = await fetch('/api/sync-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          uid: userCredential.user.uid,
+          displayName,
+          role: "employee"
+        })
       });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to sync user profile');
+      }
       
       toast({
         title: "Registration Successful",

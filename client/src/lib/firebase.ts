@@ -13,12 +13,12 @@ import {
 import { getFirestore, collection, getDocs, doc, getDoc } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
-// Firebase configuration from environment variables
-console.log("Loading Firebase config with API key:", import.meta.env.VITE_FIREBASE_API_KEY ? "present" : "missing");
+// Firebase configuration - using hardcoded values since they're public keys
+console.log("Loading Firebase config with API key:", "present");
 
 const firebaseConfig = {
   apiKey: "AIzaSyBo8D4pTG6oNGg4qy7V4AaC73qfAB0HRcc",
-  authDomain: "solar-energy-56bc8.firebaseapp.com",
+  authDomain: "solar-energy-56bc8.firebaseapp.com", 
   databaseURL: "https://solar-energy-56bc8-default-rtdb.firebaseio.com",
   projectId: "solar-energy-56bc8",
   storageBucket: "solar-energy-56bc8.firebasestorage.app",
