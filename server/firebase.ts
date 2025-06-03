@@ -25,21 +25,18 @@ try {
       credential: cert(firebaseConfig as ServiceAccount),
       storageBucket: firebaseConfig.storageBucket
     });
+    
+    auth = getAuth(app);
+    db = getFirestore(app);
+    storage = getStorage(app);
+    console.log("Firebase Admin initialized successfully");
   } else {
-    // Initialize with default project credentials (when running on cloud services)
-    app = initializeApp({
-      projectId: firebaseConfig.projectId,
-      storageBucket: firebaseConfig.storageBucket
-    });
+    console.error("Firebase Admin credentials missing. Required: FIREBASE_PRIVATE_KEY, FIREBASE_CLIENT_EMAIL, FIREBASE_PROJECT_ID");
+    throw new Error("Firebase Admin SDK requires service account credentials");
   }
-  
-  auth = getAuth(app);
-  db = getFirestore(app);
-  storage = getStorage(app);
-  console.log("Firebase Admin initialized successfully");
 } catch (error) {
-  console.error("Error initializing Firebase Admin:", error);
-  throw new Error("Failed to initialize Firebase Admin. Check environment variables and credentials.");
+  console.error("Critical: Firebase Admin initialization failed:", error);
+  process.exit(1); // Exit the process if Firebase cannot initialize
 }
 
 export { app, auth, db, storage };

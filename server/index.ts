@@ -66,22 +66,5 @@ app.use((req, res, next) => {
     reusePort: true,
   }, () => {
     log(`serving on port ${port}`);
-    
-    // Test Firebase Admin SDK on startup
-    import('./test-firebase-admin').then(async ({ testFirebaseAdmin, testCustomTokenGeneration }) => {
-      console.log('🔥 Running Firebase Admin SDK startup verification...');
-      try {
-        const results = await testFirebaseAdmin();
-        console.log('Firebase Admin SDK Test Results:', results);
-        
-        // Test custom token generation
-        const tokenResult = await testCustomTokenGeneration();
-        console.log('Custom Token Test:', tokenResult.success ? 'PASSED' : 'FAILED');
-        
-        console.log('✅ Firebase Admin SDK is fully operational');
-      } catch (error) {
-        console.error('❌ Firebase Admin SDK test failed:', error);
-      }
-    });
   });
 })();
