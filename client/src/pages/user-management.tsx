@@ -77,7 +77,7 @@ export default function UserManagement() {
     );
   }
 
-  // Fetch users
+  // Fetch users - only if user has admin permissions
   const {
     data: users = [],
     isLoading,
@@ -85,18 +85,17 @@ export default function UserManagement() {
   } = useQuery({
     queryKey: ["users"],
     queryFn: async () => {
-      const res = await apiRequest("GET", "/api/users", { userId: user?.id });
+      const res = await apiRequest("GET", "/api/users");
       return res.json();
     },
+    enabled: user?.role === "master_admin" || user?.role === "admin",
   });
 
-  // Fetch departments
+  // Fetch departments - only if user has admin permissions
   const { data: departments = [] } = useQuery({
     queryKey: ["departments"],
     queryFn: async () => {
-      const res = await apiRequest("GET", "/api/departments", {
-        userId: user?.id,
-      });
+      const res = await apiRequest("GET", "/api/departments");
       return res.json();
     },
   });

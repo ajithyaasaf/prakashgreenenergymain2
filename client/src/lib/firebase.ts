@@ -220,15 +220,8 @@ export const syncUser = async (uid: string, forceFull = false) => {
       };
     }
     
-    // Try to get existing user from our API
+    // Skip API calls for now - user sync should happen through auth context
     let existingUser = null;
-    try {
-      const existingUsersResponse = await fetch('/api/users');
-      const existingUsers = await existingUsersResponse.json();
-      existingUser = existingUsers.find((user: any) => user.uid === uid);
-    } catch (error) {
-      console.error("Error fetching users from API:", error);
-    }
     
     // Merge data with priority to auth data
     let email = authUser?.email || firestoreUser?.email || `user-${uid}@example.com`;
@@ -240,49 +233,19 @@ export const syncUser = async (uid: string, forceFull = false) => {
     
     const department = firestoreUser?.department || null;
     
-    // Create or update user
-    if (!existingUser) {
-      // Create new user
-      const response = await fetch('/api/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          uid,
-          email,
-          displayName,
-          role,
-          department
-        })
-      });
-      
-      if (response.ok) {
-        const newUser = await response.json();
-        return { status: 'created', user: newUser };
+    // Return user data from Firestore - API calls handled through auth context
+    return { 
+      status: 'firestore_only', 
+      user: {
+        uid,
+        id: uid,
+        email,
+        displayName,
+        role,
+        department,
+        createdAt: new Date()
       }
-    } else if (forceFull || existingUser.role !== role || 
-        existingUser.department !== department || 
-        existingUser.displayName !== displayName ||
-        existingUser.email !== email) {
-      
-      // Update existing user
-      const response = await fetch(`/api/users/${existingUser.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          role,
-          department,
-          displayName,
-          email
-        })
-      });
-      
-      if (response.ok) {
-        const updatedUser = await response.json();
-        return { status: 'updated', user: updatedUser };
-      }
-    }
-    
-    return { status: 'unchanged', user: existingUser };
+    };
   } catch (error) {
     console.error(`Error syncing user ${uid}:`, error);
     return { status: 'error', error: String(error) };
