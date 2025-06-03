@@ -46,6 +46,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Load user profile from storage
       const userProfile = await storage.getUser(decodedToken.uid);
+      console.log("SERVER DEBUG: User profile loaded:", userProfile ? { uid: userProfile.uid, role: userProfile.role, department: userProfile.department, designation: userProfile.designation } : "null");
+      
       if (userProfile) {
         // Attach enhanced user data for permission checking
         req.authenticatedUser = {
@@ -56,13 +58,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
           maxApprovalAmount: null
         };
         
+        // Master admin gets all permissions first
+        if (userProfile.role === "master_admin") {
+          req.authenticatedUser.permissions = ["system.settings", "users.view", "users.create", "users.edit", "users.delete", "customers.view", "customers.create", "customers.edit", "products.view", "products.create", "products.edit", "quotations.view", "quotations.create", "quotations.edit", "invoices.view", "invoices.create", "invoices.edit"];
+          req.authenticatedUser.canApprove = true;
+          req.authenticatedUser.maxApprovalAmount = null; // Unlimited
+          console.log("SERVER DEBUG: Master admin permissions assigned:", req.authenticatedUser.permissions.length);
+        }
         // Calculate permissions if user has department and designation
-        if (userProfile.department && userProfile.designation) {
+        else if (userProfile.department && userProfile.designation) {
           try {
+            console.log("SERVER DEBUG: About to calculate permissions for dept:", userProfile.department, "designation:", userProfile.designation);
             const { getEffectivePermissions } = await import("@shared/schema");
             const effectivePermissions = getEffectivePermissions(userProfile.department, userProfile.designation);
             req.authenticatedUser.permissions = effectivePermissions;
-            console.log("SERVER: Calculated permissions for user", userProfile.uid, "with dept:", userProfile.department, "designation:", userProfile.designation, "permissions:", effectivePermissions.length);
+            console.log("SERVER DEBUG: Calculated permissions for user", userProfile.uid, "with dept:", userProfile.department, "designation:", userProfile.designation, "permissions:", effectivePermissions.length, "list:", effectivePermissions);
             
             // Set approval capabilities based on designation
             const designationLevels = {
@@ -74,14 +84,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             req.authenticatedUser.maxApprovalAmount = level >= 7 ? 1000000 : level >= 6 ? 500000 : level >= 5 ? 100000 : null;
           } catch (error) {
             console.error("Error calculating permissions:", error);
+            console.error("Error details:", error.stack);
           }
-        }
-        
-        // Master admin gets all permissions
-        if (userProfile.role === "master_admin") {
-          req.authenticatedUser.permissions = ["system.settings", "users.view", "users.create", "users.edit", "users.delete", "customers.view", "customers.create", "customers.edit", "products.view", "products.create", "products.edit", "quotations.view", "quotations.create", "quotations.edit", "invoices.view", "invoices.create", "invoices.edit"];
-          req.authenticatedUser.canApprove = true;
-          req.authenticatedUser.maxApprovalAmount = null; // Unlimited
+        } else {
+          console.log("SERVER DEBUG: User missing department or designation:", userProfile.uid, "dept:", userProfile.department, "designation:", userProfile.designation);
         }
         
       }
