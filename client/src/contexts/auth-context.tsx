@@ -373,13 +373,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Enterprise permission functions
   const hasPermission = (permission: SystemPermission | SystemPermission[]): boolean => {
-    if (!user || user.role === "master_admin") return true; // Master admin has all permissions
+    if (!user) return false;
+    if (user.role === "master_admin") return true; // Master admin has all permissions
+    
+    console.log("=== PERMISSION CHECK ===");
+    console.log("User permissions:", permissions);
+    console.log("Required permission:", permission);
+    console.log("Permissions length:", permissions.length);
     
     if (Array.isArray(permission)) {
-      return permission.some(p => permissions.includes(p));
+      const hasAny = permission.some(p => permissions.includes(p));
+      console.log("Array check result:", hasAny);
+      return hasAny;
     }
     
-    return permissions.includes(permission);
+    const hasSingle = permissions.includes(permission);
+    console.log("Single check result:", hasSingle);
+    return hasSingle;
   };
 
   const hasRole = (role: UserRole | UserRole[]): boolean => {
@@ -420,13 +430,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { getEffectivePermissions } = await import("@shared/schema");
       const effectivePermissions = getEffectivePermissions(user.department, user.designation);
       
-      console.log("Calculated permissions for", user.department, user.designation, ":", effectivePermissions);
+      console.log("=== PERMISSION CALCULATION DEBUG ===");
+      console.log("User:", user.uid);
+      console.log("Department:", user.department);
+      console.log("Designation:", user.designation);
+      console.log("Calculated permissions:", effectivePermissions);
+      console.log("Permission count:", effectivePermissions.length);
+      console.log("=====================================");
       
       setPermissions(effectivePermissions);
       
       // Set approval capabilities based on designation level
       const designationLevels = {
         "trainee": 1,
+        "intern": 2,
         "junior_executive": 3,
         "executive": 4,
         "senior_executive": 5,

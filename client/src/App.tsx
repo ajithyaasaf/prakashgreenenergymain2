@@ -107,11 +107,10 @@ function Router() {
         </ProtectedRoute>
       </Route>
       
-      {/* User management - enterprise permission and role based */}
+      {/* User management - enterprise permission based */}
       <Route path="/user-management">
         <ProtectedRoute 
-          requiredPermissions={["users.view", "users.create"]}
-          requiredRole={["master_admin", "admin"]}
+          requiredPermissions={["users.view"]}
         >
           <DashboardLayout>
             <UserManagement />
