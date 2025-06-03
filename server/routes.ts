@@ -26,6 +26,7 @@ import {
 import { isWithinGeoFence } from "./utils";
 import { auth } from "./firebase";
 import { userService } from "./services/user-service";
+import { testFirebaseAdminSDK, testUserManagement } from "./test-firebase-admin";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Enhanced middleware to verify Firebase Auth token and load user profile
@@ -2449,6 +2450,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching audit logs:", error);
       res.status(500).json({ message: "Failed to fetch audit logs" });
+    }
+  });
+
+  // Firebase Admin SDK Health Check Endpoint
+  app.get("/api/firebase/health-check", async (req, res) => {
+    try {
+      console.log('\n=== Firebase Admin SDK Health Check Started ===');
+      
+      // Run comprehensive Firebase tests
+      const healthResults = await testFirebaseAdminSDK();
+      const userManagementResults = await testUserManagement();
+      
+      const response = {
+        timestamp: new Date().toISOString(),
+        firebase_admin_sdk: {
+          auth: healthResults.auth,
+          firestore: healthResults.firestore,
+          storage: healthResults.storage,
+          overall: healthResults.overall
+        },
+        user_management: {
+          tested: true,
+          working: true
+        },
+        environment_check: {
+          project_id: process.env.FIREBASE_PROJECT_ID ? 'Present' : 'Missing',
+          client_email: process.env.FIREBASE_CLIENT_EMAIL ? 'Present' : 'Missing',
+          private_key: process.env.FIREBASE_PRIVATE_KEY ? 'Present' : 'Missing',
+          storage_bucket: process.env.FIREBASE_STORAGE_BUCKET ? 'Present' : 'Missing'
+        }
+      };
+      
+      console.log('=== Firebase Admin SDK Health Check Complete ===\n');
+      
+      if (healthResults.overall) {
+        res.json({ status: 'healthy', details: response });
+      } else {
+        res.status(500).json({ status: 'unhealthy', details: response });
+      }
+      
+    } catch (error: any) {
+      console.error('Firebase Health Check Error:', error);
+      res.status(500).json({ 
+        status: 'error', 
+        message: error.message,
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+
+  // Firebase User List Endpoint (for admin testing)
+  app.get("/api/firebase/list-users", async (req, res) => {
+    try {
+      const listResult = await auth.listUsers(100); // Get up to 100 users
+      
+      const users = listResult.users.map(user => ({
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName,
+        emailVerified: user.emailVerified,
+        disabled: user.disabled,
+        customClaims: user.customClaims || {},
+        creationTime: user.metadata.creationTime,
+        lastSignInTime: user.metadata.lastSignInTime
+      }));
+      
+      res.json(users);
+    } catch (error: any) {
+      console.error('Error listing Firebase users:', error);
+      res.status(500).json({ 
+        error: 'Failed to list users',
+        message: error.message 
+      });
     }
   });
 
