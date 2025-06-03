@@ -215,6 +215,8 @@ export const syncUser = async (uid: string, forceFull = false) => {
           displayName: authUser?.displayName || firestoreUser.displayName || "Admin User",
           role: "master_admin",
           department: firestoreUser.department || null,
+          designation: firestoreUser.designation || null,
+          isActive: firestoreUser.isActive !== false,
           createdAt: new Date()
         }
       };
@@ -232,6 +234,15 @@ export const syncUser = async (uid: string, forceFull = false) => {
     console.log("SyncUser - User role from Firestore:", uid, firestoreUser?.role);
     
     const department = firestoreUser?.department || null;
+    const designation = firestoreUser?.designation || null;
+    
+    console.log("SyncUser - Complete user data:", {
+      uid,
+      role,
+      department,
+      designation,
+      isActive: firestoreUser?.isActive
+    });
     
     // Return user data from Firestore - API calls handled through auth context
     return { 
@@ -243,6 +254,12 @@ export const syncUser = async (uid: string, forceFull = false) => {
         displayName,
         role,
         department,
+        designation,
+        isActive: firestoreUser?.isActive !== false,
+        employeeId: firestoreUser?.employeeId || null,
+        reportingManagerId: firestoreUser?.reportingManagerId || null,
+        payrollGrade: firestoreUser?.payrollGrade || null,
+        joinDate: firestoreUser?.joinDate ? new Date(firestoreUser.joinDate) : null,
         createdAt: new Date()
       }
     };
