@@ -43,7 +43,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Load user profile from storage
       const userProfile = await storage.getUser(decodedToken.uid);
+      console.log("=== VERIFY AUTH DEBUG ===");
+      console.log("Decoded token UID:", decodedToken.uid);
+      console.log("User profile found:", !!userProfile);
       if (userProfile) {
+        console.log("User profile:", userProfile);
         // Attach enhanced user data for permission checking
         req.authenticatedUser = {
           uid: decodedToken.uid,
@@ -79,6 +83,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           req.authenticatedUser.canApprove = true;
           req.authenticatedUser.maxApprovalAmount = null; // Unlimited
         }
+        
+        console.log("Final authenticated user:", {
+          uid: req.authenticatedUser.uid,
+          role: req.authenticatedUser.user.role,
+          department: req.authenticatedUser.user.department,
+          designation: req.authenticatedUser.user.designation,
+          permissions: req.authenticatedUser.permissions
+        });
+      } else {
+        console.log("No user profile found for UID:", decodedToken.uid);
       }
       
       next();
@@ -1227,11 +1241,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Customers with pagination and performance optimizations
   app.get("/api/customers", verifyAuth, async (req, res) => {
     try {
+      console.log("=== CUSTOMERS ROUTE START ===");
+      console.log("Request authenticated user exists:", !!req.authenticatedUser);
+      console.log("Request user exists:", !!(req as any).user);
+      
       if (!req.authenticatedUser) {
+        console.log("No authenticatedUser, returning 401");
         return res.status(401).json({ message: "Authentication required" });
       }
 
       // Check if user has permission to view customers
+      console.log("=== CUSTOMERS API DEBUG ===");
+      console.log("Authenticated User:", req.authenticatedUser);
+      console.log("User permissions:", req.authenticatedUser.permissions);
+      console.log("Has customers.view:", req.authenticatedUser.permissions.includes("customers.view"));
+      console.log("Has customers.create:", req.authenticatedUser.permissions.includes("customers.create"));
+      console.log("User role:", req.authenticatedUser.user.role);
+      console.log("========================");
+      
       const hasPermission = req.authenticatedUser.permissions.includes("customers.view") || 
                            req.authenticatedUser.permissions.includes("customers.create") ||
                            req.authenticatedUser.user.role === "master_admin";
