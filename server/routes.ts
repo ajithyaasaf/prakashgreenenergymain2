@@ -31,12 +31,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Enhanced middleware to verify Firebase Auth token and load user profile
   const verifyAuth = async (req: any, res: any, next: any) => {
     const authHeader = req.headers.authorization;
+    console.log("SERVER AUTH: Headers received:", !!authHeader, authHeader ? "Bearer format: " + authHeader.startsWith("Bearer ") : "no header");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return res
         .status(401)
         .json({ message: "Unauthorized: Missing or invalid token" });
     }
     const token = authHeader.split("Bearer ")[1];
+    console.log("SERVER AUTH: Token extracted, length:", token.length);
     try {
       const decodedToken = await auth.verifyIdToken(token);
       req.user = decodedToken;
@@ -59,6 +61,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const { getEffectivePermissions } = await import("@shared/schema");
             const effectivePermissions = getEffectivePermissions(userProfile.department, userProfile.designation);
             req.authenticatedUser.permissions = effectivePermissions;
+            console.log("SERVER: Calculated permissions for user", userProfile.uid, "with dept:", userProfile.department, "designation:", userProfile.designation, "permissions:", effectivePermissions.length);
             
             // Set approval capabilities based on designation
             const designationLevels = {

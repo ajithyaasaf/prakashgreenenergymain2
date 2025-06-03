@@ -15,7 +15,15 @@ export async function apiRequest(
 ): Promise<Response> {
   // Get the Firebase auth token
   const auth = getAuth();
-  const token = await auth.currentUser?.getIdToken();
+  const currentUser = auth.currentUser;
+  
+  if (!currentUser) {
+    console.log("FRONTEND AUTH: No current user, cannot get token");
+    throw new Error("User not authenticated");
+  }
+  
+  const token = await currentUser.getIdToken();
+  console.log("FRONTEND AUTH: Token obtained for user", currentUser.uid, "token length:", token.length);
   
   // For GET requests, append data as query parameters if provided
   let finalUrl = url;
