@@ -466,9 +466,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Load permissions when user changes
   useEffect(() => {
+    console.log("=== PERMISSION USEEFFECT TRIGGER ===");
+    console.log("User UID:", user?.uid);
+    console.log("User Department:", user?.department);
+    console.log("User Designation:", user?.designation);
+    console.log("All conditions met:", !!(user?.uid && user.department && user.designation));
+    console.log("=====================================");
+    
     if (user?.uid && user.department && user.designation) {
+      console.log("Calling refreshPermissions...");
       refreshPermissions();
     } else {
+      console.log("Conditions not met, clearing permissions");
       setPermissions([]);
       setCanApprove(false);
       setMaxApprovalAmount(null);
