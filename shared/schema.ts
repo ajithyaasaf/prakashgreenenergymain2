@@ -230,7 +230,7 @@ export const getDepartmentModuleAccess = (department: Department): SystemPermiss
     case "accounts":
       return [...baseAccess, "invoices.view", "invoices.create", "invoices.edit", "invoices.approve", "reports.financial", "reports.export"];
     case "hr":
-      return [...baseAccess, "attendance.view_all", "leave.view_all", "leave.approve", "users.view", "users.create", "users.edit"];
+      return [...baseAccess, "attendance.view_all", "leave.view_all", "leave.approve", "users.view", "users.create", "users.edit", "customers.view", "products.view", "quotations.view", "invoices.view"];
     case "sales_and_marketing":
       return [...baseAccess, "customers.view", "quotations.view", "quotations.create", "quotations.edit", "products.view", "reports.basic"];
     case "technical_team":

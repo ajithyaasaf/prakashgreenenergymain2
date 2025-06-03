@@ -1227,13 +1227,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Customers with pagination and performance optimizations
   app.get("/api/customers", verifyAuth, async (req, res) => {
     try {
-      const user = await storage.getUser(req.user.uid);
-      if (
-        !user ||
-        !["master_admin", "admin", "sales_and_marketing"].includes(
-          user.role || user.department || "",
-        )
-      ) {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      // Check if user has permission to view customers
+      const hasPermission = req.authenticatedUser.permissions.includes("customers.view") || 
+                           req.authenticatedUser.permissions.includes("customers.create") ||
+                           req.authenticatedUser.user.role === "master_admin";
+      
+      if (!hasPermission) {
         return res.status(403).json({ message: "Access denied" });
       }
       
@@ -1393,13 +1396,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Products with pagination and performance optimizations
   app.get("/api/products", verifyAuth, async (req, res) => {
     try {
-      const user = await storage.getUser(req.user.uid);
-      if (
-        !user ||
-        !["master_admin", "admin", "technical_team"].includes(
-          user.role || user.department || "",
-        )
-      ) {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      // Check if user has permission to view products
+      const hasPermission = req.authenticatedUser.permissions.includes("products.view") || 
+                           req.authenticatedUser.permissions.includes("products.create") ||
+                           req.authenticatedUser.user.role === "master_admin";
+      
+      if (!hasPermission) {
         return res.status(403).json({ message: "Access denied" });
       }
       
@@ -1558,13 +1564,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Quotations with pagination and performance optimizations
   app.get("/api/quotations", verifyAuth, async (req, res) => {
     try {
-      const user = await storage.getUser(req.user.uid);
-      if (
-        !user ||
-        !["master_admin", "admin", "sales_and_marketing"].includes(
-          user.role || user.department || "",
-        )
-      ) {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      // Check if user has permission to view quotations
+      const hasPermission = req.authenticatedUser.permissions.includes("quotations.view") || 
+                           req.authenticatedUser.permissions.includes("quotations.create") ||
+                           req.authenticatedUser.user.role === "master_admin";
+      
+      if (!hasPermission) {
         return res.status(403).json({ message: "Access denied" });
       }
       
@@ -1768,13 +1777,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Invoices with pagination and performance optimizations
   app.get("/api/invoices", verifyAuth, async (req, res) => {
     try {
-      const user = await storage.getUser(req.user.uid);
-      if (
-        !user ||
-        !["master_admin", "admin", "accounts"].includes(
-          user.role || user.department || "",
-        )
-      ) {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      // Check if user has permission to view invoices
+      const hasPermission = req.authenticatedUser.permissions.includes("invoices.view") || 
+                           req.authenticatedUser.permissions.includes("invoices.create") ||
+                           req.authenticatedUser.user.role === "master_admin";
+      
+      if (!hasPermission) {
         return res.status(403).json({ message: "Access denied" });
       }
       
