@@ -26,6 +26,7 @@ import {
 import { isWithinGeoFence } from "./utils";
 import { auth } from "./firebase";
 import { userService } from "./services/user-service";
+import { testFirebaseAdmin, testCustomTokenGeneration, testUserManagement } from "./test-firebase-admin";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Middleware to verify Firebase Auth token
@@ -257,6 +258,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ 
         message: "Failed to fetch activity logs",
         error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  });
+
+  // Firebase Admin SDK Test Routes
+  app.get("/api/test/firebase-admin", async (req, res) => {
+    try {
+      const results = await testFirebaseAdmin();
+      res.json({
+        success: true,
+        message: "Firebase Admin SDK test completed",
+        results
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+        error: error.message,
+        message: "Firebase Admin SDK test failed"
+      });
+    }
+  });
+
+  app.get("/api/test/custom-token", async (req, res) => {
+    try {
+      const result = await testCustomTokenGeneration();
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
+  app.post("/api/test/user-management", async (req, res) => {
+    try {
+      const result = await testUserManagement();
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+        error: error.message
       });
     }
   });
