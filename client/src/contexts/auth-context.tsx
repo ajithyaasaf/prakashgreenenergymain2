@@ -423,10 +423,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const refreshPermissions = async (): Promise<void> => {
-    if (!user?.uid || !user?.department || !user?.designation) return;
+    if (!user?.uid) return;
     
     try {
-      // Calculate permissions directly from department + designation
+      // Calculate permissions based on department + designation (or default for new employees)
       const { getEffectivePermissions } = await import("@shared/schema");
       const effectivePermissions = getEffectivePermissions(user.department, user.designation);
       
@@ -441,20 +441,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setPermissions(effectivePermissions);
       
       // Set approval capabilities based on designation level
-      const designationLevels = {
-        "trainee": 1,
-        "intern": 2,
-        "junior_executive": 3,
-        "executive": 4,
-        "senior_executive": 5,
-        "assistant_manager": 6,
-        "manager": 7,
-        "director": 8
-      };
-      
-      const level = designationLevels[user.designation] || 1;
-      setCanApprove(level >= 5); // Senior Executive and above can approve
-      setMaxApprovalAmount(level >= 7 ? 1000000 : level >= 6 ? 500000 : level >= 5 ? 100000 : null);
+      if (user.designation) {
+        const designationLevels = {
+          "trainee": 1,
+          "intern": 2,
+          "junior_executive": 3,
+          "executive": 4,
+          "senior_executive": 5,
+          "assistant_manager": 6,
+          "manager": 7,
+          "director": 8
+        };
+        
+        const level = designationLevels[user.designation] || 1;
+        setCanApprove(level >= 5); // Senior Executive and above can approve
+        setMaxApprovalAmount(level >= 7 ? 1000000 : level >= 6 ? 500000 : level >= 5 ? 100000 : null);
+      } else {
+        // New employees cannot approve anything
+        setCanApprove(false);
+        setMaxApprovalAmount(null);
+      }
       
     } catch (error) {
       console.error("Error calculating permissions:", error);
@@ -470,10 +476,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     console.log("User UID:", user?.uid);
     console.log("User Department:", user?.department);
     console.log("User Designation:", user?.designation);
-    console.log("All conditions met:", !!(user?.uid && user.department && user.designation));
+    console.log("All conditions met:", !!(user?.uid));
     console.log("=====================================");
     
-    if (user?.uid && user.department && user.designation) {
+    if (user?.uid) {
       console.log("Calling refreshPermissions...");
       refreshPermissions();
     } else {
