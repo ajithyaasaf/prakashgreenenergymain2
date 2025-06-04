@@ -87,7 +87,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
             console.error("Error details:", error.stack);
           }
         } else {
+          // New employee without department/designation gets default permissions
           console.log("SERVER DEBUG: User missing department or designation:", userProfile.uid, "dept:", userProfile.department, "designation:", userProfile.designation);
+          try {
+            const { getNewEmployeePermissions } = await import("@shared/schema");
+            const defaultPermissions = getNewEmployeePermissions();
+            req.authenticatedUser.permissions = defaultPermissions;
+            req.authenticatedUser.canApprove = false;
+            req.authenticatedUser.maxApprovalAmount = null;
+            console.log("SERVER DEBUG: Assigned default permissions for new employee:", userProfile.uid, "permissions:", defaultPermissions);
+          } catch (error) {
+            console.error("Error loading default permissions:", error);
+            req.authenticatedUser.permissions = ["dashboard.view", "attendance.view_own", "leave.view_own", "leave.request"];
+          }
         }
         
       }

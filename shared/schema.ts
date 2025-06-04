@@ -283,8 +283,23 @@ export const getDesignationActionPermissions = (designation: Designation): Syste
   return permissions;
 };
 
+// Default permissions for new employees without department/designation
+export const getNewEmployeePermissions = (): SystemPermission[] => {
+  return [
+    "dashboard.view",
+    "attendance.view_own",
+    "leave.view_own",
+    "leave.request"
+  ];
+};
+
 // Combined Department + Designation permissions
-export const getEffectivePermissions = (department: Department, designation: Designation): SystemPermission[] => {
+export const getEffectivePermissions = (department: Department | null, designation: Designation | null): SystemPermission[] => {
+  // If new employee without department or designation, return basic attendance permissions
+  if (!department || !designation) {
+    return getNewEmployeePermissions();
+  }
+  
   const departmentPermissions = getDepartmentModuleAccess(department);
   const designationPermissions = getDesignationActionPermissions(designation);
   
