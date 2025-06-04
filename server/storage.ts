@@ -993,22 +993,37 @@ export class FirestoreStorage implements IStorage {
   // Check effective user permission based on department + designation
   async checkEffectiveUserPermission(userId: string, permission: string): Promise<boolean> {
     try {
+      console.log(`SERVER PERMISSION CHECK: Checking permission '${permission}' for user '${userId}'`);
       const user = await this.getUser(userId);
-      if (!user) return false;
+      if (!user) {
+        console.log(`SERVER PERMISSION CHECK: User '${userId}' not found`);
+        return false;
+      }
+      
+      console.log(`SERVER PERMISSION CHECK: User found - role: ${user.role}, department: ${user.department}, designation: ${user.designation}`);
       
       // Master admin has all permissions
-      if (user.role === "master_admin") return true;
+      if (user.role === "master_admin") {
+        console.log(`SERVER PERMISSION CHECK: Master admin detected, granting permission '${permission}'`);
+        return true;
+      }
       
       // If user doesn't have department or designation, deny access
-      if (!user.department || !user.designation) return false;
+      if (!user.department || !user.designation) {
+        console.log(`SERVER PERMISSION CHECK: User missing department or designation, denying access`);
+        return false;
+      }
       
       // Import permission calculation logic from shared schema
       const { getEffectivePermissions } = await import("@shared/schema");
       const effectivePermissions = getEffectivePermissions(user.department, user.designation);
       
-      return effectivePermissions.includes(permission);
+      const hasPermission = effectivePermissions.includes(permission);
+      console.log(`SERVER PERMISSION CHECK: Effective permissions check result: ${hasPermission} for permission '${permission}'`);
+      
+      return hasPermission;
     } catch (error) {
-      console.error("Error checking effective user permission:", error);
+      console.error("SERVER PERMISSION CHECK ERROR:", error);
       return false;
     }
   }
@@ -2022,10 +2037,7 @@ export class FirestoreStorage implements IStorage {
     return Array.from(permissions);
   }
 
-  async checkEffectiveUserPermission(userId: string, permission: string): Promise<boolean> {
-    const permissions = await this.getEffectiveUserPermissions(userId);
-    return permissions.includes(permission);
-  }
+
 
   async getEffectiveUserApprovalLimits(userId: string): Promise<{ canApprove: boolean; maxAmount: Record<string, number | null> }> {
     const user = await this.getUser(userId);
