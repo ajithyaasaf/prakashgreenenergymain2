@@ -125,9 +125,15 @@ export const insertAttendanceSchema = z.object({
   checkOutLatitude: z.string().optional(),
   checkOutLongitude: z.string().optional(),
   checkOutImageUrl: z.string().optional(),
-  status: z.string().default("pending"),
+  status: z.enum(["present", "absent", "late", "leave", "holiday", "half_day"]).default("present"),
   overtimeHours: z.number().optional(),
   otReason: z.string().optional(),
+  workingHours: z.number().optional(),
+  breakHours: z.number().optional(),
+  isLate: z.boolean().default(false),
+  lateMinutes: z.number().optional(),
+  approvedBy: z.string().optional(),
+  remarks: z.string().optional(),
 });
 
 export const insertOfficeLocationSchema = z.object({
@@ -191,6 +197,136 @@ export const insertAuditLogSchema = z.object({
   designation: z.enum(designations).nullable().optional()
 });
 
+// Payroll System Schemas
+export const insertSalaryStructureSchema = z.object({
+  userId: z.string(),
+  employeeId: z.string(),
+  fixedSalary: z.number().min(0),
+  basicSalary: z.number().min(0),
+  hra: z.number().min(0).optional(),
+  allowances: z.number().min(0).optional(),
+  variableComponent: z.number().min(0).optional(),
+  effectiveFrom: z.date(),
+  effectiveTo: z.date().nullable().optional(),
+  isActive: z.boolean().default(true),
+  createdBy: z.string(),
+  approvedBy: z.string().optional()
+});
+
+export const insertPayrollSchema = z.object({
+  userId: z.string(),
+  employeeId: z.string(),
+  month: z.number().min(1).max(12),
+  year: z.number().min(2020),
+  workingDays: z.number().min(0),
+  presentDays: z.number().min(0),
+  absentDays: z.number().min(0),
+  overtimeHours: z.number().min(0).default(0),
+  leaveDays: z.number().min(0).default(0),
+  
+  // Salary Components
+  fixedSalary: z.number().min(0),
+  basicSalary: z.number().min(0),
+  hra: z.number().min(0).default(0),
+  allowances: z.number().min(0).default(0),
+  variableComponent: z.number().min(0).default(0),
+  overtimePay: z.number().min(0).default(0),
+  
+  // Gross Salary
+  grossSalary: z.number().min(0),
+  
+  // Deductions
+  pfDeduction: z.number().min(0).default(0),
+  esiDeduction: z.number().min(0).default(0),
+  tdsDeduction: z.number().min(0).default(0),
+  advanceDeduction: z.number().min(0).default(0),
+  loanDeduction: z.number().min(0).default(0),
+  otherDeductions: z.number().min(0).default(0),
+  totalDeductions: z.number().min(0),
+  
+  // Net Salary
+  netSalary: z.number(),
+  
+  // Status
+  status: z.enum(["draft", "pending", "approved", "paid", "cancelled"]).default("draft"),
+  
+  // Processing
+  processedBy: z.string(),
+  approvedBy: z.string().optional(),
+  paidOn: z.date().optional(),
+  paymentReference: z.string().optional(),
+  
+  // Metadata
+  remarks: z.string().optional()
+});
+
+export const insertPayrollSettingsSchema = z.object({
+  pfRate: z.number().min(0).max(100).default(12), // PF rate percentage
+  esiRate: z.number().min(0).max(100).default(0.75), // ESI rate percentage
+  tdsRate: z.number().min(0).max(100).default(0), // TDS rate percentage
+  overtimeMultiplier: z.number().min(1).default(2), // Overtime pay multiplier
+  standardWorkingHours: z.number().min(1).default(8), // Standard working hours per day
+  standardWorkingDays: z.number().min(1).default(26), // Standard working days per month
+  leaveDeductionRate: z.number().min(0).max(100).default(100), // Percentage deduction for leaves
+  
+  // Salary calculation rules
+  pfApplicableFromSalary: z.number().min(0).default(15000), // PF applicable from this salary amount
+  esiApplicableFromSalary: z.number().min(0).default(21000), // ESI applicable from this salary amount
+  
+  // Company details
+  companyName: z.string().default("Prakash Greens Energy"),
+  companyAddress: z.string().optional(),
+  companyPan: z.string().optional(),
+  companyTan: z.string().optional(),
+  
+  updatedBy: z.string()
+});
+
+export const insertSalaryAdvanceSchema = z.object({
+  userId: z.string(),
+  employeeId: z.string(),
+  amount: z.number().min(0),
+  reason: z.string(),
+  requestDate: z.date().default(() => new Date()),
+  approvedDate: z.date().optional(),
+  deductionStartMonth: z.number().min(1).max(12),
+  deductionStartYear: z.number().min(2020),
+  numberOfInstallments: z.number().min(1).default(1),
+  monthlyDeduction: z.number().min(0),
+  remainingAmount: z.number().min(0),
+  status: z.enum(["pending", "approved", "rejected", "completed"]).default("pending"),
+  approvedBy: z.string().optional(),
+  remarks: z.string().optional()
+});
+
+export const insertAttendancePolicySchema = z.object({
+  name: z.string(),
+  department: z.enum(departments).nullable().optional(),
+  designation: z.enum(designations).nullable().optional(),
+  
+  // Timing policies
+  checkInTime: z.string().default("09:30"), // HH:MM format
+  checkOutTime: z.string().default("18:30"), // HH:MM format
+  flexibleTiming: z.boolean().default(false),
+  flexibilityMinutes: z.number().min(0).default(0),
+  
+  // Overtime policies
+  overtimeAllowed: z.boolean().default(true),
+  maxOvertimeHours: z.number().min(0).default(4),
+  overtimeApprovalRequired: z.boolean().default(true),
+  
+  // Leave policies
+  lateMarkAfterMinutes: z.number().min(0).default(15),
+  halfDayMarkAfterMinutes: z.number().min(0).default(240), // 4 hours
+  
+  // Weekend and holiday policies
+  weekendDays: z.array(z.number().min(0).max(6)).default([0, 6]), // 0=Sunday, 6=Saturday
+  holidayPolicy: z.enum(["paid", "unpaid", "optional"]).default("paid"),
+  
+  isActive: z.boolean().default(true),
+  createdBy: z.string()
+});
+
 // Enterprise user types
 export type Department = typeof departments[number];
 export type Designation = typeof designations[number];
@@ -211,6 +347,13 @@ export type InsertRole = z.infer<typeof insertRoleSchema>;
 export type InsertUserRoleAssignment = z.infer<typeof insertUserRoleAssignmentSchema>;
 export type InsertPermissionOverride = z.infer<typeof insertPermissionOverrideSchema>;
 export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
+
+// Payroll System Types
+export type InsertSalaryStructure = z.infer<typeof insertSalaryStructureSchema>;
+export type InsertPayroll = z.infer<typeof insertPayrollSchema>;
+export type InsertPayrollSettings = z.infer<typeof insertPayrollSettingsSchema>;
+export type InsertSalaryAdvance = z.infer<typeof insertSalaryAdvanceSchema>;
+export type InsertAttendancePolicy = z.infer<typeof insertAttendancePolicySchema>;
 
 // Enterprise permission checking utilities
 export const getDesignationLevel = (designation: Designation): number => {

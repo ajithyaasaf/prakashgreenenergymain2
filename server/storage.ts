@@ -16,7 +16,12 @@ import {
   insertRoleSchema,
   insertUserRoleAssignmentSchema,
   insertPermissionOverrideSchema,
-  insertAuditLogSchema
+  insertAuditLogSchema,
+  insertSalaryStructureSchema,
+  insertPayrollSchema,
+  insertPayrollSettingsSchema,
+  insertSalaryAdvanceSchema,
+  insertAttendancePolicySchema
 } from "@shared/schema";
 
 // Define our schemas since we're not using drizzle anymore
@@ -307,6 +312,131 @@ export interface AuditLog {
   department?: string | null;
   designation?: string | null;
   createdAt: Date;
+}
+
+// Payroll System Interfaces
+export interface SalaryStructure {
+  id: string;
+  userId: string;
+  employeeId: string;
+  fixedSalary: number;
+  basicSalary: number;
+  hra?: number;
+  allowances?: number;
+  variableComponent?: number;
+  effectiveFrom: Date;
+  effectiveTo?: Date | null;
+  isActive: boolean;
+  createdBy: string;
+  approvedBy?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface Payroll {
+  id: string;
+  userId: string;
+  employeeId: string;
+  month: number;
+  year: number;
+  workingDays: number;
+  presentDays: number;
+  absentDays: number;
+  overtimeHours: number;
+  leaveDays: number;
+  
+  // Salary Components
+  fixedSalary: number;
+  basicSalary: number;
+  hra: number;
+  allowances: number;
+  variableComponent: number;
+  overtimePay: number;
+  grossSalary: number;
+  
+  // Deductions
+  pfDeduction: number;
+  esiDeduction: number;
+  tdsDeduction: number;
+  advanceDeduction: number;
+  loanDeduction: number;
+  otherDeductions: number;
+  totalDeductions: number;
+  
+  // Net Salary
+  netSalary: number;
+  
+  // Status and Processing
+  status: "draft" | "pending" | "approved" | "paid" | "cancelled";
+  processedBy: string;
+  approvedBy?: string;
+  paidOn?: Date;
+  paymentReference?: string;
+  remarks?: string;
+  
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface PayrollSettings {
+  id: string;
+  pfRate: number;
+  esiRate: number;
+  tdsRate: number;
+  overtimeMultiplier: number;
+  standardWorkingHours: number;
+  standardWorkingDays: number;
+  leaveDeductionRate: number;
+  pfApplicableFromSalary: number;
+  esiApplicableFromSalary: number;
+  companyName: string;
+  companyAddress?: string;
+  companyPan?: string;
+  companyTan?: string;
+  updatedBy: string;
+  updatedAt: Date;
+}
+
+export interface SalaryAdvance {
+  id: string;
+  userId: string;
+  employeeId: string;
+  amount: number;
+  reason: string;
+  requestDate: Date;
+  approvedDate?: Date;
+  deductionStartMonth: number;
+  deductionStartYear: number;
+  numberOfInstallments: number;
+  monthlyDeduction: number;
+  remainingAmount: number;
+  status: "pending" | "approved" | "rejected" | "completed";
+  approvedBy?: string;
+  remarks?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface AttendancePolicy {
+  id: string;
+  name: string;
+  department?: string | null;
+  designation?: string | null;
+  checkInTime: string;
+  checkOutTime: string;
+  flexibleTiming: boolean;
+  flexibilityMinutes: number;
+  overtimeAllowed: boolean;
+  maxOvertimeHours: number;
+  overtimeApprovalRequired: boolean;
+  lateMarkAfterMinutes: number;
+  halfDayMarkAfterMinutes: number;
+  weekendDays: number[];
+  holidayPolicy: "paid" | "unpaid" | "optional";
+  isActive: boolean;
+  createdBy: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface IStorage {
