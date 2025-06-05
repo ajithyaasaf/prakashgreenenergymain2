@@ -2544,6 +2544,314 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===============================================
+  // ENTERPRISE PAYROLL MANAGEMENT API ENDPOINTS
+  // ===============================================
+
+  // Get payroll records with comprehensive filtering
+  app.get("/api/payroll", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || user.role !== "master_admin") {
+        return res.status(403).json({ message: "Access denied - Master Admin only" });
+      }
+
+      const { month, year, department, status } = req.query;
+      const filters: any = {};
+      
+      if (month) filters.month = parseInt(month as string);
+      if (year) filters.year = parseInt(year as string);
+      if (department && department !== "all") filters.department = department;
+      if (status && status !== "all") filters.status = status;
+
+      const payrollRecords = await storage.listPayrolls(filters);
+      res.json(payrollRecords);
+    } catch (error) {
+      console.error("Error fetching payroll records:", error);
+      res.status(500).json({ message: "Failed to fetch payroll records" });
+    }
+  });
+
+  // Process payroll for specified period
+  app.post("/api/payroll/process", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || user.role !== "master_admin") {
+        return res.status(403).json({ message: "Access denied - Master Admin only" });
+      }
+
+      const { month, year, userIds } = req.body;
+      
+      // Process payroll for all users or specific users
+      const usersToProcess = userIds || (await storage.listUsers()).map(u => u.id);
+      const processedPayrolls = [];
+
+      for (const userId of usersToProcess) {
+        try {
+          const payrollData = await storage.calculatePayroll(userId, month, year);
+          const payroll = await storage.createPayroll({
+            ...payrollData,
+            processedBy: user.id
+          });
+          processedPayrolls.push(payroll);
+        } catch (error) {
+          console.error(`Error processing payroll for user ${userId}:`, error);
+        }
+      }
+
+      // Create audit log
+      await storage.createAuditLog({
+        userId: user.id,
+        action: "payroll_processed",
+        entityType: "payroll",
+        entityId: `${month}-${year}`,
+        changes: { month, year, processedCount: processedPayrolls.length },
+        department: user.department,
+        designation: user.designation
+      });
+
+      res.json({ 
+        message: "Payroll processed successfully", 
+        processedCount: processedPayrolls.length,
+        payrolls: processedPayrolls
+      });
+    } catch (error) {
+      console.error("Error processing payroll:", error);
+      res.status(500).json({ message: "Failed to process payroll" });
+    }
+  });
+
+  // Get payroll statistics
+  app.get("/api/payroll/stats", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || user.role !== "master_admin") {
+        return res.status(403).json({ message: "Access denied - Master Admin only" });
+      }
+
+      const { month, year } = req.query;
+      const payrolls = await storage.listPayrolls({ 
+        month: parseInt(month as string), 
+        year: parseInt(year as string) 
+      });
+
+      const stats = {
+        totalEmployees: payrolls.length,
+        totalGrossSalary: payrolls.reduce((sum, p) => sum + p.grossSalary, 0),
+        totalDeductions: payrolls.reduce((sum, p) => sum + p.totalDeductions, 0),
+        totalNetSalary: payrolls.reduce((sum, p) => sum + p.netSalary, 0),
+        departmentBreakdown: payrolls.reduce((acc, p) => {
+          const dept = p.userDepartment || 'unknown';
+          acc[dept] = (acc[dept] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>)
+      };
+
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching payroll statistics:", error);
+      res.status(500).json({ message: "Failed to fetch payroll statistics" });
+    }
+  });
+
+  // Salary Structure Management
+  app.get("/api/salary-structures", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || user.role !== "master_admin") {
+        return res.status(403).json({ message: "Access denied - Master Admin only" });
+      }
+
+      const salaryStructures = await storage.listSalaryStructures();
+      res.json(salaryStructures);
+    } catch (error) {
+      console.error("Error fetching salary structures:", error);
+      res.status(500).json({ message: "Failed to fetch salary structures" });
+    }
+  });
+
+  app.post("/api/salary-structures", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || user.role !== "master_admin") {
+        return res.status(403).json({ message: "Access denied - Master Admin only" });
+      }
+
+      const salaryData = {
+        ...req.body,
+        createdBy: user.id,
+        isActive: true,
+        effectiveFrom: new Date(req.body.effectiveFrom || new Date())
+      };
+
+      const salaryStructure = await storage.createSalaryStructure(salaryData);
+      
+      await storage.createAuditLog({
+        userId: user.id,
+        action: "salary_structure_created",
+        entityType: "salary_structure",
+        entityId: salaryStructure.id,
+        changes: salaryData,
+        department: user.department,
+        designation: user.designation
+      });
+
+      res.status(201).json(salaryStructure);
+    } catch (error) {
+      console.error("Error creating salary structure:", error);
+      res.status(500).json({ message: "Failed to create salary structure" });
+    }
+  });
+
+  // Payroll Settings Management
+  app.get("/api/payroll-settings", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || user.role !== "master_admin") {
+        return res.status(403).json({ message: "Access denied - Master Admin only" });
+      }
+
+      const settings = await storage.getPayrollSettings();
+      res.json(settings || {
+        pfRate: 12,
+        esiRate: 1.75,
+        tdsRate: 10,
+        overtimeMultiplier: 1.5,
+        standardWorkingHours: 8,
+        standardWorkingDays: 22,
+        leaveDeductionRate: 1,
+        pfApplicableFromSalary: 15000,
+        esiApplicableFromSalary: 21000,
+        companyName: "Prakash Greens Energy"
+      });
+    } catch (error) {
+      console.error("Error fetching payroll settings:", error);
+      res.status(500).json({ message: "Failed to fetch payroll settings" });
+    }
+  });
+
+  // ===============================================
+  // ENTERPRISE ATTENDANCE MANAGEMENT API ENDPOINTS
+  // ===============================================
+
+  // Live attendance tracking
+  app.get("/api/attendance/live", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || user.role !== "master_admin") {
+        return res.status(403).json({ message: "Access denied - Master Admin only" });
+      }
+
+      const today = new Date();
+      const todayString = today.toISOString().split('T')[0];
+      
+      const attendance = await storage.listAttendance({ date: todayString });
+      
+      // Filter for active/live records (checked in but not checked out)
+      const liveAttendance = attendance.filter(record => 
+        record.checkInTime && !record.checkOutTime && record.status !== 'absent'
+      );
+
+      res.json(liveAttendance);
+    } catch (error) {
+      console.error("Error fetching live attendance:", error);
+      res.status(500).json({ message: "Failed to fetch live attendance" });
+    }
+  });
+
+  // Department attendance statistics
+  app.get("/api/attendance/department-stats", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || user.role !== "master_admin") {
+        return res.status(403).json({ message: "Access denied - Master Admin only" });
+      }
+
+      const { date } = req.query;
+      const attendance = await storage.listAttendance({ date: date as string });
+      
+      const departmentStats = attendance.reduce((acc, record) => {
+        const dept = record.userDepartment || 'unknown';
+        if (!acc[dept]) {
+          acc[dept] = { department: dept, present: 0, absent: 0, late: 0, total: 0 };
+        }
+        
+        acc[dept].total++;
+        if (record.status === 'present') acc[dept].present++;
+        else if (record.status === 'absent') acc[dept].absent++;
+        else if (record.status === 'late') acc[dept].late++;
+        
+        return acc;
+      }, {} as Record<string, any>);
+
+      res.json(Object.values(departmentStats));
+    } catch (error) {
+      console.error("Error fetching department statistics:", error);
+      res.status(500).json({ message: "Failed to fetch department statistics" });
+    }
+  });
+
+  // Attendance policies management
+  app.get("/api/attendance/policies", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || user.role !== "master_admin") {
+        return res.status(403).json({ message: "Access denied - Master Admin only" });
+      }
+
+      const policies = await storage.listAttendancePolicies();
+      res.json(policies);
+    } catch (error) {
+      console.error("Error fetching attendance policies:", error);
+      res.status(500).json({ message: "Failed to fetch attendance policies" });
+    }
+  });
+
+  // Bulk attendance actions
+  app.post("/api/attendance/bulk-action", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || user.role !== "master_admin") {
+        return res.status(403).json({ message: "Access denied - Master Admin only" });
+      }
+
+      const { action, attendanceIds, data } = req.body;
+      const results = [];
+
+      for (const attendanceId of attendanceIds) {
+        try {
+          if (action === 'approve') {
+            const updated = await storage.updateAttendance(attendanceId, {
+              ...data,
+              approvedBy: user.id
+            });
+            results.push(updated);
+          } else if (action === 'update') {
+            const updated = await storage.updateAttendance(attendanceId, data);
+            results.push(updated);
+          }
+        } catch (error) {
+          console.error(`Error performing ${action} on attendance ${attendanceId}:`, error);
+        }
+      }
+
+      await storage.createAuditLog({
+        userId: user.id,
+        action: `attendance_bulk_${action}`,
+        entityType: "attendance",
+        entityId: attendanceIds.join(','),
+        changes: { action, count: results.length },
+        department: user.department,
+        designation: user.designation
+      });
+
+      res.json({ message: `Bulk ${action} completed`, results });
+    } catch (error) {
+      console.error("Error performing bulk action:", error);
+      res.status(500).json({ message: "Failed to perform bulk action" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

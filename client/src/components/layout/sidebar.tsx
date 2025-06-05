@@ -99,6 +99,18 @@ export function Sidebar() {
       requiredPermissions: ["departments.view", "departments.create"]
     },
     { 
+      href: "/attendance-management", 
+      label: "Attendance Management", 
+      icon: <i className="ri-shield-user-line mr-3 text-xl"></i>,
+      roles: ["master_admin"]
+    },
+    { 
+      href: "/payroll-management", 
+      label: "Payroll Management", 
+      icon: <i className="ri-money-dollar-circle-line mr-3 text-xl"></i>,
+      roles: ["master_admin"]
+    },
+    { 
       href: "/office-locations", 
       label: "Office Locations", 
       icon: <i className="ri-map-pin-line mr-3 text-xl"></i>,

@@ -12,6 +12,8 @@ import Products from "@/pages/products";
 import Quotations from "@/pages/quotations";
 import Invoices from "@/pages/invoices";
 import Attendance from "@/pages/attendance";
+import AttendanceManagement from "@/pages/attendance-management";
+import PayrollManagement from "@/pages/payroll-management";
 import Leave from "@/pages/leave";
 import UserManagement from "@/pages/user-management";
 import Departments from "@/pages/departments";
@@ -138,6 +140,28 @@ function Router() {
         >
           <DashboardLayout>
             <OfficeLocations />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      
+      {/* Attendance Management - master admin only */}
+      <Route path="/attendance-management">
+        <ProtectedRoute 
+          requiredRole="master_admin"
+        >
+          <DashboardLayout>
+            <AttendanceManagement />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      
+      {/* Payroll Management - master admin only */}
+      <Route path="/payroll-management">
+        <ProtectedRoute 
+          requiredRole="master_admin"
+        >
+          <DashboardLayout>
+            <PayrollManagement />
           </DashboardLayout>
         </ProtectedRoute>
       </Route>

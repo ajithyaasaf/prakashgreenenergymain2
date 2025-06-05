@@ -512,6 +512,50 @@ export interface IStorage {
   // Audit logging
   createAuditLog(data: z.infer<typeof insertAuditLogSchema>): Promise<AuditLog>;
   getAuditLogs(filters?: { userId?: string; entityType?: string; startDate?: Date; endDate?: Date }): Promise<AuditLog[]>;
+  
+  // Payroll System Methods
+  // Salary Structure Management
+  getSalaryStructure(id: string): Promise<SalaryStructure | undefined>;
+  getSalaryStructureByUser(userId: string): Promise<SalaryStructure | undefined>;
+  createSalaryStructure(data: z.infer<typeof insertSalaryStructureSchema>): Promise<SalaryStructure>;
+  updateSalaryStructure(id: string, data: Partial<z.infer<typeof insertSalaryStructureSchema>>): Promise<SalaryStructure>;
+  listSalaryStructures(): Promise<SalaryStructure[]>;
+  
+  // Payroll Management
+  getPayroll(id: string): Promise<Payroll | undefined>;
+  getPayrollByUserAndMonth(userId: string, month: number, year: number): Promise<Payroll | undefined>;
+  createPayroll(data: z.infer<typeof insertPayrollSchema>): Promise<Payroll>;
+  updatePayroll(id: string, data: Partial<z.infer<typeof insertPayrollSchema>>): Promise<Payroll>;
+  listPayrolls(filters?: { month?: number; year?: number; department?: string; status?: string }): Promise<Payroll[]>;
+  listPayrollsByUser(userId: string): Promise<Payroll[]>;
+  
+  // Payroll Settings
+  getPayrollSettings(): Promise<PayrollSettings | undefined>;
+  updatePayrollSettings(data: z.infer<typeof insertPayrollSettingsSchema>): Promise<PayrollSettings>;
+  
+  // Salary Advances
+  getSalaryAdvance(id: string): Promise<SalaryAdvance | undefined>;
+  createSalaryAdvance(data: z.infer<typeof insertSalaryAdvanceSchema>): Promise<SalaryAdvance>;
+  updateSalaryAdvance(id: string, data: Partial<z.infer<typeof insertSalaryAdvanceSchema>>): Promise<SalaryAdvance>;
+  listSalaryAdvances(filters?: { userId?: string; status?: string }): Promise<SalaryAdvance[]>;
+  
+  // Attendance Policies
+  getAttendancePolicy(id: string): Promise<AttendancePolicy | undefined>;
+  getAttendancePolicyByDepartment(department: string, designation?: string): Promise<AttendancePolicy | undefined>;
+  createAttendancePolicy(data: z.infer<typeof insertAttendancePolicySchema>): Promise<AttendancePolicy>;
+  updateAttendancePolicy(id: string, data: Partial<z.infer<typeof insertAttendancePolicySchema>>): Promise<AttendancePolicy>;
+  listAttendancePolicies(): Promise<AttendancePolicy[]>;
+  
+  // Payroll Calculation Utilities
+  calculatePayroll(userId: string, month: number, year: number): Promise<z.infer<typeof insertPayrollSchema>>;
+  getMonthlyAttendanceSummary(userId: string, month: number, year: number): Promise<{
+    workingDays: number;
+    presentDays: number;
+    absentDays: number;
+    overtimeHours: number;
+    leaveDays: number;
+  }>;
+  
   listOfficeLocations(): Promise<OfficeLocation[]>;
   getOfficeLocation(id: string): Promise<OfficeLocation | undefined>;
   createOfficeLocation(
