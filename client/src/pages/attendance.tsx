@@ -58,10 +58,12 @@ export default function Attendance() {
     queryKey: ["/api/attendance", { date: date.toISOString().split('T')[0] }],
     queryFn: async () => {
       const dateParam = date.toISOString().split('T')[0];
-      const attendanceData = await apiRequest(`/api/attendance?date=${dateParam}`);
+      const attendanceResponse = await apiRequest('GET', `/api/attendance?date=${dateParam}`);
+      const attendanceData = await attendanceResponse.json();
       
       // Fetch user details for each attendance record
-      const users = await apiRequest('/api/users');
+      const usersResponse = await apiRequest('GET', '/api/users');
+      const users = await usersResponse.json();
       
       // Enrich attendance records with user names
       return attendanceData.map((record: any) => {
@@ -82,7 +84,8 @@ export default function Attendance() {
     queryKey: ["/api/attendance/summary", user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
-      return await apiRequest(`/api/attendance/summary?userId=${user.id}`);
+      const summaryResponse = await apiRequest('GET', `/api/attendance/summary?userId=${user.id}`);
+      return await summaryResponse.json();
     },
     enabled: !!user?.id,
   });
