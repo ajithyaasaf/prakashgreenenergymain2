@@ -299,16 +299,59 @@ export function AttendanceCheckOut({
             </Card>
           )}
 
-          {/* General Reason (Optional) */}
+          {/* Early Checkout Warning */}
+          {(() => {
+            const now = new Date();
+            const currentTime = now.getHours() * 60 + now.getMinutes();
+            const expectedCheckOutTime = (departmentTiming?.checkOutTime || "18:30").split(":");
+            const expectedMinutes = parseInt(expectedCheckOutTime[0]) * 60 + parseInt(expectedCheckOutTime[1]);
+            const isEarlyCheckout = currentTime < expectedMinutes;
+            
+            return isEarlyCheckout && (
+              <Alert className="border-amber-200 bg-amber-50">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  <div className="space-y-2">
+                    <p className="font-medium text-amber-800">
+                      Early Checkout Detected
+                    </p>
+                    <p className="text-sm text-amber-700">
+                      You are checking out before the expected time ({departmentTiming?.checkOutTime || "18:30"}). Please provide a reason below.
+                    </p>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            );
+          })()}
+
+          {/* General Reason (Required for early checkout) */}
           <div className="space-y-2">
-            <Label htmlFor="reason">Remarks (Optional)</Label>
-            <Textarea
-              id="reason"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="Add any comments about your work session"
-              rows={3}
-            />
+            {(() => {
+              const now = new Date();
+              const currentTime = now.getHours() * 60 + now.getMinutes();
+              const expectedCheckOutTime = (departmentTiming?.checkOutTime || "18:30").split(":");
+              const expectedMinutes = parseInt(expectedCheckOutTime[0]) * 60 + parseInt(expectedCheckOutTime[1]);
+              const isEarlyCheckout = currentTime < expectedMinutes;
+              
+              return (
+                <>
+                  <Label htmlFor="reason">
+                    Remarks {isEarlyCheckout ? "*" : "(Optional)"}
+                  </Label>
+                  <Textarea
+                    id="reason"
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                    placeholder={isEarlyCheckout 
+                      ? "Please explain the reason for early checkout" 
+                      : "Add any comments about your work session"
+                    }
+                    rows={3}
+                    required={isEarlyCheckout}
+                  />
+                </>
+              );
+            })()}
           </div>
 
           {/* Overtime Reason (Required if OT) */}
