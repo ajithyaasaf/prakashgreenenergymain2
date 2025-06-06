@@ -980,17 +980,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
 
       // Get department-specific timing (default to 9:30 AM if not set)
-      let departmentPolicy = null;
-      if (user.department) {
-        try {
-          const policies = await storage.listAttendancePolicies();
-          departmentPolicy = policies.find(p => p.department === user.department);
-        } catch (error) {
-          console.log("No attendance policies found, using default timing");
-        }
-      }
-
-      const [checkInHour, checkInMinute] = (departmentPolicy?.checkInTime || "09:30").split(":").map(Number);
+      const defaultCheckInTime = "09:30";
+      const [checkInHour, checkInMinute] = defaultCheckInTime.split(":").map(Number);
       const minCheckInTime = new Date(
         now.getFullYear(),
         now.getMonth(),
@@ -1068,7 +1059,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Log activity
       await storage.createActivityLog({
-        type: 'attendance_checkin',
+        type: 'attendance',
         title: `${attendanceType === "field" ? "Field Work" : attendanceType === "remote" ? "Remote Work" : "Office"} Check-in`,
         description: `${user.displayName} checked in for ${attendanceType} work${isLate ? ` (${lateMinutes} minutes late)` : ""}`,
         entityId: newAttendance.id,
@@ -1120,18 +1111,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         now.getMinutes(),
       );
 
-      // Get department-specific checkout timing
-      let departmentPolicy = null;
-      if (user.department) {
-        try {
-          const policies = await storage.listAttendancePolicies();
-          departmentPolicy = policies.find(p => p.department === user.department);
-        } catch (error) {
-          console.log("No attendance policies found, using default timing");
-        }
-      }
-
-      const [checkOutHour, checkOutMinute] = (departmentPolicy?.checkOutTime || "18:30").split(":").map(Number);
+      // Get department-specific checkout timing (default to 6:30 PM)
+      const defaultCheckOutTime = "18:30";
+      const [checkOutHour, checkOutMinute] = defaultCheckOutTime.split(":").map(Number);
       const expectedCheckOutTime = new Date(
         now.getFullYear(),
         now.getMonth(),
@@ -1141,12 +1123,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
 
       // Calculate working hours and overtime
-      const checkInTime = new Date(attendanceRecord.checkInTime);
+      const checkInTime = new Date(attendanceRecord.checkInTime || new Date());
       const workingMilliseconds = checkOutTime.getTime() - checkInTime.getTime();
       const workingHours = workingMilliseconds / (1000 * 60 * 60);
       
-      // Standard working hours from policy or default 9 hours (9:30 AM to 6:30 PM)
-      const standardWorkingHours = departmentPolicy?.standardWorkingHours || 9;
+      // Standard working hours (9 hours: 9:30 AM to 6:30 PM)
+      const standardWorkingHours = 9;
       const overtimeHours = Math.max(0, workingHours - standardWorkingHours);
       
       // Check if overtime requires approval and photo
@@ -1213,27 +1195,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to process check-out" });
     }
   });
-          checkOutTime,
-          checkOutLatitude: latitude,
-          checkOutLongitude: longitude,
-          checkOutImageUrl: photoUrl,
-          reason: earlyCheckout ? reason : attendanceRecord.reason,
-          overtimeHours: overtimeHours > 0 ? overtimeHours : undefined,
-        },
-      );
 
-      res.json({
-        ...updatedAttendance,
-        overtimeHours,
-        earlyCheckout,
-        minCheckOutTime,
-      });
-    } catch (error) {
-      console.error("Error checking out:", error);
-      res.status(500).json({ message: "Failed to process check-out" });
-    }
-  });
-
+  // Attendance Reports
   app.get("/api/attendance/report", verifyAuth, async (req, res) => {
     try {
       const { userId, from, to } = req.query;
