@@ -33,29 +33,31 @@ export default function Attendance() {
   const [showCheckInModal, setShowCheckInModal] = useState(false);
   const [showCheckOutModal, setShowCheckOutModal] = useState(false);
 
-  // Fetch attendance records for the selected date
+  // Fetch current user's attendance records
   const { data: attendanceRecords = [], isLoading, refetch } = useQuery({
-    queryKey: ["/api/attendance", { date: date.toISOString().split('T')[0] }],
+    queryKey: ["/api/attendance", { userId: user?.uid }],
     queryFn: async () => {
-      const dateParam = date.toISOString().split('T')[0];
-      const attendanceResponse = await apiRequest('GET', `/api/attendance?date=${dateParam}`);
+      if (!user?.uid) return [];
+      
+      // For regular employees, fetch only their own attendance data
+      // For admins/master_admins, they can still see all data if needed
+      const attendanceResponse = await apiRequest('GET', `/api/attendance?userId=${user.uid}`);
+      
+      if (!attendanceResponse.ok) {
+        throw new Error('Failed to fetch attendance records');
+      }
+      
       const attendanceData = await attendanceResponse.json();
       
-      // Fetch user details for each attendance record
-      const usersResponse = await apiRequest('GET', '/api/users');
-      const users = await usersResponse.json();
-      
-      // Enrich attendance records with user names
-      return attendanceData.map((record: any) => {
-        const userDetails = users.find((u: any) => u.id === record.userId);
-        return {
-          ...record,
-          userName: userDetails ? userDetails.displayName : `User #${record.userId}`,
-          userDepartment: userDetails ? userDetails.department : null,
-          userEmail: userDetails ? userDetails.email : null
-        };
-      });
+      // Enrich attendance records with user info (current user's info)
+      return attendanceData.map((record: any) => ({
+        ...record,
+        userName: user.displayName || user.email?.split('@')[0] || "You",
+        userDepartment: user.department,
+        userEmail: user.email
+      }));
     },
+    enabled: !!user?.uid,
     refetchInterval: 30000, // Real-time updates every 30 seconds
   });
 

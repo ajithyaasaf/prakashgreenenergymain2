@@ -900,7 +900,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const requestingUser = req.authenticatedUser.user;
 
+      // If specific userId and date requested
       if (userId && date) {
+        // Users can only access their own data unless they're admin/master_admin
         if (
           requestingUser.role !== "master_admin" &&
           requestingUser.role !== "admin" &&
@@ -912,11 +914,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json(attendance || null);
       }
 
+      // If specific userId requested (all records for that user)
       if (userId) {
+        // Users can only access their own data unless they're admin/master_admin
         if (
           requestingUser.role !== "master_admin" &&
           requestingUser.role !== "admin" &&
-          requestingUser.id !== userId
+          requestingUser.uid !== userId
         ) {
           return res.status(403).json({ message: "Access denied" });
         }
@@ -924,6 +928,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json(attendance);
       }
 
+      // If specific date requested (all users for that date - admin only)
       if (date) {
         if (
           requestingUser.role !== "master_admin" &&
@@ -937,7 +942,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json(attendance);
       }
 
-      res.status(400).json({ message: "Missing required query parameters" });
+      // Default case: return current user's own attendance data
+      // This allows employees to view their own attendance without specifying userId
+      const attendance = await storage.listAttendanceByUser(requestingUser.uid);
+      return res.json(attendance);
     } catch (error) {
       console.error("Error fetching attendance:", error);
       res.status(500).json({ message: "Failed to fetch attendance" });
