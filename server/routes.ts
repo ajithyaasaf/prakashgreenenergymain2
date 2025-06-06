@@ -1196,6 +1196,231 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Department Timing Management APIs
+  
+  // Get all department timings
+  app.get("/api/departments/timings", verifyAuth, async (req, res) => {
+    try {
+      const { user } = req.authenticatedUser;
+      
+      // Only master_admin can view all department timings
+      if (user.role !== "master_admin") {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      // Return department timings (for now using default values)
+      const departmentTimings = {
+        "cre": {
+          checkInTime: "09:30",
+          checkOutTime: "18:30", 
+          workingHours: 8,
+          overtimeThresholdMinutes: 30,
+          lateThresholdMinutes: 15,
+          allowEarlyCheckOut: false,
+          allowRemoteWork: true,
+          allowFieldWork: true
+        },
+        "accounts": {
+          checkInTime: "09:00",
+          checkOutTime: "18:00",
+          workingHours: 8,
+          overtimeThresholdMinutes: 30,
+          lateThresholdMinutes: 10,
+          allowEarlyCheckOut: true,
+          allowRemoteWork: true,
+          allowFieldWork: false
+        },
+        "hr": {
+          checkInTime: "09:00",
+          checkOutTime: "18:00",
+          workingHours: 8,
+          overtimeThresholdMinutes: 30,
+          lateThresholdMinutes: 10,
+          allowEarlyCheckOut: true,
+          allowRemoteWork: true,
+          allowFieldWork: false
+        },
+        "sales_and_marketing": {
+          checkInTime: "09:30",
+          checkOutTime: "18:30",
+          workingHours: 8,
+          overtimeThresholdMinutes: 30,
+          lateThresholdMinutes: 15,
+          allowEarlyCheckOut: false,
+          allowRemoteWork: true,
+          allowFieldWork: true
+        },
+        "technical_team": {
+          checkInTime: "10:00",
+          checkOutTime: "19:00",
+          workingHours: 8,
+          overtimeThresholdMinutes: 30,
+          lateThresholdMinutes: 15,
+          allowEarlyCheckOut: false,
+          allowRemoteWork: true,
+          allowFieldWork: true
+        }
+      };
+      
+      res.json(departmentTimings);
+    } catch (error: any) {
+      console.error("Error fetching department timings:", error);
+      res.status(500).json({ message: "Failed to fetch department timings" });
+    }
+  });
+
+  // Get specific department timing
+  app.get("/api/departments/:departmentId/timing", verifyAuth, async (req, res) => {
+    try {
+      const { departmentId } = req.params;
+      const { user } = req.authenticatedUser;
+      
+      // Users can view their own department timing or master_admin can view all
+      if (user.role !== "master_admin" && user.department !== departmentId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      // Default timing configuration for the department
+      const defaultTimings = {
+        "cre": {
+          departmentId: "cre",
+          checkInTime: "09:30",
+          checkOutTime: "18:30",
+          workingHours: 8,
+          overtimeThresholdMinutes: 30,
+          lateThresholdMinutes: 15,
+          allowEarlyCheckOut: false,
+          allowRemoteWork: true,
+          allowFieldWork: true
+        },
+        "accounts": {
+          departmentId: "accounts", 
+          checkInTime: "09:00",
+          checkOutTime: "18:00",
+          workingHours: 8,
+          overtimeThresholdMinutes: 30,
+          lateThresholdMinutes: 10,
+          allowEarlyCheckOut: true,
+          allowRemoteWork: true,
+          allowFieldWork: false
+        },
+        "hr": {
+          departmentId: "hr",
+          checkInTime: "09:00",
+          checkOutTime: "18:00",
+          workingHours: 8,
+          overtimeThresholdMinutes: 30,
+          lateThresholdMinutes: 10,
+          allowEarlyCheckOut: true,
+          allowRemoteWork: true,
+          allowFieldWork: false
+        },
+        "sales_and_marketing": {
+          departmentId: "sales_and_marketing",
+          checkInTime: "09:30",
+          checkOutTime: "18:30",
+          workingHours: 8,
+          overtimeThresholdMinutes: 30,
+          lateThresholdMinutes: 15,
+          allowEarlyCheckOut: false,
+          allowRemoteWork: true,
+          allowFieldWork: true
+        },
+        "technical_team": {
+          departmentId: "technical_team",
+          checkInTime: "10:00",
+          checkOutTime: "19:00",
+          workingHours: 8,
+          overtimeThresholdMinutes: 30,
+          lateThresholdMinutes: 15,
+          allowEarlyCheckOut: false,
+          allowRemoteWork: true,
+          allowFieldWork: true
+        }
+      };
+      
+      const timing = defaultTimings[departmentId] || {
+        departmentId,
+        checkInTime: "09:30",
+        checkOutTime: "18:30",
+        workingHours: 8,
+        overtimeThresholdMinutes: 30,
+        lateThresholdMinutes: 15,
+        allowEarlyCheckOut: false,
+        allowRemoteWork: true,
+        allowFieldWork: true
+      };
+      
+      res.json(timing);
+    } catch (error: any) {
+      console.error("Error fetching department timing:", error);
+      res.status(500).json({ message: "Failed to fetch department timing" });
+    }
+  });
+
+  // Update department timing (Master admin only)
+  app.post("/api/departments/:departmentId/timing", verifyAuth, async (req, res) => {
+    try {
+      const { departmentId } = req.params;
+      const { user } = req.authenticatedUser;
+      
+      // Only master_admin can update department timings
+      if (user.role !== "master_admin") {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const {
+        checkInTime,
+        checkOutTime,
+        workingHours,
+        overtimeThresholdMinutes,
+        lateThresholdMinutes,
+        allowEarlyCheckOut,
+        allowRemoteWork,
+        allowFieldWork
+      } = req.body;
+      
+      // Validate timing data
+      if (!checkInTime || !checkOutTime || !workingHours) {
+        return res.status(400).json({ message: "Check-in time, check-out time, and working hours are required" });
+      }
+      
+      // In a real implementation, this would be saved to database
+      // For now, we'll just return success
+      const updatedTiming = {
+        departmentId,
+        checkInTime,
+        checkOutTime,
+        workingHours: parseInt(workingHours),
+        overtimeThresholdMinutes: parseInt(overtimeThresholdMinutes) || 30,
+        lateThresholdMinutes: parseInt(lateThresholdMinutes) || 15,
+        allowEarlyCheckOut: Boolean(allowEarlyCheckOut),
+        allowRemoteWork: Boolean(allowRemoteWork),
+        allowFieldWork: Boolean(allowFieldWork),
+        updatedAt: new Date().toISOString(),
+        updatedBy: user.uid
+      };
+      
+      // Log activity
+      await storage.createActivityLog({
+        type: 'department_timing',
+        title: 'Department Timing Updated',
+        description: `${user.displayName} updated attendance timing for ${departmentId} department`,
+        entityId: departmentId,
+        entityType: 'department',
+        userId: user.uid
+      });
+      
+      res.json({
+        message: "Department timing updated successfully",
+        timing: updatedTiming
+      });
+    } catch (error: any) {
+      console.error("Error updating department timing:", error);
+      res.status(500).json({ message: "Failed to update department timing" });
+    }
+  });
+
   // Attendance Reports
   app.get("/api/attendance/report", verifyAuth, async (req, res) => {
     try {

@@ -508,6 +508,167 @@ export default function Departments() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Department Timing Configuration Dialog */}
+      <Dialog open={showTimingDialog} onOpenChange={setShowTimingDialog}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Configure Attendance Timing</DialogTitle>
+            <DialogDescription>
+              Set working hours and attendance policies for {currentDepartment?.name} department.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <form className="space-y-6" onSubmit={(e) => {
+            e.preventDefault();
+            updateTimingMutation.mutate({
+              departmentId: currentDepartment.id,
+              timing: timingFormState
+            });
+          }}>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Check-in Time</label>
+                <Input
+                  type="time"
+                  value={timingFormState.checkInTime}
+                  onChange={(e) => setTimingFormState({
+                    ...timingFormState,
+                    checkInTime: e.target.value
+                  })}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Check-out Time</label>
+                <Input
+                  type="time"
+                  value={timingFormState.checkOutTime}
+                  onChange={(e) => setTimingFormState({
+                    ...timingFormState,
+                    checkOutTime: e.target.value
+                  })}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Working Hours per Day</label>
+                <Input
+                  type="number"
+                  min="1"
+                  max="24"
+                  value={timingFormState.workingHours}
+                  onChange={(e) => setTimingFormState({
+                    ...timingFormState,
+                    workingHours: parseInt(e.target.value)
+                  })}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Late Threshold (minutes)</label>
+                <Input
+                  type="number"
+                  min="0"
+                  max="120"
+                  value={timingFormState.lateThresholdMinutes}
+                  onChange={(e) => setTimingFormState({
+                    ...timingFormState,
+                    lateThresholdMinutes: parseInt(e.target.value)
+                  })}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Overtime Threshold (minutes after working hours)</label>
+              <Input
+                type="number"
+                min="0"
+                max="240"
+                value={timingFormState.overtimeThresholdMinutes}
+                onChange={(e) => setTimingFormState({
+                  ...timingFormState,
+                  overtimeThresholdMinutes: parseInt(e.target.value)
+                })}
+              />
+            </div>
+
+            <div className="space-y-4">
+              <h4 className="text-sm font-medium">Department Policies</h4>
+              
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <label className="text-sm font-medium">Allow Early Check-out</label>
+                  <p className="text-xs text-muted-foreground">
+                    Employees can check out before official time
+                  </p>
+                </div>
+                <Switch
+                  checked={timingFormState.allowEarlyCheckOut}
+                  onCheckedChange={(checked) => setTimingFormState({
+                    ...timingFormState,
+                    allowEarlyCheckOut: checked
+                  })}
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <label className="text-sm font-medium">Allow Remote Work</label>
+                  <p className="text-xs text-muted-foreground">
+                    Employees can mark attendance from any location
+                  </p>
+                </div>
+                <Switch
+                  checked={timingFormState.allowRemoteWork}
+                  onCheckedChange={(checked) => setTimingFormState({
+                    ...timingFormState,
+                    allowRemoteWork: checked
+                  })}
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <label className="text-sm font-medium">Allow Field Work</label>
+                  <p className="text-xs text-muted-foreground">
+                    Employees can check in from customer locations
+                  </p>
+                </div>
+                <Switch
+                  checked={timingFormState.allowFieldWork}
+                  onCheckedChange={(checked) => setTimingFormState({
+                    ...timingFormState,
+                    allowFieldWork: checked
+                  })}
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-2 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowTimingDialog(false)}
+              >
+                Cancel
+              </Button>
+              <Button 
+                type="submit"
+                disabled={updateTimingMutation.isPending}
+              >
+                {updateTimingMutation.isPending && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                Save Timing Configuration
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
