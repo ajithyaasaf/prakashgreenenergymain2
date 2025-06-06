@@ -1179,23 +1179,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Check for early checkout (only require reason if significantly early)
+      // Check for early checkout (disabled for testing - allow checkout anytime)
       const earlyCheckout = checkOutTime < expectedCheckOutTime;
       const earlyMinutes = earlyCheckout ? Math.floor((expectedCheckOutTime.getTime() - checkOutTime.getTime()) / (1000 * 60)) : 0;
       
-      // Only require reason if checking out more than 30 minutes early
-      if (earlyCheckout && earlyMinutes > 30 && (!reason || reason.trim().length === 0)) {
-        const currentTimeStr = checkOutTime.toLocaleTimeString();
-        const expectedTimeStr = expectedCheckOutTime.toLocaleTimeString();
-        return res.status(400).json({
-          message: `Early checkout (${earlyMinutes} minutes early) requires a reason. Current: ${currentTimeStr}, Expected: ${expectedTimeStr}`,
-          currentTime: checkOutTime,
-          expectedCheckOutTime,
-          requiresReason: true,
-          isEarlyCheckout: true,
-          earlyMinutes
-        });
-      }
+      console.log("CHECKOUT DEBUG:", {
+        currentTime: checkOutTime.toLocaleTimeString(),
+        expectedTime: expectedCheckOutTime.toLocaleTimeString(),
+        earlyCheckout,
+        earlyMinutes,
+        reason: reason || "no reason provided"
+      });
+      
+      // Temporarily disabled early checkout validation for testing
+      // if (earlyCheckout && earlyMinutes > 60 && (!reason || reason.trim().length === 0)) {
+      //   const currentTimeStr = checkOutTime.toLocaleTimeString();
+      //   const expectedTimeStr = expectedCheckOutTime.toLocaleTimeString();
+      //   return res.status(400).json({
+      //     message: `Early checkout (${earlyMinutes} minutes early) requires a reason. Current: ${currentTimeStr}, Expected: ${expectedTimeStr}`,
+      //     currentTime: checkOutTime,
+      //     expectedCheckOutTime,
+      //     requiresReason: true,
+      //     isEarlyCheckout: true,
+      //     earlyMinutes
+      //   });
+      // }
 
       // Update attendance record with checkout details
       const updatedAttendance = await storage.updateAttendance(attendanceRecord.id, {
