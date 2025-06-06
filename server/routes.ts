@@ -28,7 +28,7 @@ import {
   insertInvoiceSchema,
   insertLeaveSchema
 } from "./storage";
-import { isWithinGeoFence } from "./utils";
+import { isWithinGeoFence, calculateDistance } from "./utils";
 import { auth } from "./firebase";
 import { userService } from "./services/user-service";
 import { testFirebaseAdminSDK, testUserManagement } from "./test-firebase-admin";
@@ -2886,6 +2886,290 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching attendance policies:", error);
       res.status(500).json({ message: "Failed to fetch attendance policies" });
+    }
+  });
+
+  // Enhanced Check-in with geolocation and field work support
+  app.post("/api/attendance/check-in", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const checkInData = {
+        userId: req.authenticatedUser.user.uid,
+        latitude: req.body.latitude,
+        longitude: req.body.longitude,
+        attendanceType: req.body.attendanceType || "office",
+        customerName: req.body.customerName,
+        reason: req.body.reason,
+        imageUrl: req.body.imageUrl,
+        isWithinOfficeRadius: req.body.isWithinOfficeRadius || false,
+        distanceFromOffice: req.body.distanceFromOffice
+      };
+
+      // Get office locations for validation
+      const officeLocations = await storage.listOfficeLocations();
+      const primaryOffice = officeLocations[0] || {
+        latitude: "9.966844592415782",
+        longitude: "78.1338405791111",
+        radius: 100
+      };
+
+      // Calculate distance from office
+      const userLat = parseFloat(checkInData.latitude);
+      const userLng = parseFloat(checkInData.longitude);
+      const officeLat = parseFloat(primaryOffice.latitude);
+      const officeLng = parseFloat(primaryOffice.longitude);
+      
+      const distance = calculateDistance(userLat, userLng, officeLat, officeLng);
+      const isWithinRadius = distance <= (primaryOffice.radius || 100);
+
+      // Validation based on attendance type
+      if (checkInData.attendanceType === "office" && !isWithinRadius) {
+        return res.status(400).json({ 
+          message: "You are outside the office location. Please select 'Remote' or 'Field Work' and provide a reason.",
+          distance: Math.round(distance),
+          officeRadius: primaryOffice.radius || 100
+        });
+      }
+
+      if (checkInData.attendanceType === "remote" && !checkInData.reason) {
+        return res.status(400).json({ message: "Please provide a reason for remote work" });
+      }
+
+      if (checkInData.attendanceType === "field_work") {
+        if (!checkInData.customerName) {
+          return res.status(400).json({ message: "Customer name is required for field work" });
+        }
+        if (!checkInData.imageUrl) {
+          return res.status(400).json({ message: "Photo is mandatory for field work attendance" });
+        }
+      }
+
+      // Check if user already checked in today
+      const today = new Date().toISOString().split('T')[0];
+      const existingAttendance = await storage.getUserAttendanceForDate(req.authenticatedUser.user.uid, today);
+      
+      if (existingAttendance && existingAttendance.checkInTime) {
+        return res.status(400).json({ message: "You have already checked in today" });
+      }
+
+      // Create attendance record
+      const attendanceRecord = await storage.createAttendance({
+        userId: req.authenticatedUser.user.uid,
+        checkInTime: new Date(),
+        attendanceType: checkInData.attendanceType,
+        customerName: checkInData.customerName,
+        reason: checkInData.reason,
+        checkInLatitude: checkInData.latitude,
+        checkInLongitude: checkInData.longitude,
+        checkInImageUrl: checkInData.imageUrl,
+        isWithinOfficeRadius: isWithinRadius,
+        distanceFromOffice: distance,
+        status: "present"
+      });
+
+      // Create audit log
+      await storage.createAuditLog({
+        userId: req.authenticatedUser.user.uid,
+        action: "attendance_check_in",
+        entityType: "attendance",
+        entityId: attendanceRecord.id,
+        changes: { 
+          attendanceType: checkInData.attendanceType,
+          location: `${checkInData.latitude},${checkInData.longitude}`,
+          distance: Math.round(distance)
+        },
+        department: req.authenticatedUser.user.department,
+        designation: req.authenticatedUser.user.designation
+      });
+
+      res.json({ 
+        message: "Check-in successful", 
+        attendance: attendanceRecord,
+        location: {
+          distance: Math.round(distance),
+          withinRadius: isWithinRadius
+        }
+      });
+    } catch (error) {
+      console.error("Error during check-in:", error);
+      res.status(500).json({ message: "Failed to record check-in" });
+    }
+  });
+
+  // Enhanced Check-out with overtime detection
+  app.post("/api/attendance/check-out", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const checkOutData = {
+        userId: req.authenticatedUser.user.uid,
+        latitude: req.body.latitude,
+        longitude: req.body.longitude,
+        reason: req.body.reason,
+        otReason: req.body.otReason,
+        otImageUrl: req.body.otImageUrl,
+        overtimeHours: req.body.overtimeHours
+      };
+
+      // Get today's attendance record
+      const today = new Date().toISOString().split('T')[0];
+      const attendanceRecord = await storage.getUserAttendanceForDate(checkOutData.userId, today);
+      
+      if (!attendanceRecord || !attendanceRecord.checkInTime) {
+        return res.status(400).json({ message: "No check-in record found for today" });
+      }
+
+      if (attendanceRecord.checkOutTime) {
+        return res.status(400).json({ message: "You have already checked out today" });
+      }
+
+      // Get department timing for overtime calculation
+      const user = await storage.getUser(checkOutData.userId);
+      const departmentTiming = user?.department 
+        ? await storage.getDepartmentTiming(user.department)
+        : null;
+
+      const checkInTime = new Date(attendanceRecord.checkInTime);
+      const checkOutTime = new Date();
+      const workingMinutes = Math.floor((checkOutTime.getTime() - checkInTime.getTime()) / (1000 * 60));
+      
+      const standardWorkingMinutes = departmentTiming?.workingHours 
+        ? departmentTiming.workingHours * 60 
+        : 8 * 60; // Default 8 hours
+      
+      const overtimeThreshold = departmentTiming?.overtimeThresholdMinutes || 30;
+      const potentialOvertimeMinutes = workingMinutes - standardWorkingMinutes;
+      const hasOvertime = potentialOvertimeMinutes >= overtimeThreshold;
+
+      // Validation for overtime
+      if (hasOvertime) {
+        if (!checkOutData.otReason) {
+          return res.status(400).json({ 
+            message: "Please provide a reason for overtime work",
+            overtimeHours: Math.floor(potentialOvertimeMinutes / 60),
+            overtimeMinutes: potentialOvertimeMinutes % 60
+          });
+        }
+        if (!checkOutData.otImageUrl) {
+          return res.status(400).json({ message: "Photo is mandatory for overtime verification" });
+        }
+      }
+
+      // Update attendance record
+      const updatedAttendance = await storage.updateAttendance(attendanceRecord.id, {
+        checkOutTime: checkOutTime,
+        checkOutLatitude: checkOutData.latitude,
+        checkOutLongitude: checkOutData.longitude,
+        checkOutImageUrl: checkOutData.otImageUrl,
+        workingHours: workingMinutes / 60,
+        overtimeHours: hasOvertime ? potentialOvertimeMinutes / 60 : 0,
+        otReason: checkOutData.otReason,
+        otImageUrl: checkOutData.otImageUrl,
+        remarks: checkOutData.reason
+      });
+
+      // Create audit log
+      await storage.createAuditLog({
+        userId: checkOutData.userId,
+        action: "attendance_check_out",
+        entityType: "attendance",
+        entityId: attendanceRecord.id,
+        changes: { 
+          workingHours: (workingMinutes / 60).toFixed(2),
+          overtime: hasOvertime ? (potentialOvertimeMinutes / 60).toFixed(2) : "0",
+          location: `${checkOutData.latitude},${checkOutData.longitude}`
+        },
+        department: user?.department,
+        designation: user?.designation
+      });
+
+      res.json({ 
+        message: "Check-out successful", 
+        attendance: updatedAttendance,
+        workingSummary: {
+          totalHours: (workingMinutes / 60).toFixed(2),
+          overtimeHours: hasOvertime ? (potentialOvertimeMinutes / 60).toFixed(2) : "0",
+          hasOvertime
+        }
+      });
+    } catch (error) {
+      console.error("Error during check-out:", error);
+      res.status(500).json({ message: "Failed to record check-out" });
+    }
+  });
+
+  // Department timing management
+  app.get("/api/departments/:departmentId/timing", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      // Check permission
+      const hasPermission = req.authenticatedUser.user.role === "master_admin" ||
+                           req.authenticatedUser.permissions.includes("departments.view");
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const timing = await storage.getDepartmentTiming(req.params.departmentId);
+      res.json(timing);
+    } catch (error) {
+      console.error("Error fetching department timing:", error);
+      res.status(500).json({ message: "Failed to fetch department timing" });
+    }
+  });
+
+  app.post("/api/departments/:departmentId/timing", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      // Check permission - only master admin can set timing
+      if (req.authenticatedUser.user.role !== "master_admin") {
+        return res.status(403).json({ message: "Access denied - Master Admin only" });
+      }
+
+      const timingData = {
+        departmentId: req.params.departmentId,
+        department: req.body.department,
+        workingHours: req.body.workingHours || 8,
+        checkInTime: req.body.checkInTime || "09:00",
+        checkOutTime: req.body.checkOutTime || "18:00",
+        lateThresholdMinutes: req.body.lateThresholdMinutes || 15,
+        overtimeThresholdMinutes: req.body.overtimeThresholdMinutes || 30,
+        isFlexibleTiming: req.body.isFlexibleTiming || false,
+        flexibleCheckInStart: req.body.flexibleCheckInStart,
+        flexibleCheckInEnd: req.body.flexibleCheckInEnd,
+        breakDurationMinutes: req.body.breakDurationMinutes || 60,
+        weeklyOffDays: req.body.weeklyOffDays || [0], // Sunday
+        createdBy: req.authenticatedUser.user.uid
+      };
+
+      const timing = await storage.createDepartmentTiming(timingData);
+
+      // Create audit log
+      await storage.createAuditLog({
+        userId: req.authenticatedUser.user.uid,
+        action: "department_timing_created",
+        entityType: "department_timing",
+        entityId: timing.id,
+        changes: timingData,
+        department: req.authenticatedUser.user.department,
+        designation: req.authenticatedUser.user.designation
+      });
+
+      res.json({ message: "Department timing created successfully", timing });
+    } catch (error) {
+      console.error("Error creating department timing:", error);
+      res.status(500).json({ message: "Failed to create department timing" });
     }
   });
 

@@ -77,3 +77,20 @@ export function getDistanceBetweenCoordinates(
 function toRadians(degrees: number): number {
   return degrees * (Math.PI / 180);
 }
+
+/**
+ * Calculate distance between two coordinates using Haversine formula
+ * @param lat1 First latitude
+ * @param lng1 First longitude  
+ * @param lat2 Second latitude
+ * @param lng2 Second longitude
+ * @returns Distance in meters
+ */
+export function calculateDistance(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number
+): number {
+  return getDistanceBetweenCoordinates(lat1, lng1, lat2, lng2);
+}

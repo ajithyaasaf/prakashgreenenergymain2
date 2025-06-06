@@ -1,16 +1,11 @@
-import { useState, useEffect, useRef } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuthContext } from "@/contexts/auth-context";
-import { usePermissions } from "@/hooks/use-permissions";
 import { useToast } from "@/hooks/use-toast";
 import { formatDate, formatTime } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,14 +14,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { 
   CalendarIcon, Search, Loader2, UserCheck, Clock, 
-  MapPin, Camera, Wifi, WifiOff, CheckCircle, XCircle, AlertTriangle,
-  Timer, Users, TrendingUp, Activity, RefreshCw
+  MapPin, Timer, Users, TrendingUp, Activity, RefreshCw, Zap
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { AttendanceCheckIn } from "@/components/attendance/attendance-check-in";
+import { AttendanceCheckOut } from "@/components/attendance/attendance-check-out";
 
 export default function Attendance() {
   const { user } = useAuthContext();
-  const { hasPermission } = usePermissions();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
@@ -34,26 +29,9 @@ export default function Attendance() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("today");
   
-  // Real-time tracking states
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [currentLocation, setCurrentLocation] = useState<GeolocationCoordinates | null>(null);
-  const [locationError, setLocationError] = useState<string | null>(null);
-  const [isGettingLocation, setIsGettingLocation] = useState(false);
-  
   // Check-in/out modal states
   const [showCheckInModal, setShowCheckInModal] = useState(false);
   const [showCheckOutModal, setShowCheckOutModal] = useState(false);
-  const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
-  const [remarks, setRemarks] = useState("");
-  const [checkInType, setCheckInType] = useState<"office" | "remote" | "field">("office");
-  const [customerName, setCustomerName] = useState("");
-  const [otReason, setOtReason] = useState("");
-  
-  // Camera and photo states
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [isCameraActive, setIsCameraActive] = useState(false);
-  const [stream, setStream] = useState<MediaStream | null>(null);
 
   // Real-time attendance tracking - refetch every 30 seconds
   const { data: attendanceRecords = [], isLoading, refetch } = useQuery({
