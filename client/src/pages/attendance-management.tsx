@@ -49,26 +49,21 @@ export default function AttendanceManagement() {
   // Real-time attendance data
   const { data: liveAttendance = [], isLoading: isLoadingLive, refetch: refetchLive } = useQuery({
     queryKey: ['/api/attendance/live'],
-    queryFn: async () => {
-      const response = await fetch('/api/attendance/live');
-      if (!response.ok) throw new Error('Failed to fetch live attendance');
-      return response.json();
-    },
+    enabled: !!user,
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 
   // Daily attendance records
   const { data: dailyAttendance = [], isLoading: isLoadingDaily, refetch: refetchDaily } = useQuery({
     queryKey: ['/api/attendance', { date: selectedDate.toISOString().split('T')[0] }],
+    enabled: !!user,
     queryFn: async () => {
       const dateParam = selectedDate.toISOString().split('T')[0];
-      const response = await fetch(`/api/attendance?date=${dateParam}`);
-      if (!response.ok) throw new Error('Failed to fetch attendance records');
-      const attendanceData = await response.json();
+      const attendanceResponse = await apiRequest('GET', `/api/attendance?date=${dateParam}`);
+      const attendanceData = await attendanceResponse.json();
       
       // Enrich with user details
-      const usersResponse = await fetch('/api/users');
-      if (!usersResponse.ok) throw new Error('Failed to fetch user details');
+      const usersResponse = await apiRequest('GET', '/api/users');
       const users = await usersResponse.json();
       
       return attendanceData.map((record: any) => {
@@ -87,20 +82,16 @@ export default function AttendanceManagement() {
   // Attendance policies
   const { data: attendancePolicies = [] } = useQuery({
     queryKey: ['/api/attendance/policies'],
-    queryFn: async () => {
-      const response = await fetch('/api/attendance/policies');
-      if (!response.ok) throw new Error('Failed to fetch attendance policies');
-      return response.json();
-    },
+    enabled: !!user,
   });
 
   // Department statistics
   const { data: departmentStats = [] } = useQuery({
     queryKey: ['/api/attendance/department-stats', selectedDate.toISOString().split('T')[0]],
+    enabled: !!user,
     queryFn: async () => {
       const dateParam = selectedDate.toISOString().split('T')[0];
-      const response = await fetch(`/api/attendance/department-stats?date=${dateParam}`);
-      if (!response.ok) throw new Error('Failed to fetch department statistics');
+      const response = await apiRequest('GET', `/api/attendance/department-stats?date=${dateParam}`);
       return response.json();
     },
   });
@@ -108,10 +99,8 @@ export default function AttendanceManagement() {
   // Update attendance mutation
   const updateAttendanceMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
-      return apiRequest(`/api/attendance/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify(data)
-      });
+      const response = await apiRequest('PATCH', `/api/attendance/${id}`, data);
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/attendance'] });
@@ -139,10 +128,8 @@ export default function AttendanceManagement() {
       attendanceIds: string[]; 
       data?: any 
     }) => {
-      return apiRequest('/api/attendance/bulk-action', {
-        method: 'POST',
-        body: JSON.stringify({ action, attendanceIds, data })
-      });
+      const response = await apiRequest('POST', '/api/attendance/bulk-action', { action, attendanceIds, data });
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/attendance'] });
