@@ -1010,7 +1010,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check geolocation for office attendance
       const locations = await storage.listOfficeLocations();
       const isWithinOfficeGeoFence = locations.some((loc) =>
-        isWithinGeoFence(latitude, longitude, loc),
+        isWithinGeoFence(
+          parseFloat(latitude), 
+          parseFloat(longitude), 
+          parseFloat(loc.latitude), 
+          parseFloat(loc.longitude), 
+          loc.radius || 100
+        ),
       );
 
       // Validation based on attendance type
