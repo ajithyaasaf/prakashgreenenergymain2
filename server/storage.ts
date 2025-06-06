@@ -1697,23 +1697,32 @@ export class FirestoreStorage implements IStorage {
     const validatedData = insertAttendanceSchema.partial().parse(data);
     
     // Then prepare for Firestore with timestamp conversion
-    const firestoreData = {
+    const firestoreData: any = {
       ...validatedData,
-      date: validatedData.date ? Timestamp.fromDate(validatedData.date) : undefined,
-      checkInTime: validatedData.checkInTime
-        ? Timestamp.fromDate(validatedData.checkInTime)
-        : undefined,
-      checkOutTime: validatedData.checkOutTime
-        ? Timestamp.fromDate(validatedData.checkOutTime)
-        : undefined,
+      updatedAt: Timestamp.now(),
     };
+    
+    // Convert dates to Firestore timestamps, only if they exist
+    if (validatedData.date) {
+      firestoreData.date = Timestamp.fromDate(validatedData.date);
+    }
+    if (validatedData.checkInTime) {
+      firestoreData.checkInTime = Timestamp.fromDate(validatedData.checkInTime);
+    }
+    if (validatedData.checkOutTime) {
+      firestoreData.checkOutTime = Timestamp.fromDate(validatedData.checkOutTime);
+    }
+    
+    // Remove undefined values to avoid Firestore errors
+    Object.keys(firestoreData).forEach(key => {
+      if (firestoreData[key] === undefined) {
+        delete firestoreData[key];
+      }
+    });
     
     const attendanceDoc = this.db.collection("attendance").doc(id);
     
-    await attendanceDoc.update({
-      ...firestoreData,
-      updatedAt: Timestamp.now(),
-    });
+    await attendanceDoc.update(firestoreData);
     
     const updatedDoc = await attendanceDoc.get();
     if (!updatedDoc.exists) throw new Error("Attendance not found");
