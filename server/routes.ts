@@ -1598,6 +1598,363 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Live attendance tracking API
+  app.get("/api/attendance/live", verifyAuth, async (req, res) => {
+    try {
+      const { user } = req.authenticatedUser;
+      
+      // Only admin/master_admin can view live attendance
+      if (user.role !== "master_admin" && user.role !== "admin") {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      // Get all attendance records for today
+      const attendanceRecords = await storage.listAttendanceByDate(today);
+      
+      // Get all users to enrich attendance data
+      const allUsers = await storage.listUsers();
+      
+      // Create live attendance data with user details
+      const liveAttendance = attendanceRecords.map((record) => {
+        const userDetails = allUsers.find((u) => u.id === record.userId);
+        const currentTime = new Date();
+        const checkInTime = record.checkInTime ? new Date(record.checkInTime) : null;
+        const workingHours = checkInTime 
+          ? (currentTime.getTime() - checkInTime.getTime()) / (1000 * 60 * 60)
+          : 0;
+
+        return {
+          ...record,
+          userName: userDetails?.displayName || `User #${record.userId}`,
+          userEmail: userDetails?.email || null,
+          userDepartment: userDetails?.department || null,
+          userDesignation: userDetails?.designation || null,
+          currentWorkingHours: Math.round(workingHours * 100) / 100,
+          isOnline: !record.checkOutTime, // Still online if no checkout
+          status: record.checkOutTime ? 'checked_out' : 'checked_in',
+          location: record.attendanceType || 'office'
+        };
+      });
+
+      res.json(liveAttendance);
+    } catch (error) {
+      console.error("Error fetching live attendance:", error);
+      res.status(500).json({ message: "Failed to fetch live attendance" });
+    }
+  });
+
+  // Department statistics API
+  app.get("/api/attendance/department-stats", verifyAuth, async (req, res) => {
+    try {
+      const { user } = req.authenticatedUser;
+      const { date } = req.query;
+      
+      // Only admin/master_admin can view department stats
+      if (user.role !== "master_admin" && user.role !== "admin") {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const targetDate = date ? new Date(date as string) : new Date();
+      targetDate.setHours(0, 0, 0, 0);
+      
+      // Get attendance records for the date
+      const attendanceRecords = await storage.listAttendanceByDate(targetDate);
+      
+      // Get all users
+      const allUsers = await storage.listUsers();
+      
+      // Group by department
+      const departmentStats = {};
+      
+      allUsers.forEach(user => {
+        if (!user.department) return;
+        
+        const dept = user.department;
+        if (!departmentStats[dept]) {
+          departmentStats[dept] = {
+            department: dept,
+            totalEmployees: 0,
+            present: 0,
+            absent: 0,
+            late: 0,
+            onTime: 0,
+            overtime: 0,
+            checkedOut: 0,
+            stillWorking: 0
+          };
+        }
+        
+        departmentStats[dept].totalEmployees++;
+        
+        const userAttendance = attendanceRecords.find(record => record.userId === user.id);
+        
+        if (userAttendance) {
+          departmentStats[dept].present++;
+          
+          if (userAttendance.isLate) {
+            departmentStats[dept].late++;
+          } else {
+            departmentStats[dept].onTime++;
+          }
+          
+          if (userAttendance.overtimeHours && userAttendance.overtimeHours > 0) {
+            departmentStats[dept].overtime++;
+          }
+          
+          if (userAttendance.checkOutTime) {
+            departmentStats[dept].checkedOut++;
+          } else {
+            departmentStats[dept].stillWorking++;
+          }
+        } else {
+          departmentStats[dept].absent++;
+        }
+      });
+
+      res.json(Object.values(departmentStats));
+    } catch (error) {
+      console.error("Error fetching department stats:", error);
+      res.status(500).json({ message: "Failed to fetch department statistics" });
+    }
+  });
+
+  // Attendance policies API
+  app.get("/api/attendance/policies", verifyAuth, async (req, res) => {
+    try {
+      const { user } = req.authenticatedUser;
+      
+      // Only admin/master_admin can view policies
+      if (user.role !== "master_admin" && user.role !== "admin") {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // Return attendance policies configuration
+      const policies = [
+        {
+          id: "geofence_policy",
+          name: "Geofence Requirement",
+          description: "Office attendance requires being within 100 meters of office location",
+          enabled: true,
+          config: {
+            radius: 100,
+            strictMode: true,
+            allowedOfficeLocations: 1
+          }
+        },
+        {
+          id: "overtime_policy", 
+          name: "Overtime Approval",
+          description: "Overtime work requires photo verification and reason",
+          enabled: true,
+          config: {
+            requiresPhoto: true,
+            requiresReason: true,
+            autoApprovalThreshold: 0,
+            maxOvertimeHours: 4
+          }
+        },
+        {
+          id: "late_policy",
+          name: "Late Arrival Policy",
+          description: "Automatic late marking based on department timing",
+          enabled: true,
+          config: {
+            graceMinutes: 15,
+            autoMarkLate: true,
+            requiresReason: false
+          }
+        },
+        {
+          id: "remote_work_policy",
+          name: "Remote Work Policy",
+          description: "Remote work requires reason when outside office geofence",
+          enabled: true,
+          config: {
+            requiresReason: true,
+            requiresApproval: false,
+            maxRemoteDays: 2
+          }
+        }
+      ];
+
+      res.json(policies);
+    } catch (error) {
+      console.error("Error fetching attendance policies:", error);
+      res.status(500).json({ message: "Failed to fetch attendance policies" });
+    }
+  });
+
+  // Update attendance record API
+  app.patch("/api/attendance/:id", verifyAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { user } = req.authenticatedUser;
+      const updateData = req.body;
+      
+      // Only admin/master_admin can update attendance records
+      if (user.role !== "master_admin" && user.role !== "admin") {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // Get existing attendance record
+      const existingRecord = await storage.getAttendance(id);
+      if (!existingRecord) {
+        return res.status(404).json({ message: "Attendance record not found" });
+      }
+
+      // Prepare update data
+      const updates: any = {};
+      
+      if (updateData.checkInTime) {
+        const date = new Date(existingRecord.date);
+        const [hours, minutes] = updateData.checkInTime.split(':');
+        date.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+        updates.checkInTime = date;
+      }
+      
+      if (updateData.checkOutTime) {
+        const date = new Date(existingRecord.date);
+        const [hours, minutes] = updateData.checkOutTime.split(':');
+        date.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+        updates.checkOutTime = date;
+      }
+
+      if (updateData.status) {
+        updates.status = updateData.status;
+      }
+
+      if (updateData.overtimeHours !== undefined) {
+        updates.overtimeHours = parseFloat(updateData.overtimeHours);
+      }
+
+      if (updateData.remarks) {
+        updates.remarks = updateData.remarks;
+      }
+
+      // Recalculate working hours if both times are updated
+      if (updates.checkInTime && updates.checkOutTime) {
+        const workingMilliseconds = updates.checkOutTime.getTime() - updates.checkInTime.getTime();
+        updates.workingHours = Math.round((workingMilliseconds / (1000 * 60 * 60)) * 100) / 100;
+      }
+
+      // Update the record
+      const updatedRecord = await storage.updateAttendance(id, updates);
+
+      // Log activity
+      await storage.createActivityLog({
+        type: 'attendance',
+        title: 'Attendance Record Updated',
+        description: `${user.displayName} updated attendance record for ${existingRecord.userId}`,
+        entityId: id,
+        entityType: 'attendance',
+        userId: user.uid
+      });
+
+      res.json({
+        message: "Attendance record updated successfully",
+        attendance: updatedRecord
+      });
+    } catch (error) {
+      console.error("Error updating attendance record:", error);
+      res.status(500).json({ message: "Failed to update attendance record" });
+    }
+  });
+
+  // Bulk actions API
+  app.post("/api/attendance/bulk-action", verifyAuth, async (req, res) => {
+    try {
+      const { user } = req.authenticatedUser;
+      const { action, attendanceIds, data } = req.body;
+      
+      // Only admin/master_admin can perform bulk actions
+      if (user.role !== "master_admin" && user.role !== "admin") {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      if (!action || !attendanceIds || !Array.isArray(attendanceIds)) {
+        return res.status(400).json({ message: "Invalid bulk action parameters" });
+      }
+
+      let results = [];
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const attendanceId of attendanceIds) {
+        try {
+          let result = null;
+          
+          switch (action) {
+            case 'approve_overtime':
+              result = await storage.updateAttendance(attendanceId, {
+                overtimeApproved: true,
+                overtimeApprovedBy: user.uid,
+                overtimeApprovedAt: new Date()
+              });
+              break;
+              
+            case 'reject_overtime':
+              result = await storage.updateAttendance(attendanceId, {
+                overtimeApproved: false,
+                overtimeRejectedBy: user.uid,
+                overtimeRejectedAt: new Date(),
+                overtimeRejectionReason: data?.reason || 'No reason provided'
+              });
+              break;
+              
+            case 'mark_present':
+              result = await storage.updateAttendance(attendanceId, {
+                status: 'present'
+              });
+              break;
+              
+            case 'mark_absent':
+              result = await storage.updateAttendance(attendanceId, {
+                status: 'absent'
+              });
+              break;
+              
+            default:
+              throw new Error(`Unknown action: ${action}`);
+          }
+          
+          if (result) {
+            results.push({ id: attendanceId, success: true, data: result });
+            successCount++;
+          }
+        } catch (error) {
+          results.push({ id: attendanceId, success: false, error: error.message });
+          errorCount++;
+        }
+      }
+
+      // Log bulk activity
+      await storage.createActivityLog({
+        type: 'attendance',
+        title: `Bulk Action: ${action}`,
+        description: `${user.displayName} performed bulk action '${action}' on ${attendanceIds.length} records (${successCount} succeeded, ${errorCount} failed)`,
+        entityId: attendanceIds.join(','),
+        entityType: 'attendance',
+        userId: user.uid
+      });
+
+      res.json({
+        message: `Bulk action completed: ${successCount} succeeded, ${errorCount} failed`,
+        results,
+        summary: {
+          total: attendanceIds.length,
+          succeeded: successCount,
+          failed: errorCount
+        }
+      });
+    } catch (error) {
+      console.error("Error performing bulk action:", error);
+      res.status(500).json({ message: "Failed to perform bulk action" });
+    }
+  });
+
   // Customers with pagination and performance optimizations
   app.get("/api/customers", verifyAuth, async (req, res) => {
     try {
