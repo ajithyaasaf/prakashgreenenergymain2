@@ -3144,79 +3144,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Authentication required" });
       }
 
-      const checkInData = {
-        userId: req.authenticatedUser.user.uid,
-        latitude: req.body.latitude,
-        longitude: req.body.longitude,
-        attendanceType: req.body.attendanceType || "office",
-        customerName: req.body.customerName,
-        reason: req.body.reason,
-        imageUrl: req.body.imageUrl,
-        isWithinOfficeRadius: req.body.isWithinOfficeRadius || false,
-        distanceFromOffice: req.body.distanceFromOffice
-      };
+      const {
+        latitude,
+        longitude,
+        attendanceType = "office",
+        customerName,
+        reason,
+        imageUrl,
+        isWithinOfficeRadius = false,
+        distanceFromOffice
+      } = req.body;
 
-      // Get office locations for validation
-      const officeLocations = await storage.listOfficeLocations();
-      const primaryOffice = officeLocations[0] || {
-        latitude: "9.966844592415782",
-        longitude: "78.1338405791111",
-        radius: 100
-      };
-
-      // Calculate distance from office
-      const userLat = parseFloat(checkInData.latitude);
-      const userLng = parseFloat(checkInData.longitude);
-      const officeLat = parseFloat(primaryOffice.latitude);
-      const officeLng = parseFloat(primaryOffice.longitude);
+      const userId = req.authenticatedUser.user.uid;
       
-      const distance = calculateDistance(userLat, userLng, officeLat, officeLng);
-      const isWithinRadius = distance <= (primaryOffice.radius || 100);
-
-      // Validation based on attendance type
-      if (checkInData.attendanceType === "office" && !isWithinRadius) {
-        return res.status(400).json({ 
-          message: "You are outside the office location. Please select 'Remote' or 'Field Work' and provide a reason.",
-          distance: Math.round(distance),
-          officeRadius: primaryOffice.radius || 100
-        });
-      }
-
-      if (checkInData.attendanceType === "remote" && !checkInData.reason) {
-        return res.status(400).json({ message: "Please provide a reason for remote work" });
-      }
-
-      if (checkInData.attendanceType === "field_work") {
-        if (!checkInData.customerName) {
-          return res.status(400).json({ message: "Customer name is required for field work" });
-        }
-        if (!checkInData.imageUrl) {
-          return res.status(400).json({ message: "Photo is mandatory for field work attendance" });
-        }
+      // Validation
+      if (!latitude || !longitude) {
+        return res.status(400).json({ message: "Location coordinates are required" });
       }
 
       // Check if user already checked in today
-      const today = new Date().toISOString().split('T')[0];
-      const existingAttendance = await storage.getUserAttendanceForDate(req.authenticatedUser.user.uid, today);
-      
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const existingAttendance = await storage.getAttendanceByUserAndDate(userId, today);
       if (existingAttendance && existingAttendance.checkInTime) {
         return res.status(400).json({ message: "You have already checked in today" });
       }
 
-      // Create attendance record
-      const attendanceRecord = await storage.createAttendance({
-        userId: req.authenticatedUser.user.uid,
-        checkInTime: new Date(),
-        attendanceType: checkInData.attendanceType,
-        customerName: checkInData.customerName,
-        reason: checkInData.reason,
-        checkInLatitude: checkInData.latitude,
-        checkInLongitude: checkInData.longitude,
-        checkInImageUrl: checkInData.imageUrl,
+      // Get office locations for validation
+      const officeLocations = await storage.listOfficeLocations();
+      const primaryOffice = officeLocations[0] || {
+        latitude: 9.966844592415782,
+        longitude: 78.1338405791111,
+        radius: 100
+      };
+
+      // Calculate distance from office
+      const distance = calculateDistance(
+        parseFloat(latitude),
+        parseFloat(longitude),
+        parseFloat(primaryOffice.latitude.toString()),
+        parseFloat(primaryOffice.longitude.toString())
+      );
+
+      const isWithinRadius = distance <= (primaryOffice.radius || 100);
+
+      // Validate attendance type and requirements
+      if (attendanceType === "office" && !isWithinRadius) {
+        return res.status(400).json({ 
+          message: `You are ${Math.round(distance)}m away from office. Please select 'Remote' or 'Field Work' and provide a reason.`,
+          distance: Math.round(distance),
+          allowedRadius: primaryOffice.radius || 100,
+          requiresReasonSelection: true
+        });
+      }
+
+      if (attendanceType === "remote" && !reason) {
+        return res.status(400).json({ message: "Please provide a reason for remote work" });
+      }
+
+      if (attendanceType === "field_work") {
+        if (!customerName) {
+          return res.status(400).json({ message: "Customer name is required for field work" });
+        }
+        if (!imageUrl) {
+          return res.status(400).json({ message: "Photo is mandatory for field work attendance" });
+        }
+      }
+
+      const checkInData = {
+        userId,
+        latitude: parseFloat(latitude),
+        longitude: parseFloat(longitude),
+        attendanceType,
+        customerName: attendanceType === "field_work" ? customerName : undefined,
+        reason: attendanceType !== "office" ? reason : undefined,
+        imageUrl: attendanceType === "field_work" ? imageUrl : undefined,
         isWithinOfficeRadius: isWithinRadius,
-        distanceFromOffice: distance,
-        status: "present"
-      });
+        distanceFromOffice: Math.round(distance)
+      };
+
+      // Create attendance record
+      const attendanceRecord = await storage.createAttendance(checkInData);
 
       // Create audit log
       await storage.createAuditLog({
@@ -3227,18 +3235,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         changes: { 
           attendanceType: checkInData.attendanceType,
           location: `${checkInData.latitude},${checkInData.longitude}`,
-          distance: Math.round(distance)
+          distance: Math.round(distance),
+          withinOfficeRadius: isWithinRadius
         },
         department: req.authenticatedUser.user.department,
         designation: req.authenticatedUser.user.designation
       });
 
-      res.json({ 
+      res.status(201).json({ 
         message: "Check-in successful", 
         attendance: attendanceRecord,
         location: {
           distance: Math.round(distance),
-          withinRadius: isWithinRadius
+          withinRadius: isWithinRadius,
+          attendanceType: checkInData.attendanceType
         }
       });
     } catch (error) {
