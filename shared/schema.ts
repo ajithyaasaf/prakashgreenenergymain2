@@ -116,8 +116,9 @@ export const insertAttendanceSchema = z.object({
   date: z.date().optional(),
   checkInTime: z.date().optional(),
   checkOutTime: z.date().optional(),
-  location: z.string().default("office"),
-  customerId: z.number().optional(),
+  attendanceType: z.enum(["office", "remote", "field_work"]).default("office"),
+  customerId: z.string().optional(),
+  customerName: z.string().optional(),
   reason: z.string().optional(),
   checkInLatitude: z.string().optional(),
   checkInLongitude: z.string().optional(),
@@ -128,19 +129,43 @@ export const insertAttendanceSchema = z.object({
   status: z.enum(["present", "absent", "late", "leave", "holiday", "half_day"]).default("present"),
   overtimeHours: z.number().optional(),
   otReason: z.string().optional(),
+  otImageUrl: z.string().optional(),
   workingHours: z.number().optional(),
   breakHours: z.number().optional(),
   isLate: z.boolean().default(false),
   lateMinutes: z.number().optional(),
   approvedBy: z.string().optional(),
   remarks: z.string().optional(),
+  isWithinOfficeRadius: z.boolean().default(false),
+  distanceFromOffice: z.number().optional(),
 });
 
 export const insertOfficeLocationSchema = z.object({
   name: z.string(),
   latitude: z.string(),
   longitude: z.string(),
-  radius: z.number(),
+  radius: z.number().default(100), // Default 100 meters radius
+  address: z.string().optional(),
+  isActive: z.boolean().default(true),
+});
+
+// Department timing schema for attendance calculations
+export const insertDepartmentTimingSchema = z.object({
+  departmentId: z.string(),
+  department: z.enum(departments),
+  workingHours: z.number().min(1).max(24).default(8), // Standard working hours per day
+  checkInTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Time must be in HH:MM format"), // e.g., "09:00"
+  checkOutTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Time must be in HH:MM format"), // e.g., "18:00"
+  lateThresholdMinutes: z.number().min(0).default(15), // Grace period for late arrivals
+  overtimeThresholdMinutes: z.number().min(0).default(30), // Minimum minutes to qualify for OT
+  isFlexibleTiming: z.boolean().default(false),
+  flexibleCheckInStart: z.string().optional(), // e.g., "08:00"
+  flexibleCheckInEnd: z.string().optional(),   // e.g., "10:00"
+  breakDurationMinutes: z.number().min(0).default(60), // Lunch break duration
+  weeklyOffDays: z.array(z.number().min(0).max(6)).default([0]), // 0=Sunday, 1=Monday, etc.
+  isActive: z.boolean().default(true),
+  createdBy: z.string(),
+  updatedBy: z.string().optional(),
 });
 
 export const insertPermissionSchema = z.object({

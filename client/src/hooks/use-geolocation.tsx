@@ -1,189 +1,97 @@
-import { useState, useEffect } from "react";
-import { useToast } from "@/hooks/use-toast";
-import { isWithinGeoFence, getDistanceBetweenCoordinates } from "@/lib/utils";
+import { useState, useEffect } from 'react';
 
-interface GeolocationState {
-  latitude: number | null;
-  longitude: number | null;
-  error: string | null;
-  loading: boolean;
-  isWithinOffice: boolean;
-  distanceFromOffice: number | null;
-  officeLocation: {
-    name: string;
-    latitude: number;
-    longitude: number;
-    radius: number;
-  } | null;
+interface GeolocationData {
+  latitude: number;
+  longitude: number;
+  accuracy: number;
+  timestamp: number;
 }
 
-export function useGeolocation(checkOfficeProximity = true) {
-  const [state, setState] = useState<GeolocationState>({
-    latitude: null,
-    longitude: null,
-    error: null,
-    loading: true,
-    isWithinOffice: false,
-    distanceFromOffice: null,
-    officeLocation: null,
-  });
-  const { toast } = useToast();
+interface GeolocationError {
+  code: number;
+  message: string;
+}
 
-  // Function to get current location
+interface UseGeolocationReturn {
+  location: GeolocationData | null;
+  error: GeolocationError | null;
+  isLoading: boolean;
+  getCurrentLocation: () => void;
+  calculateDistance: (lat1: number, lon1: number, lat2: number, lon2: number) => number;
+  isWithinRadius: (targetLat: number, targetLon: number, radiusInMeters: number) => boolean;
+}
+
+export function useGeolocation(): UseGeolocationReturn {
+  const [location, setLocation] = useState<GeolocationData | null>(null);
+  const [error, setError] = useState<GeolocationError | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Calculate distance between two coordinates using Haversine formula
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+    const R = 6371e3; // Earth's radius in meters
+    const φ1 = lat1 * Math.PI / 180;
+    const φ2 = lat2 * Math.PI / 180;
+    const Δφ = (lat2 - lat1) * Math.PI / 180;
+    const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+              Math.cos(φ1) * Math.cos(φ2) *
+              Math.sin(Δλ/2) * Math.sin(Δλ/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+    return R * c; // Distance in meters
+  };
+
+  // Check if current location is within specified radius of target location
+  const isWithinRadius = (targetLat: number, targetLon: number, radiusInMeters: number): boolean => {
+    if (!location) return false;
+    const distance = calculateDistance(location.latitude, location.longitude, targetLat, targetLon);
+    return distance <= radiusInMeters;
+  };
+
   const getCurrentLocation = () => {
-    setState(prev => ({ ...prev, loading: true }));
-
     if (!navigator.geolocation) {
-      setState(prev => ({
-        ...prev,
-        error: "Geolocation is not supported by your browser",
-        loading: false,
-      }));
-      
-      toast({
-        title: "Geolocation Error",
-        description: "Geolocation is not supported by your browser",
-        variant: "destructive",
+      setError({
+        code: 0,
+        message: 'Geolocation is not supported by this browser'
       });
-      
       return;
     }
 
+    setIsLoading(true);
+    setError(null);
+
     navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const { latitude, longitude } = position.coords;
-        
-        try {
-          // Fetch office locations from API with authentication
-          const { getAuth } = await import('firebase/auth');
-          const auth = getAuth();
-          const user = auth.currentUser;
-          
-          if (!user) {
-            setState({
-              latitude,
-              longitude,
-              error: "User not authenticated",
-              loading: false,
-              isWithinOffice: false,
-              distanceFromOffice: null,
-              officeLocation: null,
-            });
-            return;
-          }
-          
-          const token = await user.getIdToken();
-          const response = await fetch('/api/office-locations', {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          });
-          if (response.ok) {
-            const officeLocations = await response.json();
-            
-            // Find if user is within any office location
-            let withinOffice = false;
-            let closestOffice = null;
-            let minDistance = Infinity;
-            
-            for (const office of officeLocations) {
-              const distance = getDistanceBetweenCoordinates(
-                latitude,
-                longitude,
-                parseFloat(office.latitude),
-                parseFloat(office.longitude)
-              );
-              
-              if (distance < minDistance) {
-                minDistance = distance;
-                closestOffice = office;
-              }
-              
-              if (isWithinGeoFence(
-                latitude,
-                longitude,
-                parseFloat(office.latitude),
-                parseFloat(office.longitude),
-                office.radius
-              )) {
-                withinOffice = true;
-                break;
-              }
-            }
-            
-            setState({
-              latitude,
-              longitude,
-              error: null,
-              loading: false,
-              isWithinOffice: withinOffice,
-              distanceFromOffice: minDistance,
-              officeLocation: closestOffice,
-            });
-          } else {
-            setState({
-              latitude,
-              longitude,
-              error: "Failed to fetch office locations",
-              loading: false,
-              isWithinOffice: false,
-              distanceFromOffice: null,
-              officeLocation: null,
-            });
-          }
-        } catch (error) {
-          console.error("Error fetching office locations:", error);
-          setState({
-            latitude,
-            longitude,
-            error: "Failed to fetch office locations",
-            loading: false,
-            isWithinOffice: false,
-            distanceFromOffice: null,
-            officeLocation: null,
-          });
-        }
+      (position) => {
+        setLocation({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+          timestamp: position.timestamp
+        });
+        setIsLoading(false);
       },
       (error) => {
-        let errorMessage = "Unknown error occurred while getting location";
-        
-        switch (error.code) {
-          case error.PERMISSION_DENIED:
-            errorMessage = "Location permission denied. Please enable location services.";
-            break;
-          case error.POSITION_UNAVAILABLE:
-            errorMessage = "Location information is unavailable.";
-            break;
-          case error.TIMEOUT:
-            errorMessage = "Location request timed out.";
-            break;
-        }
-        
-        setState(prev => ({
-          ...prev,
-          error: errorMessage,
-          loading: false,
-        }));
-        
-        toast({
-          title: "Geolocation Error",
-          description: errorMessage,
-          variant: "destructive",
+        setError({
+          code: error.code,
+          message: error.message
         });
+        setIsLoading(false);
       },
-      { enableHighAccuracy: true }
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 60000
+      }
     );
   };
 
-  // Initial location fetch
-  useEffect(() => {
-    if (checkOfficeProximity) {
-      getCurrentLocation();
-    }
-  }, [checkOfficeProximity]);
-
   return {
-    ...state,
+    location,
+    error,
+    isLoading,
     getCurrentLocation,
+    calculateDistance,
+    isWithinRadius
   };
 }
