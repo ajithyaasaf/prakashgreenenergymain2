@@ -2851,6 +2851,97 @@ export class FirestoreStorage implements IStorage {
       leaveDays
     };
   }
+
+  // Department timing management
+  async getDepartmentTiming(departmentId: string): Promise<any | null> {
+    try {
+      const querySnapshot = await this.db.collection('departmentTimings')
+        .where('departmentId', '==', departmentId)
+        .where('isActive', '==', true)
+        .limit(1)
+        .get();
+
+      if (querySnapshot.empty) {
+        // Return default timing if none exists
+        return {
+          departmentId,
+          workingHours: 8,
+          checkInTime: "09:00",
+          checkOutTime: "18:00",
+          lateThresholdMinutes: 15,
+          overtimeThresholdMinutes: 30,
+          isFlexibleTiming: false,
+          breakDurationMinutes: 60,
+          weeklyOffDays: [0], // Sunday
+          isActive: true
+        };
+      }
+
+      const doc = querySnapshot.docs[0];
+      return {
+        id: doc.id,
+        ...doc.data()
+      };
+    } catch (error) {
+      console.error("Error getting department timing:", error);
+      return null;
+    }
+  }
+
+  async createDepartmentTiming(timingData: any): Promise<any> {
+    try {
+      // Deactivate existing timing for this department
+      const existingQuery = await this.db.collection('departmentTimings')
+        .where('departmentId', '==', timingData.departmentId)
+        .get();
+
+      const batch = this.db.batch();
+      existingQuery.docs.forEach(doc => {
+        batch.update(doc.ref, { isActive: false, updatedAt: new Date() });
+      });
+
+      // Create new timing
+      const newTimingRef = this.db.collection('departmentTimings').doc();
+      const newTiming = {
+        ...timingData,
+        id: newTimingRef.id,
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      batch.set(newTimingRef, newTiming);
+      await batch.commit();
+
+      return newTiming;
+    } catch (error) {
+      console.error("Error creating department timing:", error);
+      throw error;
+    }
+  }
+
+  async getUserAttendanceForDate(userId: string, date: string): Promise<any | null> {
+    try {
+      const querySnapshot = await this.db.collection('attendance')
+        .where('userId', '==', userId)
+        .where('date', '==', date)
+        .limit(1)
+        .get();
+
+      if (querySnapshot.empty) {
+        return null;
+      }
+
+      const doc = querySnapshot.docs[0];
+      return {
+        id: doc.id,
+        ...doc.data()
+      };
+    } catch (error) {
+      console.error("Error getting user attendance for date:", error);
+      return null;
+    }
+  }
 }
 
 export const storage = new FirestoreStorage();

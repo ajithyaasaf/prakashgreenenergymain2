@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { 
   Camera, MapPin, Clock, AlertTriangle, CheckCircle, XCircle, 
-  Loader2, Timer, Zap
+  Loader2, Timer, Zap, Wifi, WifiOff, RefreshCw
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 

@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { 
   Camera, MapPin, Clock, AlertTriangle, CheckCircle, XCircle, 
-  Loader2, User, Building, Wifi, WifiOff 
+  Loader2, User, Building, Wifi, WifiOff, RefreshCw 
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -81,9 +81,10 @@ export function AttendanceCheckIn({ isOpen, onClose, onSuccess, officeLocations 
 
   useEffect(() => {
     if (isOpen) {
-      getCurrentLocation();
+      // Automatically get location when modal opens
+      getCurrentLocation().catch(console.error);
     }
-  }, [isOpen]);
+  }, [isOpen, getCurrentLocation]);
 
   // Camera functions
   const startCamera = async () => {
@@ -244,18 +245,31 @@ export function AttendanceCheckIn({ isOpen, onClose, onSuccess, officeLocations 
 
             <Card>
               <CardContent className="p-4">
-                <div className="flex items-center gap-2">
-                  {locationLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : location ? (
-                    <MapPin className="h-4 w-4 text-green-600" />
-                  ) : (
-                    <XCircle className="h-4 w-4 text-red-600" />
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {locationLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                    ) : location ? (
+                      <MapPin className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <XCircle className="h-4 w-4 text-red-600" />
+                    )}
+                    <span className="text-sm font-medium">
+                      {locationLoading ? "Getting Location..." : 
+                       location ? `${location.accuracy.toFixed(0)}m accuracy` : "No Location"}
+                    </span>
+                  </div>
+                  {!locationLoading && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => getCurrentLocation().catch(console.error)}
+                      className="h-7 px-2"
+                    >
+                      <RefreshCw className="h-3 w-3" />
+                    </Button>
                   )}
-                  <span className="text-sm font-medium">
-                    {locationLoading ? "Getting Location..." : 
-                     location ? `${location.accuracy.toFixed(0)}m accuracy` : "No Location"}
-                  </span>
                 </div>
               </CardContent>
             </Card>
