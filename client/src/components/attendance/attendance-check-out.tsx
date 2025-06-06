@@ -156,6 +156,17 @@ export function AttendanceCheckOut({
     if (!location) return "Location access is required for check-out";
     if (!isOnline) return "Internet connection is required";
     
+    // Check for early checkout (before 6:30 PM)
+    const now = new Date();
+    const currentTime = now.getHours() * 60 + now.getMinutes();
+    const expectedCheckOutTime = (departmentTiming?.checkOutTime || "18:30").split(":");
+    const expectedMinutes = parseInt(expectedCheckOutTime[0]) * 60 + parseInt(expectedCheckOutTime[1]);
+    
+    const isEarlyCheckout = currentTime < expectedMinutes;
+    if (isEarlyCheckout && !reason.trim()) {
+      return "Early checkout requires a reason to be provided";
+    }
+    
     // Overtime validation
     if (overtimeInfo.hasOvertime) {
       if (!otReason.trim()) return "Please provide a reason for overtime work";
@@ -179,7 +190,7 @@ export function AttendanceCheckOut({
     setIsSubmitting(true);
     try {
       const response = await apiRequest('POST', '/api/attendance/check-out', {
-        userId: user?.id,
+        userId: user?.uid,
         latitude: location!.latitude.toString(),
         longitude: location!.longitude.toString(),
         reason: reason || undefined,
