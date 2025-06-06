@@ -2303,6 +2303,554 @@ export class FirestoreStorage implements IStorage {
       } as AuditLog;
     });
   }
+
+  // ============================================
+  // PAYROLL SYSTEM STORAGE METHODS
+  // ============================================
+
+  // Salary Structure Management
+  async getSalaryStructure(id: string): Promise<SalaryStructure | undefined> {
+    const doc = await this.db.collection('salaryStructures').doc(id).get();
+    if (!doc.exists) return undefined;
+    
+    const data = doc.data()!;
+    return {
+      id: doc.id,
+      ...data,
+      effectiveFrom: data.effectiveFrom?.toDate() || new Date(),
+      effectiveTo: data.effectiveTo?.toDate() || null,
+      createdAt: data.createdAt?.toDate() || new Date(),
+      updatedAt: data.updatedAt?.toDate() || new Date(),
+    } as SalaryStructure;
+  }
+
+  async getSalaryStructureByUser(userId: string): Promise<SalaryStructure | undefined> {
+    const querySnapshot = await this.db.collection('salaryStructures')
+      .where('userId', '==', userId)
+      .where('isActive', '==', true)
+      .orderBy('effectiveFrom', 'desc')
+      .limit(1)
+      .get();
+    
+    if (querySnapshot.empty) return undefined;
+    
+    const doc = querySnapshot.docs[0];
+    const data = doc.data();
+    return {
+      id: doc.id,
+      ...data,
+      effectiveFrom: data.effectiveFrom?.toDate() || new Date(),
+      effectiveTo: data.effectiveTo?.toDate() || null,
+      createdAt: data.createdAt?.toDate() || new Date(),
+      updatedAt: data.updatedAt?.toDate() || new Date(),
+    } as SalaryStructure;
+  }
+
+  async createSalaryStructure(data: z.infer<typeof insertSalaryStructureSchema>): Promise<SalaryStructure> {
+    const doc = this.db.collection('salaryStructures').doc();
+    const salaryData = {
+      ...data,
+      id: doc.id,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    
+    await doc.set(salaryData);
+    return salaryData as SalaryStructure;
+  }
+
+  async updateSalaryStructure(id: string, data: Partial<z.infer<typeof insertSalaryStructureSchema>>): Promise<SalaryStructure> {
+    const doc = this.db.collection('salaryStructures').doc(id);
+    const updateData = {
+      ...data,
+      updatedAt: new Date(),
+    };
+    
+    await doc.update(updateData);
+    
+    const updated = await doc.get();
+    const updatedData = updated.data()!;
+    return {
+      id: updated.id,
+      ...updatedData,
+      effectiveFrom: updatedData.effectiveFrom?.toDate() || new Date(),
+      effectiveTo: updatedData.effectiveTo?.toDate() || null,
+      createdAt: updatedData.createdAt?.toDate() || new Date(),
+      updatedAt: updatedData.updatedAt?.toDate() || new Date(),
+    } as SalaryStructure;
+  }
+
+  async listSalaryStructures(): Promise<SalaryStructure[]> {
+    const querySnapshot = await this.db.collection('salaryStructures')
+      .orderBy('createdAt', 'desc')
+      .get();
+    
+    return querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        effectiveFrom: data.effectiveFrom?.toDate() || new Date(),
+        effectiveTo: data.effectiveTo?.toDate() || null,
+        createdAt: data.createdAt?.toDate() || new Date(),
+        updatedAt: data.updatedAt?.toDate() || new Date(),
+      } as SalaryStructure;
+    });
+  }
+
+  // Payroll Management
+  async getPayroll(id: string): Promise<Payroll | undefined> {
+    const doc = await this.db.collection('payrolls').doc(id).get();
+    if (!doc.exists) return undefined;
+    
+    const data = doc.data()!;
+    return {
+      id: doc.id,
+      ...data,
+      paidOn: data.paidOn?.toDate() || null,
+      createdAt: data.createdAt?.toDate() || new Date(),
+      updatedAt: data.updatedAt?.toDate() || new Date(),
+    } as Payroll;
+  }
+
+  async getPayrollByUserAndMonth(userId: string, month: number, year: number): Promise<Payroll | undefined> {
+    const querySnapshot = await this.db.collection('payrolls')
+      .where('userId', '==', userId)
+      .where('month', '==', month)
+      .where('year', '==', year)
+      .limit(1)
+      .get();
+    
+    if (querySnapshot.empty) return undefined;
+    
+    const doc = querySnapshot.docs[0];
+    const data = doc.data();
+    return {
+      id: doc.id,
+      ...data,
+      paidOn: data.paidOn?.toDate() || null,
+      createdAt: data.createdAt?.toDate() || new Date(),
+      updatedAt: data.updatedAt?.toDate() || new Date(),
+    } as Payroll;
+  }
+
+  async createPayroll(data: z.infer<typeof insertPayrollSchema>): Promise<Payroll> {
+    const doc = this.db.collection('payrolls').doc();
+    const payrollData = {
+      ...data,
+      id: doc.id,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    
+    await doc.set(payrollData);
+    return payrollData as Payroll;
+  }
+
+  async updatePayroll(id: string, data: Partial<z.infer<typeof insertPayrollSchema>>): Promise<Payroll> {
+    const doc = this.db.collection('payrolls').doc(id);
+    const updateData = {
+      ...data,
+      updatedAt: new Date(),
+    };
+    
+    await doc.update(updateData);
+    
+    const updated = await doc.get();
+    const updatedData = updated.data()!;
+    return {
+      id: updated.id,
+      ...updatedData,
+      paidOn: updatedData.paidOn?.toDate() || null,
+      createdAt: updatedData.createdAt?.toDate() || new Date(),
+      updatedAt: updatedData.updatedAt?.toDate() || new Date(),
+    } as Payroll;
+  }
+
+  async listPayrolls(filters?: { month?: number; year?: number; department?: string; status?: string }): Promise<Payroll[]> {
+    let query = this.db.collection('payrolls').orderBy('createdAt', 'desc') as any;
+    
+    if (filters?.month) {
+      query = query.where('month', '==', filters.month);
+    }
+    if (filters?.year) {
+      query = query.where('year', '==', filters.year);
+    }
+    if (filters?.status) {
+      query = query.where('status', '==', filters.status);
+    }
+    
+    const querySnapshot = await query.get();
+    
+    return querySnapshot.docs.map((doc: any) => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        paidOn: data.paidOn?.toDate() || null,
+        createdAt: data.createdAt?.toDate() || new Date(),
+        updatedAt: data.updatedAt?.toDate() || new Date(),
+      } as Payroll;
+    });
+  }
+
+  async listPayrollsByUser(userId: string): Promise<Payroll[]> {
+    const querySnapshot = await this.db.collection('payrolls')
+      .where('userId', '==', userId)
+      .orderBy('year', 'desc')
+      .orderBy('month', 'desc')
+      .get();
+    
+    return querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        paidOn: data.paidOn?.toDate() || null,
+        createdAt: data.createdAt?.toDate() || new Date(),
+        updatedAt: data.updatedAt?.toDate() || new Date(),
+      } as Payroll;
+    });
+  }
+
+  // Payroll Settings
+  async getPayrollSettings(): Promise<PayrollSettings | undefined> {
+    const querySnapshot = await this.db.collection('payrollSettings')
+      .orderBy('updatedAt', 'desc')
+      .limit(1)
+      .get();
+    
+    if (querySnapshot.empty) return undefined;
+    
+    const doc = querySnapshot.docs[0];
+    const data = doc.data();
+    return {
+      id: doc.id,
+      ...data,
+      updatedAt: data.updatedAt?.toDate() || new Date(),
+    } as PayrollSettings;
+  }
+
+  async updatePayrollSettings(data: z.infer<typeof insertPayrollSettingsSchema>): Promise<PayrollSettings> {
+    const settingsData = {
+      ...data,
+      updatedAt: new Date(),
+    };
+    
+    // Check if settings exist
+    const existing = await this.getPayrollSettings();
+    if (existing) {
+      const doc = this.db.collection('payrollSettings').doc(existing.id);
+      await doc.update(settingsData);
+      return { ...existing, ...settingsData } as PayrollSettings;
+    } else {
+      const doc = this.db.collection('payrollSettings').doc();
+      const newSettings = {
+        ...settingsData,
+        id: doc.id,
+      };
+      await doc.set(newSettings);
+      return newSettings as PayrollSettings;
+    }
+  }
+
+  // Salary Advances
+  async getSalaryAdvance(id: string): Promise<SalaryAdvance | undefined> {
+    const doc = await this.db.collection('salaryAdvances').doc(id).get();
+    if (!doc.exists) return undefined;
+    
+    const data = doc.data()!;
+    return {
+      id: doc.id,
+      ...data,
+      requestDate: data.requestDate?.toDate() || new Date(),
+      approvedDate: data.approvedDate?.toDate() || null,
+      createdAt: data.createdAt?.toDate() || new Date(),
+      updatedAt: data.updatedAt?.toDate() || new Date(),
+    } as SalaryAdvance;
+  }
+
+  async createSalaryAdvance(data: z.infer<typeof insertSalaryAdvanceSchema>): Promise<SalaryAdvance> {
+    const doc = this.db.collection('salaryAdvances').doc();
+    const advanceData = {
+      ...data,
+      id: doc.id,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    
+    await doc.set(advanceData);
+    return advanceData as SalaryAdvance;
+  }
+
+  async updateSalaryAdvance(id: string, data: Partial<z.infer<typeof insertSalaryAdvanceSchema>>): Promise<SalaryAdvance> {
+    const doc = this.db.collection('salaryAdvances').doc(id);
+    const updateData = {
+      ...data,
+      updatedAt: new Date(),
+    };
+    
+    await doc.update(updateData);
+    
+    const updated = await doc.get();
+    const updatedData = updated.data()!;
+    return {
+      id: updated.id,
+      ...updatedData,
+      requestDate: updatedData.requestDate?.toDate() || new Date(),
+      approvedDate: updatedData.approvedDate?.toDate() || null,
+      createdAt: updatedData.createdAt?.toDate() || new Date(),
+      updatedAt: updatedData.updatedAt?.toDate() || new Date(),
+    } as SalaryAdvance;
+  }
+
+  async listSalaryAdvances(filters?: { userId?: string; status?: string }): Promise<SalaryAdvance[]> {
+    let query = this.db.collection('salaryAdvances').orderBy('requestDate', 'desc') as any;
+    
+    if (filters?.userId) {
+      query = query.where('userId', '==', filters.userId);
+    }
+    if (filters?.status) {
+      query = query.where('status', '==', filters.status);
+    }
+    
+    const querySnapshot = await query.get();
+    
+    return querySnapshot.docs.map((doc: any) => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        requestDate: data.requestDate?.toDate() || new Date(),
+        approvedDate: data.approvedDate?.toDate() || null,
+        createdAt: data.createdAt?.toDate() || new Date(),
+        updatedAt: data.updatedAt?.toDate() || new Date(),
+      } as SalaryAdvance;
+    });
+  }
+
+  // Attendance Policies
+  async getAttendancePolicy(id: string): Promise<AttendancePolicy | undefined> {
+    const doc = await this.db.collection('attendancePolicies').doc(id).get();
+    if (!doc.exists) return undefined;
+    
+    const data = doc.data()!;
+    return {
+      id: doc.id,
+      ...data,
+      createdAt: data.createdAt?.toDate() || new Date(),
+      updatedAt: data.updatedAt?.toDate() || new Date(),
+    } as AttendancePolicy;
+  }
+
+  async getAttendancePolicyByDepartment(department: string, designation?: string): Promise<AttendancePolicy | undefined> {
+    let query = this.db.collection('attendancePolicies')
+      .where('department', '==', department)
+      .where('isActive', '==', true) as any;
+    
+    if (designation) {
+      query = query.where('designation', '==', designation);
+    }
+    
+    const querySnapshot = await query.limit(1).get();
+    
+    if (querySnapshot.empty) return undefined;
+    
+    const doc = querySnapshot.docs[0];
+    const data = doc.data();
+    return {
+      id: doc.id,
+      ...data,
+      createdAt: data.createdAt?.toDate() || new Date(),
+      updatedAt: data.updatedAt?.toDate() || new Date(),
+    } as AttendancePolicy;
+  }
+
+  async createAttendancePolicy(data: z.infer<typeof insertAttendancePolicySchema>): Promise<AttendancePolicy> {
+    const doc = this.db.collection('attendancePolicies').doc();
+    const policyData = {
+      ...data,
+      id: doc.id,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    
+    await doc.set(policyData);
+    return policyData as AttendancePolicy;
+  }
+
+  async updateAttendancePolicy(id: string, data: Partial<z.infer<typeof insertAttendancePolicySchema>>): Promise<AttendancePolicy> {
+    const doc = this.db.collection('attendancePolicies').doc(id);
+    const updateData = {
+      ...data,
+      updatedAt: new Date(),
+    };
+    
+    await doc.update(updateData);
+    
+    const updated = await doc.get();
+    const updatedData = updated.data()!;
+    return {
+      id: updated.id,
+      ...updatedData,
+      createdAt: updatedData.createdAt?.toDate() || new Date(),
+      updatedAt: updatedData.updatedAt?.toDate() || new Date(),
+    } as AttendancePolicy;
+  }
+
+  async listAttendancePolicies(): Promise<AttendancePolicy[]> {
+    const querySnapshot = await this.db.collection('attendancePolicies')
+      .orderBy('createdAt', 'desc')
+      .get();
+    
+    return querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: data.createdAt?.toDate() || new Date(),
+        updatedAt: data.updatedAt?.toDate() || new Date(),
+      } as AttendancePolicy;
+    });
+  }
+
+  // Payroll Calculation Utilities
+  async calculatePayroll(userId: string, month: number, year: number): Promise<z.infer<typeof insertPayrollSchema>> {
+    // Get user's salary structure
+    const salaryStructure = await this.getSalaryStructureByUser(userId);
+    if (!salaryStructure) {
+      throw new Error('No salary structure found for user');
+    }
+
+    // Get attendance summary for the month
+    const attendanceSummary = await this.getMonthlyAttendanceSummary(userId, month, year);
+    
+    // Get payroll settings
+    const settings = await this.getPayrollSettings();
+    const defaultSettings = {
+      pfRate: 12,
+      esiRate: 1.75,
+      tdsRate: 10,
+      overtimeMultiplier: 1.5,
+      standardWorkingHours: 8,
+      standardWorkingDays: 22,
+      leaveDeductionRate: 1,
+      pfApplicableFromSalary: 15000,
+      esiApplicableFromSalary: 21000,
+    };
+    const payrollSettings = settings || defaultSettings;
+
+    // Calculate salary components
+    const { workingDays, presentDays, absentDays, overtimeHours, leaveDays } = attendanceSummary;
+    
+    // Base salary calculations
+    const dailySalary = salaryStructure.fixedSalary / payrollSettings.standardWorkingDays;
+    const adjustedSalary = dailySalary * presentDays;
+    
+    // Overtime calculation
+    const overtimePay = (salaryStructure.fixedSalary / (payrollSettings.standardWorkingDays * payrollSettings.standardWorkingHours)) * 
+                       overtimeHours * payrollSettings.overtimeMultiplier;
+    
+    // Gross salary
+    const grossSalary = adjustedSalary + (salaryStructure.hra || 0) + (salaryStructure.allowances || 0) + 
+                       (salaryStructure.variableComponent || 0) + overtimePay;
+    
+    // Deductions
+    const pfDeduction = grossSalary >= payrollSettings.pfApplicableFromSalary ? 
+                       (salaryStructure.basicSalary * payrollSettings.pfRate) / 100 : 0;
+    
+    const esiDeduction = grossSalary >= payrollSettings.esiApplicableFromSalary ? 0 :
+                        (grossSalary * payrollSettings.esiRate) / 100;
+    
+    const tdsDeduction = (grossSalary * payrollSettings.tdsRate) / 100;
+    
+    // Get salary advances
+    const advances = await this.listSalaryAdvances({ 
+      userId, 
+      status: 'approved' 
+    });
+    
+    const advanceDeduction = advances
+      .filter(advance => {
+        const startDate = new Date(advance.deductionStartYear, advance.deductionStartMonth - 1);
+        const currentDate = new Date(year, month - 1);
+        return startDate <= currentDate && advance.remainingAmount > 0;
+      })
+      .reduce((total, advance) => total + advance.monthlyDeduction, 0);
+    
+    const totalDeductions = pfDeduction + esiDeduction + tdsDeduction + advanceDeduction;
+    const netSalary = grossSalary - totalDeductions;
+
+    return {
+      userId,
+      employeeId: salaryStructure.employeeId,
+      month,
+      year,
+      workingDays,
+      presentDays,
+      absentDays,
+      overtimeHours,
+      leaveDays,
+      fixedSalary: salaryStructure.fixedSalary,
+      basicSalary: salaryStructure.basicSalary,
+      hra: salaryStructure.hra || 0,
+      allowances: salaryStructure.allowances || 0,
+      variableComponent: salaryStructure.variableComponent || 0,
+      overtimePay,
+      grossSalary,
+      pfDeduction,
+      esiDeduction,
+      tdsDeduction,
+      advanceDeduction,
+      loanDeduction: 0,
+      otherDeductions: 0,
+      totalDeductions,
+      netSalary,
+      status: 'draft' as const,
+      processedBy: '',
+      remarks: ''
+    };
+  }
+
+  async getMonthlyAttendanceSummary(userId: string, month: number, year: number): Promise<{
+    workingDays: number;
+    presentDays: number;
+    absentDays: number;
+    overtimeHours: number;
+    leaveDays: number;
+  }> {
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 0);
+    
+    // Get attendance records for the month
+    const attendanceRecords = await this.listAttendance({
+      userId,
+      startDate: startDate.toISOString().split('T')[0],
+      endDate: endDate.toISOString().split('T')[0]
+    });
+    
+    // Calculate working days (excluding weekends)
+    let workingDays = 0;
+    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+      const dayOfWeek = d.getDay();
+      if (dayOfWeek !== 0 && dayOfWeek !== 6) { // Not Sunday or Saturday
+        workingDays++;
+      }
+    }
+    
+    const presentDays = attendanceRecords.filter(r => r.status === 'present' || r.status === 'late').length;
+    const absentDays = workingDays - presentDays;
+    const overtimeHours = attendanceRecords.reduce((total, r) => total + (r.overtimeHours || 0), 0);
+    const leaveDays = attendanceRecords.filter(r => r.status === 'leave').length;
+    
+    return {
+      workingDays,
+      presentDays,
+      absentDays,
+      overtimeHours,
+      leaveDays
+    };
+  }
 }
 
 export const storage = new FirestoreStorage();

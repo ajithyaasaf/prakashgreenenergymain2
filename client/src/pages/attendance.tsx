@@ -58,21 +58,10 @@ export default function Attendance() {
     queryKey: ["/api/attendance", { date: date.toISOString().split('T')[0] }],
     queryFn: async () => {
       const dateParam = date.toISOString().split('T')[0];
-      const response = await fetch(`/api/attendance?date=${dateParam}`);
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch attendance records');
-      }
-      
-      const attendanceData = await response.json();
+      const attendanceData = await apiRequest(`/api/attendance?date=${dateParam}`);
       
       // Fetch user details for each attendance record
-      const usersResponse = await fetch('/api/users');
-      if (!usersResponse.ok) {
-        throw new Error('Failed to fetch user details');
-      }
-      
-      const users = await usersResponse.json();
+      const users = await apiRequest('/api/users');
       
       // Enrich attendance records with user names
       return attendanceData.map((record: any) => {
@@ -93,9 +82,7 @@ export default function Attendance() {
     queryKey: ["/api/attendance/summary", user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
-      const response = await fetch(`/api/attendance/summary?userId=${user.id}`);
-      if (!response.ok) throw new Error('Failed to fetch attendance summary');
-      return response.json();
+      return await apiRequest(`/api/attendance/summary?userId=${user.id}`);
     },
     enabled: !!user?.id,
   });
@@ -108,8 +95,12 @@ export default function Attendance() {
       type: string;
       remarks?: string;
     }) => {
-      return apiRequest('/api/attendance/check-in', {
+      const response = await fetch('/api/attendance/check-in', {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${await user?.getIdToken()}`
+        },
         body: JSON.stringify({
           latitude: data.location.latitude,
           longitude: data.location.longitude,
@@ -120,6 +111,12 @@ export default function Attendance() {
           timestamp: new Date().toISOString()
         })
       });
+      
+      if (!response.ok) {
+        throw new Error('Failed to check in');
+      }
+      
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/attendance"] });

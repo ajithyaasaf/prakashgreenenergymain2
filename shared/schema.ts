@@ -450,3 +450,5 @@ export const getEffectivePermissions = (department: Department | null, designati
   const combinedPermissions = new Set([...departmentPermissions, ...designationPermissions]);
   return Array.from(combinedPermissions);
 };
+
+

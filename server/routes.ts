@@ -9,7 +9,12 @@ import {
   insertRoleSchema,
   insertUserRoleAssignmentSchema,
   insertPermissionOverrideSchema,
-  insertAuditLogSchema
+  insertAuditLogSchema,
+  insertSalaryStructureSchema,
+  insertPayrollSchema,
+  insertPayrollSettingsSchema,
+  insertSalaryAdvanceSchema,
+  insertAttendancePolicySchema
 } from "@shared/schema";
 // Import all the necessary schemas from storage.ts since they've been moved there
 import { 
