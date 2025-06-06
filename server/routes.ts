@@ -799,7 +799,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Office Locations
   app.get("/api/office-locations", verifyAuth, async (req, res) => {
     try {
-      const officeLocations = await storage.listOfficeLocations();
+      let officeLocations = await storage.listOfficeLocations();
+      
+      // If no office locations exist, create default office location
+      if (officeLocations.length === 0) {
+        const defaultLocation = {
+          name: "Head Office - Prakash Greens Energy",
+          latitude: "9.966844592415782",
+          longitude: "78.1338405791111",
+          radius: 100
+        };
+        
+        await storage.createOfficeLocation(defaultLocation);
+        officeLocations = await storage.listOfficeLocations();
+      }
+      
       res.json(officeLocations);
     } catch (error) {
       console.error("Error fetching office locations:", error);
@@ -942,9 +956,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         customerId,
         reason,
         imageUrl,
+        attendanceType = "office", // office, field, remote
+        customerName
       } = req.body;
+      
       if (!userId || userId !== req.user.uid) {
         return res.status(403).json({ message: "Access denied" });
+      }
+
+      // Get user details for department-specific timing
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
       }
 
       const now = new Date();
@@ -955,21 +978,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         now.getHours(),
         now.getMinutes(),
       );
+
+      // Get department-specific timing (default to 9:30 AM if not set)
+      let departmentPolicy = null;
+      if (user.department) {
+        try {
+          const policies = await storage.listAttendancePolicies();
+          departmentPolicy = policies.find(p => p.department === user.department);
+        } catch (error) {
+          console.log("No attendance policies found, using default timing");
+        }
+      }
+
+      const [checkInHour, checkInMinute] = (departmentPolicy?.checkInTime || "09:30").split(":").map(Number);
       const minCheckInTime = new Date(
         now.getFullYear(),
         now.getMonth(),
         now.getDate(),
-        9,
-        30,
+        checkInHour,
+        checkInMinute,
       );
 
-      if (checkInTime < minCheckInTime) {
-        return res.status(400).json({
-          message: "Check-in is only available after 9:30 AM",
-          currentTime: checkInTime,
-          minCheckInTime,
-        });
-      }
+      // Check if user is late
+      const isLate = checkInTime > minCheckInTime;
+      const lateMinutes = isLate ? Math.floor((checkInTime.getTime() - minCheckInTime.getTime()) / (1000 * 60)) : 0;
 
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -984,28 +1016,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      // Check geolocation for office attendance
       const locations = await storage.listOfficeLocations();
-      const isValidLocation = locations.some((loc) =>
+      const isWithinOfficeGeoFence = locations.some((loc) =>
         isWithinGeoFence(latitude, longitude, loc),
       );
-      if (!isValidLocation) {
-        return res.status(400).json({ message: "Outside geofence" });
+
+      // Validation based on attendance type
+      if (attendanceType === "office") {
+        if (!isWithinOfficeGeoFence) {
+          return res.status(400).json({ 
+            message: "You are outside the office location. Please select the appropriate attendance type.",
+            outsideGeofence: true
+          });
+        }
+      } else if (attendanceType === "field") {
+        // Field work requires customer name and photo
+        if (!customerName || !imageUrl) {
+          return res.status(400).json({ 
+            message: "Field work requires customer name and photo to be provided",
+            requiresCustomerAndPhoto: true
+          });
+        }
+      } else if (attendanceType === "remote") {
+        // Remote work requires reason if outside geofence
+        if (!isWithinOfficeGeoFence && !reason) {
+          return res.status(400).json({ 
+            message: "Remote work requires a reason when outside office location",
+            requiresReason: true
+          });
+        }
       }
 
       const newAttendance = await storage.createAttendance({
         userId,
         date: today,
         checkInTime,
-        location,
+        location: attendanceType,
         customerId: customerId ? parseInt(customerId) : undefined,
         reason,
         checkInLatitude: latitude,
         checkInLongitude: longitude,
         checkInImageUrl: imageUrl,
-        status: "present",
+        status: isLate ? "late" : "present",
+        isLate,
+        lateMinutes: isLate ? lateMinutes : 0,
+        workingHours: 0,
+        breakHours: 0,
+        remarks: attendanceType === "field" ? `Field work at ${customerName}` : reason
       });
 
-      res.status(201).json(newAttendance);
+      // Log activity
+      await storage.createActivityLog({
+        type: 'attendance_checkin',
+        title: `${attendanceType === "field" ? "Field Work" : attendanceType === "remote" ? "Remote Work" : "Office"} Check-in`,
+        description: `${user.displayName} checked in for ${attendanceType} work${isLate ? ` (${lateMinutes} minutes late)` : ""}`,
+        entityId: newAttendance.id,
+        entityType: 'attendance',
+        userId: user.uid
+      });
+
+      res.status(201).json({
+        message: `Checked in successfully for ${attendanceType} work${isLate ? ` (${lateMinutes} minutes late)` : ""}`,
+        attendance: newAttendance,
+        isLate,
+        lateMinutes
+      });
     } catch (error) {
       console.error("Error checking in:", error);
       res.status(500).json({ message: "Failed to process check-in" });
@@ -1014,7 +1090,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/attendance/check-out", verifyAuth, async (req, res) => {
     try {
-      const { userId, latitude, longitude, photoUrl, reason } = req.body;
+      const { userId, latitude, longitude, imageUrl, reason, otReason } = req.body;
       if (!userId || userId !== req.user.uid) {
         return res.status(403).json({ message: "Access denied" });
       }
@@ -1026,14 +1102,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      const attendanceRecord = await storage.getAttendanceByUserAndDate(
-        userId,
-        today,
-      );
+      const attendanceRecord = await storage.getAttendanceByUserAndDate(userId, today);
       if (!attendanceRecord) {
-        return res
-          .status(400)
-          .json({ message: "No check-in record found for today" });
+        return res.status(400).json({ message: "No check-in record found for today" });
+      }
+
+      if (attendanceRecord.checkOutTime) {
+        return res.status(400).json({ message: "You have already checked out today" });
       }
 
       const now = new Date();
@@ -1044,61 +1119,100 @@ export async function registerRoutes(app: Express): Promise<Server> {
         now.getHours(),
         now.getMinutes(),
       );
-      const isFieldStaff =
-        user.department === "sales_and_marketing" ||
-        user.department === "technical_team";
-      const minCheckOutHour = isFieldStaff ? 19 : 18;
-      const minCheckOutMinute = isFieldStaff ? 30 : 30;
-      const minCheckOutTime = new Date(
+
+      // Get department-specific checkout timing
+      let departmentPolicy = null;
+      if (user.department) {
+        try {
+          const policies = await storage.listAttendancePolicies();
+          departmentPolicy = policies.find(p => p.department === user.department);
+        } catch (error) {
+          console.log("No attendance policies found, using default timing");
+        }
+      }
+
+      const [checkOutHour, checkOutMinute] = (departmentPolicy?.checkOutTime || "18:30").split(":").map(Number);
+      const expectedCheckOutTime = new Date(
         now.getFullYear(),
         now.getMonth(),
         now.getDate(),
-        minCheckOutHour,
-        minCheckOutMinute,
+        checkOutHour,
+        checkOutMinute,
       );
 
-      const earlyCheckout = checkOutTime < minCheckOutTime;
+      // Calculate working hours and overtime
+      const checkInTime = new Date(attendanceRecord.checkInTime);
+      const workingMilliseconds = checkOutTime.getTime() - checkInTime.getTime();
+      const workingHours = workingMilliseconds / (1000 * 60 * 60);
+      
+      // Standard working hours from policy or default 9 hours (9:30 AM to 6:30 PM)
+      const standardWorkingHours = departmentPolicy?.standardWorkingHours || 9;
+      const overtimeHours = Math.max(0, workingHours - standardWorkingHours);
+      
+      // Check if overtime requires approval and photo
+      const hasOvertime = overtimeHours > 0;
+      if (hasOvertime) {
+        if (!otReason) {
+          return res.status(400).json({
+            message: "Overtime requires a reason to be provided",
+            overtimeHours: Math.round(overtimeHours * 100) / 100,
+            requiresOTReason: true
+          });
+        }
+        if (!imageUrl) {
+          return res.status(400).json({
+            message: "Overtime requires a photo to be captured",
+            overtimeHours: Math.round(overtimeHours * 100) / 100,
+            requiresPhoto: true
+          });
+        }
+      }
+
+      // Check for early checkout
+      const earlyCheckout = checkOutTime < expectedCheckOutTime;
       if (earlyCheckout && !reason) {
         return res.status(400).json({
           message: "Early checkout requires a reason",
           currentTime: checkOutTime,
-          requiredCheckOutTime: minCheckOutTime,
+          expectedCheckOutTime,
+          requiresReason: true
         });
       }
 
-      const isRemoteCheckout =
-        attendanceRecord.location === "field" ||
-        (attendanceRecord.checkInLatitude &&
-          attendanceRecord.checkInLongitude &&
-          latitude &&
-          longitude &&
-          (attendanceRecord.checkInLatitude !== latitude ||
-            attendanceRecord.checkInLongitude !== longitude));
-      if (isRemoteCheckout && !photoUrl) {
-        return res.status(400).json({
-          message: "Photo is required for checkout outside of office location",
-        });
-      }
+      // Update attendance record with checkout details
+      const updatedAttendance = await storage.updateAttendance(attendanceRecord.id, {
+        checkOutTime,
+        checkOutLatitude: latitude,
+        checkOutLongitude: longitude,
+        checkOutImageUrl: imageUrl,
+        workingHours: Math.round(workingHours * 100) / 100,
+        overtimeHours: Math.round(overtimeHours * 100) / 100,
+        otReason: hasOvertime ? otReason : undefined,
+        remarks: reason || (hasOvertime ? `Overtime: ${otReason}` : undefined)
+      });
 
-      let overtimeHours = 0;
-      if (user.department === "technical_team" && !earlyCheckout) {
-        const standardEndTime = new Date(
-          now.getFullYear(),
-          now.getMonth(),
-          now.getDate(),
-          19,
-          30,
-        );
-        if (checkOutTime > standardEndTime) {
-          overtimeHours =
-            (checkOutTime.getTime() - standardEndTime.getTime()) /
-            (1000 * 60 * 60);
-        }
-      }
+      // Log activity
+      await storage.createActivityLog({
+        type: 'attendance',
+        title: `Check-out ${hasOvertime ? 'with Overtime' : ''}`,
+        description: `${user.displayName} checked out${hasOvertime ? ` with ${Math.round(overtimeHours * 100) / 100} hours overtime` : ''}${earlyCheckout ? ' (early checkout)' : ''}`,
+        entityId: attendanceRecord.id,
+        entityType: 'attendance',
+        userId: user.uid
+      });
 
-      const updatedAttendance = await storage.updateAttendance(
-        attendanceRecord.id,
-        {
+      res.json({
+        message: `Checked out successfully${hasOvertime ? ` with ${Math.round(overtimeHours * 100) / 100} hours overtime` : ''}`,
+        attendance: updatedAttendance,
+        workingHours: Math.round(workingHours * 100) / 100,
+        overtimeHours: Math.round(overtimeHours * 100) / 100,
+        hasOvertime
+      });
+    } catch (error: any) {
+      console.error("Error checking out:", error);
+      res.status(500).json({ message: "Failed to process check-out" });
+    }
+  });
           checkOutTime,
           checkOutLatitude: latitude,
           checkOutLongitude: longitude,
