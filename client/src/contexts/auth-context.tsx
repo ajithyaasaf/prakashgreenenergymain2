@@ -21,6 +21,7 @@ interface AuthUser {
   joinDate?: Date;
   isActive: boolean;
   id?: number;
+  firebaseUser?: User;
 }
 
 interface AuthContextType {
@@ -75,7 +76,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           payrollGrade: userData.payrollGrade || null,
           joinDate: userData.joinDate ? new Date(userData.joinDate) : undefined,
           isActive: userData.isActive !== false,
-          id: userData.id
+          id: userData.id,
+          firebaseUser: firebaseUser
         });
       } else {
         // If user doesn't exist in our system, sync them

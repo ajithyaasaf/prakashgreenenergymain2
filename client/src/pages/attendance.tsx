@@ -99,6 +99,7 @@ export default function Attendance() {
       photo?: string;
       type: string;
       remarks?: string;
+      customerName?: string;
     }) => {
       const response = await fetch('/api/attendance/check-in', {
         method: 'POST',
@@ -154,7 +155,7 @@ export default function Attendance() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${await user?.getIdToken()}`
+          'Authorization': `Bearer ${await user?.firebaseUser?.getIdToken()}`
         },
         body: JSON.stringify({
           userId: user?.id,
