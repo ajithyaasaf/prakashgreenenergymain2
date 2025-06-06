@@ -46,6 +46,8 @@ export default function Attendance() {
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
   const [remarks, setRemarks] = useState("");
   const [checkInType, setCheckInType] = useState<"office" | "remote" | "field">("office");
+  const [customerName, setCustomerName] = useState("");
+  const [otReason, setOtReason] = useState("");
   
   // Camera and photo states
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -102,16 +104,16 @@ export default function Attendance() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${await user?.getIdToken()}`
+          'Authorization': `Bearer ${await user?.firebaseUser?.getIdToken()}`
         },
         body: JSON.stringify({
-          latitude: data.location.latitude,
-          longitude: data.location.longitude,
-          accuracy: data.location.accuracy,
-          checkInImageUrl: data.photo,
-          location: data.type,
-          remarks: data.remarks,
-          timestamp: new Date().toISOString()
+          userId: user?.id,
+          latitude: data.location.latitude.toString(),
+          longitude: data.location.longitude.toString(),
+          attendanceType: data.type,
+          imageUrl: data.photo,
+          reason: data.remarks,
+          customerName: data.customerName
         })
       });
       
@@ -146,18 +148,30 @@ export default function Attendance() {
       location: GeolocationCoordinates;
       photo?: string;
       remarks?: string;
+      otReason?: string;
     }) => {
-      return apiRequest('/api/attendance/check-out', {
+      const response = await fetch('/api/attendance/check-out', {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${await user?.getIdToken()}`
+        },
         body: JSON.stringify({
-          latitude: data.location.latitude,
-          longitude: data.location.longitude,
-          accuracy: data.location.accuracy,
-          checkOutImageUrl: data.photo,
-          remarks: data.remarks,
-          timestamp: new Date().toISOString()
+          userId: user?.id,
+          latitude: data.location.latitude.toString(),
+          longitude: data.location.longitude.toString(),
+          imageUrl: data.photo,
+          reason: data.remarks,
+          otReason: data.otReason
         })
       });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to check out');
+      }
+      
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/attendance"] });
