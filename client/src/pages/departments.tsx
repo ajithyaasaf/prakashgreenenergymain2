@@ -38,7 +38,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle
 } from "@/components/ui/alert-dialog";
-import { Search, PlusCircle, Pencil, Trash2, UserCog, Users, Loader2, Check } from "lucide-react";
+import { Search, PlusCircle, Pencil, Trash2, UserCog, Users, Loader2, Check, Clock } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 
 export default function Departments() {
   const { user } = useAuthContext();
@@ -48,10 +50,21 @@ export default function Departments() {
   const [showAddDepartmentDialog, setShowAddDepartmentDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showTimingDialog, setShowTimingDialog] = useState(false);
   const [currentDepartment, setCurrentDepartment] = useState<any>(null);
   const [formState, setFormState] = useState({
     name: "",
     description: ""
+  });
+  const [timingFormState, setTimingFormState] = useState({
+    checkInTime: "09:30",
+    checkOutTime: "18:30",
+    workingHours: 8,
+    overtimeThresholdMinutes: 30,
+    lateThresholdMinutes: 15,
+    allowEarlyCheckOut: false,
+    allowRemoteWork: true,
+    allowFieldWork: true
   });
   
   // Only master_admin can access this page
@@ -79,6 +92,11 @@ export default function Departments() {
   // Fetch users for employee count
   const { data: users } = useQuery({
     queryKey: ["/api/users"],
+  });
+
+  // Fetch department timings
+  const { data: departmentTimings } = useQuery({
+    queryKey: ["/api/departments/timings"],
   });
   
   // Helper function to reset form state
@@ -186,6 +204,37 @@ export default function Departments() {
     }
   });
 
+  // Update department timing mutation
+  const updateTimingMutation = useMutation({
+    mutationFn: (data: { departmentId: string; timing: any }) => {
+      return apiRequest(`/api/departments/${data.departmentId}/timing`, 'POST', data.timing);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ 
+        predicate: (query) => {
+          const queryKey = query.queryKey[0];
+          if (typeof queryKey === 'string') {
+            return queryKey.includes('/api/departments');
+          }
+          return false;
+        }
+      });
+      toast({
+        title: "Attendance timing updated",
+        description: "Department attendance timing has been successfully configured.",
+        variant: "default"
+      });
+      setShowTimingDialog(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update attendance timing",
+        variant: "destructive"
+      });
+    }
+  });
+
   // Transform department strings to objects and filter by search query
   const departmentObjects = departments?.map((dept: string) => ({
     id: dept,
@@ -244,7 +293,7 @@ export default function Departments() {
                   <TableHead>Department Name</TableHead>
                   <TableHead>Description</TableHead>
                   <TableHead>Employees</TableHead>
-                  <TableHead>Created On</TableHead>
+                  <TableHead>Working Hours</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -264,7 +313,9 @@ export default function Departments() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredDepartments?.map((department: any) => (
+                  filteredDepartments?.map((department: any) => {
+                    const timing = departmentTimings?.[department.id];
+                    return (
                     <TableRow key={department.id}>
                       <TableCell>
                         <div className="flex items-center">
@@ -276,9 +327,41 @@ export default function Departments() {
                       </TableCell>
                       <TableCell>{department.description || "-"}</TableCell>
                       <TableCell>{getEmployeeCount(department.name)}</TableCell>
-                      <TableCell>{formatDate(department.createdAt)}</TableCell>
+                      <TableCell>
+                        {timing ? (
+                          <div className="text-sm">
+                            <div>{timing.checkInTime} - {timing.checkOutTime}</div>
+                            <div className="text-muted-foreground">{timing.workingHours}h working</div>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">Not configured</span>
+                        )}
+                      </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end space-x-2">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-8 w-8 p-0"
+                            onClick={() => {
+                              setCurrentDepartment(department);
+                              const currentTiming = departmentTimings?.[department.id];
+                              setTimingFormState({
+                                checkInTime: currentTiming?.checkInTime || "09:30",
+                                checkOutTime: currentTiming?.checkOutTime || "18:30",
+                                workingHours: currentTiming?.workingHours || 8,
+                                overtimeThresholdMinutes: currentTiming?.overtimeThresholdMinutes || 30,
+                                lateThresholdMinutes: currentTiming?.lateThresholdMinutes || 15,
+                                allowEarlyCheckOut: currentTiming?.allowEarlyCheckOut || false,
+                                allowRemoteWork: currentTiming?.allowRemoteWork || true,
+                                allowFieldWork: currentTiming?.allowFieldWork || true
+                              });
+                              setShowTimingDialog(true);
+                            }}
+                            title="Configure Attendance Timing"
+                          >
+                            <Clock className="h-4 w-4" />
+                          </Button>
                           <Button 
                             variant="ghost" 
                             size="sm" 
@@ -308,7 +391,8 @@ export default function Departments() {
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))
+                    );
+                  })
                 )}
               </TableBody>
             </Table>
