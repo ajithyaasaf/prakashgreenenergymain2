@@ -77,8 +77,7 @@ export function AttendanceCheckIn({ isOpen, onClose, onSuccess, officeLocations 
         },
         distanceFromOffice: Math.round(distanceFromOffice),
         isWithinRadius: distanceFromOffice <= (primaryOffice.radius || 100),
-        locationAccuracy: location.accuracy <= 20 ? 'High' : location.accuracy <= 100 ? 'Good' : 'Low',
-        locationSource: location.accuracy > 1000 ? 'Network/WiFi' : location.accuracy > 100 ? 'Cell Tower' : 'GPS'
+        locationAccuracy: location.accuracy <= 20 ? 'High' : location.accuracy <= 100 ? 'Good' : 'Low'
       });
     }
   }, [location, primaryOffice, distanceFromOffice]);
@@ -162,13 +161,13 @@ export function AttendanceCheckIn({ isOpen, onClose, onSuccess, officeLocations 
     if (!location) return "Location access is required for attendance";
     if (!isOnline) return "Internet connection is required";
     
-    // Office attendance validation with flexible accuracy for enterprise environments
+    // Check location accuracy for reliable tracking
+    if (location.accuracy > 200) {
+      return "Location accuracy is too low. Please try again or move to an area with better GPS signal.";
+    }
+    
+    // Office attendance validation
     if (attendanceType === "office") {
-      // If GPS accuracy is very poor (>5km), suggest manual override
-      if (location.accuracy > 5000) {
-        return "GPS signal is very weak. If you are in the office, please select 'Remote Work' and mention 'In office - GPS unavailable' as reason.";
-      }
-      
       if (!isWithinOfficeRadius) {
         return `You are ${Math.round(distanceFromOffice || 0)}m away from the office (allowed: ${primaryOffice.radius || 100}m). Please select 'Remote' or 'Field Work' and provide a reason.`;
       }
@@ -291,12 +290,10 @@ export function AttendanceCheckIn({ isOpen, onClose, onSuccess, officeLocations 
                       {locationLoading ? "Getting Location..." : 
                        location ? (
                          location.accuracy <= 20 ? 
-                           `GPS Active (${location.accuracy.toFixed(0)}m)` :
+                           `High accuracy (${location.accuracy.toFixed(0)}m)` :
                          location.accuracy <= 100 ?
-                           `GPS Good (${location.accuracy.toFixed(0)}m)` :
-                         location.accuracy <= 1000 ?
-                           `Cell Tower (${location.accuracy.toFixed(0)}m)` :
-                           `Network Location (${location.accuracy.toFixed(0)}m)`
+                           `Good accuracy (${location.accuracy.toFixed(0)}m)` :
+                           `Low accuracy (${location.accuracy.toFixed(0)}m)`
                        ) : "No Location"}
                     </span>
                   </div>
@@ -318,42 +315,22 @@ export function AttendanceCheckIn({ isOpen, onClose, onSuccess, officeLocations 
 
           {/* Location Status */}
           {location && (
-            <div className="space-y-2">
-              <Alert className={isWithinOfficeRadius ? "border-green-200 bg-green-50" : "border-amber-200 bg-amber-50"}>
-                <MapPin className="h-4 w-4" />
-                <AlertDescription>
-                  <div className="flex items-center justify-between">
-                    <span>
-                      {isWithinOfficeRadius 
-                        ? `You are within the office radius (${distanceFromOffice?.toFixed(0)}m away)`
-                        : `You are outside the office (${distanceFromOffice?.toFixed(0)}m away)`
-                      }
-                    </span>
-                    <Badge variant={isWithinOfficeRadius ? "default" : "secondary"}>
-                      {isWithinOfficeRadius ? "Inside Office" : "Outside Office"}
-                    </Badge>
-                  </div>
-                </AlertDescription>
-              </Alert>
-
-              {/* Location accuracy guidance */}
-              {location.accuracy > 1000 && (
-                <Alert className="border-blue-200 bg-blue-50">
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertDescription>
-                    <div className="space-y-1">
-                      <p className="font-medium">Poor GPS Signal Detected</p>
-                      <p className="text-sm">
-                        {location.accuracy > 5000 
-                          ? "Very weak GPS signal. If you're in the office, select 'Remote Work' and mention 'In office - GPS unavailable'."
-                          : "Using network location. For office check-in, ensure you're within the office radius or select appropriate attendance type."
-                        }
-                      </p>
-                    </div>
-                  </AlertDescription>
-                </Alert>
-              )}
-            </div>
+            <Alert className={isWithinOfficeRadius ? "border-green-200 bg-green-50" : "border-amber-200 bg-amber-50"}>
+              <MapPin className="h-4 w-4" />
+              <AlertDescription>
+                <div className="flex items-center justify-between">
+                  <span>
+                    {isWithinOfficeRadius 
+                      ? `You are within the office radius (${distanceFromOffice?.toFixed(0)}m away)`
+                      : `You are outside the office (${distanceFromOffice?.toFixed(0)}m away)`
+                    }
+                  </span>
+                  <Badge variant={isWithinOfficeRadius ? "default" : "secondary"}>
+                    {isWithinOfficeRadius ? "Inside Office" : "Outside Office"}
+                  </Badge>
+                </div>
+              </AlertDescription>
+            </Alert>
           )}
 
           {/* Attendance Type Selection */}
@@ -376,22 +353,12 @@ export function AttendanceCheckIn({ isOpen, onClose, onSuccess, officeLocations 
                   <div className="flex items-center gap-2">
                     <Building className="h-4 w-4" />
                     Office Work
-                    {location && !isWithinOfficeRadius && (
-                      <Badge variant="outline" className="ml-2 text-xs">
-                        {location.accuracy > 1000 ? "GPS Poor" : "Outside Range"}
-                      </Badge>
-                    )}
                   </div>
                 </SelectItem>
                 <SelectItem value="remote">
                   <div className="flex items-center gap-2">
                     <Wifi className="h-4 w-4" />
                     Remote Work
-                    {location && location.accuracy > 1000 && (
-                      <Badge variant="outline" className="ml-2 text-xs">
-                        Recommended
-                      </Badge>
-                    )}
                   </div>
                 </SelectItem>
                 <SelectItem value="field_work">
