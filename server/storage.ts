@@ -1654,18 +1654,18 @@ export class FirestoreStorage implements IStorage {
     
     const validatedData = insertAttendanceSchema.parse({
       ...data,
-      date: data.date ? Timestamp.fromDate(data.date) : Timestamp.now(),
-      checkInTime: data.checkInTime
-        ? Timestamp.fromDate(data.checkInTime)
-        : undefined,
-      checkOutTime: data.checkOutTime
-        ? Timestamp.fromDate(data.checkOutTime)
-        : undefined,
+      date: data.date || new Date(),
+      checkInTime: data.checkInTime || new Date(),
+      checkOutTime: data.checkOutTime,
     });
     
     const attendanceRef = this.db.collection("attendance");
     const attendanceDoc = await attendanceRef.add({
       ...validatedData,
+      date: Timestamp.fromDate(validatedData.date),
+      checkInTime: validatedData.checkInTime ? Timestamp.fromDate(validatedData.checkInTime) : Timestamp.now(),
+      checkOutTime: validatedData.checkOutTime ? Timestamp.fromDate(validatedData.checkOutTime) : null,
+      location: validatedData.attendanceType || "office",
       dateString: dateString, // Add this for efficient querying
       userEmail: userDoc.exists ? userDoc.data()?.email || "" : "",
       userDepartment: userDoc.exists ? userDoc.data()?.department || null : null,

@@ -1049,18 +1049,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId,
         date: today,
         checkInTime,
-        location: attendanceType,
-        customerId: customerId ? parseInt(customerId) : undefined,
+        attendanceType,
+        customerName: attendanceType === "field_work" ? customerName : undefined,
         reason,
-        checkInLatitude: latitude,
-        checkInLongitude: longitude,
+        checkInLatitude: latitude.toString(),
+        checkInLongitude: longitude.toString(),
         checkInImageUrl: imageUrl,
         status: isLate ? "late" : "present",
         isLate,
         lateMinutes: isLate ? lateMinutes : 0,
         workingHours: 0,
         breakHours: 0,
-        remarks: attendanceType === "field" ? `Field work at ${customerName}` : reason
+        isWithinOfficeRadius: isWithinOfficeGeoFence,
+        distanceFromOffice: locations.length > 0 ? calculateDistance(
+          parseFloat(latitude), 
+          parseFloat(longitude), 
+          parseFloat(locations[0].latitude), 
+          parseFloat(locations[0].longitude)
+        ) : undefined,
+        remarks: attendanceType === "field_work" ? `Field work at ${customerName}` : reason
       });
 
       // Log activity
