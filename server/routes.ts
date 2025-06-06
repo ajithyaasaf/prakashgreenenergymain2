@@ -1045,30 +1045,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      const newAttendance = await storage.createAttendance({
+      const attendanceData: any = {
         userId,
         date: today,
         checkInTime,
         attendanceType,
-        customerName: attendanceType === "field_work" ? customerName : undefined,
-        reason,
+        reason: reason || "",
         checkInLatitude: latitude.toString(),
         checkInLongitude: longitude.toString(),
-        checkInImageUrl: imageUrl,
         status: isLate ? "late" : "present",
         isLate,
         lateMinutes: isLate ? lateMinutes : 0,
         workingHours: 0,
         breakHours: 0,
         isWithinOfficeRadius: isWithinOfficeGeoFence,
-        distanceFromOffice: locations.length > 0 ? calculateDistance(
+        remarks: attendanceType === "field_work" ? `Field work at ${customerName || "Unknown"}` : (reason || "")
+      };
+
+      // Only add optional fields if they have values
+      if (attendanceType === "field_work" && customerName) {
+        attendanceData.customerName = customerName;
+      }
+      if (imageUrl) {
+        attendanceData.checkInImageUrl = imageUrl;
+      }
+      if (locations.length > 0) {
+        attendanceData.distanceFromOffice = calculateDistance(
           parseFloat(latitude), 
           parseFloat(longitude), 
           parseFloat(locations[0].latitude), 
           parseFloat(locations[0].longitude)
-        ) : undefined,
-        remarks: attendanceType === "field_work" ? `Field work at ${customerName}` : reason
-      });
+        );
+      }
+
+      const newAttendance = await storage.createAttendance(attendanceData);
 
       // Log activity
       await storage.createActivityLog({

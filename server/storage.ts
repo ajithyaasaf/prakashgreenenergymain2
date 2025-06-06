@@ -1659,14 +1659,19 @@ export class FirestoreStorage implements IStorage {
       checkOutTime: data.checkOutTime,
     });
     
+    // Filter out undefined values to prevent Firestore errors
+    const cleanData = Object.fromEntries(
+      Object.entries(validatedData).filter(([_, value]) => value !== undefined)
+    );
+
     const attendanceRef = this.db.collection("attendance");
     const attendanceDoc = await attendanceRef.add({
-      ...validatedData,
+      ...cleanData,
       date: Timestamp.fromDate(validatedData.date),
       checkInTime: validatedData.checkInTime ? Timestamp.fromDate(validatedData.checkInTime) : Timestamp.now(),
       checkOutTime: validatedData.checkOutTime ? Timestamp.fromDate(validatedData.checkOutTime) : null,
       location: validatedData.attendanceType || "office",
-      dateString: dateString, // Add this for efficient querying
+      dateString: dateString,
       userEmail: userDoc.exists ? userDoc.data()?.email || "" : "",
       userDepartment: userDoc.exists ? userDoc.data()?.department || null : null,
       createdAt: Timestamp.now(),
