@@ -191,10 +191,19 @@ export function AttendanceCheckIn({ isOpen, onClose, onSuccess, officeLocations 
       return;
     }
 
+    if (!user?.uid) {
+      toast({
+        title: "Authentication Error",
+        description: "User authentication required",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const response = await apiRequest('POST', '/api/attendance/check-in', {
-        userId: user?.id,
+        userId: user.uid, // Use uid instead of id
         latitude: location!.latitude.toString(),
         longitude: location!.longitude.toString(),
         attendanceType,

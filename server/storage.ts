@@ -1649,6 +1649,9 @@ export class FirestoreStorage implements IStorage {
     data: z.infer<typeof insertAttendanceSchema>,
   ): Promise<Attendance> {
     const userDoc = await this.db.collection("users").doc(data.userId).get();
+    const attendanceDate = data.date ? new Date(data.date) : new Date();
+    const dateString = attendanceDate.toISOString().split('T')[0]; // YYYY-MM-DD format
+    
     const validatedData = insertAttendanceSchema.parse({
       ...data,
       date: data.date ? Timestamp.fromDate(data.date) : Timestamp.now(),
@@ -1663,6 +1666,7 @@ export class FirestoreStorage implements IStorage {
     const attendanceRef = this.db.collection("attendance");
     const attendanceDoc = await attendanceRef.add({
       ...validatedData,
+      dateString: dateString, // Add this for efficient querying
       userEmail: userDoc.exists ? userDoc.data()?.email || "" : "",
       userDepartment: userDoc.exists ? userDoc.data()?.department || null : null,
       createdAt: Timestamp.now(),
@@ -1719,16 +1723,13 @@ export class FirestoreStorage implements IStorage {
     userId: string,
     date: Date,
   ): Promise<Attendance | undefined> {
-    const startOfDay = Timestamp.fromDate(new Date(date.setHours(0, 0, 0, 0)));
-    const endOfDay = Timestamp.fromDate(
-      new Date(date.setHours(23, 59, 59, 999)),
-    );
+    const dateStr = date.toISOString().split('T')[0]; // Format: YYYY-MM-DD
     
     const attendanceRef = this.db.collection("attendance");
     const snapshot = await attendanceRef
       .where("userId", "==", userId)
-      .where("date", ">=", startOfDay)
-      .where("date", "<=", endOfDay)
+      .where("dateString", "==", dateStr)
+      .limit(1)
       .get();
     
     if (snapshot.empty) return undefined;
