@@ -43,9 +43,9 @@ export default function OfficeLocations() {
   const [isEditLocationOpen, setIsEditLocationOpen] = useState(false);
   const [editingLocation, setEditingLocation] = useState<any>(null);
   const [formData, setFormData] = useState({
-    name: "",
-    latitude: "",
-    longitude: "",
+    name: "Prakash Greens Energy Head Office",
+    latitude: "9.966844592415782",
+    longitude: "78.1338405791111",
     radius: "100", // Default radius in meters
   });
 
