@@ -64,6 +64,22 @@ export function AttendanceCheckIn({ isOpen, onClose, onSuccess, officeLocations 
       )
     : null;
 
+  // Debug logging for distance calculation
+  useEffect(() => {
+    if (location && primaryOffice && distanceFromOffice !== null) {
+      console.log('LOCATION DEBUG:', {
+        userLocation: { lat: location.latitude, lng: location.longitude },
+        officeLocation: { 
+          lat: parseFloat(primaryOffice.latitude.toString()), 
+          lng: parseFloat(primaryOffice.longitude.toString()),
+          radius: primaryOffice.radius 
+        },
+        distanceFromOffice,
+        isWithinRadius: distanceFromOffice <= (primaryOffice.radius || 100)
+      });
+    }
+  }, [location, primaryOffice, distanceFromOffice]);
+
   const isWithinOfficeRadius = distanceFromOffice !== null 
     ? distanceFromOffice <= (primaryOffice.radius || 100)
     : false;
