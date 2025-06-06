@@ -161,8 +161,8 @@ export function AttendanceCheckIn({ isOpen, onClose, onSuccess, officeLocations 
     if (!location) return "Location access is required for attendance";
     if (!isOnline) return "Internet connection is required";
     
-    // Check location accuracy for reliable tracking
-    if (location.accuracy > 200) {
+    // Check location accuracy for reliable tracking - be more lenient for indoor environments
+    if (location.accuracy > 5000) {
       return "Location accuracy is too low. Please try again or move to an area with better GPS signal.";
     }
     
@@ -289,10 +289,12 @@ export function AttendanceCheckIn({ isOpen, onClose, onSuccess, officeLocations 
                     <span className="text-sm font-medium">
                       {locationLoading ? "Getting Location..." : 
                        location ? (
-                         location.accuracy <= 20 ? 
+                         location.accuracy <= 50 ? 
                            `High accuracy (${location.accuracy.toFixed(0)}m)` :
-                         location.accuracy <= 100 ?
+                         location.accuracy <= 500 ?
                            `Good accuracy (${location.accuracy.toFixed(0)}m)` :
+                         location.accuracy <= 2000 ?
+                           `Fair accuracy (${location.accuracy.toFixed(0)}m)` :
                            `Low accuracy (${location.accuracy.toFixed(0)}m)`
                        ) : "No Location"}
                     </span>
