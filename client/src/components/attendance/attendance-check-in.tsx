@@ -68,14 +68,16 @@ export function AttendanceCheckIn({ isOpen, onClose, onSuccess, officeLocations 
   useEffect(() => {
     if (location && primaryOffice && distanceFromOffice !== null) {
       console.log('LOCATION DEBUG:', {
-        userLocation: { lat: location.latitude, lng: location.longitude },
+        userLocation: { lat: location.latitude, lng: location.longitude, accuracy: location.accuracy },
         officeLocation: { 
           lat: parseFloat(primaryOffice.latitude.toString()), 
           lng: parseFloat(primaryOffice.longitude.toString()),
-          radius: primaryOffice.radius 
+          radius: primaryOffice.radius || 100,
+          name: primaryOffice.name
         },
-        distanceFromOffice,
-        isWithinRadius: distanceFromOffice <= (primaryOffice.radius || 100)
+        distanceFromOffice: Math.round(distanceFromOffice),
+        isWithinRadius: distanceFromOffice <= (primaryOffice.radius || 100),
+        locationAccuracy: location.accuracy <= 20 ? 'High' : location.accuracy <= 100 ? 'Good' : 'Low'
       });
     }
   }, [location, primaryOffice, distanceFromOffice]);
@@ -159,10 +161,15 @@ export function AttendanceCheckIn({ isOpen, onClose, onSuccess, officeLocations 
     if (!location) return "Location access is required for attendance";
     if (!isOnline) return "Internet connection is required";
     
+    // Check location accuracy for reliable tracking
+    if (location.accuracy > 200) {
+      return "Location accuracy is too low. Please try again or move to an area with better GPS signal.";
+    }
+    
     // Office attendance validation
     if (attendanceType === "office") {
       if (!isWithinOfficeRadius) {
-        return "You are outside the office location. Please select 'Remote' or 'Field Work' and provide a reason.";
+        return `You are ${Math.round(distanceFromOffice || 0)}m away from the office (allowed: ${primaryOffice.radius || 100}m). Please select 'Remote' or 'Field Work' and provide a reason.`;
       }
     }
     
@@ -281,7 +288,13 @@ export function AttendanceCheckIn({ isOpen, onClose, onSuccess, officeLocations 
                     )}
                     <span className="text-sm font-medium">
                       {locationLoading ? "Getting Location..." : 
-                       location ? `${location.accuracy.toFixed(0)}m accuracy` : "No Location"}
+                       location ? (
+                         location.accuracy <= 20 ? 
+                           `High accuracy (${location.accuracy.toFixed(0)}m)` :
+                         location.accuracy <= 100 ?
+                           `Good accuracy (${location.accuracy.toFixed(0)}m)` :
+                           `Low accuracy (${location.accuracy.toFixed(0)}m)`
+                       ) : "No Location"}
                     </span>
                   </div>
                   {!locationLoading && (
