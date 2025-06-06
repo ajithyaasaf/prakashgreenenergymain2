@@ -222,16 +222,36 @@ export default function AttendanceManagement() {
   // Status badge styles
   const getStatusBadge = (status: string) => {
     const styles = {
-      present: "bg-green-100 text-green-800",
-      absent: "bg-red-100 text-red-800",
-      late: "bg-orange-100 text-orange-800",
-      leave: "bg-yellow-100 text-yellow-800",
-      holiday: "bg-blue-100 text-blue-800",
-      half_day: "bg-purple-100 text-purple-800"
+      present: "bg-green-100 text-green-800 border-green-200",
+      absent: "bg-red-100 text-red-800 border-red-200",
+      late: "bg-orange-100 text-orange-800 border-orange-200",
+      leave: "bg-yellow-100 text-yellow-800 border-yellow-200",
+      holiday: "bg-blue-100 text-blue-800 border-blue-200",
+      half_day: "bg-purple-100 text-purple-800 border-purple-200"
     };
     
     return (
-      <Badge className={cn("font-medium capitalize", styles[status as keyof typeof styles] || "bg-gray-100")}>
+      <Badge 
+        variant="outline" 
+        className={cn(
+          "font-medium capitalize border", 
+          styles[status as keyof typeof styles] || "bg-gray-100 text-gray-800 border-gray-200"
+        )}
+        style={{
+          backgroundColor: status === 'present' ? '#dcfce7' : 
+                          status === 'absent' ? '#fee2e2' :
+                          status === 'late' ? '#fed7aa' :
+                          status === 'leave' ? '#fef3c7' :
+                          status === 'holiday' ? '#dbeafe' :
+                          status === 'half_day' ? '#e9d5ff' : '#f3f4f6',
+          color: status === 'present' ? '#166534' : 
+                status === 'absent' ? '#991b1b' :
+                status === 'late' ? '#c2410c' :
+                status === 'leave' ? '#a16207' :
+                status === 'holiday' ? '#1e40af' :
+                status === 'half_day' ? '#7c3aed' : '#374151'
+        }}
+      >
         {status.replace('_', ' ')}
       </Badge>
     );
