@@ -1179,14 +1179,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Check for early checkout
+      // Check for early checkout (only require reason if significantly early)
       const earlyCheckout = checkOutTime < expectedCheckOutTime;
-      if (earlyCheckout && !reason) {
+      const earlyMinutes = earlyCheckout ? Math.floor((expectedCheckOutTime.getTime() - checkOutTime.getTime()) / (1000 * 60)) : 0;
+      
+      // Only require reason if checking out more than 30 minutes early
+      if (earlyCheckout && earlyMinutes > 30 && (!reason || reason.trim().length === 0)) {
+        const currentTimeStr = checkOutTime.toLocaleTimeString();
+        const expectedTimeStr = expectedCheckOutTime.toLocaleTimeString();
         return res.status(400).json({
-          message: "Early checkout requires a reason",
+          message: `Early checkout (${earlyMinutes} minutes early) requires a reason. Current: ${currentTimeStr}, Expected: ${expectedTimeStr}`,
           currentTime: checkOutTime,
           expectedCheckOutTime,
-          requiresReason: true
+          requiresReason: true,
+          isEarlyCheckout: true,
+          earlyMinutes
         });
       }
 
