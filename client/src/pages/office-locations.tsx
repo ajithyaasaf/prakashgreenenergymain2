@@ -87,7 +87,7 @@ export default function OfficeLocations() {
   // Create new office location
   const createLocationMutation = useMutation({
     mutationFn: async (data: any) => {
-      return apiRequest('/api/office-locations', 'POST', data);
+      return apiRequest('POST', '/api/office-locations', data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/office-locations"] });
@@ -110,7 +110,7 @@ export default function OfficeLocations() {
   // Update office location
   const updateLocationMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: any }) => {
-      return apiRequest(`/api/office-locations/${id}`, 'PATCH', data);
+      return apiRequest('PATCH', `/api/office-locations/${id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/office-locations"] });
@@ -133,7 +133,7 @@ export default function OfficeLocations() {
   // Delete office location
   const deleteLocationMutation = useMutation({
     mutationFn: async (id: number) => {
-      return apiRequest(`/api/office-locations/${id}`, 'DELETE');
+      return apiRequest('DELETE', `/api/office-locations/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/office-locations"] });
