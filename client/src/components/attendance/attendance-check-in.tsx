@@ -321,12 +321,19 @@ export function AttendanceCheckIn({ isOpen, onClose, onSuccess, officeLocations 
               <MapPin className="h-4 w-4" />
               <AlertDescription>
                 <div className="flex items-center justify-between">
-                  <span>
-                    {isWithinOfficeRadius 
-                      ? `You are within the office radius (${distanceFromOffice?.toFixed(0)}m away)`
-                      : `You are outside the office (${distanceFromOffice?.toFixed(0)}m away)`
-                    }
-                  </span>
+                  <div className="flex flex-col">
+                    <span>
+                      {isWithinOfficeRadius 
+                        ? `You are within the office radius (${distanceFromOffice?.toFixed(0)}m away)`
+                        : `You are outside the office (${distanceFromOffice?.toFixed(0)}m away)`
+                      }
+                    </span>
+                    {location.accuracy > 1000 && isWithinOfficeRadius && (
+                      <span className="text-xs text-gray-600 mt-1">
+                        Indoor GPS accuracy is normal. Office detection working properly.
+                      </span>
+                    )}
+                  </div>
                   <Badge variant={isWithinOfficeRadius ? "default" : "secondary"}>
                     {isWithinOfficeRadius ? "Inside Office" : "Outside Office"}
                   </Badge>
