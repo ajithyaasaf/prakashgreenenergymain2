@@ -1693,21 +1693,25 @@ export class FirestoreStorage implements IStorage {
     id: string,
     data: Partial<z.infer<typeof insertAttendanceSchema>>,
   ): Promise<Attendance> {
-    const validatedData = insertAttendanceSchema.partial().parse({
-      ...data,
-      date: data.date ? Timestamp.fromDate(data.date) : undefined,
-      checkInTime: data.checkInTime
-        ? Timestamp.fromDate(data.checkInTime)
+    // First validate the data without timestamp conversion
+    const validatedData = insertAttendanceSchema.partial().parse(data);
+    
+    // Then prepare for Firestore with timestamp conversion
+    const firestoreData = {
+      ...validatedData,
+      date: validatedData.date ? Timestamp.fromDate(validatedData.date) : undefined,
+      checkInTime: validatedData.checkInTime
+        ? Timestamp.fromDate(validatedData.checkInTime)
         : undefined,
-      checkOutTime: data.checkOutTime
-        ? Timestamp.fromDate(data.checkOutTime)
+      checkOutTime: validatedData.checkOutTime
+        ? Timestamp.fromDate(validatedData.checkOutTime)
         : undefined,
-    });
+    };
     
     const attendanceDoc = this.db.collection("attendance").doc(id);
     
     await attendanceDoc.update({
-      ...validatedData,
+      ...firestoreData,
       updatedAt: Timestamp.now(),
     });
     
