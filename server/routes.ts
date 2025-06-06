@@ -894,23 +894,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/attendance", verifyAuth, async (req, res) => {
     try {
       const { userId, date } = req.query;
-      const requestingUser = await storage.getUser(req.user.uid);
-      if (!requestingUser) {
-        return res.status(403).json({ message: "Access denied" });
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
       }
+
+      const requestingUser = req.authenticatedUser.user;
 
       if (userId && date) {
         if (
           requestingUser.role !== "master_admin" &&
           requestingUser.role !== "admin" &&
-          requestingUser.id !== userId
+          requestingUser.uid !== userId
         ) {
           return res.status(403).json({ message: "Access denied" });
         }
-        const attendance = await storage.getAttendanceByUserAndDate(
-          userId as string,
-          new Date(date as string),
-        );
+        const attendance = await storage.getUserAttendanceForDate(userId as string, date as string);
         return res.json(attendance || null);
       }
 
@@ -3163,9 +3161,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check if user already checked in today
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const existingAttendance = await storage.getAttendanceByUserAndDate(userId, today);
+      const today = new Date().toISOString().split('T')[0];
+      const existingAttendance = await storage.getUserAttendanceForDate(userId, today);
       if (existingAttendance && existingAttendance.checkInTime) {
         return res.status(400).json({ message: "You have already checked in today" });
       }
@@ -3223,8 +3220,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         distanceFromOffice: Math.round(distance)
       };
 
-      // Create attendance record
-      const attendanceRecord = await storage.createAttendance(checkInData);
+      // Create attendance record with all required fields
+      const attendanceRecord = await storage.createAttendance({
+        ...checkInData,
+        status: "present",
+        isLate: false,
+        checkInTime: new Date(),
+        date: new Date(),
+        location: `${checkInData.latitude},${checkInData.longitude}`,
+        checkInLatitude: checkInData.latitude,
+        checkInLongitude: checkInData.longitude,
+        checkInImageUrl: checkInData.imageUrl
+      });
 
       // Create audit log
       await storage.createAuditLog({

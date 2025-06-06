@@ -61,17 +61,17 @@ export default function Attendance() {
 
   // Fetch current user's attendance for today
   const { data: todayAttendance } = useQuery({
-    queryKey: ["/api/attendance/today", user?.id],
+    queryKey: ["/api/attendance/today", user?.uid],
     queryFn: async () => {
-      if (!user?.id) return null;
+      if (!user?.uid) return null;
       const today = new Date().toISOString().split('T')[0];
-      const response = await apiRequest('GET', `/api/attendance/user/${user.id}?date=${today}`);
+      const response = await apiRequest('GET', `/api/attendance?userId=${user.uid}&date=${today}`);
       if (response.ok) {
         return await response.json();
       }
       return null;
     },
-    enabled: !!user?.id,
+    enabled: !!user?.uid,
   });
 
   // Fetch office locations

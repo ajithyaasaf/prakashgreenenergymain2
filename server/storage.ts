@@ -2930,7 +2930,7 @@ export class FirestoreStorage implements IStorage {
     try {
       const querySnapshot = await this.db.collection('attendance')
         .where('userId', '==', userId)
-        .where('date', '==', date)
+        .where('dateString', '==', date)
         .limit(1)
         .get();
 
@@ -2939,9 +2939,13 @@ export class FirestoreStorage implements IStorage {
       }
 
       const doc = querySnapshot.docs[0];
+      const data = doc.data();
       return {
         id: doc.id,
-        ...doc.data()
+        ...data,
+        checkInTime: data.checkInTime?.toDate() || null,
+        checkOutTime: data.checkOutTime?.toDate() || null,
+        date: data.date?.toDate() || new Date()
       };
     } catch (error) {
       console.error("Error getting user attendance for date:", error);
