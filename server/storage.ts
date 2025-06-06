@@ -617,6 +617,13 @@ export interface IStorage {
     startDate: Date,
     endDate: Date,
   ): Promise<Attendance[]>;
+  listAttendanceByUserBetweenDates(
+    userId: string,
+    startDate: Date,
+    endDate: Date,
+  ): Promise<Attendance[]>;
+  getAttendance(id: string): Promise<Attendance | undefined>;
+  getUserAttendanceForDate(userId: string, date: string): Promise<Attendance | undefined>;
   getLeave(id: string): Promise<Leave | undefined>;
   listLeavesByUser(userId: string): Promise<Leave[]>;
   listPendingLeaves(): Promise<Leave[]>;
@@ -1804,6 +1811,82 @@ export class FirestoreStorage implements IStorage {
         checkOutTime: data.checkOutTime?.toDate() || null,
       } as Attendance;
     });
+  }
+
+  async listAttendanceBetweenDates(
+    startDate: Date,
+    endDate: Date,
+  ): Promise<Attendance[]> {
+    const startTimestamp = Timestamp.fromDate(new Date(startDate.setHours(0, 0, 0, 0)));
+    const endTimestamp = Timestamp.fromDate(
+      new Date(endDate.setHours(23, 59, 59, 999)),
+    );
+    
+    const attendanceRef = this.db.collection("attendance");
+    const snapshot = await attendanceRef
+      .where("date", ">=", startTimestamp)
+      .where("date", "<=", endTimestamp)
+      .get();
+    
+    return snapshot.docs.map(doc => {
+      const data = doc.data() || {};
+      return {
+        id: doc.id,
+        ...data,
+        date: data.date?.toDate() || new Date(),
+        checkInTime: data.checkInTime?.toDate() || null,
+        checkOutTime: data.checkOutTime?.toDate() || null,
+      } as Attendance;
+    });
+  }
+
+  async listAttendanceByUserBetweenDates(
+    userId: string,
+    startDate: Date,
+    endDate: Date,
+  ): Promise<Attendance[]> {
+    const startTimestamp = Timestamp.fromDate(new Date(startDate.setHours(0, 0, 0, 0)));
+    const endTimestamp = Timestamp.fromDate(
+      new Date(endDate.setHours(23, 59, 59, 999)),
+    );
+    
+    const attendanceRef = this.db.collection("attendance");
+    const snapshot = await attendanceRef
+      .where("userId", "==", userId)
+      .where("date", ">=", startTimestamp)
+      .where("date", "<=", endTimestamp)
+      .get();
+    
+    return snapshot.docs.map(doc => {
+      const data = doc.data() || {};
+      return {
+        id: doc.id,
+        ...data,
+        date: data.date?.toDate() || new Date(),
+        checkInTime: data.checkInTime?.toDate() || null,
+        checkOutTime: data.checkOutTime?.toDate() || null,
+      } as Attendance;
+    });
+  }
+
+  async getAttendance(id: string): Promise<Attendance | undefined> {
+    const attendanceDoc = this.db.collection("attendance").doc(id);
+    const docSnap = await attendanceDoc.get();
+    if (!docSnap.exists) return undefined;
+    
+    const data = docSnap.data() || {};
+    return {
+      id: docSnap.id,
+      ...data,
+      date: data.date?.toDate() || new Date(),
+      checkInTime: data.checkInTime?.toDate() || null,
+      checkOutTime: data.checkOutTime?.toDate() || null,
+    } as Attendance;
+  }
+
+  async getUserAttendanceForDate(userId: string, date: string): Promise<Attendance | undefined> {
+    const targetDate = new Date(date);
+    return this.getAttendanceByUserAndDate(userId, targetDate);
   }
 
   async listAttendanceBetweenDates(
