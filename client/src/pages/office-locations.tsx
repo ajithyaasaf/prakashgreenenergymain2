@@ -34,6 +34,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { MapPin, PlusCircle, Trash2, Edit, Loader2, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { formatDate } from "@/lib/utils";
+import { apiRequest } from "@/lib/queryClient";
 
 export default function OfficeLocations() {
   const { user } = useAuthContext();
@@ -86,20 +87,7 @@ export default function OfficeLocations() {
   // Create new office location
   const createLocationMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await fetch("/api/office-locations", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to create office location");
-      }
-      
-      return response.json();
+      return apiRequest('/api/office-locations', 'POST', data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/office-locations"] });
@@ -122,20 +110,7 @@ export default function OfficeLocations() {
   // Update office location
   const updateLocationMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: any }) => {
-      const response = await fetch(`/api/office-locations/${id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to update office location");
-      }
-      
-      return response.json();
+      return apiRequest(`/api/office-locations/${id}`, 'PATCH', data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/office-locations"] });
@@ -158,16 +133,7 @@ export default function OfficeLocations() {
   // Delete office location
   const deleteLocationMutation = useMutation({
     mutationFn: async (id: number) => {
-      const response = await fetch(`/api/office-locations/${id}`, {
-        method: "DELETE",
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to delete office location");
-      }
-      
-      return true;
+      return apiRequest(`/api/office-locations/${id}`, 'DELETE');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/office-locations"] });
