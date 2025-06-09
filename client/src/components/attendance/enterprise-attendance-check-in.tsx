@@ -134,13 +134,7 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
         type: attendanceType 
       });
 
-      const response = await fetch('/api/attendance/check-in', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(requestData)
-      });
+      const response = await apiRequest('POST', '/api/attendance/check-in', requestData);
 
       if (!response.ok) {
         const errorData = await response.json();
