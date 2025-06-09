@@ -141,7 +141,7 @@ export class UnifiedAttendanceService {
         reason: request.reason || '',
         checkInLatitude: request.latitude.toString(),
         checkInLongitude: request.longitude.toString(),
-        status: timingInfo.isLate ? 'late' : 'present',
+        status: (timingInfo.isLate ? 'late' : 'present') as 'late' | 'present',
         isLate: timingInfo.isLate,
         lateMinutes: timingInfo.lateMinutes,
         workingHours: 0,

@@ -17,7 +17,7 @@ import {
   MapPin, Timer, Users, TrendingUp, Activity, RefreshCw, Zap
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
-import { AttendanceCheckIn } from "@/components/attendance/attendance-check-in";
+import { EnterpriseAttendanceCheckIn } from "@/components/attendance/enterprise-attendance-check-in";
 import { AttendanceCheckOut } from "@/components/attendance/attendance-check-out";
 
 export default function Attendance() {
@@ -389,7 +389,7 @@ export default function Attendance() {
       </Card>
 
       {/* Check-in Modal */}
-      <AttendanceCheckIn
+      <EnterpriseAttendanceCheckIn
         isOpen={showCheckInModal}
         onClose={() => setShowCheckInModal(false)}
         onSuccess={refreshAttendance}

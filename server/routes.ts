@@ -960,163 +960,114 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId,
         latitude,
         longitude,
-        location = "office",
-        customerId,
+        accuracy = 100,
+        attendanceType = "office",
+        customerName,
         reason,
-        imageUrl,
-        attendanceType = "office", // office, field, remote
-        customerName
+        imageUrl
       } = req.body;
       
       if (!userId || userId !== req.user.uid) {
         return res.status(403).json({ message: "Access denied" });
       }
 
-      // Get user details for department-specific timing
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-
-      const now = new Date();
-      const checkInTime = new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        now.getDate(),
-        now.getHours(),
-        now.getMinutes(),
-      );
-
-      // Get department-specific timing (default to 9:30 AM if not set)
-      const defaultCheckInTime = "09:30";
-      const [checkInHour, checkInMinute] = defaultCheckInTime.split(":").map(Number);
-      const minCheckInTime = new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        now.getDate(),
-        checkInHour,
-        checkInMinute,
-      );
-
-      // Check if user is late
-      const isLate = checkInTime > minCheckInTime;
-      const lateMinutes = isLate ? Math.floor((checkInTime.getTime() - minCheckInTime.getTime()) / (1000 * 60)) : 0;
-
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const existingAttendance = await storage.getAttendanceByUserAndDate(
-        userId,
-        today,
-      );
-      if (existingAttendance) {
-        return res.status(400).json({
-          message: "You have already checked in today",
-          attendance: existingAttendance,
+      // Input validation
+      if (!latitude || !longitude) {
+        return res.status(400).json({ 
+          message: "Location coordinates are required",
+          recommendations: ["Please enable location services and try again"]
         });
       }
 
-      // Check geolocation for office attendance
-      const locations = await storage.listOfficeLocations();
-      const isWithinOfficeGeoFence = locations.some((loc) =>
-        isWithinGeoFence(
-          parseFloat(latitude), 
-          parseFloat(longitude), 
-          parseFloat(loc.latitude), 
-          parseFloat(loc.longitude), 
-          loc.radius || 100
-        ),
-      );
-
-      // Validation based on attendance type
-      if (attendanceType === "office") {
-        if (!isWithinOfficeGeoFence) {
-          return res.status(400).json({ 
-            message: "You are outside the office location. Please select the appropriate attendance type.",
-            outsideGeofence: true
-          });
-        }
-      } else if (attendanceType === "field") {
-        // Field work requires customer name and photo
-        if (!customerName || !imageUrl) {
-          return res.status(400).json({ 
-            message: "Field work requires customer name and photo to be provided",
-            requiresCustomerAndPhoto: true
-          });
-        }
-      } else if (attendanceType === "remote") {
-        // Remote work requires reason if outside geofence
-        if (!isWithinOfficeGeoFence && !reason) {
-          return res.status(400).json({ 
-            message: "Remote work requires a reason when outside office location",
-            requiresReason: true
-          });
-        }
+      if (typeof latitude !== 'number' || typeof longitude !== 'number') {
+        return res.status(400).json({ 
+          message: "Invalid location coordinates",
+          recommendations: ["Location must be valid GPS coordinates"]
+        });
       }
 
-      const attendanceData: any = {
+      // Import and use unified attendance service
+      const { UnifiedAttendanceService } = await import('./services/unified-attendance-service');
+      
+      const checkInRequest = {
         userId,
-        date: today,
-        checkInTime,
-        attendanceType,
-        reason: reason || "",
-        checkInLatitude: latitude.toString(),
-        checkInLongitude: longitude.toString(),
-        status: isLate ? "late" : "present",
-        isLate,
-        lateMinutes: isLate ? lateMinutes : 0,
-        workingHours: 0,
-        breakHours: 0,
-        isWithinOfficeRadius: isWithinOfficeGeoFence,
-        remarks: attendanceType === "field_work" ? `Field work at ${customerName || "Unknown"}` : (reason || "")
+        latitude: Number(latitude),
+        longitude: Number(longitude),
+        accuracy: Number(accuracy),
+        attendanceType: attendanceType as 'office' | 'remote' | 'field_work',
+        reason,
+        customerName,
+        imageUrl
       };
 
-      // Only add optional fields if they have values
-      if (attendanceType === "field_work" && customerName) {
-        attendanceData.customerName = customerName;
-      }
-      if (imageUrl) {
-        attendanceData.checkInImageUrl = imageUrl;
-      }
-      if (locations.length > 0) {
-        attendanceData.distanceFromOffice = calculateDistance(
-          parseFloat(latitude), 
-          parseFloat(longitude), 
-          parseFloat(locations[0].latitude), 
-          parseFloat(locations[0].longitude)
-        );
-      }
+      console.log('ENTERPRISE CHECK-IN: Processing request with advanced location validation');
+      console.log('Location:', { latitude, longitude, accuracy, attendanceType });
 
-      const newAttendance = await storage.createAttendance(attendanceData);
+      const result = await UnifiedAttendanceService.processCheckIn(checkInRequest);
 
-      // Automatic location calibration for office check-ins
-      if (attendanceType === "office" && latitude && longitude) {
-        performAutomaticLocationCalibration(
-          parseFloat(latitude),
-          parseFloat(longitude),
-          locations[0],
-          storage
-        ).catch(err => console.error("Auto-calibration failed:", err));
+      if (!result.success) {
+        console.log('ENTERPRISE CHECK-IN: Validation failed -', result.message);
+        return res.status(400).json({
+          message: result.message,
+          locationValidation: {
+            type: result.locationValidation.validationType,
+            confidence: Math.round(result.locationValidation.confidence * 100),
+            distance: result.locationValidation.distance,
+            detectedOffice: result.locationValidation.detectedOffice?.name,
+            message: result.locationValidation.message
+          },
+          recommendations: result.recommendations || result.locationValidation.recommendations
+        });
       }
 
-      // Log activity
-      await storage.createActivityLog({
-        type: 'attendance',
-        title: `${attendanceType === "field" ? "Field Work" : attendanceType === "remote" ? "Remote Work" : "Office"} Check-in`,
-        description: `${user.displayName} checked in for ${attendanceType} work${isLate ? ` (${lateMinutes} minutes late)` : ""}`,
-        entityId: newAttendance.id,
-        entityType: 'attendance',
-        userId: user.uid
-      });
+      console.log('ENTERPRISE CHECK-IN: Success -', result.message);
+      console.log('Location validation:', result.locationValidation.validationType, 
+                  'Confidence:', Math.round(result.locationValidation.confidence * 100) + '%');
 
+      // Success response with comprehensive information
       res.status(201).json({
-        message: `Checked in successfully for ${attendanceType} work${isLate ? ` (${lateMinutes} minutes late)` : ""}`,
-        attendance: newAttendance,
-        isLate,
-        lateMinutes
+        message: result.message,
+        success: true,
+        attendance: {
+          id: result.attendanceId,
+          type: attendanceType,
+          timestamp: new Date().toISOString(),
+          ...result.attendanceDetails
+        },
+        location: {
+          validation: {
+            type: result.locationValidation.validationType,
+            confidence: Math.round(result.locationValidation.confidence * 100),
+            distance: result.locationValidation.distance,
+            accuracy: result.locationValidation.metadata.accuracy,
+            indoorDetection: result.locationValidation.metadata.indoorDetection
+          },
+          office: result.locationValidation.detectedOffice ? {
+            name: result.locationValidation.detectedOffice.name,
+            distance: result.locationValidation.detectedOffice.distance
+          } : null
+        },
+        recommendations: result.recommendations,
+        enterprise: {
+          version: "v2.0-unified",
+          locationEngine: "enterprise-grade",
+          timestamp: new Date().toISOString()
+        }
       });
+
     } catch (error) {
-      console.error("Error checking in:", error);
-      res.status(500).json({ message: "Failed to process check-in" });
+      console.error("Enterprise check-in error:", error);
+      res.status(500).json({ 
+        message: "System error during check-in processing",
+        error: {
+          type: "enterprise_service_error",
+          timestamp: new Date().toISOString()
+        },
+        recommendations: [
+          "Please try again in a moment",
+          "If the issue persists, contact system administrator"
+        ]
+      });
     }
   });
 

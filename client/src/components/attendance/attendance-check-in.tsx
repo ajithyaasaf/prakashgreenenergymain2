@@ -25,15 +25,9 @@ interface AttendanceCheckInProps {
 }
 
 // Default office coordinates (Prakash Greens Energy)
-const DEFAULT_OFFICE = {
-  latitude: 9.966844592415782,
-  longitude: 78.1338405791111,
-  radius: 100
-};
-
 export function AttendanceCheckIn({ isOpen, onClose, onSuccess, officeLocations }: AttendanceCheckInProps) {
   const { user } = useAuthContext();
-  const { location, error: locationError, isLoading: locationLoading, getCurrentLocation, calculateDistance, isWithinRadius } = useGeolocation();
+  const { location, error: locationError, isLoading: locationLoading, getCurrentLocation } = useGeolocation();
   const { toast } = useToast();
 
   // Form states
@@ -42,6 +36,16 @@ export function AttendanceCheckIn({ isOpen, onClose, onSuccess, officeLocations 
   const [reason, setReason] = useState("");
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Location validation states
+  const [locationValidation, setLocationValidation] = useState<{
+    type: string;
+    confidence: number;
+    distance: number;
+    detectedOffice: string | null;
+    message: string;
+    recommendations: string[];
+  } | null>(null);
 
   // Camera states
   const [isCameraActive, setIsCameraActive] = useState(false);
@@ -52,45 +56,27 @@ export function AttendanceCheckIn({ isOpen, onClose, onSuccess, officeLocations 
   // Network status
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
-  // Use provided office location or default
-  const primaryOffice = officeLocations?.[0] || DEFAULT_OFFICE;
-  
-  const distanceFromOffice = location && primaryOffice 
-    ? calculateDistance(
-        location.latitude, 
-        location.longitude, 
-        parseFloat(primaryOffice.latitude.toString()), 
-        parseFloat(primaryOffice.longitude.toString())
-      )
-    : null;
+  // Enhanced location status display
+  const getLocationStatus = () => {
+    if (locationError) return "Location Error";
+    if (locationLoading) return "Getting Location...";
+    if (!location) return "Location Required";
+    
+    const accuracy = location.accuracy;
+    if (accuracy <= 20) return "Excellent GPS";
+    if (accuracy <= 100) return "Good GPS";
+    if (accuracy <= 1000) return "Fair GPS (Indoor)";
+    return "Poor GPS Signal";
+  };
 
-  const isWithinOfficeRadius = location && primaryOffice 
-    ? isWithinRadius(
-        location.latitude, 
-        location.longitude, 
-        parseFloat(primaryOffice.latitude.toString()), 
-        parseFloat(primaryOffice.longitude.toString()),
-        primaryOffice.radius || 100,
-        location.accuracy
-      )
-    : false;
-
-  // Enhanced debugging for location and proximity detection
+  // Enhanced debugging for location validation
   useEffect(() => {
-    if (location && primaryOffice && distanceFromOffice !== null) {
-      const effectiveRadius = (() => {
-        const baseRadius = primaryOffice.radius || 100;
-        if (location.accuracy > 100) {
-          return baseRadius + Math.min(location.accuracy * 0.5, 200);
-        } else if (location.accuracy > 50) {
-          return baseRadius + Math.min(location.accuracy * 0.3, 100);
-        } else {
-          return baseRadius + 10;
-        }
-      })();
-
-      const currentlyWithinRadius = isWithinRadius(
-        location.latitude, 
+    if (location && locationValidation) {
+      console.log('FRONTEND: Location validation updated');
+      console.log('Validation type:', locationValidation.type);
+      console.log('Confidence:', locationValidation.confidence + '%');
+      console.log('Distance:', locationValidation.distance + 'm');
+      console.log('Detected office:', locationValidation.detectedOffice); 
         location.longitude, 
         parseFloat(primaryOffice.latitude.toString()), 
         parseFloat(primaryOffice.longitude.toString()),
