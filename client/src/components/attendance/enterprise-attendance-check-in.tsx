@@ -361,7 +361,7 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
               
               {location && (
                 <div className="text-xs text-gray-600 space-y-1">
-                  <div>GPS Accuracy: {Math.round(location.accuracy)}m</div>
+                  <div>GPS Accuracy: {Math.round(location.accuracy)}m {getGPSQualityText(location.accuracy)}</div>
                   <div>Coordinates: {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}</div>
                 </div>
               )}

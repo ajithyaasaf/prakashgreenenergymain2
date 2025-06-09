@@ -34,17 +34,17 @@ export interface LocationValidationResult {
 }
 
 export class EnterpriseLocationService {
-  // Precision thresholds for enterprise-grade accuracy
-  private static readonly PRECISION_EXCELLENT = 5;   // meters
-  private static readonly PRECISION_GOOD = 20;       // meters  
-  private static readonly PRECISION_FAIR = 100;      // meters
-  private static readonly PRECISION_POOR = 1000;     // meters
+  // Precision thresholds for enterprise-grade accuracy (more realistic for mobile devices)
+  private static readonly PRECISION_EXCELLENT = 10;   // meters
+  private static readonly PRECISION_GOOD = 50;        // meters  
+  private static readonly PRECISION_FAIR = 200;       // meters
+  private static readonly PRECISION_POOR = 500;       // meters
   
-  // Indoor GPS compensation parameters - much more aggressive
-  private static readonly INDOOR_ACCURACY_THRESHOLD = 100;     // meters
-  private static readonly INDOOR_DISTANCE_MULTIPLIER = 10.0;   // Allow 10x base radius indoors
-  private static readonly POOR_GPS_THRESHOLD = 500;           // meters
-  private static readonly POOR_GPS_MULTIPLIER = 15.0;         // Allow 15x base radius for very poor GPS
+  // Indoor GPS compensation parameters - very aggressive for real-world usage
+  private static readonly INDOOR_ACCURACY_THRESHOLD = 50;      // meters - trigger indoor mode sooner
+  private static readonly INDOOR_DISTANCE_MULTIPLIER = 20.0;   // Allow 20x base radius indoors
+  private static readonly POOR_GPS_THRESHOLD = 200;            // meters - trigger poor GPS mode sooner  
+  private static readonly POOR_GPS_MULTIPLIER = 25.0;          // Allow 25x base radius for very poor GPS
 
   /**
    * Calculate precise distance between two coordinates using Haversine formula
@@ -195,14 +195,23 @@ export class EnterpriseLocationService {
       confidenceFactors.push('poor_gps_indoor_assumption');
       recommendations.push('Poor GPS signal typically indicates indoor location');
     }
-    // Extra lenient validation for any moderately poor GPS
-    else if (request.accuracy >= 50 && distance <= baseRadius * 5.0) {
+    // Extra lenient validation for any moderately poor GPS (like 467m accuracy)
+    else if (request.accuracy >= 50 && distance <= baseRadius * 8.0) {
       isValid = true;
       validationType = 'indoor_compensation';
       confidence = 0.75;
       message = `Moderate GPS accuracy - likely indoor. Distance: ${Math.round(distance)}m`;
       confidenceFactors.push('moderate_gps_indoor_likely');
       recommendations.push('GPS accuracy suggests indoor location');
+    }
+    // Very lenient validation for poor GPS signals (400m+ accuracy)
+    else if (request.accuracy >= 400 && distance <= baseRadius * 15.0) {
+      isValid = true;
+      validationType = 'indoor_compensation';
+      confidence = 0.70;
+      message = `Poor GPS signal detected - assuming indoor office location. Distance: ${Math.round(distance)}m`;
+      confidenceFactors.push('very_poor_gps_indoor_assumption');
+      recommendations.push('Poor GPS signal is normal for indoor locations');
     }
     // Close proximity with good GPS (edge case)
     else if (distance <= baseRadius * 1.5 && isGoodGPS) {
