@@ -13,7 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { MapPin, Camera, Wifi, WifiOff, Loader2, CheckCircle, AlertTriangle, Timer, Building2 } from "lucide-react";
+import { MapPin, Camera, Wifi, WifiOff, Loader2, CheckCircle, AlertTriangle, Timer, Building2, Smartphone, Monitor } from "lucide-react";
+import { DeviceDetection, getDeviceInfo, getLocationStatusMessage } from "@/utils/device-detection";
 
 interface EnterpriseAttendanceCheckInProps {
   isOpen: boolean;
@@ -37,13 +38,25 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Helper function to get GPS quality text
+  // Get device information for smart validation
+  const deviceInfo = getDeviceInfo();
+
+  // Device-aware GPS quality text
   const getGPSQualityText = (accuracy: number): string => {
-    if (accuracy <= 10) return "(Excellent)";
-    if (accuracy <= 50) return "(Good)";
-    if (accuracy <= 200) return "(Fair - Indoor OK)";
-    if (accuracy <= 500) return "(Indoor Signal)";
-    return "(Weak - Indoor Typical)";
+    if (deviceInfo.type === 'mobile') {
+      // Mobile device - show actual GPS accuracy
+      if (accuracy <= 10) return "(Excellent)";
+      if (accuracy <= 50) return "(Good)";
+      if (accuracy <= 200) return "(Fair - Indoor OK)";
+      if (accuracy <= 500) return "(Indoor Signal)";
+      return "(Weak)";
+    } else {
+      // Desktop/Laptop - show network positioning status
+      const expected = DeviceDetection.getExpectedAccuracy(deviceInfo);
+      if (accuracy <= expected.typical) return "(Network Position OK)";
+      if (accuracy <= expected.max) return "(Network Position)";
+      return "(Limited Network Signal)";
+    }
   };
 
   // Form states
@@ -65,17 +78,27 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
   // Network status
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
-  // Enhanced location status display
+  // Device-aware location status display
   const getLocationStatus = () => {
     if (locationError) return { text: "Location Error", color: "destructive" };
     if (locationLoading) return { text: "Getting Location...", color: "secondary" };
     if (!location) return { text: "Location Required", color: "outline" };
     
-    const accuracy = location.accuracy;
-    if (accuracy <= 20) return { text: "Excellent GPS", color: "default" };
-    if (accuracy <= 100) return { text: "Good GPS", color: "default" };
-    if (accuracy <= 1000) return { text: "Fair GPS (Indoor)", color: "secondary" };
-    return { text: "Poor GPS Signal", color: "destructive" };
+    const statusInfo = getLocationStatusMessage(location.accuracy, deviceInfo);
+    
+    // Map our color scheme to badge variants
+    const colorMap = {
+      success: "default" as const,
+      info: "secondary" as const,
+      warning: "outline" as const,
+      error: "destructive" as const
+    };
+    
+    return { 
+      text: statusInfo.message, 
+      color: colorMap[statusInfo.color],
+      technical: statusInfo.technical
+    };
   };
 
   const locationStatus = getLocationStatus();
@@ -132,7 +155,12 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
         attendanceType,
         reason: attendanceType !== "office" ? reason : undefined,
         customerName: attendanceType === "field_work" ? customerName : undefined,
-        imageUrl: capturedPhoto || undefined
+        imageUrl: capturedPhoto || undefined,
+        deviceInfo: {
+          type: deviceInfo.type,
+          userAgent: deviceInfo.userAgent,
+          locationCapability: deviceInfo.locationCapability
+        }
       };
 
       console.log('FRONTEND: Sending check-in request with enterprise location data');

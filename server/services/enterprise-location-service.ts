@@ -244,6 +244,20 @@ export class EnterpriseLocationService {
     let message = '';
     const recommendations: string[] = [];
 
+    // Get device-aware validation radius
+    const deviceAwareRadius = this.getDeviceAwareRadius(baseRadius, request.deviceInfo);
+    const deviceConfidenceMultiplier = this.getDeviceConfidenceMultiplier(request.accuracy, request.deviceInfo);
+    
+    console.log('DEVICE-AWARE VALIDATION:', {
+      deviceType: request.deviceInfo?.type || 'unknown',
+      locationCapability: request.deviceInfo?.locationCapability || 'unknown',
+      baseRadius,
+      deviceAwareRadius,
+      distance: Math.round(distance),
+      accuracy: Math.round(request.accuracy),
+      confidenceMultiplier: deviceConfidenceMultiplier
+    });
+
     // Determine GPS quality
     const isExcellentGPS = request.accuracy <= this.PRECISION_EXCELLENT;
     const isGoodGPS = request.accuracy <= this.PRECISION_GOOD;
@@ -251,18 +265,37 @@ export class EnterpriseLocationService {
     const isPoorGPS = request.accuracy <= this.PRECISION_POOR;
     const isVeryPoorGPS = request.accuracy > this.PRECISION_POOR;
 
-    // Base radius validation (exact match)
+    // Device-aware base radius validation
     if (distance <= baseRadius) {
       isValid = true;
       validationType = 'exact';
-      confidence = isExcellentGPS ? 0.95 : isGoodGPS ? 0.9 : isFairGPS ? 0.8 : 0.7;
+      confidence = (isExcellentGPS ? 0.95 : isGoodGPS ? 0.9 : isFairGPS ? 0.8 : 0.7) * deviceConfidenceMultiplier;
       message = `Perfect office location match. Distance: ${Math.round(distance)}m`;
       confidenceFactors.push('within_base_radius');
       
+      if (request.deviceInfo?.type) confidenceFactors.push(`device_${request.deviceInfo.type}`);
       if (isExcellentGPS) confidenceFactors.push('excellent_gps');
       else if (isGoodGPS) confidenceFactors.push('good_gps');
       else if (isFairGPS) confidenceFactors.push('fair_gps');
       else confidenceFactors.push('poor_gps_but_close');
+    }
+    // Device-aware extended radius validation
+    else if (distance <= deviceAwareRadius) {
+      isValid = true;
+      validationType = request.deviceInfo?.type === 'mobile' ? 'indoor_compensation' : 'proximity_based';
+      confidence = 0.85 * deviceConfidenceMultiplier;
+      
+      if (request.deviceInfo?.type === 'mobile') {
+        message = `Indoor location detected with GPS compensation. Distance: ${Math.round(distance)}m`;
+        confidenceFactors.push('mobile_indoor_compensation');
+        recommendations.push('GPS accuracy is limited indoors - location validated successfully');
+      } else {
+        message = `Office location verified using network positioning. Distance: ${Math.round(distance)}m`;
+        confidenceFactors.push('desktop_network_positioning');
+        recommendations.push('Network-based positioning working normally for office location');
+      }
+      
+      confidenceFactors.push(`device_aware_validation_${request.deviceInfo?.locationCapability || 'default'}`);
     }
     // Aggressive indoor GPS compensation for any poor accuracy
     else if (request.accuracy >= this.INDOOR_ACCURACY_THRESHOLD && distance <= baseRadius * this.INDOOR_DISTANCE_MULTIPLIER) {

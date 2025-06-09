@@ -15,6 +15,11 @@ export interface AttendanceCheckInRequest {
   reason?: string;
   customerName?: string;
   imageUrl?: string;
+  deviceInfo?: {
+    type: 'mobile' | 'tablet' | 'desktop';
+    userAgent?: string;
+    locationCapability: 'excellent' | 'good' | 'limited' | 'poor';
+  };
 }
 
 export interface AttendanceCheckInResponse {
@@ -107,13 +112,14 @@ export class UnifiedAttendanceService {
         };
       }
 
-      // Validate location using enterprise location service
+      // Validate location using enterprise location service with device-aware validation
       const locationRequest: LocationRequest = {
         latitude: request.latitude,
         longitude: request.longitude,
         accuracy: request.accuracy,
         timestamp: new Date(),
-        userId: request.userId
+        userId: request.userId,
+        deviceInfo: request.deviceInfo
       };
 
       const locationValidation = await EnterpriseLocationService.validateOfficeLocation(locationRequest);
