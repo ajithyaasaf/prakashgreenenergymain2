@@ -84,7 +84,7 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
     if (locationLoading) return { text: "Getting Location...", color: "secondary" };
     if (!location) return { text: "Location Required", color: "outline" };
     
-    const statusInfo = getLocationStatusMessage(location.accuracy, deviceInfo);
+    const statusInfo = getLocationStatusMessage(location.accuracy);
     
     // Map our color scheme to badge variants
     const colorMap = {
@@ -375,6 +375,11 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
               <CardTitle className="text-sm flex items-center gap-2">
                 <MapPin className="h-4 w-4" />
                 Location Status
+                {deviceInfo.type === 'mobile' ? (
+                  <Smartphone className="h-3 w-3 text-green-600" />
+                ) : (
+                  <Monitor className="h-3 w-3 text-blue-600" />
+                )}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -396,9 +401,22 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
                 </Button>
               </div>
               
+              {/* Device Information */}
+              <div className="text-xs text-gray-600 space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">Device:</span>
+                  <Badge variant="outline" className="text-xs">
+                    {deviceInfo.type.charAt(0).toUpperCase() + deviceInfo.type.slice(1)}
+                  </Badge>
+                  <Badge variant="outline" className="text-xs">
+                    {deviceInfo.locationCapability.charAt(0).toUpperCase() + deviceInfo.locationCapability.slice(1)} GPS
+                  </Badge>
+                </div>
+              </div>
+              
               {location && (
                 <div className="text-xs text-gray-600 space-y-1">
-                  <div>GPS Accuracy: {Math.round(location.accuracy)}m {getGPSQualityText(location.accuracy)}</div>
+                  <div>{locationStatus.technical || `${deviceInfo.type === 'mobile' ? 'GPS' : 'Network'} Accuracy: ${Math.round(location.accuracy)}m ${getGPSQualityText(location.accuracy)}`}</div>
                   <div>Coordinates: {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}</div>
                 </div>
               )}
