@@ -130,25 +130,23 @@ export function useGeolocation(): UseGeolocationReturn {
       const tryHighAccuracy = () => {
         navigator.geolocation.getCurrentPosition(
           (position) => {
-            // Check if accuracy is good enough (within 20 meters for office check-in)
-            if (position.coords.accuracy <= 50) {
-              const coords: GeolocationCoordinates = {
-                latitude: position.coords.latitude,
-                longitude: position.coords.longitude,
-                accuracy: position.coords.accuracy,
-                altitude: position.coords.altitude,
-                altitudeAccuracy: position.coords.altitudeAccuracy,
-                heading: position.coords.heading,
-                speed: position.coords.speed
-              };
-              
-              setLocation(coords);
-              setIsLoading(false);
-              resolve(coords);
-            } else {
-              // Accuracy not good enough, try network positioning
-              tryNetworkPositioning();
-            }
+            // Enterprise validation - accept any accuracy but log quality
+            const coords: GeolocationCoordinates = {
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+              accuracy: position.coords.accuracy,
+              altitude: position.coords.altitude,
+              altitudeAccuracy: position.coords.altitudeAccuracy,
+              heading: position.coords.heading,
+              speed: position.coords.speed
+            };
+
+            // Log GPS quality for enterprise monitoring
+            console.log(`Enterprise GPS: ${coords.accuracy.toFixed(1)}m accuracy (${coords.accuracy <= 20 ? 'Excellent' : coords.accuracy <= 100 ? 'Good' : coords.accuracy <= 1000 ? 'Fair' : 'Poor'})`);
+            
+            setLocation(coords);
+            setIsLoading(false);
+            resolve(coords);
           },
           () => {
             // High accuracy failed, try network positioning

@@ -30,6 +30,7 @@ import {
 } from "./storage";
 import { isWithinGeoFence, calculateDistance, performAutomaticLocationCalibration } from "./utils";
 import { EnterpriseAttendanceService } from "./services/attendance-service";
+import { EnterprisePerformanceMonitor } from "./services/performance-monitor";
 import { auth } from "./firebase";
 import { userService } from "./services/user-service";
 import { testFirebaseAdminSDK, testUserManagement } from "./test-firebase-admin";
@@ -3871,6 +3872,91 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error performing bulk action:", error);
       res.status(500).json({ message: "Failed to perform bulk action" });
+    }
+  });
+
+  // Enterprise System Health Monitoring API
+  app.get("/api/system/health", verifyAuth, async (req, res) => {
+    try {
+      const { user } = req.authenticatedUser;
+      
+      // Only admin/master_admin can view system health
+      if (user.role !== "master_admin" && user.role !== "admin") {
+        return res.status(403).json({ message: "Access denied - Admin privileges required" });
+      }
+
+      const systemHealth = EnterprisePerformanceMonitor.getSystemHealth();
+      const performanceMetrics = EnterprisePerformanceMonitor.getPerformanceMetrics();
+
+      res.json({
+        enterprise: {
+          version: "microsoft-grade-v1.0",
+          monitoring: "active",
+          timestamp: new Date().toISOString()
+        },
+        system: systemHealth,
+        performance: performanceMetrics,
+        uptime: process.uptime(),
+        memory: {
+          used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+          total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
+          external: Math.round(process.memoryUsage().external / 1024 / 1024)
+        }
+      });
+    } catch (error) {
+      console.error("System health check error:", error);
+      res.status(500).json({ 
+        message: "Failed to retrieve system health",
+        error: {
+          type: "monitoring_service_error",
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+  });
+
+  // Enterprise Attendance Analytics API
+  app.get("/api/attendance/analytics", verifyAuth, async (req, res) => {
+    try {
+      const { user } = req.authenticatedUser;
+      const { userId, startDate, endDate } = req.query;
+
+      // Only admin/master_admin can view full analytics
+      if (user.role !== "master_admin" && user.role !== "admin") {
+        return res.status(403).json({ message: "Access denied - Admin privileges required" });
+      }
+
+      const dateRange = startDate && endDate ? {
+        start: new Date(startDate as string),
+        end: new Date(endDate as string)
+      } : undefined;
+
+      const metrics = await EnterpriseAttendanceService.generateAttendanceMetrics(
+        userId as string,
+        dateRange
+      );
+
+      res.json({
+        enterprise: {
+          version: "microsoft-grade-v1.0",
+          analytics: "comprehensive",
+          timestamp: new Date().toISOString()
+        },
+        metrics,
+        period: dateRange ? {
+          start: dateRange.start.toISOString(),
+          end: dateRange.end.toISOString()
+        } : "all-time"
+      });
+    } catch (error) {
+      console.error("Enterprise analytics error:", error);
+      res.status(500).json({ 
+        message: "Failed to generate attendance analytics",
+        error: {
+          type: "analytics_service_error",
+          timestamp: new Date().toISOString()
+        }
+      });
     }
   });
 
