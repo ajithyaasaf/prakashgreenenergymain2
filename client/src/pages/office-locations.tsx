@@ -70,7 +70,7 @@ export default function OfficeLocations() {
   // Fetch office locations
   const {
     data: officeLocations = [] as Array<{
-      id: number;
+      id: string;
       name: string;
       latitude: string;
       longitude: string;
@@ -132,7 +132,7 @@ export default function OfficeLocations() {
 
   // Delete office location
   const deleteLocationMutation = useMutation({
-    mutationFn: async (id: number) => {
+    mutationFn: async (id: string) => {
       return apiRequest('DELETE', `/api/office-locations/${id}`);
     },
     onSuccess: () => {
@@ -299,7 +299,7 @@ export default function OfficeLocations() {
   };
 
   // Handle delete button click
-  const handleDeleteClick = (id: number) => {
+  const handleDeleteClick = (id: string) => {
     if (window.confirm("Are you sure you want to delete this office location?")) {
       deleteLocationMutation.mutate(id);
     }
@@ -312,7 +312,7 @@ export default function OfficeLocations() {
     setIsEditLocationOpen(false);
   };
 
-  // Get current location
+  // Get current location for form
   const getCurrentLocation = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -359,6 +359,70 @@ export default function OfficeLocations() {
     }
   };
 
+  // Update office location to current GPS coordinates
+  const updateToCurrentLocation = (location: any) => {
+    if (!navigator.geolocation) {
+      toast({
+        title: "Geolocation Error",
+        description: "Geolocation is not supported by your browser",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Use high accuracy GPS settings
+    const options = {
+      enableHighAccuracy: true,
+      timeout: 15000,
+      maximumAge: 0
+    };
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        // Confirm with user before updating
+        const confirmed = window.confirm(
+          `Update "${location.name}" to your current location?\n\n` +
+          `Current coordinates: ${location.latitude}, ${location.longitude}\n` +
+          `New coordinates: ${position.coords.latitude.toFixed(8)}, ${position.coords.longitude.toFixed(8)}\n` +
+          `GPS accuracy: ±${position.coords.accuracy.toFixed(0)}m`
+        );
+
+        if (confirmed) {
+          updateLocationMutation.mutate({
+            id: location.id,
+            data: {
+              latitude: position.coords.latitude.toString(),
+              longitude: position.coords.longitude.toString(),
+              radius: location.radius // Keep existing radius
+            }
+          });
+        }
+      },
+      (error) => {
+        let errorMessage = "Unable to get your current location";
+        
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            errorMessage = "Location permission denied. Please enable location services.";
+            break;
+          case error.POSITION_UNAVAILABLE:
+            errorMessage = "Location information is unavailable.";
+            break;
+          case error.TIMEOUT:
+            errorMessage = "Location request timed out. Please try again.";
+            break;
+        }
+        
+        toast({
+          title: "Location Error",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      },
+      options
+    );
+  };
+
   return (
     <>
       <Card>
@@ -391,7 +455,7 @@ export default function OfficeLocations() {
             <div className="flex justify-center py-8">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
-          ) : officeLocations.length === 0 ? (
+          ) : (officeLocations as any[]).length === 0 ? (
             <div className="text-center py-8">
               <MapPin className="h-12 w-12 mx-auto text-gray-400 mb-4" />
               <h3 className="text-lg font-medium mb-2">No Office Locations</h3>
@@ -419,7 +483,7 @@ export default function OfficeLocations() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {officeLocations.map((location: any) => (
+                  {(officeLocations as any[]).map((location: any) => (
                     <TableRow key={location.id}>
                       <TableCell className="font-medium">{location.name}</TableCell>
                       <TableCell>
@@ -429,6 +493,14 @@ export default function OfficeLocations() {
                       <TableCell>{formatDate(new Date(location.createdAt))}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end space-x-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => updateToCurrentLocation(location)}
+                            title="Update to my current location"
+                          >
+                            <MapPin className="h-4 w-4" />
+                          </Button>
                           <Button
                             variant="ghost"
                             size="sm"
