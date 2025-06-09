@@ -33,7 +33,7 @@ const DEFAULT_OFFICE = {
 
 export function AttendanceCheckIn({ isOpen, onClose, onSuccess, officeLocations }: AttendanceCheckInProps) {
   const { user } = useAuthContext();
-  const { location, error: locationError, isLoading: locationLoading, getCurrentLocation, calculateDistance } = useGeolocation();
+  const { location, error: locationError, isLoading: locationLoading, getCurrentLocation, calculateDistance, isWithinRadius } = useGeolocation();
   const { toast } = useToast();
 
   // Form states
@@ -64,26 +64,55 @@ export function AttendanceCheckIn({ isOpen, onClose, onSuccess, officeLocations 
       )
     : null;
 
-  // Debug logging for distance calculation
+  // Enhanced debugging for location and proximity detection
   useEffect(() => {
     if (location && primaryOffice && distanceFromOffice !== null) {
-      console.log('LOCATION DEBUG:', {
-        userLocation: { lat: location.latitude, lng: location.longitude, accuracy: location.accuracy },
+      const effectiveRadius = (() => {
+        const baseRadius = primaryOffice.radius || 100;
+        if (location.accuracy > 100) {
+          return baseRadius + Math.min(location.accuracy * 0.5, 200);
+        } else if (location.accuracy > 50) {
+          return baseRadius + Math.min(location.accuracy * 0.3, 100);
+        } else {
+          return baseRadius + 10;
+        }
+      })();
+
+      console.log('ENHANCED LOCATION DEBUG:', {
+        userLocation: { 
+          lat: location.latitude, 
+          lng: location.longitude, 
+          accuracy: location.accuracy,
+          accuracyStatus: location.accuracy <= 50 ? 'Excellent' : 
+                         location.accuracy <= 100 ? 'Good' : 
+                         location.accuracy <= 500 ? 'Fair' : 'Poor'
+        },
         officeLocation: { 
           lat: parseFloat(primaryOffice.latitude.toString()), 
           lng: parseFloat(primaryOffice.longitude.toString()),
-          radius: primaryOffice.radius || 100,
+          baseRadius: primaryOffice.radius || 100,
+          effectiveRadius: Math.round(effectiveRadius),
           name: primaryOffice.name
         },
-        distanceFromOffice: Math.round(distanceFromOffice),
-        isWithinRadius: distanceFromOffice <= (primaryOffice.radius || 100),
-        locationAccuracy: location.accuracy <= 20 ? 'High' : location.accuracy <= 100 ? 'Good' : 'Low'
+        proximity: {
+          actualDistance: Math.round(distanceFromOffice),
+          withinBaseRadius: distanceFromOffice <= (primaryOffice.radius || 100),
+          withinEffectiveRadius: isWithinOfficeRadius,
+          radiusAdjustment: Math.round(effectiveRadius - (primaryOffice.radius || 100))
+        }
       });
     }
-  }, [location, primaryOffice, distanceFromOffice]);
+  }, [location, primaryOffice, distanceFromOffice, isWithinOfficeRadius]);
 
-  const isWithinOfficeRadius = distanceFromOffice !== null 
-    ? distanceFromOffice <= (primaryOffice.radius || 100)
+  const isWithinOfficeRadius = location && primaryOffice 
+    ? isWithinRadius(
+        location.latitude, 
+        location.longitude, 
+        parseFloat(primaryOffice.latitude.toString()), 
+        parseFloat(primaryOffice.longitude.toString()),
+        primaryOffice.radius || 100,
+        location.accuracy
+      )
     : false;
 
   useEffect(() => {

@@ -21,7 +21,7 @@ interface UseGeolocationReturn {
   isLoading: boolean;
   getCurrentLocation: () => Promise<GeolocationCoordinates>;
   calculateDistance: (lat1: number, lng1: number, lat2: number, lng2: number) => number;
-  isWithinRadius: (lat1: number, lng1: number, lat2: number, lng2: number, radius: number) => boolean;
+  isWithinRadius: (lat1: number, lng1: number, lat2: number, lng2: number, radius: number, accuracy?: number) => boolean;
 }
 
 export function useGeolocation(): UseGeolocationReturn {
@@ -57,13 +57,28 @@ export function useGeolocation(): UseGeolocationReturn {
     return distance;
   }, []);
 
-  // Check if coordinates are within a radius
-  const isWithinRadius = useCallback((lat1: number, lng1: number, lat2: number, lng2: number, radius: number): boolean => {
+  // Check if coordinates are within a radius with accuracy consideration
+  const isWithinRadius = useCallback((lat1: number, lng1: number, lat2: number, lng2: number, radius: number, accuracy?: number): boolean => {
     const distance = calculateDistance(lat1, lng1, lat2, lng2);
-    return distance <= radius;
+    
+    // If we have accuracy information, adjust the effective radius
+    // This accounts for GPS uncertainty
+    let effectiveRadius = radius;
+    if (accuracy && accuracy > 0) {
+      // If accuracy is poor (>100m), be more lenient
+      if (accuracy > 100) {
+        effectiveRadius = radius + Math.min(accuracy * 0.5, 200); // Add up to 200m buffer for poor accuracy
+      } else if (accuracy > 50) {
+        effectiveRadius = radius + Math.min(accuracy * 0.3, 100); // Add up to 100m buffer for moderate accuracy
+      } else {
+        effectiveRadius = radius + 10; // Small buffer for good accuracy
+      }
+    }
+    
+    return distance <= effectiveRadius;
   }, [calculateDistance]);
 
-  // Get current location
+  // Get current location with enhanced accuracy and multiple attempts
   const getCurrentLocation = useCallback((): Promise<GeolocationCoordinates> => {
     return new Promise((resolve, reject) => {
       if (!navigator.geolocation) {
@@ -79,56 +94,100 @@ export function useGeolocation(): UseGeolocationReturn {
       setIsLoading(true);
       setError(null);
 
-      const options: PositionOptions = {
+      // Strategy 1: High accuracy GPS first
+      const highAccuracyOptions: PositionOptions = {
         enableHighAccuracy: true,
-        timeout: 30000,
-        maximumAge: 0
+        timeout: 10000,
+        maximumAge: 0 // Force fresh location
       };
 
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const coords: GeolocationCoordinates = {
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-            accuracy: position.coords.accuracy,
-            altitude: position.coords.altitude,
-            altitudeAccuracy: position.coords.altitudeAccuracy,
-            heading: position.coords.heading,
-            speed: position.coords.speed
-          };
-          
-          setLocation(coords);
-          setIsLoading(false);
-          resolve(coords);
-        },
-        (err) => {
-          let message: string;
-          switch (err.code) {
-            case err.PERMISSION_DENIED:
-              message = 'Location access denied by user. Please enable location permissions.';
-              break;
-            case err.POSITION_UNAVAILABLE:
-              message = 'Location information is unavailable. Please check your GPS settings.';
-              break;
-            case err.TIMEOUT:
-              message = 'Location request timed out. Please try again.';
-              break;
-            default:
-              message = 'An unknown error occurred while retrieving location.';
-              break;
-          }
+      // Strategy 2: Fallback with network/wifi positioning
+      const networkOptions: PositionOptions = {
+        enableHighAccuracy: false,
+        timeout: 8000,
+        maximumAge: 30000
+      };
 
-          const error: GeolocationError = {
-            code: err.code,
-            message
-          };
-          
-          setError(error);
-          setIsLoading(false);
-          reject(error);
-        },
-        options
-      );
+      const tryHighAccuracy = () => {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            // Check if accuracy is good enough (within 20 meters for office check-in)
+            if (position.coords.accuracy <= 50) {
+              const coords: GeolocationCoordinates = {
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude,
+                accuracy: position.coords.accuracy,
+                altitude: position.coords.altitude,
+                altitudeAccuracy: position.coords.altitudeAccuracy,
+                heading: position.coords.heading,
+                speed: position.coords.speed
+              };
+              
+              setLocation(coords);
+              setIsLoading(false);
+              resolve(coords);
+            } else {
+              // Accuracy not good enough, try network positioning
+              tryNetworkPositioning();
+            }
+          },
+          () => {
+            // High accuracy failed, try network positioning
+            tryNetworkPositioning();
+          },
+          highAccuracyOptions
+        );
+      };
+
+      const tryNetworkPositioning = () => {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const coords: GeolocationCoordinates = {
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+              accuracy: position.coords.accuracy,
+              altitude: position.coords.altitude,
+              altitudeAccuracy: position.coords.altitudeAccuracy,
+              heading: position.coords.heading,
+              speed: position.coords.speed
+            };
+            
+            setLocation(coords);
+            setIsLoading(false);
+            resolve(coords);
+          },
+          (err) => {
+            let message: string;
+            switch (err.code) {
+              case err.PERMISSION_DENIED:
+                message = 'Location access denied. Please enable location permissions in your browser settings.';
+                break;
+              case err.POSITION_UNAVAILABLE:
+                message = 'Location unavailable. Please ensure GPS/location services are enabled.';
+                break;
+              case err.TIMEOUT:
+                message = 'Location request timed out. Please try again or move to an area with better signal.';
+                break;
+              default:
+                message = 'Unable to retrieve location. Please check your device settings.';
+                break;
+            }
+
+            const error: GeolocationError = {
+              code: err.code,
+              message
+            };
+            
+            setError(error);
+            setIsLoading(false);
+            reject(error);
+          },
+          networkOptions
+        );
+      };
+
+      // Start with high accuracy GPS
+      tryHighAccuracy();
     });
   }, []);
 
