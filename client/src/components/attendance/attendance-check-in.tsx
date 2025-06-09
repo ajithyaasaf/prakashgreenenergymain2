@@ -200,8 +200,9 @@ export function AttendanceCheckIn({ isOpen, onClose, onSuccess, officeLocations 
     if (!isOnline) return "Internet connection is required";
     
     // Check location accuracy for reliable tracking - be more lenient for indoor environments
-    if (location.accuracy > 5000) {
-      return "Location accuracy is too low. Please try again or move to an area with better GPS signal.";
+    // Allow up to 10km accuracy for indoor office environments
+    if (location.accuracy > 10000) {
+      return "Location accuracy is extremely poor. Please try again or move to an area with better GPS signal.";
     }
     
     // Office attendance validation

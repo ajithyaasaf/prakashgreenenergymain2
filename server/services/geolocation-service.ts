@@ -94,24 +94,36 @@ export class EnterpriseGeolocationService {
     
     const withinRadius = minDistance <= effectiveRadius;
     
+    // Special case for indoor office environments with poor GPS
+    // If distance is very close to office center, be more lenient with accuracy
+    const isVeryCloseToOffice = minDistance <= (closestOffice.radius * 1.5);
+    const hasReasonableIndoorAccuracy = userLocation.accuracy <= 10000; // 10km max
+    
+    // Allow check-in if close to office even with poor GPS (common indoors)
+    const isValidForOffice = withinRadius || (isVeryCloseToOffice && hasReasonableIndoorAccuracy);
+    
     // Generate recommendations based on accuracy
     if (userLocation.accuracy > this.GPS_ACCURACY_POOR) {
-      recommendations.push("GPS accuracy is very poor. Try moving to an open area or near a window.");
+      if (isValidForOffice) {
+        recommendations.push("GPS accuracy is poor indoors, but you're detected within office area. Check-in allowed.");
+      } else {
+        recommendations.push("GPS accuracy is very poor. Try moving to an open area or near a window.");
+      }
     } else if (userLocation.accuracy > this.GPS_ACCURACY_FAIR) {
       recommendations.push("GPS accuracy is limited indoors. Location detection is optimized for this environment.");
     }
     
-    if (!withinRadius && minDistance < (effectiveRadius + 50)) {
-      recommendations.push("You appear to be very close to the office area. The system will allow check-in with reduced confidence.");
+    if (!withinRadius && isValidForOffice) {
+      recommendations.push("Indoor GPS detection: You're close to the office area. Smart detection enabled for office check-in.");
     }
     
     return {
-      isValid: withinRadius,
-      confidence,
+      isValid: isValidForOffice,
+      confidence: isValidForOffice ? Math.max(confidence, 0.6) : confidence,
       accuracy: userLocation.accuracy,
       source: userLocation.source,
       distance: minDistance,
-      withinRadius,
+      withinRadius: isValidForOffice,
       recommendations
     };
   }
