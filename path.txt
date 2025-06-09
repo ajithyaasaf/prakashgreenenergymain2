@@ -3,8 +3,11 @@ COMPLETE FILE PATH STRUCTURE - PRAKASH GREENS ENERGY DASHBOARD
 ROOT DIRECTORY (.)
 ├── attached_assets/
 │   ├── 1.jpeg
+│   ├── 11.jpg
 │   ├── 11.png
+│   ├── 11_1749129212902.jpg
 │   ├── 22.png
+│   ├── 22_1749129231060.jpg
 │   ├── 3.jpg
 │   ├── Pasted-Department-Management-Master-Admin-has-complete-flexibility-to-add-delete-update-and-manage-d-1747725532691.txt
 │   ├── Pasted-Firestore-data-createdAt-2025-04-30T13-18-09-871Z-role-master-admin-auth-context-tsx-47-Fi-1747658957662.txt
@@ -17,6 +20,11 @@ ROOT DIRECTORY (.)
 │   ├── image_1747658193260.png
 │   ├── image_1748686833389.png
 │   ├── image_1748842153060.png
+│   ├── image_1748946928354.png
+│   ├── image_1748948195324.png
+│   ├── image_1749211570963.png
+│   ├── image_1749211675590.png
+│   ├── image_1749215308430.png
 │   └── new logo 2.png
 ├── client/
 │   ├── index.html
@@ -26,6 +34,9 @@ ROOT DIRECTORY (.)
 │       ├── index.css
 │       ├── components/
 │       │   ├── app-loader.tsx
+│       │   ├── attendance/
+│       │   │   ├── attendance-check-in.tsx
+│       │   │   └── attendance-check-out.tsx
 │       │   ├── auth/
 │       │   │   ├── auth-form.tsx
 │       │   │   ├── auth-loading.tsx
@@ -115,6 +126,7 @@ ROOT DIRECTORY (.)
 │       │   ├── queryClient.ts
 │       │   └── utils.ts
 │       └── pages/
+│           ├── attendance-management.tsx
 │           ├── attendance.tsx
 │           ├── customers.tsx
 │           ├── dashboard.tsx
@@ -124,6 +136,7 @@ ROOT DIRECTORY (.)
 │           ├── login.tsx
 │           ├── not-found.tsx
 │           ├── office-locations.tsx
+│           ├── payroll-management.tsx
 │           ├── products.tsx
 │           ├── quotations.tsx
 │           ├── register.tsx
@@ -134,6 +147,7 @@ ROOT DIRECTORY (.)
 │   ├── index.ts
 │   ├── routes.ts
 │   ├── storage.ts
+│   ├── test-firebase-admin.ts
 │   ├── utils.ts
 │   ├── vite.ts
 │   ├── middleware/
@@ -147,15 +161,18 @@ ROOT DIRECTORY (.)
 ├── drizzle.config.ts
 ├── package.json
 ├── package-lock.json
+├── path.txt
 ├── postcss.config.js
 ├── tailwind.config.ts
+├── test-firebase-now.js
 ├── tsconfig.json
 └── vite.config.ts
 
-TOTAL FILES: 127
+TOTAL FILES: 138
 MAIN DIRECTORIES: 8
-COMPONENT FILES: 56
-PAGE FILES: 13
+COMPONENT FILES: 58
+PAGE FILES: 15
 HOOK FILES: 6
 SERVICE FILES: 2
-CONFIGURATION FILES: 7
+CONFIGURATION FILES: 8
+ASSET FILES: 17
