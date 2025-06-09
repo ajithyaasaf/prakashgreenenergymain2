@@ -94,3 +94,90 @@ export function calculateDistance(
 ): number {
   return getDistanceBetweenCoordinates(lat1, lng1, lat2, lng2);
 }
+
+// Automatic location calibration system
+interface LocationData {
+  latitude: number;
+  longitude: number;
+  timestamp: Date;
+  userId: string;
+}
+
+const recentOfficeCheckins: Map<string, LocationData[]> = new Map();
+
+export async function performAutomaticLocationCalibration(
+  userLat: number,
+  userLon: number,
+  officeLocation: any,
+  storage: any
+): Promise<void> {
+  try {
+    const officeId = officeLocation.id;
+    const currentTime = new Date();
+    const oneDayAgo = new Date(currentTime.getTime() - 24 * 60 * 60 * 1000);
+
+    // Get or initialize check-in data for this office
+    if (!recentOfficeCheckins.has(officeId)) {
+      recentOfficeCheckins.set(officeId, []);
+    }
+
+    const checkins = recentOfficeCheckins.get(officeId)!;
+    
+    // Add current check-in
+    checkins.push({
+      latitude: userLat,
+      longitude: userLon,
+      timestamp: currentTime,
+      userId: 'auto-calibration'
+    });
+
+    // Remove old check-ins (older than 24 hours)
+    const validCheckins = checkins.filter(checkin => checkin.timestamp > oneDayAgo);
+    recentOfficeCheckins.set(officeId, validCheckins);
+
+    // Require minimum 3 check-ins for calibration
+    if (validCheckins.length < 3) {
+      console.log(`AUTO-CALIBRATION: Need ${3 - validCheckins.length} more check-ins for office ${officeLocation.name}`);
+      return;
+    }
+
+    // Calculate centroid of recent check-ins
+    const avgLat = validCheckins.reduce((sum, checkin) => sum + checkin.latitude, 0) / validCheckins.length;
+    const avgLon = validCheckins.reduce((sum, checkin) => sum + checkin.longitude, 0) / validCheckins.length;
+
+    // Check if current office coordinates are significantly off
+    const currentDistance = calculateDistance(
+      parseFloat(officeLocation.latitude),
+      parseFloat(officeLocation.longitude),
+      avgLat,
+      avgLon
+    );
+
+    // If average check-in location is more than 100m away from stored coordinates, auto-calibrate
+    if (currentDistance > 100) {
+      console.log(`AUTO-CALIBRATION: Updating office "${officeLocation.name}" coordinates`);
+      console.log(`Old coordinates: ${officeLocation.latitude}, ${officeLocation.longitude}`);
+      console.log(`New coordinates: ${avgLat}, ${avgLon} (based on ${validCheckins.length} recent check-ins)`);
+      console.log(`Distance improvement: ${Math.round(currentDistance)}m -> ~0m`);
+
+      // Update office location with calibrated coordinates
+      await storage.updateOfficeLocation(officeId, {
+        ...officeLocation,
+        latitude: avgLat.toString(),
+        longitude: avgLon.toString(),
+        lastCalibrated: new Date().toISOString(),
+        calibrationMethod: 'automatic',
+        calibrationCheckins: validCheckins.length
+      });
+
+      // Clear check-in history after successful calibration
+      recentOfficeCheckins.set(officeId, []);
+      
+      console.log(`AUTO-CALIBRATION: Successfully updated office location coordinates`);
+    } else {
+      console.log(`AUTO-CALIBRATION: Office coordinates are accurate (${Math.round(currentDistance)}m variance)`);
+    }
+  } catch (error) {
+    console.error("AUTO-CALIBRATION ERROR:", error);
+  }
+}

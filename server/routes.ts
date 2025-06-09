@@ -28,7 +28,7 @@ import {
   insertInvoiceSchema,
   insertLeaveSchema
 } from "./storage";
-import { isWithinGeoFence, calculateDistance } from "./utils";
+import { isWithinGeoFence, calculateDistance, performAutomaticLocationCalibration } from "./utils";
 import { auth } from "./firebase";
 import { userService } from "./services/user-service";
 import { testFirebaseAdminSDK, testUserManagement } from "./test-firebase-admin";
@@ -1085,6 +1085,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const newAttendance = await storage.createAttendance(attendanceData);
+
+      // Automatic location calibration for office check-ins
+      if (attendanceType === "office" && latitude && longitude) {
+        performAutomaticLocationCalibration(
+          parseFloat(latitude),
+          parseFloat(longitude),
+          locations[0],
+          storage
+        ).catch(err => console.error("Auto-calibration failed:", err));
+      }
 
       // Log activity
       await storage.createActivityLog({
