@@ -1,6 +1,6 @@
 /**
  * Enterprise Location Recognition Service
- * High-precision geolocation with indoor GPS compensation and smart detection
+ * High-precision geolocation with indoor GPS compensation and device-aware validation
  */
 
 import { storage } from '../storage';
@@ -11,6 +11,11 @@ export interface LocationRequest {
   accuracy: number;
   timestamp: Date;
   userId: string;
+  deviceInfo?: {
+    type: 'mobile' | 'tablet' | 'desktop';
+    userAgent?: string;
+    locationCapability: 'excellent' | 'good' | 'limited' | 'poor';
+  };
 }
 
 export interface LocationValidationResult {
@@ -45,6 +50,67 @@ export class EnterpriseLocationService {
   private static readonly INDOOR_DISTANCE_MULTIPLIER = 20.0;   // Allow 20x base radius indoors
   private static readonly POOR_GPS_THRESHOLD = 200;            // meters - trigger poor GPS mode sooner  
   private static readonly POOR_GPS_MULTIPLIER = 25.0;          // Allow 25x base radius for very poor GPS
+
+  /**
+   * Get device-aware validation radius based on device type and base radius
+   */
+  private static getDeviceAwareRadius(baseRadius: number, deviceInfo?: LocationRequest['deviceInfo']): number {
+    if (!deviceInfo) return baseRadius * 2.0; // Default fallback
+    
+    switch (deviceInfo.locationCapability) {
+      case 'excellent': // Mobile devices with GPS
+        return baseRadius; // Strict validation for mobile
+      case 'good': // Tablets with GPS/WiFi
+        return baseRadius * 1.5;
+      case 'limited': // Touch laptops with WiFi positioning
+        return baseRadius * 2.5;
+      case 'poor': // Desktops with WiFi/IP positioning
+        return baseRadius * 3.0;
+      default:
+        return baseRadius * 2.0;
+    }
+  }
+
+  /**
+   * Get device-specific confidence multiplier
+   */
+  private static getDeviceConfidenceMultiplier(accuracy: number, deviceInfo?: LocationRequest['deviceInfo']): number {
+    if (!deviceInfo) return 0.8; // Default fallback
+    
+    const expectedAccuracy = this.getExpectedAccuracyForDevice(deviceInfo);
+    
+    if (accuracy <= expectedAccuracy.typical) {
+      return 1.0; // Full confidence
+    } else if (accuracy <= expectedAccuracy.max) {
+      return 0.85; // Good confidence
+    } else {
+      return 0.7; // Reduced confidence but still acceptable for device type
+    }
+  }
+
+  /**
+   * Get expected accuracy range for device type
+   */
+  private static getExpectedAccuracyForDevice(deviceInfo: LocationRequest['deviceInfo']): { 
+    min: number; 
+    max: number; 
+    typical: number 
+  } {
+    if (!deviceInfo) return { min: 50, max: 500, typical: 200 };
+    
+    switch (deviceInfo.locationCapability) {
+      case 'excellent': // Mobile with GPS
+        return { min: 3, max: 20, typical: 10 };
+      case 'good': // Tablet with GPS/WiFi
+        return { min: 10, max: 50, typical: 25 };
+      case 'limited': // Touch laptop with WiFi
+        return { min: 50, max: 200, typical: 100 };
+      case 'poor': // Desktop with WiFi/IP
+        return { min: 100, max: 1000, typical: 300 };
+      default:
+        return { min: 50, max: 500, typical: 200 };
+    }
+  }
 
   /**
    * Calculate precise distance between two coordinates using Haversine formula
