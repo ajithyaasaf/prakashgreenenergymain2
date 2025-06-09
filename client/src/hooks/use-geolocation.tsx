@@ -29,6 +29,25 @@ export function useGeolocation(): UseGeolocationReturn {
   const [error, setError] = useState<GeolocationError | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Enhanced GPS strategies for enterprise reliability
+  const GPS_STRATEGIES = {
+    HIGH_ACCURACY: {
+      enableHighAccuracy: true,
+      timeout: 15000,
+      maximumAge: 60000
+    },
+    NETWORK_FALLBACK: {
+      enableHighAccuracy: false,
+      timeout: 10000,
+      maximumAge: 300000
+    },
+    PASSIVE_FALLBACK: {
+      enableHighAccuracy: false,
+      timeout: 5000,
+      maximumAge: 600000
+    }
+  };
+
   // Calculate distance between two coordinates using Haversine formula
   const calculateDistance = useCallback((lat1: number, lng1: number, lat2: number, lng2: number): number => {
     const earthRadiusInMeters = 6371000; // Earth's radius in meters

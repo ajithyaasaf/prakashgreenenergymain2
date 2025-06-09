@@ -29,6 +29,7 @@ import {
   insertLeaveSchema
 } from "./storage";
 import { isWithinGeoFence, calculateDistance, performAutomaticLocationCalibration } from "./utils";
+import { EnterpriseAttendanceService } from "./services/attendance-service";
 import { auth } from "./firebase";
 import { userService } from "./services/user-service";
 import { testFirebaseAdminSDK, testUserManagement } from "./test-firebase-admin";
