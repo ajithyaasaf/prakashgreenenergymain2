@@ -238,11 +238,11 @@ export class EnterpriseAttendanceService {
       userId: request.userId,
       date: today,
       checkInTime,
-      attendanceType: request.attendanceType,
+      attendanceType: request.attendanceType === 'field' ? 'field_work' as const : request.attendanceType,
       reason: request.reason || "",
       checkInLatitude: request.latitude.toString(),
       checkInLongitude: request.longitude.toString(),
-      status: isLate ? "late" : "present",
+      status: (isLate ? "late" : "present") as const,
       isLate,
       lateMinutes: isLate ? lateMinutes : 0,
       workingHours: 0,
@@ -255,19 +255,12 @@ export class EnterpriseAttendanceService {
       locationConfidence: validation.confidence,
       detectedOffice: validation.locationDetails.detectedOffice,
       securityRiskLevel: validation.securityFlags.riskLevel,
-      validationVersion: "enterprise-v1.0"
+      validationVersion: "enterprise-v1.0",
+      // Optional fields with proper typing
+      ...(request.attendanceType === "field" && request.customerName && { customerName: request.customerName }),
+      ...(request.imageUrl && { checkInImageUrl: request.imageUrl }),
+      ...(validation.locationDetails.distance !== undefined && { distanceFromOffice: validation.locationDetails.distance })
     };
-
-    // Add optional fields
-    if (request.attendanceType === "field" && request.customerName) {
-      attendanceData.customerName = request.customerName;
-    }
-    if (request.imageUrl) {
-      attendanceData.checkInImageUrl = request.imageUrl;
-    }
-    if (validation.locationDetails.distance !== undefined) {
-      attendanceData.distanceFromOffice = validation.locationDetails.distance;
-    }
 
     const newAttendance = await storage.createAttendance(attendanceData);
 
