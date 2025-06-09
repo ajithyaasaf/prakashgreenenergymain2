@@ -431,6 +431,49 @@ export class UnifiedAttendanceService {
   }
 
   /**
+   * Generate comprehensive attendance metrics for analytics
+   */
+  static async generateAttendanceMetrics(userId: string, dateRange?: { start: Date; end: Date }) {
+    try {
+      const attendanceRecords = await storage.getAttendance(userId);
+      
+      // Filter by date range if provided
+      const filteredRecords = dateRange 
+        ? attendanceRecords.filter(record => {
+            const checkInDate = new Date(record.checkInTime);
+            return checkInDate >= dateRange.start && checkInDate <= dateRange.end;
+          })
+        : attendanceRecords;
+
+      const totalDays = filteredRecords.length;
+      const totalWorkingHours = filteredRecords.reduce((sum, record) => sum + (record.workingHours || 0), 0);
+      const totalOvertimeHours = filteredRecords.reduce((sum, record) => sum + (record.overtimeHours || 0), 0);
+      const lateArrivals = filteredRecords.filter(record => record.isLate).length;
+      
+      return {
+        totalDays,
+        totalWorkingHours: Math.round(totalWorkingHours * 100) / 100,
+        totalOvertimeHours: Math.round(totalOvertimeHours * 100) / 100,
+        averageWorkingHours: totalDays > 0 ? Math.round((totalWorkingHours / totalDays) * 100) / 100 : 0,
+        lateArrivals,
+        punctualityRate: totalDays > 0 ? Math.round(((totalDays - lateArrivals) / totalDays) * 100) : 100,
+        records: filteredRecords
+      };
+    } catch (error) {
+      console.error('Error generating attendance metrics:', error);
+      return {
+        totalDays: 0,
+        totalWorkingHours: 0,
+        totalOvertimeHours: 0,
+        averageWorkingHours: 0,
+        lateArrivals: 0,
+        punctualityRate: 100,
+        records: []
+      };
+    }
+  }
+
+  /**
    * Get department-specific timing configuration
    */
   private static getDepartmentTiming(department?: string): {
