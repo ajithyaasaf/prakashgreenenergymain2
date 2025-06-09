@@ -37,6 +37,15 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Helper function to get GPS quality text
+  const getGPSQualityText = (accuracy: number): string => {
+    if (accuracy <= 10) return "(Excellent)";
+    if (accuracy <= 50) return "(Good)";
+    if (accuracy <= 200) return "(Fair - Indoor OK)";
+    if (accuracy <= 500) return "(Indoor Signal)";
+    return "(Weak - Indoor Typical)";
+  };
+
   // Form states
   const [attendanceType, setAttendanceType] = useState<"office" | "remote" | "field_work">("office");
   const [customerName, setCustomerName] = useState("");

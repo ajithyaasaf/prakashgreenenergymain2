@@ -68,9 +68,15 @@ export class EnterpriseLocationService {
    * Advanced office detection with smart indoor compensation
    */
   static async validateOfficeLocation(request: LocationRequest): Promise<LocationValidationResult> {
+    console.log('LOCATION VALIDATION: Starting validation for user', request.userId);
+    console.log('LOCATION VALIDATION: Request coordinates:', request.latitude, request.longitude);
+    console.log('LOCATION VALIDATION: GPS accuracy:', request.accuracy);
+    
     const officeLocations = await storage.listOfficeLocations();
+    console.log('LOCATION VALIDATION: Found', officeLocations.length, 'office locations');
     
     if (officeLocations.length === 0) {
+      console.log('LOCATION VALIDATION: No office locations configured, validation failed');
       return {
         isValid: false,
         confidence: 0,
@@ -94,6 +100,10 @@ export class EnterpriseLocationService {
 
     // Test against all office locations
     for (const office of officeLocations) {
+      console.log('LOCATION VALIDATION: Testing office:', office.name);
+      console.log('LOCATION VALIDATION: Office coordinates:', office.latitude, office.longitude);
+      console.log('LOCATION VALIDATION: Office radius:', office.radius || 100);
+      
       const distance = this.calculateDistance(
         request.latitude,
         request.longitude,
@@ -101,15 +111,26 @@ export class EnterpriseLocationService {
         parseFloat(office.longitude)
       );
 
+      console.log('LOCATION VALIDATION: Distance to office:', Math.round(distance), 'meters');
+
       if (distance < minDistance) {
         minDistance = distance;
         closestOffice = office;
+        console.log('LOCATION VALIDATION: New closest office:', office.name, 'at', Math.round(distance), 'meters');
       }
 
       // Validate against this specific office
       const validation = this.validateAgainstOffice(request, office, distance);
+      console.log('LOCATION VALIDATION: Validation result:', {
+        isValid: validation.isValid,
+        type: validation.validationType,
+        confidence: validation.confidence,
+        message: validation.message
+      });
+      
       if (validation.isValid && (!bestValidation || validation.confidence > bestValidation.confidence)) {
         bestValidation = validation;
+        console.log('LOCATION VALIDATION: New best validation with confidence:', validation.confidence);
       }
     }
 
