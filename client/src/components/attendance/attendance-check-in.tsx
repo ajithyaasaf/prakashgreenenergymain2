@@ -64,6 +64,17 @@ export function AttendanceCheckIn({ isOpen, onClose, onSuccess, officeLocations 
       )
     : null;
 
+  const isWithinOfficeRadius = location && primaryOffice 
+    ? isWithinRadius(
+        location.latitude, 
+        location.longitude, 
+        parseFloat(primaryOffice.latitude.toString()), 
+        parseFloat(primaryOffice.longitude.toString()),
+        primaryOffice.radius || 100,
+        location.accuracy
+      )
+    : false;
+
   // Enhanced debugging for location and proximity detection
   useEffect(() => {
     if (location && primaryOffice && distanceFromOffice !== null) {
@@ -77,6 +88,15 @@ export function AttendanceCheckIn({ isOpen, onClose, onSuccess, officeLocations 
           return baseRadius + 10;
         }
       })();
+
+      const currentlyWithinRadius = isWithinRadius(
+        location.latitude, 
+        location.longitude, 
+        parseFloat(primaryOffice.latitude.toString()), 
+        parseFloat(primaryOffice.longitude.toString()),
+        primaryOffice.radius || 100,
+        location.accuracy
+      );
 
       console.log('ENHANCED LOCATION DEBUG:', {
         userLocation: { 
@@ -97,23 +117,12 @@ export function AttendanceCheckIn({ isOpen, onClose, onSuccess, officeLocations 
         proximity: {
           actualDistance: Math.round(distanceFromOffice),
           withinBaseRadius: distanceFromOffice <= (primaryOffice.radius || 100),
-          withinEffectiveRadius: isWithinOfficeRadius,
+          withinEffectiveRadius: currentlyWithinRadius,
           radiusAdjustment: Math.round(effectiveRadius - (primaryOffice.radius || 100))
         }
       });
     }
-  }, [location, primaryOffice, distanceFromOffice, isWithinOfficeRadius]);
-
-  const isWithinOfficeRadius = location && primaryOffice 
-    ? isWithinRadius(
-        location.latitude, 
-        location.longitude, 
-        parseFloat(primaryOffice.latitude.toString()), 
-        parseFloat(primaryOffice.longitude.toString()),
-        primaryOffice.radius || 100,
-        location.accuracy
-      )
-    : false;
+  }, [location, primaryOffice, distanceFromOffice, isWithinRadius]);
 
   useEffect(() => {
     const handleOnlineStatus = () => setIsOnline(navigator.onLine);
@@ -319,12 +328,12 @@ export function AttendanceCheckIn({ isOpen, onClose, onSuccess, officeLocations 
                       {locationLoading ? "Getting Location..." : 
                        location ? (
                          location.accuracy <= 50 ? 
-                           `High accuracy (${location.accuracy.toFixed(0)}m)` :
+                           `Excellent (±${location.accuracy.toFixed(0)}m)` :
+                         location.accuracy <= 100 ?
+                           `Good (±${location.accuracy.toFixed(0)}m)` :
                          location.accuracy <= 500 ?
-                           `Good accuracy (${location.accuracy.toFixed(0)}m)` :
-                         location.accuracy <= 2000 ?
-                           `Fair accuracy (${location.accuracy.toFixed(0)}m)` :
-                           `Low accuracy (${location.accuracy.toFixed(0)}m)`
+                           `Fair (±${location.accuracy.toFixed(0)}m)` :
+                           `Poor (±${location.accuracy.toFixed(0)}m)`
                        ) : "No Location"}
                     </span>
                   </div>
@@ -344,28 +353,38 @@ export function AttendanceCheckIn({ isOpen, onClose, onSuccess, officeLocations 
             </Card>
           </div>
 
-          {/* Location Status */}
+          {/* Enhanced Location Status */}
           {location && (
             <Alert className={isWithinOfficeRadius ? "border-green-200 bg-green-50" : "border-amber-200 bg-amber-50"}>
               <MapPin className="h-4 w-4" />
               <AlertDescription>
                 <div className="flex items-center justify-between">
-                  <div className="flex flex-col">
-                    <span>
+                  <div className="flex flex-col space-y-1">
+                    <span className="font-medium">
                       {isWithinOfficeRadius 
-                        ? `You are within the office radius (${distanceFromOffice?.toFixed(0)}m away)`
-                        : `You are outside the office (${distanceFromOffice?.toFixed(0)}m away)`
+                        ? `✓ Within office area (${distanceFromOffice?.toFixed(0)}m from center)`
+                        : `⚠ Outside office area (${distanceFromOffice?.toFixed(0)}m from center)`
                       }
                     </span>
-                    {location.accuracy > 1000 && isWithinOfficeRadius && (
-                      <span className="text-xs text-gray-600 mt-1">
-                        Indoor GPS accuracy is normal. Office detection working properly.
+                    {location.accuracy > 100 && (
+                      <span className="text-xs text-blue-600">
+                        📍 Smart detection active - GPS accuracy adjusted for {location.accuracy > 500 ? 'indoor' : 'urban'} environment
+                      </span>
+                    )}
+                    {location.accuracy <= 50 && (
+                      <span className="text-xs text-green-600">
+                        📍 High precision GPS - excellent location accuracy
                       </span>
                     )}
                   </div>
-                  <Badge variant={isWithinOfficeRadius ? "default" : "secondary"}>
-                    {isWithinOfficeRadius ? "Inside Office" : "Outside Office"}
-                  </Badge>
+                  <div className="flex flex-col items-end space-y-1">
+                    <Badge variant={isWithinOfficeRadius ? "default" : "secondary"}>
+                      {isWithinOfficeRadius ? "✓ Inside Office" : "⚠ Outside Office"}
+                    </Badge>
+                    <span className="text-xs text-gray-500">
+                      Office radius: {primaryOffice.radius || 100}m
+                    </span>
+                  </div>
                 </div>
               </AlertDescription>
             </Alert>
