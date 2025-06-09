@@ -29,7 +29,7 @@ import {
   insertLeaveSchema
 } from "./storage";
 import { isWithinGeoFence, calculateDistance, performAutomaticLocationCalibration } from "./utils";
-import { EnterpriseAttendanceService } from "./services/attendance-service";
+import { UnifiedAttendanceService } from "./services/unified-attendance-service";
 import { EnterprisePerformanceMonitor } from "./services/performance-monitor";
 import { auth } from "./firebase";
 import { userService } from "./services/user-service";
@@ -3882,7 +3882,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         end: new Date(endDate as string)
       } : undefined;
 
-      const metrics = await EnterpriseAttendanceService.generateAttendanceMetrics(
+      const metrics = await UnifiedAttendanceService.generateAttendanceMetrics(
         userId as string,
         dateRange
       );
