@@ -3942,6 +3942,209 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===================== Enhanced Payroll Management API Routes =====================
+
+  // Payroll Field Configuration Routes
+  app.get("/api/payroll/field-configs", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || user.role !== "master_admin") {
+        return res.status(403).json({ message: "Access denied - Master Admin only" });
+      }
+      
+      // Mock field configs until storage implementation
+      const fieldConfigs = [
+        {
+          id: "1",
+          name: "special_allowance",
+          displayName: "Special Allowance",
+          category: "earnings",
+          dataType: "number",
+          isRequired: false,
+          isSystemField: false,
+          defaultValue: 0,
+          sortOrder: 1,
+          isActive: true
+        },
+        {
+          id: "2",
+          name: "professional_tax",
+          displayName: "Professional Tax",
+          category: "deductions",
+          dataType: "number",
+          isRequired: false,
+          isSystemField: false,
+          defaultValue: 200,
+          sortOrder: 1,
+          isActive: true
+        }
+      ];
+      
+      res.json(fieldConfigs);
+    } catch (error) {
+      console.error("Error fetching field configs:", error);
+      res.status(500).json({ message: "Failed to fetch field configurations" });
+    }
+  });
+
+  app.post("/api/payroll/field-configs", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || user.role !== "master_admin") {
+        return res.status(403).json({ message: "Access denied - Master Admin only" });
+      }
+      
+      const fieldData = req.body;
+      const newField = {
+        id: Date.now().toString(),
+        ...fieldData,
+        isSystemField: false,
+        isActive: true
+      };
+      
+      res.status(201).json(newField);
+    } catch (error) {
+      console.error("Error creating field config:", error);
+      res.status(500).json({ message: "Failed to create field configuration" });
+    }
+  });
+
+  // Enhanced Salary Structure Routes
+  app.get("/api/enhanced-salary-structures", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || user.role !== "master_admin") {
+        return res.status(403).json({ message: "Access denied - Master Admin only" });
+      }
+      
+      // Mock salary structures
+      const structures = [];
+      res.json(structures);
+    } catch (error) {
+      console.error("Error fetching salary structures:", error);
+      res.status(500).json({ message: "Failed to fetch salary structures" });
+    }
+  });
+
+  app.post("/api/enhanced-salary-structures", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || user.role !== "master_admin") {
+        return res.status(403).json({ message: "Access denied - Master Admin only" });
+      }
+      
+      const structureData = req.body;
+      const newStructure = {
+        id: Date.now().toString(),
+        ...structureData,
+        isActive: true
+      };
+      
+      res.status(201).json(newStructure);
+    } catch (error) {
+      console.error("Error creating salary structure:", error);
+      res.status(500).json({ message: "Failed to create salary structure" });
+    }
+  });
+
+  // Enhanced Payroll Routes
+  app.get("/api/enhanced-payrolls", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || user.role !== "master_admin") {
+        return res.status(403).json({ message: "Access denied - Master Admin only" });
+      }
+      
+      const { month, year, department } = req.query;
+      
+      // Mock payroll data
+      const payrolls = [];
+      res.json(payrolls);
+    } catch (error) {
+      console.error("Error fetching payrolls:", error);
+      res.status(500).json({ message: "Failed to fetch payroll data" });
+    }
+  });
+
+  app.post("/api/enhanced-payrolls/bulk-process", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || user.role !== "master_admin") {
+        return res.status(403).json({ message: "Access denied - Master Admin only" });
+      }
+      
+      const { month, year, userIds } = req.body;
+      
+      // Mock bulk processing
+      const processedPayrolls = [];
+      
+      res.json({
+        message: "Payroll processing completed",
+        payrolls: processedPayrolls,
+        processedCount: processedPayrolls.length
+      });
+    } catch (error) {
+      console.error("Error processing payroll:", error);
+      res.status(500).json({ message: "Failed to process payroll" });
+    }
+  });
+
+  // Enhanced Payroll Settings Routes
+  app.get("/api/enhanced-payroll-settings", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || user.role !== "master_admin") {
+        return res.status(403).json({ message: "Access denied - Master Admin only" });
+      }
+      
+      const defaultSettings = {
+        id: "1",
+        epfEmployeeRate: 12,
+        epfEmployerRate: 12,
+        esiEmployeeRate: 0.75,
+        esiEmployerRate: 3.25,
+        epfCeiling: 15000,
+        esiThreshold: 21000,
+        tdsThreshold: 250000,
+        standardWorkingDays: 26,
+        standardWorkingHours: 8,
+        overtimeThresholdHours: 8,
+        companyName: "Prakash Greens Energy",
+        companyAddress: "",
+        companyPan: "",
+        companyTan: "",
+        autoCalculateStatutory: true,
+        allowManualOverride: true,
+        requireApprovalForProcessing: false
+      };
+      
+      res.json(defaultSettings);
+    } catch (error) {
+      console.error("Error fetching payroll settings:", error);
+      res.status(500).json({ message: "Failed to fetch payroll settings" });
+    }
+  });
+
+  app.patch("/api/enhanced-payroll-settings", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || user.role !== "master_admin") {
+        return res.status(403).json({ message: "Access denied - Master Admin only" });
+      }
+      
+      const settingsData = req.body;
+      const updatedSettings = {
+        id: "1",
+        ...settingsData
+      };
+      
+      res.json(updatedSettings);
+    } catch (error) {
+      console.error("Error updating payroll settings:", error);
+      res.status(500).json({ message: "Failed to update payroll settings" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

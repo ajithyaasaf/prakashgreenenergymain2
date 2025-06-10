@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,9 +9,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { useAuthContext } from "@/contexts/auth-context";
 import { 
   Calculator, 
   Settings, 
@@ -29,8 +28,8 @@ import {
   AlertCircle,
   Clock
 } from "lucide-react";
+import { departments, designations } from "@shared/schema";
 
-// Types
 interface PayrollFieldConfig {
   id: string;
   name: string;
@@ -105,7 +104,6 @@ interface User {
   department: string;
   designation: string;
   employeeId?: string;
-  role?: string;
 }
 
 interface EnhancedPayrollSettings {
@@ -131,106 +129,53 @@ interface EnhancedPayrollSettings {
 
 export default function EnhancedPayrollManagement() {
   const { toast } = useToast();
-  const { user } = useAuthContext();
   const queryClient = useQueryClient();
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [selectedDepartment, setSelectedDepartment] = useState<string>("all");
+  const [selectedDepartment, setSelectedDepartment] = useState<string>("");
+  const [selectedUser, setSelectedUser] = useState<string>("");
   const [isFieldConfigDialogOpen, setIsFieldConfigDialogOpen] = useState(false);
   const [isSalaryStructureDialogOpen, setIsSalaryStructureDialogOpen] = useState(false);
   const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
   const [editingPayroll, setEditingPayroll] = useState<string | null>(null);
 
-  // Helper function to get auth headers
-  const getAuthHeaders = async () => {
-    const token = await user?.firebaseUser?.getIdToken();
-    return {
-      'Content-Type': 'application/json',
-      ...(token && { 'Authorization': `Bearer ${token}` })
-    };
-  };
-
   // API Queries
   const { data: users = [] } = useQuery({
     queryKey: ["/api/users"],
-    queryFn: async () => {
-      const response = await fetch('/api/users', {
-        headers: await getAuthHeaders()
-      });
-      if (!response.ok) throw new Error('Failed to fetch users');
-      const data = await response.json();
-      return data.filter((user: any) => user.role !== "master_admin");
-    },
-    enabled: !!user?.firebaseUser
+    select: (data: any[]) => data.filter(user => user.role !== "master_admin")
   });
 
   const { data: fieldConfigs = [] } = useQuery<PayrollFieldConfig[]>({
-    queryKey: ["/api/payroll/field-configs"],
-    queryFn: async () => {
-      const response = await fetch('/api/payroll/field-configs', {
-        headers: await getAuthHeaders()
-      });
-      if (!response.ok) throw new Error('Failed to fetch field configs');
-      return response.json();
-    },
-    enabled: !!user?.firebaseUser
+    queryKey: ["/api/payroll/field-configs"]
   });
 
   const { data: payrolls = [] } = useQuery<EnhancedPayroll[]>({
     queryKey: ["/api/enhanced-payrolls", selectedMonth, selectedYear, selectedDepartment],
-    queryFn: async () => {
+    queryFn: () => {
       const params = new URLSearchParams();
       params.append("month", selectedMonth.toString());
       params.append("year", selectedYear.toString());
-      if (selectedDepartment && selectedDepartment !== "all") {
-        params.append("department", selectedDepartment);
-      }
-      
-      const response = await fetch(`/api/enhanced-payrolls?${params}`, {
-        headers: await getAuthHeaders()
-      });
-      if (!response.ok) throw new Error('Failed to fetch payrolls');
-      const data = await response.json();
-      return Array.isArray(data) ? data : [];
-    },
-    enabled: !!user?.firebaseUser
+      if (selectedDepartment && selectedDepartment !== "all") params.append("department", selectedDepartment);
+      return fetch(`/api/enhanced-payrolls?${params}`).then(res => res.json()).then(data => Array.isArray(data) ? data : []);
+    }
   });
 
   const { data: salaryStructures = [] } = useQuery<EnhancedSalaryStructure[]>({
-    queryKey: ["/api/enhanced-salary-structures"],
-    queryFn: async () => {
-      const response = await fetch('/api/enhanced-salary-structures', {
-        headers: await getAuthHeaders()
-      });
-      if (!response.ok) throw new Error('Failed to fetch salary structures');
-      return response.json();
-    },
-    enabled: !!user?.firebaseUser
+    queryKey: ["/api/enhanced-salary-structures"]
   });
 
   const { data: settings } = useQuery<EnhancedPayrollSettings>({
-    queryKey: ["/api/enhanced-payroll-settings"],
-    queryFn: async () => {
-      const response = await fetch('/api/enhanced-payroll-settings', {
-        headers: await getAuthHeaders()
-      });
-      if (!response.ok) throw new Error('Failed to fetch payroll settings');
-      return response.json();
-    },
-    enabled: !!user?.firebaseUser
+    queryKey: ["/api/enhanced-payroll-settings"]
   });
 
   // Mutations
   const createFieldConfigMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const response = await fetch("/api/payroll/field-configs", {
+    mutationFn: (data: any) => 
+      fetch("/api/payroll/field-configs", {
         method: "POST",
-        headers: await getAuthHeaders(),
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data)
-      });
-      if (!response.ok) throw new Error('Failed to create field config');
-      return response.json();
-    },
+      }).then(res => res.json()),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/payroll/field-configs"] });
       setIsFieldConfigDialogOpen(false);
@@ -239,15 +184,12 @@ export default function EnhancedPayrollManagement() {
   });
 
   const createSalaryStructureMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const response = await fetch("/api/enhanced-salary-structures", {
+    mutationFn: (data: any) => 
+      fetch("/api/enhanced-salary-structures", {
         method: "POST",
-        headers: await getAuthHeaders(),
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data)
-      });
-      if (!response.ok) throw new Error('Failed to create salary structure');
-      return response.json();
-    },
+      }).then(res => res.json()),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/enhanced-salary-structures"] });
       setIsSalaryStructureDialogOpen(false);
@@ -256,15 +198,12 @@ export default function EnhancedPayrollManagement() {
   });
 
   const bulkProcessPayrollMutation = useMutation({
-    mutationFn: async (data: { month: number; year: number; userIds?: string[] }) => {
-      const response = await fetch("/api/enhanced-payrolls/bulk-process", {
+    mutationFn: (data: { month: number; year: number; userIds?: string[] }) => 
+      fetch("/api/enhanced-payrolls/bulk-process", {
         method: "POST",
-        headers: await getAuthHeaders(),
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data)
-      });
-      if (!response.ok) throw new Error('Failed to process payroll');
-      return response.json();
-    },
+      }).then(res => res.json()),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/enhanced-payrolls"] });
       toast({ 
@@ -275,15 +214,12 @@ export default function EnhancedPayrollManagement() {
   });
 
   const updateSettingsMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const response = await fetch("/api/enhanced-payroll-settings", {
+    mutationFn: (data: any) => 
+      fetch("/api/enhanced-payroll-settings", {
         method: "PATCH",
-        headers: await getAuthHeaders(),
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data)
-      });
-      if (!response.ok) throw new Error('Failed to update settings');
-      return response.json();
-    },
+      }).then(res => res.json()),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/enhanced-payroll-settings"] });
       setIsSettingsDialogOpen(false);
@@ -292,6 +228,22 @@ export default function EnhancedPayrollManagement() {
   });
 
   // Helper functions
+  const getUserByPayroll = (payroll: EnhancedPayroll) => 
+    users.find(user => user.id === payroll.userId);
+
+  const getSalaryStructureByUser = (userId: string) => 
+    salaryStructures.find(structure => structure.userId === userId && structure.isActive);
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "draft": return "bg-gray-100 text-gray-800";
+      case "processed": return "bg-blue-100 text-blue-800";
+      case "approved": return "bg-green-100 text-green-800";
+      case "paid": return "bg-purple-100 text-purple-800";
+      default: return "bg-gray-100 text-gray-800";
+    }
+  };
+
   const formatCurrency = (amount: number) => 
     new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(amount);
 
@@ -299,8 +251,6 @@ export default function EnhancedPayrollManagement() {
     "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"
   ];
-
-  const departments = ["cre", "operations", "accounts", "hr", "it", "sales"];
 
   // Get earnings and deductions field configs
   const earningsFields = fieldConfigs.filter(field => field.category === "earnings" && field.isActive);
@@ -644,13 +594,13 @@ function PayrollTable({
             <TableHead>Basic</TableHead>
             <TableHead>HRA</TableHead>
             <TableHead>Conveyance</TableHead>
-            {earningsFields.filter(f => !f.isSystemField).map(field => (
+            {earningsFields.filter(f => f.isSystemField === false).map(field => (
               <TableHead key={field.id}>{field.displayName}</TableHead>
             ))}
             <TableHead>Gross Earnings</TableHead>
             <TableHead>EPF</TableHead>
             <TableHead>ESI</TableHead>
-            {deductionsFields.filter(f => !f.isSystemField).map(field => (
+            {deductionsFields.filter(f => f.isSystemField === false).map(field => (
               <TableHead key={field.id}>{field.displayName}</TableHead>
             ))}
             <TableHead>Total Deductions</TableHead>
@@ -661,7 +611,7 @@ function PayrollTable({
         </TableHeader>
         <TableBody>
           {payrolls.map((payroll) => {
-            const payrollUser = users.find((u: any) => u.id === payroll.userId);
+            const user = users.find(u => u.id === payroll.userId);
             return (
               <TableRow key={payroll.id}>
                 <TableCell>
@@ -674,7 +624,7 @@ function PayrollTable({
                 <TableCell>{formatCurrency(payroll.earnedBasic)}</TableCell>
                 <TableCell>{formatCurrency(payroll.earnedHRA)}</TableCell>
                 <TableCell>{formatCurrency(payroll.earnedConveyance)}</TableCell>
-                {earningsFields.filter(f => !f.isSystemField).map(field => (
+                {earningsFields.filter(f => f.isSystemField === false).map(field => (
                   <TableCell key={field.id}>
                     {formatCurrency(payroll.dynamicEarnings[field.name] || 0)}
                   </TableCell>
@@ -682,7 +632,7 @@ function PayrollTable({
                 <TableCell className="font-medium">{formatCurrency(payroll.totalEarnings)}</TableCell>
                 <TableCell>{formatCurrency(payroll.epfDeduction)}</TableCell>
                 <TableCell>{formatCurrency(payroll.esiDeduction)}</TableCell>
-                {deductionsFields.filter(f => !f.isSystemField).map(field => (
+                {deductionsFields.filter(f => f.isSystemField === false).map(field => (
                   <TableCell key={field.id}>
                     {formatCurrency(payroll.dynamicDeductions[field.name] || 0)}
                   </TableCell>
@@ -852,8 +802,6 @@ function FieldConfigForm({ onSubmit }: { onSubmit: (data: any) => void }) {
     sortOrder: 1
   });
 
-  const departments = ["cre", "operations", "accounts", "hr", "it", "sales"];
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit({
@@ -961,10 +909,11 @@ function FieldConfigForm({ onSubmit }: { onSubmit: (data: any) => void }) {
       </div>
 
       <div className="flex items-center space-x-2">
-        <Checkbox
+        <input
+          type="checkbox"
           id="isRequired"
           checked={formData.isRequired}
-          onCheckedChange={(checked) => setFormData({ ...formData, isRequired: !!checked })}
+          onChange={(e) => setFormData({ ...formData, isRequired: e.target.checked })}
         />
         <Label htmlFor="isRequired">Required Field</Label>
       </div>
@@ -1017,7 +966,7 @@ function SalaryStructureForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 max-h-[600px] overflow-y-auto">
+    <form onSubmit={handleSubmit} className="space-y-6">
       {/* Employee Selection */}
       <div>
         <Label htmlFor="userId">Employee</Label>
@@ -1155,24 +1104,14 @@ function SalaryStructureForm({
               onChange={(e) => setFormData({ ...formData, overtimeRate: parseFloat(e.target.value) || 1.5 })}
             />
           </div>
-        </div>
-
-        <div className="grid grid-cols-3 gap-4 mt-4">
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="epfApplicable"
-              checked={formData.epfApplicable}
-              onCheckedChange={(checked) => setFormData({ ...formData, epfApplicable: !!checked })}
+          <div>
+            <Label htmlFor="vptAmount">VPT Amount</Label>
+            <Input
+              id="vptAmount"
+              type="number"
+              value={formData.vptAmount}
+              onChange={(e) => setFormData({ ...formData, vptAmount: parseFloat(e.target.value) || 0 })}
             />
-            <Label htmlFor="epfApplicable">EPF Applicable</Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="esiApplicable"
-              checked={formData.esiApplicable}
-              onCheckedChange={(checked) => setFormData({ ...formData, esiApplicable: !!checked })}
-            />
-            <Label htmlFor="esiApplicable">ESI Applicable</Label>
           </div>
           <div>
             <Label htmlFor="effectiveFrom">Effective From</Label>
@@ -1183,6 +1122,27 @@ function SalaryStructureForm({
               onChange={(e) => setFormData({ ...formData, effectiveFrom: e.target.value })}
               required
             />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 mt-4">
+          <div className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              id="epfApplicable"
+              checked={formData.epfApplicable}
+              onChange={(e) => setFormData({ ...formData, epfApplicable: e.target.checked })}
+            />
+            <Label htmlFor="epfApplicable">EPF Applicable</Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              id="esiApplicable"
+              checked={formData.esiApplicable}
+              onChange={(e) => setFormData({ ...formData, esiApplicable: e.target.checked })}
+            />
+            <Label htmlFor="esiApplicable">ESI Applicable</Label>
           </div>
         </div>
       </div>
@@ -1210,16 +1170,16 @@ function PayrollSettingsForm({
     epfCeiling: settings?.epfCeiling || 15000,
     esiThreshold: settings?.esiThreshold || 21000,
     tdsThreshold: settings?.tdsThreshold || 250000,
-    standardWorkingDays: settings?.standardWorkingDays || 26,
+    standardWorkingDays: settings?.standardWorkingDays || 30,
     standardWorkingHours: settings?.standardWorkingHours || 8,
     overtimeThresholdHours: settings?.overtimeThresholdHours || 8,
     companyName: settings?.companyName || "Prakash Greens Energy",
     companyAddress: settings?.companyAddress || "",
     companyPan: settings?.companyPan || "",
     companyTan: settings?.companyTan || "",
-    autoCalculateStatutory: settings?.autoCalculateStatutory || true,
-    allowManualOverride: settings?.allowManualOverride || true,
-    requireApprovalForProcessing: settings?.requireApprovalForProcessing || false
+    autoCalculateStatutory: settings?.autoCalculateStatutory ?? true,
+    allowManualOverride: settings?.allowManualOverride ?? true,
+    requireApprovalForProcessing: settings?.requireApprovalForProcessing ?? false
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -1228,7 +1188,7 @@ function PayrollSettingsForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 max-h-[500px] overflow-y-auto">
+    <form onSubmit={handleSubmit} className="space-y-6">
       {/* Statutory Rates */}
       <div>
         <h3 className="text-lg font-semibold mb-4">Statutory Rates</h3>
@@ -1278,42 +1238,35 @@ function PayrollSettingsForm({
 
       {/* Thresholds */}
       <div>
-        <h3 className="text-lg font-semibold mb-4">Thresholds</h3>
-        <div className="grid grid-cols-3 gap-4">
+        <h3 className="text-lg font-semibold mb-4">Thresholds & Limits</h3>
+        <div className="grid grid-cols-2 gap-4">
           <div>
-            <Label htmlFor="epfCeiling">EPF Ceiling (₹)</Label>
+            <Label htmlFor="epfCeiling">EPF Ceiling Amount</Label>
             <Input
               id="epfCeiling"
               type="number"
               value={formData.epfCeiling}
-              onChange={(e) => setFormData({ ...formData, epfCeiling: parseInt(e.target.value) || 0 })}
+              onChange={(e) => setFormData({ ...formData, epfCeiling: parseFloat(e.target.value) || 0 })}
             />
           </div>
           <div>
-            <Label htmlFor="esiThreshold">ESI Threshold (₹)</Label>
+            <Label htmlFor="esiThreshold">ESI Threshold Amount</Label>
             <Input
               id="esiThreshold"
               type="number"
               value={formData.esiThreshold}
-              onChange={(e) => setFormData({ ...formData, esiThreshold: parseInt(e.target.value) || 0 })}
+              onChange={(e) => setFormData({ ...formData, esiThreshold: parseFloat(e.target.value) || 0 })}
             />
           </div>
           <div>
-            <Label htmlFor="tdsThreshold">TDS Threshold (₹)</Label>
+            <Label htmlFor="tdsThreshold">TDS Threshold (Annual)</Label>
             <Input
               id="tdsThreshold"
               type="number"
               value={formData.tdsThreshold}
-              onChange={(e) => setFormData({ ...formData, tdsThreshold: parseInt(e.target.value) || 0 })}
+              onChange={(e) => setFormData({ ...formData, tdsThreshold: parseFloat(e.target.value) || 0 })}
             />
           </div>
-        </div>
-      </div>
-
-      {/* Working Hours */}
-      <div>
-        <h3 className="text-lg font-semibold mb-4">Working Hours</h3>
-        <div className="grid grid-cols-3 gap-4">
           <div>
             <Label htmlFor="standardWorkingDays">Standard Working Days</Label>
             <Input
@@ -1321,24 +1274,6 @@ function PayrollSettingsForm({
               type="number"
               value={formData.standardWorkingDays}
               onChange={(e) => setFormData({ ...formData, standardWorkingDays: parseInt(e.target.value) || 0 })}
-            />
-          </div>
-          <div>
-            <Label htmlFor="standardWorkingHours">Standard Working Hours</Label>
-            <Input
-              id="standardWorkingHours"
-              type="number"
-              value={formData.standardWorkingHours}
-              onChange={(e) => setFormData({ ...formData, standardWorkingHours: parseInt(e.target.value) || 0 })}
-            />
-          </div>
-          <div>
-            <Label htmlFor="overtimeThresholdHours">Overtime Threshold Hours</Label>
-            <Input
-              id="overtimeThresholdHours"
-              type="number"
-              value={formData.overtimeThresholdHours}
-              onChange={(e) => setFormData({ ...formData, overtimeThresholdHours: parseInt(e.target.value) || 0 })}
             />
           </div>
         </div>
@@ -1357,14 +1292,6 @@ function PayrollSettingsForm({
             />
           </div>
           <div>
-            <Label htmlFor="companyAddress">Company Address</Label>
-            <Input
-              id="companyAddress"
-              value={formData.companyAddress}
-              onChange={(e) => setFormData({ ...formData, companyAddress: e.target.value })}
-            />
-          </div>
-          <div>
             <Label htmlFor="companyPan">Company PAN</Label>
             <Input
               id="companyPan"
@@ -1372,42 +1299,45 @@ function PayrollSettingsForm({
               onChange={(e) => setFormData({ ...formData, companyPan: e.target.value })}
             />
           </div>
-          <div>
-            <Label htmlFor="companyTan">Company TAN</Label>
+          <div className="col-span-2">
+            <Label htmlFor="companyAddress">Company Address</Label>
             <Input
-              id="companyTan"
-              value={formData.companyTan}
-              onChange={(e) => setFormData({ ...formData, companyTan: e.target.value })}
+              id="companyAddress"
+              value={formData.companyAddress}
+              onChange={(e) => setFormData({ ...formData, companyAddress: e.target.value })}
             />
           </div>
         </div>
       </div>
 
-      {/* Configuration Options */}
+      {/* Processing Options */}
       <div>
-        <h3 className="text-lg font-semibold mb-4">Configuration</h3>
-        <div className="space-y-4">
+        <h3 className="text-lg font-semibold mb-4">Processing Options</h3>
+        <div className="space-y-3">
           <div className="flex items-center space-x-2">
-            <Checkbox
+            <input
+              type="checkbox"
               id="autoCalculateStatutory"
               checked={formData.autoCalculateStatutory}
-              onCheckedChange={(checked) => setFormData({ ...formData, autoCalculateStatutory: !!checked })}
+              onChange={(e) => setFormData({ ...formData, autoCalculateStatutory: e.target.checked })}
             />
             <Label htmlFor="autoCalculateStatutory">Auto Calculate Statutory Deductions</Label>
           </div>
           <div className="flex items-center space-x-2">
-            <Checkbox
+            <input
+              type="checkbox"
               id="allowManualOverride"
               checked={formData.allowManualOverride}
-              onCheckedChange={(checked) => setFormData({ ...formData, allowManualOverride: !!checked })}
+              onChange={(e) => setFormData({ ...formData, allowManualOverride: e.target.checked })}
             />
             <Label htmlFor="allowManualOverride">Allow Manual Override</Label>
           </div>
           <div className="flex items-center space-x-2">
-            <Checkbox
+            <input
+              type="checkbox"
               id="requireApprovalForProcessing"
               checked={formData.requireApprovalForProcessing}
-              onCheckedChange={(checked) => setFormData({ ...formData, requireApprovalForProcessing: !!checked })}
+              onChange={(e) => setFormData({ ...formData, requireApprovalForProcessing: e.target.checked })}
             />
             <Label htmlFor="requireApprovalForProcessing">Require Approval for Processing</Label>
           </div>

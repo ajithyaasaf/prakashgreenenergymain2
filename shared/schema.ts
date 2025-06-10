@@ -352,6 +352,90 @@ export const insertAttendancePolicySchema = z.object({
   createdBy: z.string()
 });
 
+// Enhanced Payroll System Schemas
+export const insertPayrollFieldConfigSchema = z.object({
+  name: z.string().min(1, "Field name is required"),
+  displayName: z.string().min(1, "Display name is required"),
+  category: z.enum(["earnings", "deductions", "attendance"]),
+  dataType: z.enum(["number", "percentage", "boolean", "text"]),
+  isRequired: z.boolean().default(false),
+  isSystemField: z.boolean().default(false),
+  defaultValue: z.number().optional(),
+  department: z.enum(departments).optional(),
+  sortOrder: z.number().min(1).default(1),
+  isActive: z.boolean().default(true)
+});
+
+export const insertEnhancedSalaryStructureSchema = z.object({
+  userId: z.string(),
+  employeeId: z.string(),
+  fixedBasic: z.number().min(0),
+  fixedHRA: z.number().min(0),
+  fixedConveyance: z.number().min(0),
+  customEarnings: z.record(z.number()).default({}),
+  customDeductions: z.record(z.number()).default({}),
+  perDaySalaryBase: z.enum(["basic", "basic_hra", "gross"]).default("basic_hra"),
+  overtimeRate: z.number().min(0).default(1.5),
+  epfApplicable: z.boolean().default(true),
+  esiApplicable: z.boolean().default(true),
+  vptAmount: z.number().min(0).default(0),
+  templateId: z.string().optional(),
+  effectiveFrom: z.date(),
+  effectiveTo: z.date().optional(),
+  isActive: z.boolean().default(true)
+});
+
+export const insertEnhancedPayrollSchema = z.object({
+  userId: z.string(),
+  employeeId: z.string(),
+  month: z.number().min(1).max(12),
+  year: z.number().min(2020),
+  monthDays: z.number().min(1).max(31),
+  presentDays: z.number().min(0),
+  paidLeaveDays: z.number().min(0).default(0),
+  overtimeHours: z.number().min(0).default(0),
+  perDaySalary: z.number().min(0),
+  earnedBasic: z.number().min(0),
+  earnedHRA: z.number().min(0),
+  earnedConveyance: z.number().min(0),
+  overtimePay: z.number().min(0).default(0),
+  dynamicEarnings: z.record(z.number()).default({}),
+  dynamicDeductions: z.record(z.number()).default({}),
+  epfDeduction: z.number().min(0).default(0),
+  esiDeduction: z.number().min(0).default(0),
+  vptDeduction: z.number().min(0).default(0),
+  tdsDeduction: z.number().min(0).default(0),
+  totalEarnings: z.number().min(0),
+  totalDeductions: z.number().min(0),
+  netSalary: z.number(),
+  status: z.enum(["draft", "processed", "approved", "paid"]).default("draft"),
+  processedBy: z.string().optional(),
+  processedAt: z.date().optional(),
+  approvedBy: z.string().optional(),
+  approvedAt: z.date().optional(),
+  remarks: z.string().optional()
+});
+
+export const insertEnhancedPayrollSettingsSchema = z.object({
+  epfEmployeeRate: z.number().min(0).max(100).default(12),
+  epfEmployerRate: z.number().min(0).max(100).default(12),
+  esiEmployeeRate: z.number().min(0).max(100).default(0.75),
+  esiEmployerRate: z.number().min(0).max(100).default(3.25),
+  epfCeiling: z.number().min(0).default(15000),
+  esiThreshold: z.number().min(0).default(21000),
+  tdsThreshold: z.number().min(0).default(250000),
+  standardWorkingDays: z.number().min(1).default(26),
+  standardWorkingHours: z.number().min(1).default(8),
+  overtimeThresholdHours: z.number().min(0).default(8),
+  companyName: z.string().default("Prakash Greens Energy"),
+  companyAddress: z.string().optional(),
+  companyPan: z.string().optional(),
+  companyTan: z.string().optional(),
+  autoCalculateStatutory: z.boolean().default(true),
+  allowManualOverride: z.boolean().default(true),
+  requireApprovalForProcessing: z.boolean().default(false)
+});
+
 // Enterprise user types
 export type Department = typeof departments[number];
 export type Designation = typeof designations[number];
