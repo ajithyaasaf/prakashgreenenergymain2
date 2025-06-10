@@ -256,20 +256,52 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
   // Camera functions
   const startCamera = async () => {
     try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'environment' } 
-      });
+      console.log('CAMERA: Starting camera for attendance photo...');
+      
+      // Try front camera first (for selfies), then fallback to any available camera
+      let mediaStream;
+      try {
+        mediaStream = await navigator.mediaDevices.getUserMedia({ 
+          video: { 
+            facingMode: 'user',  // Front camera for selfies
+            width: { ideal: 640 },
+            height: { ideal: 480 }
+          },
+          audio: false
+        });
+        console.log('CAMERA: Front camera accessed successfully');
+      } catch (frontCameraError) {
+        console.log('CAMERA: Front camera not available, trying any camera...');
+        mediaStream = await navigator.mediaDevices.getUserMedia({ 
+          video: { 
+            width: { ideal: 640 },
+            height: { ideal: 480 }
+          },
+          audio: false
+        });
+        console.log('CAMERA: Camera accessed successfully');
+      }
+      
       setStream(mediaStream);
       setIsCameraActive(true);
       
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
+        videoRef.current.play();
+        console.log('CAMERA: Video stream attached to element');
       }
+      
+      toast({
+        title: "Camera Ready",
+        description: "Position yourself in the frame and click Capture",
+        variant: "default",
+      });
+      
     } catch (error) {
-      console.error('Camera access failed:', error);
+      console.error('CAMERA: Access failed:', error);
       toast({
         title: "Camera Access Failed",
-        description: "Unable to access camera. Please check permissions.",
+        description: "Unable to access camera. Please check permissions and try again.",
         variant: "destructive",
       });
     }
@@ -281,7 +313,13 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
       const canvas = canvasRef.current;
       const context = canvas.getContext('2d');
       
-      if (context) {
+      console.log('CAMERA: Capturing photo...', {
+        videoWidth: video.videoWidth,
+        videoHeight: video.videoHeight,
+        readyState: video.readyState
+      });
+      
+      if (context && video.videoWidth > 0 && video.videoHeight > 0) {
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
         context.drawImage(video, 0, 0);
@@ -289,13 +327,35 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
         const photoDataUrl = canvas.toDataURL('image/jpeg', 0.8);
         setCapturedPhoto(photoDataUrl);
         
+        console.log('CAMERA: Photo captured successfully, size:', photoDataUrl.length);
+        
         // Stop camera after capture
         if (stream) {
           stream.getTracks().forEach(track => track.stop());
           setStream(null);
           setIsCameraActive(false);
         }
+        
+        toast({
+          title: "Photo Captured",
+          description: "Photo captured successfully and ready for upload",
+          variant: "default",
+        });
+      } else {
+        console.error('CAMERA: Video not ready for capture');
+        toast({
+          title: "Capture Failed",
+          description: "Please wait for camera to load completely before capturing",
+          variant: "destructive",
+        });
       }
+    } else {
+      console.error('CAMERA: Video or canvas element not available');
+      toast({
+        title: "Capture Failed",
+        description: "Camera not properly initialized",
+        variant: "destructive",
+      });
     }
   };
 
@@ -520,10 +580,23 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
 
                 {isCameraActive && (
                   <div className="space-y-2">
-                    <video ref={videoRef} autoPlay className="w-full rounded border" />
+                    <div className="relative">
+                      <video 
+                        ref={videoRef} 
+                        autoPlay 
+                        playsInline
+                        muted
+                        className="w-full h-64 object-cover rounded border bg-gray-100"
+                        style={{ transform: 'scaleX(-1)' }} // Mirror effect for selfie
+                      />
+                      <div className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded">
+                        LIVE
+                      </div>
+                    </div>
                     <div className="flex gap-2">
                       <Button onClick={capturePhoto} className="flex-1">
-                        Capture
+                        <Camera className="h-4 w-4 mr-2" />
+                        Capture Photo
                       </Button>
                       <Button onClick={resetPhoto} variant="outline">
                         Cancel

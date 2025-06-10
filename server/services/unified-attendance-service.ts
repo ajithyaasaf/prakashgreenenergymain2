@@ -5,6 +5,7 @@
 
 import { storage } from '../storage';
 import { EnterpriseLocationService, LocationRequest, LocationValidationResult } from './enterprise-location-service';
+import { CloudinaryService } from './cloudinary-service';
 
 export interface AttendanceCheckInRequest {
   userId: string;
@@ -138,6 +139,25 @@ export class UnifiedAttendanceService {
       // Calculate timing information
       const timingInfo = this.calculateTimingInfo(user);
       
+      // Handle photo upload to Cloudinary if provided
+      let cloudinaryImageUrl = request.imageUrl;
+      if (request.imageUrl && request.imageUrl.startsWith('data:')) {
+        console.log('ATTENDANCE: Uploading photo to Cloudinary for user:', request.userId);
+        const uploadResult = await CloudinaryService.uploadAttendancePhoto(
+          request.imageUrl,
+          request.userId,
+          new Date()
+        );
+        
+        if (uploadResult.success) {
+          cloudinaryImageUrl = uploadResult.url;
+          console.log('ATTENDANCE: Photo uploaded successfully:', uploadResult.url);
+        } else {
+          console.error('ATTENDANCE: Photo upload failed:', uploadResult.error);
+          // Continue without failing the check-in - photo upload is not critical
+        }
+      }
+      
       // Create attendance record
       const attendanceData = {
         userId: request.userId,
@@ -164,7 +184,7 @@ export class UnifiedAttendanceService {
         
         // Optional fields
         ...(request.customerName && { customerName: request.customerName }),
-        ...(request.imageUrl && { checkInImageUrl: request.imageUrl })
+        ...(cloudinaryImageUrl && { checkInImageUrl: cloudinaryImageUrl })
       };
 
       const newAttendance = await storage.createAttendance(attendanceData);
