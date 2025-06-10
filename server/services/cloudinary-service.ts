@@ -8,9 +8,11 @@ import { v2 as cloudinary } from 'cloudinary';
 // Configure Cloudinary
 cloudinary.config({
   cloud_name: 'doeodacsg',
-  api_key: process.env.CLOUDINARY_API_KEY || 'your_api_key_here',
+  api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: 'wUw9Seu6drQEIbQ1tAvYeVyqHdU'
 });
+
+console.log('CLOUDINARY: Service initialized with API key:', process.env.CLOUDINARY_API_KEY ? 'present' : 'missing');
 
 export interface CloudinaryUploadResult {
   success: boolean;

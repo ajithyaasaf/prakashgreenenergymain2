@@ -135,7 +135,7 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
     }
   };
 
-  // Enhanced check-in mutation with enterprise validation
+  // Enhanced check-in mutation with enterprise validation and photo upload
   const checkInMutation = useMutation({
     mutationFn: async () => {
       if (!user?.uid || !location) {
@@ -147,6 +147,45 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
         throw new Error('Photo is required for field work');
       }
 
+      // Prepare request data
+      let photoUploadUrl = undefined;
+
+      // Upload photo to Cloudinary if available
+      if (capturedPhoto && attendanceType === "field_work") {
+        console.log('FRONTEND: Uploading photo to Cloudinary...');
+        
+        try {
+          const uploadResponse = await apiRequest('POST', '/api/attendance/upload-photo', {
+            imageData: capturedPhoto,
+            userId: user.uid,
+            attendanceType: attendanceType
+          });
+
+          if (!uploadResponse.ok) {
+            throw new Error('Photo upload failed');
+          }
+
+          const uploadResult = await uploadResponse.json();
+          photoUploadUrl = uploadResult.url;
+          
+          console.log('FRONTEND: Photo uploaded successfully:', photoUploadUrl);
+          
+          toast({
+            title: "Photo Uploaded",
+            description: "Photo uploaded to cloud storage successfully",
+            variant: "default",
+          });
+        } catch (uploadError) {
+          console.error('FRONTEND: Photo upload failed:', uploadError);
+          toast({
+            title: "Photo Upload Failed",
+            description: "Unable to upload photo. Please try again.",
+            variant: "destructive",
+          });
+          throw new Error('Photo upload failed. Please try again.');
+        }
+      }
+
       const requestData = {
         userId: user.uid,
         latitude: location.latitude,
@@ -155,7 +194,7 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
         attendanceType,
         reason: attendanceType !== "office" ? reason : undefined,
         customerName: attendanceType === "field_work" ? customerName : undefined,
-        imageUrl: capturedPhoto || undefined,
+        imageUrl: photoUploadUrl,
         deviceInfo: {
           type: deviceInfo.type,
           userAgent: deviceInfo.userAgent,
@@ -168,7 +207,8 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
         latitude: location.latitude, 
         longitude: location.longitude, 
         accuracy: location.accuracy,
-        type: attendanceType 
+        type: attendanceType,
+        hasPhoto: !!photoUploadUrl
       });
 
       const response = await apiRequest('POST', '/api/attendance/check-in', requestData);

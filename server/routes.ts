@@ -1071,6 +1071,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Photo upload endpoint for attendance
+  app.post("/api/attendance/upload-photo", verifyAuth, async (req, res) => {
+    try {
+      const { imageData, userId, attendanceType } = req.body;
+
+      // Validate request
+      if (!imageData || !userId || userId !== req.user.uid) {
+        return res.status(400).json({ 
+          message: "Invalid request - image data and user ID required" 
+        });
+      }
+
+      if (!attendanceType) {
+        return res.status(400).json({ 
+          message: "Attendance type is required for photo upload" 
+        });
+      }
+
+      // Validate base64 image format
+      if (!imageData.startsWith('data:image/')) {
+        return res.status(400).json({ 
+          message: "Invalid image format - base64 image data required" 
+        });
+      }
+
+      console.log('SERVER: Processing photo upload for user:', userId, 'type:', attendanceType);
+      console.log('SERVER: Image data size:', imageData.length);
+
+      // Import and use Cloudinary service
+      const { CloudinaryService } = await import('./services/cloudinary-service');
+      
+      // Upload to Cloudinary
+      const uploadResult = await CloudinaryService.uploadAttendancePhoto(
+        imageData, 
+        userId, 
+        new Date()
+      );
+
+      if (!uploadResult.success) {
+        console.error('SERVER: Cloudinary upload failed:', uploadResult.error);
+        return res.status(500).json({
+          message: "Photo upload failed",
+          error: uploadResult.error
+        });
+      }
+
+      console.log('SERVER: Photo uploaded successfully to:', uploadResult.url);
+
+      // Log the photo upload activity
+      const user = await storage.getUser(userId);
+      if (user) {
+        await storage.createActivityLog({
+          type: 'attendance',
+          title: 'Attendance Photo Uploaded',
+          description: `${user.displayName} uploaded photo for ${attendanceType} attendance`,
+          entityId: uploadResult.publicId || 'unknown',
+          entityType: 'cloudinary_image',
+          userId: user.uid
+        });
+      }
+
+      res.json({
+        success: true,
+        url: uploadResult.url,
+        publicId: uploadResult.publicId,
+        message: "Photo uploaded successfully"
+      });
+
+    } catch (error) {
+      console.error('SERVER: Photo upload error:', error);
+      res.status(500).json({
+        message: "Internal server error during photo upload",
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   app.post("/api/attendance/check-out", verifyAuth, async (req, res) => {
     try {
       const { userId, latitude, longitude, imageUrl, reason, otReason } = req.body;
