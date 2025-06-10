@@ -667,7 +667,10 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
                 <Label>Field Work Photo * (Required)</Label>
                 
                 {!capturedPhoto && !isCameraActive && (
-                  <Button onClick={startCamera} variant="outline" className="w-full">
+                  <Button onClick={() => {
+                    console.log('BUTTON: Take Photo clicked');
+                    startCamera();
+                  }} variant="outline" className="w-full">
                     <Camera className="h-4 w-4 mr-2" />
                     Take Photo
                   </Button>
