@@ -199,12 +199,7 @@ export default function EnhancedPayrollManagement() {
   // Mutations
   const createFieldConfigMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await fetch("/api/payroll/field-configs", {
-        method: "POST",
-        headers: await getAuthHeaders(),
-        body: JSON.stringify(data)
-      });
-      if (!response.ok) throw new Error('Failed to create field config');
+      const response = await apiRequest("POST", "/api/payroll/field-configs", data);
       return response.json();
     },
     onSuccess: () => {
@@ -216,12 +211,7 @@ export default function EnhancedPayrollManagement() {
 
   const createSalaryStructureMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await fetch("/api/enhanced-salary-structures", {
-        method: "POST",
-        headers: await getAuthHeaders(),
-        body: JSON.stringify(data)
-      });
-      if (!response.ok) throw new Error('Failed to create salary structure');
+      const response = await apiRequest("POST", "/api/enhanced-salary-structures", data);
       return response.json();
     },
     onSuccess: () => {
@@ -233,12 +223,7 @@ export default function EnhancedPayrollManagement() {
 
   const bulkProcessPayrollMutation = useMutation({
     mutationFn: async (data: { month: number; year: number; userIds?: string[] }) => {
-      const response = await fetch("/api/enhanced-payrolls/bulk-process", {
-        method: "POST",
-        headers: await getAuthHeaders(),
-        body: JSON.stringify(data)
-      });
-      if (!response.ok) throw new Error('Failed to process payroll');
+      const response = await apiRequest("POST", "/api/enhanced-payrolls/bulk-process", data);
       return response.json();
     },
     onSuccess: (data) => {
@@ -252,12 +237,7 @@ export default function EnhancedPayrollManagement() {
 
   const updateSettingsMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await fetch("/api/enhanced-payroll-settings", {
-        method: "PATCH",
-        headers: await getAuthHeaders(),
-        body: JSON.stringify(data)
-      });
-      if (!response.ok) throw new Error('Failed to update settings');
+      const response = await apiRequest("PATCH", "/api/enhanced-payroll-settings", data);
       return response.json();
     },
     onSuccess: () => {
