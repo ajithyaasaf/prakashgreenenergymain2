@@ -103,18 +103,74 @@ export function AttendanceCheckOut({
   // Camera functions
   const startCamera = async () => {
     try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'user', width: 640, height: 480 } 
-      });
-      setStream(mediaStream);
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
+      // Check for camera support
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Camera not supported on this device');
       }
+      
+      // Enhanced video constraints for better compatibility
+      const constraints = {
+        video: {
+          width: { ideal: 640, max: 1280 },
+          height: { ideal: 480, max: 720 },
+          facingMode: 'user' // Front-facing camera
+        },
+        audio: false
+      };
+      
+      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+      
+      // Check if video tracks are available
+      const videoTracks = mediaStream.getVideoTracks();
+      if (videoTracks.length === 0) {
+        throw new Error('No video tracks found in stream');
+      }
+      
+      setStream(mediaStream);
       setIsCameraActive(true);
+      
+      if (videoRef.current) {
+        const video = videoRef.current;
+        
+        // Clear any existing content and reset state
+        video.srcObject = null;
+        video.load();
+        
+        // Set essential video properties
+        video.muted = true;
+        video.playsInline = true;
+        video.autoplay = true;
+        video.controls = false;
+        
+        // Assign the stream
+        video.srcObject = mediaStream;
+        
+        // Force play
+        setTimeout(async () => {
+          try {
+            await video.play();
+          } catch (playError) {
+            console.warn('Auto-play failed, but stream should still be visible:', playError);
+          }
+        }, 100);
+      }
     } catch (error) {
+      let errorMessage = "Unable to access camera. ";
+      if (error instanceof Error) {
+        if (error.name === 'NotAllowedError') {
+          errorMessage += "Please allow camera permissions and try again.";
+        } else if (error.name === 'NotFoundError') {
+          errorMessage += "No camera found on this device.";
+        } else if (error.name === 'NotReadableError') {
+          errorMessage += "Camera is being used by another application.";
+        } else {
+          errorMessage += error.message;
+        }
+      }
+      
       toast({
-        title: "Camera Access Denied",
-        description: "Please allow camera permissions for overtime verification",
+        title: "Camera Access Failed",
+        description: errorMessage,
         variant: "destructive",
       });
     }

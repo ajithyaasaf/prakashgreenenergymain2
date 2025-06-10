@@ -298,15 +298,25 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
   const startCamera = async () => {
     try {
       console.log('CAMERA: Starting camera for attendance photo...');
-      console.log('CAMERA: Navigator available:', !!navigator);
-      console.log('CAMERA: MediaDevices available:', !!navigator.mediaDevices);
-      console.log('CAMERA: getUserMedia available:', !!navigator.mediaDevices?.getUserMedia);
       
-      // Try basic camera access first
-      const mediaStream = await navigator.mediaDevices.getUserMedia({ 
-        video: true,
+      // Check for camera support
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Camera not supported on this device');
+      }
+      
+      // Enhanced video constraints for better compatibility
+      const constraints = {
+        video: {
+          width: { ideal: 640, max: 1280 },
+          height: { ideal: 480, max: 720 },
+          facingMode: 'user' // Front-facing camera
+        },
         audio: false
-      });
+      };
+      
+      console.log('CAMERA: Requesting camera access with constraints:', constraints);
+      
+      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
       
       console.log('CAMERA: Stream obtained:', {
         id: mediaStream.id,
@@ -315,70 +325,111 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
         videoTracks: mediaStream.getVideoTracks().length
       });
       
+      // Check if video tracks are available
+      const videoTracks = mediaStream.getVideoTracks();
+      if (videoTracks.length === 0) {
+        throw new Error('No video tracks found in stream');
+      }
+      
       setStream(mediaStream);
       setIsCameraActive(true);
+      setIsVideoReady(false);
       
       if (videoRef.current) {
         const video = videoRef.current;
         console.log('CAMERA: Video element found, setting up...');
         
-        // Clear any existing content
+        // Clear any existing content and reset state
         video.srcObject = null;
+        video.load();
         
         // Set essential video properties
         video.muted = true;
         video.playsInline = true;
+        video.autoplay = true;
         video.controls = false;
-        video.style.width = '100%';
-        video.style.height = '100%';
-        video.style.objectFit = 'cover';
         
-        // Add comprehensive event logging
-        const events = ['loadstart', 'loadedmetadata', 'loadeddata', 'canplay', 'canplaythrough', 'playing', 'pause', 'ended', 'error'];
-        events.forEach(eventName => {
-          video.addEventListener(eventName, (e) => {
-            console.log(`CAMERA: Video event - ${eventName}`, e);
-            if (eventName === 'loadedmetadata' || eventName === 'canplay') {
-              setIsVideoReady(true);
-            }
-          });
-        });
+        // Remove any existing event listeners
+        const newVideo = video.cloneNode(true) as HTMLVideoElement;
+        video.parentNode?.replaceChild(newVideo, video);
+        (videoRef as any).current = newVideo;
         
-        // Assign the stream
-        console.log('CAMERA: Assigning stream to video element');
-        video.srcObject = mediaStream;
-        
-        // Force play with multiple attempts
-        const attemptPlay = async (attempt = 1) => {
-          try {
-            console.log(`CAMERA: Play attempt ${attempt}`);
-            await video.play();
-            console.log('CAMERA: Video playing successfully');
-            setIsVideoReady(true);
-          } catch (playError) {
-            console.log(`CAMERA: Play attempt ${attempt} failed:`, playError);
-            if (attempt < 3) {
-              setTimeout(() => attemptPlay(attempt + 1), 200 * attempt);
-            } else {
-              console.log('CAMERA: All play attempts failed, but stream should be visible');
-              setIsVideoReady(true);
-            }
-          }
+        // Set up event handlers for the new video element
+        const handleCanPlay = () => {
+          console.log('CAMERA: Video can play - setting ready state');
+          setIsVideoReady(true);
         };
         
-        // Start play attempts after short delay
-        setTimeout(() => attemptPlay(), 100);
+        const handleLoadedMetadata = () => {
+          console.log('CAMERA: Video metadata loaded, dimensions:', {
+            width: newVideo.videoWidth,
+            height: newVideo.videoHeight
+          });
+        };
+        
+        const handlePlaying = () => {
+          console.log('CAMERA: Video is now playing');
+          setIsVideoReady(true);
+        };
+        
+        const handleError = (e: Event) => {
+          console.error('CAMERA: Video error:', e);
+          toast({
+            title: "Camera Error",
+            description: "Video playback failed. Please try again.",
+            variant: "destructive",
+          });
+        };
+        
+        // Add event listeners
+        newVideo.addEventListener('canplay', handleCanPlay);
+        newVideo.addEventListener('loadedmetadata', handleLoadedMetadata);
+        newVideo.addEventListener('playing', handlePlaying);
+        newVideo.addEventListener('error', handleError);
+        
+        // Assign the stream to the new video element
+        console.log('CAMERA: Assigning stream to video element');
+        newVideo.srcObject = mediaStream;
+        
+        // Force play
+        setTimeout(async () => {
+          try {
+            await newVideo.play();
+            console.log('CAMERA: Video play successful');
+          } catch (playError) {
+            console.warn('CAMERA: Auto-play failed, but stream should still be visible:', playError);
+            // Even if autoplay fails, the stream should be visible
+            setIsVideoReady(true);
+          }
+        }, 100);
         
         console.log('CAMERA: Video setup complete');
       } else {
         console.error('CAMERA: Video ref is null!');
+        throw new Error('Video element not available');
       }
       
     } catch (error) {
       console.error('CAMERA: Access failed:', error);
+      setIsCameraActive(false);
+      setIsVideoReady(false);
+      
+      let errorMessage = "Unable to access camera. ";
+      if (error instanceof Error) {
+        if (error.name === 'NotAllowedError') {
+          errorMessage += "Please allow camera permissions and try again.";
+        } else if (error.name === 'NotFoundError') {
+          errorMessage += "No camera found on this device.";
+        } else if (error.name === 'NotReadableError') {
+          errorMessage += "Camera is being used by another application.";
+        } else {
+          errorMessage += error.message;
+        }
+      }
+      
       toast({
         title: "Camera Access Failed",
-        description: "Unable to access camera. Please check permissions and try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     }
@@ -442,15 +493,17 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
     setIsVideoReady(false);
     
     if (videoRef.current) {
-      // Clean up event listeners if they exist
       const video = videoRef.current;
-      if ((video as any).cameraCleanup) {
-        (video as any).cameraCleanup();
-        delete (video as any).cameraCleanup;
-      }
+      
+      // Remove event listeners
+      video.removeEventListener('canplay', () => {});
+      video.removeEventListener('loadedmetadata', () => {});
+      video.removeEventListener('playing', () => {});
+      video.removeEventListener('error', () => {});
       
       // Clear video source
       video.srcObject = null;
+      video.load();
     }
     
     if (stream) {

@@ -201,23 +201,75 @@ export function CheckInModal({ open, onOpenChange }: CheckInModalProps) {
   // Start camera for photo capture
   const startCamera = async () => {
     try {
-      setIsCameraActive(true);
-      
+      // Check for camera support
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error("Camera access not supported by browser");
+        throw new Error('Camera not supported on this device');
       }
       
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      // Enhanced video constraints for better compatibility
+      const constraints = {
+        video: {
+          width: { ideal: 640, max: 1280 },
+          height: { ideal: 480, max: 720 },
+          facingMode: 'user' // Front-facing camera
+        },
+        audio: false
+      };
+      
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      
+      // Check if video tracks are available
+      const videoTracks = stream.getVideoTracks();
+      if (videoTracks.length === 0) {
+        throw new Error('No video tracks found in stream');
+      }
+      
+      setIsCameraActive(true);
       
       if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play();
+        const video = videoRef.current;
+        
+        // Clear any existing content and reset state
+        video.srcObject = null;
+        video.load();
+        
+        // Set essential video properties
+        video.muted = true;
+        video.playsInline = true;
+        video.autoplay = true;
+        video.controls = false;
+        
+        // Assign the stream
+        video.srcObject = stream;
+        
+        // Force play
+        setTimeout(async () => {
+          try {
+            await video.play();
+          } catch (playError) {
+            console.warn('Auto-play failed, but stream should still be visible:', playError);
+          }
+        }, 100);
       }
     } catch (error) {
       console.error("Error accessing camera:", error);
+      
+      let errorMessage = "Unable to access camera. ";
+      if (error instanceof Error) {
+        if (error.name === 'NotAllowedError') {
+          errorMessage += "Please allow camera permissions and try again.";
+        } else if (error.name === 'NotFoundError') {
+          errorMessage += "No camera found on this device.";
+        } else if (error.name === 'NotReadableError') {
+          errorMessage += "Camera is being used by another application.";
+        } else {
+          errorMessage += error.message;
+        }
+      }
+      
       toast({
-        title: "Camera Error",
-        description: "Unable to access camera. Please check permissions.",
+        title: "Camera Access Failed",
+        description: errorMessage,
         variant: "destructive",
       });
       setIsCameraActive(false);
