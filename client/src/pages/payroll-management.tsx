@@ -666,11 +666,11 @@ function PayrollTable({
               <TableRow key={payroll.id}>
                 <TableCell>
                   <div>
-                    <div className="font-medium">{user?.displayName}</div>
+                    <div className="font-medium">{payrollUser?.displayName}</div>
                     <div className="text-sm text-muted-foreground">{payroll.employeeId}</div>
                   </div>
                 </TableCell>
-                <TableCell>{user?.department?.toUpperCase()}</TableCell>
+                <TableCell>{payrollUser?.department?.toUpperCase()}</TableCell>
                 <TableCell>{formatCurrency(payroll.earnedBasic)}</TableCell>
                 <TableCell>{formatCurrency(payroll.earnedHRA)}</TableCell>
                 <TableCell>{formatCurrency(payroll.earnedConveyance)}</TableCell>
@@ -747,7 +747,7 @@ function SalaryStructuresTable({
         </TableHeader>
         <TableBody>
           {structures.map((structure) => {
-            const user = users.find(u => u.id === structure.userId);
+            const structureUser = users.find((u: any) => u.id === structure.userId);
             const customEarningsTotal = Object.values(structure.customEarnings).reduce((sum, val) => sum + val, 0);
             const customDeductionsTotal = Object.values(structure.customDeductions).reduce((sum, val) => sum + val, 0);
             
@@ -755,11 +755,11 @@ function SalaryStructuresTable({
               <TableRow key={structure.id}>
                 <TableCell>
                   <div>
-                    <div className="font-medium">{user?.displayName}</div>
+                    <div className="font-medium">{structureUser?.displayName}</div>
                     <div className="text-sm text-muted-foreground">{structure.employeeId}</div>
                   </div>
                 </TableCell>
-                <TableCell>{user?.department?.toUpperCase()}</TableCell>
+                <TableCell>{structureUser?.department?.toUpperCase()}</TableCell>
                 <TableCell>{formatCurrency(structure.fixedBasic)}</TableCell>
                 <TableCell>{formatCurrency(structure.fixedHRA)}</TableCell>
                 <TableCell>{formatCurrency(structure.fixedConveyance)}</TableCell>
@@ -1162,7 +1162,7 @@ function SalaryStructureForm({
             <Checkbox
               id="epfApplicable"
               checked={formData.epfApplicable}
-              onCheckedChange={(checked) => setFormData({ ...formData, epfApplicable: !!checked })}
+              onCheckedChange={(checked) => setFormData({ ...formData, epfApplicable: checked === true })}
             />
             <Label htmlFor="epfApplicable">EPF Applicable</Label>
           </div>
@@ -1170,7 +1170,7 @@ function SalaryStructureForm({
             <Checkbox
               id="esiApplicable"
               checked={formData.esiApplicable}
-              onCheckedChange={(checked) => setFormData({ ...formData, esiApplicable: !!checked })}
+              onCheckedChange={(checked) => setFormData({ ...formData, esiApplicable: checked === true })}
             />
             <Label htmlFor="esiApplicable">ESI Applicable</Label>
           </div>
@@ -1391,7 +1391,7 @@ function PayrollSettingsForm({
             <Checkbox
               id="autoCalculateStatutory"
               checked={formData.autoCalculateStatutory}
-              onCheckedChange={(checked) => setFormData({ ...formData, autoCalculateStatutory: !!checked })}
+              onCheckedChange={(checked) => setFormData({ ...formData, autoCalculateStatutory: checked === true })}
             />
             <Label htmlFor="autoCalculateStatutory">Auto Calculate Statutory Deductions</Label>
           </div>
@@ -1399,7 +1399,7 @@ function PayrollSettingsForm({
             <Checkbox
               id="allowManualOverride"
               checked={formData.allowManualOverride}
-              onCheckedChange={(checked) => setFormData({ ...formData, allowManualOverride: !!checked })}
+              onCheckedChange={(checked) => setFormData({ ...formData, allowManualOverride: checked === true })}
             />
             <Label htmlFor="allowManualOverride">Allow Manual Override</Label>
           </div>
