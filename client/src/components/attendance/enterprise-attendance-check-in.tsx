@@ -71,6 +71,7 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
 
   // Camera states
   const [isCameraActive, setIsCameraActive] = useState(false);
+  const [isVideoReady, setIsVideoReady] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -327,15 +328,42 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
       
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
-        videoRef.current.play();
+        
+        // Wait for video metadata to load before playing
+        videoRef.current.onloadedmetadata = () => {
+          console.log('CAMERA: Video metadata loaded, starting playback');
+          if (videoRef.current) {
+            videoRef.current.play().then(() => {
+              console.log('CAMERA: Video playing successfully');
+              setIsVideoReady(true);
+              toast({
+                title: "Camera Ready",
+                description: "Position yourself in the frame and click Capture",
+                variant: "default",
+              });
+            }).catch((playError) => {
+              console.error('CAMERA: Video play failed:', playError);
+              toast({
+                title: "Camera Display Error",
+                description: "Camera started but display failed. Try again.",
+                variant: "destructive",
+              });
+            });
+          }
+        };
+        
+        // Handle video errors
+        videoRef.current.onerror = (error) => {
+          console.error('CAMERA: Video element error:', error);
+          toast({
+            title: "Camera Display Error",
+            description: "Video display failed. Please try again.",
+            variant: "destructive",
+          });
+        };
+        
         console.log('CAMERA: Video stream attached to element');
       }
-      
-      toast({
-        title: "Camera Ready",
-        description: "Position yourself in the frame and click Capture",
-        variant: "default",
-      });
       
     } catch (error) {
       console.error('CAMERA: Access failed:', error);
@@ -402,6 +430,7 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
   const resetPhoto = () => {
     console.log('CAMERA: Resetting photo and stopping camera...');
     setCapturedPhoto(null);
+    setIsVideoReady(false);
     if (stream) {
       stream.getTracks().forEach(track => {
         track.stop();
@@ -624,18 +653,40 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
 
                 {isCameraActive && (
                   <div className="space-y-2">
-                    <div className="relative">
+                    <div className="relative bg-black rounded border overflow-hidden">
                       <video 
                         ref={videoRef} 
                         autoPlay 
                         playsInline
                         muted
-                        className="w-full h-64 object-cover rounded border bg-gray-100"
-                        style={{ transform: 'scaleX(-1)' }} // Mirror effect for selfie
+                        className="w-full h-64 object-cover"
+                        style={{ 
+                          transform: 'scaleX(-1)',
+                          minHeight: '16rem',
+                          backgroundColor: '#000'
+                        }}
+                        onCanPlay={() => {
+                          console.log('CAMERA: Video can play - stream is ready');
+                        }}
+                        onLoadedData={() => {
+                          console.log('CAMERA: Video data loaded');
+                        }}
+                        onPlaying={() => {
+                          console.log('CAMERA: Video is now playing');
+                        }}
                       />
                       <div className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded">
                         LIVE
                       </div>
+                      {/* Loading indicator overlay */}
+                      {!isVideoReady && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 text-white text-sm">
+                          <div className="text-center">
+                            <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+                            <div>Loading camera...</div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                     <div className="flex gap-2">
                       <Button onClick={capturePhoto} className="flex-1">
