@@ -335,13 +335,10 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
       setIsCameraActive(true);
       setIsVideoReady(false);
       
+      // Video element should now be available since it's always rendered
       if (videoRef.current) {
         const video = videoRef.current;
         console.log('CAMERA: Video element found, setting up...');
-        
-        // Clear any existing content and reset state
-        video.srcObject = null;
-        video.load();
         
         // Set essential video properties
         video.muted = true;
@@ -349,64 +346,29 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
         video.autoplay = true;
         video.controls = false;
         
-        // Remove any existing event listeners
-        const newVideo = video.cloneNode(true) as HTMLVideoElement;
-        video.parentNode?.replaceChild(newVideo, video);
-        (videoRef as any).current = newVideo;
-        
-        // Set up event handlers for the new video element
-        const handleCanPlay = () => {
-          console.log('CAMERA: Video can play - setting ready state');
-          setIsVideoReady(true);
-        };
-        
-        const handleLoadedMetadata = () => {
-          console.log('CAMERA: Video metadata loaded, dimensions:', {
-            width: newVideo.videoWidth,
-            height: newVideo.videoHeight
-          });
-        };
-        
-        const handlePlaying = () => {
-          console.log('CAMERA: Video is now playing');
-          setIsVideoReady(true);
-        };
-        
-        const handleError = (e: Event) => {
-          console.error('CAMERA: Video error:', e);
-          toast({
-            title: "Camera Error",
-            description: "Video playback failed. Please try again.",
-            variant: "destructive",
-          });
-        };
-        
-        // Add event listeners
-        newVideo.addEventListener('canplay', handleCanPlay);
-        newVideo.addEventListener('loadedmetadata', handleLoadedMetadata);
-        newVideo.addEventListener('playing', handlePlaying);
-        newVideo.addEventListener('error', handleError);
-        
-        // Assign the stream to the new video element
+        // Assign the stream to the video element
         console.log('CAMERA: Assigning stream to video element');
-        newVideo.srcObject = mediaStream;
+        video.srcObject = mediaStream;
         
         // Force play
         setTimeout(async () => {
           try {
-            await newVideo.play();
+            await video.play();
             console.log('CAMERA: Video play successful');
           } catch (playError) {
             console.warn('CAMERA: Auto-play failed, but stream should still be visible:', playError);
-            // Even if autoplay fails, the stream should be visible
-            setIsVideoReady(true);
           }
         }, 100);
         
         console.log('CAMERA: Video setup complete');
       } else {
         console.error('CAMERA: Video ref is null!');
-        throw new Error('Video element not available');
+        toast({
+          title: "Camera Error",
+          description: "Camera display not available. Please try again.",
+          variant: "destructive",
+        });
+        setIsCameraActive(false);
       }
       
     } catch (error) {
@@ -729,45 +691,53 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
                   </Button>
                 )}
 
-                {isCameraActive && (
-                  <div className="space-y-2">
-                    <div className="relative bg-black rounded border overflow-hidden">
-                      <video 
-                        ref={videoRef} 
-                        autoPlay 
-                        playsInline
-                        muted
-                        className="w-full h-64 object-cover"
-                        style={{ 
-                          transform: 'scaleX(-1)',
-                          minHeight: '16rem',
-                          backgroundColor: '#000'
-                        }}
-                        onCanPlay={() => {
-                          console.log('CAMERA: Video can play - stream is ready');
-                        }}
-                        onLoadedData={() => {
-                          console.log('CAMERA: Video data loaded');
-                        }}
-                        onPlaying={() => {
-                          console.log('CAMERA: Video is now playing');
-                        }}
-                      />
-                      <div className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded">
-                        LIVE
-                      </div>
-                      {/* Loading indicator overlay */}
-                      {!isVideoReady && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 text-white text-sm">
-                          <div className="text-center">
-                            <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
-                            <div>Loading camera...</div>
-                          </div>
-                        </div>
-                      )}
+                {/* Camera view - always render video element but hide when not active */}
+                <div className="space-y-2" style={{ display: isCameraActive ? 'block' : 'none' }}>
+                  <div className="relative bg-black rounded border overflow-hidden">
+                    <video 
+                      ref={videoRef} 
+                      autoPlay 
+                      playsInline
+                      muted
+                      className="w-full h-64 object-cover"
+                      style={{ 
+                        transform: 'scaleX(-1)',
+                        minHeight: '16rem',
+                        backgroundColor: '#000'
+                      }}
+                      onCanPlay={() => {
+                        console.log('CAMERA: Video can play - stream is ready');
+                        setIsVideoReady(true);
+                      }}
+                      onLoadedData={() => {
+                        console.log('CAMERA: Video data loaded');
+                        setIsVideoReady(true);
+                      }}
+                      onPlaying={() => {
+                        console.log('CAMERA: Video is now playing');
+                        setIsVideoReady(true);
+                      }}
+                      onLoadedMetadata={() => {
+                        console.log('CAMERA: Video metadata loaded');
+                        setIsVideoReady(true);
+                      }}
+                    />
+                    <div className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded">
+                      LIVE
                     </div>
+                    {/* Loading indicator overlay */}
+                    {!isVideoReady && isCameraActive && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 text-white text-sm">
+                        <div className="text-center">
+                          <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+                          <div>Loading camera...</div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  {isCameraActive && (
                     <div className="flex gap-2">
-                      <Button onClick={capturePhoto} className="flex-1">
+                      <Button onClick={capturePhoto} className="flex-1" disabled={!isVideoReady}>
                         <Camera className="h-4 w-4 mr-2" />
                         Capture Photo
                       </Button>
@@ -775,8 +745,8 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
                         Cancel
                       </Button>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
 
                 {capturedPhoto && (
                   <div className="space-y-2">
