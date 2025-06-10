@@ -293,6 +293,32 @@ export function AttendanceCheckOut({
         </DialogHeader>
 
         <div className="space-y-6">
+          {/* Department Timing Info */}
+          {departmentTiming && (
+            <Card className="bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200">
+              <CardContent className="p-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
+                  <div>
+                    <div className="text-xs text-muted-foreground">Check-in Time</div>
+                    <div className="text-sm font-semibold text-green-600">{formatTimeString(departmentTiming.checkInTime)}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">Check-out Time</div>
+                    <div className="text-sm font-semibold text-red-600">{formatTimeString(departmentTiming.checkOutTime)}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">Working Hours</div>
+                    <div className="text-sm font-semibold text-blue-600">{departmentTiming.workingHours}h</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">OT Threshold</div>
+                    <div className="text-sm font-semibold text-orange-600">{departmentTiming.overtimeThresholdMinutes}m</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Work Summary */}
           <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
             <CardContent className="p-4">
@@ -307,11 +333,21 @@ export function AttendanceCheckOut({
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Current Time:</span>
+                  <span className="text-sm">{formatTime(new Date())}</span>
+                </div>
+                <div className="flex items-center justify-between">
                   <span className="text-sm font-medium">Total Working Time:</span>
-                  <span className="text-sm">
+                  <span className="text-sm font-semibold">
                     {overtimeInfo.totalWorkingHours}h {overtimeInfo.totalWorkingMinutes}m
                   </span>
                 </div>
+                {departmentTiming && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Standard Hours:</span>
+                    <span className="text-sm">{departmentTiming.workingHours}h</span>
+                  </div>
+                )}
                 {overtimeInfo.hasOvertime && (
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-orange-600">Overtime:</span>
@@ -373,7 +409,7 @@ export function AttendanceCheckOut({
                       Early Checkout Detected
                     </p>
                     <p className="text-sm text-amber-700">
-                      You are checking out before the expected time ({departmentTiming?.checkOutTime || "18:30"}). Please provide a reason below.
+                      You are checking out before the expected time ({formatTimeString(departmentTiming?.checkOutTime || "18:30")}). Please provide a reason below.
                     </p>
                   </div>
                 </AlertDescription>

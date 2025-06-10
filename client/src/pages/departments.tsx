@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuthContext } from "@/contexts/auth-context";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatTimeString } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { apiRequest } from "@/lib/queryClient";
@@ -330,7 +330,7 @@ export default function Departments() {
                       <TableCell>
                         {timing ? (
                           <div className="text-sm">
-                            <div>{timing.checkInTime} - {timing.checkOutTime}</div>
+                            <div>{formatTimeString(timing.checkInTime)} - {formatTimeString(timing.checkOutTime)}</div>
                             <div className="text-muted-foreground">{timing.workingHours}h working</div>
                           </div>
                         ) : (
