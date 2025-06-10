@@ -327,42 +327,39 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
       setIsCameraActive(true);
       
       if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
+        const video = videoRef.current;
+        console.log('CAMERA: Setting up video element');
         
-        // Wait for video metadata to load before playing
-        videoRef.current.onloadedmetadata = () => {
-          console.log('CAMERA: Video metadata loaded, starting playback');
-          if (videoRef.current) {
-            videoRef.current.play().then(() => {
-              console.log('CAMERA: Video playing successfully');
-              setIsVideoReady(true);
-              toast({
-                title: "Camera Ready",
-                description: "Position yourself in the frame and click Capture",
-                variant: "default",
-              });
-            }).catch((playError) => {
-              console.error('CAMERA: Video play failed:', playError);
-              toast({
-                title: "Camera Display Error",
-                description: "Camera started but display failed. Try again.",
-                variant: "destructive",
-              });
-            });
-          }
+        // Set video properties
+        video.muted = true;
+        video.playsInline = true;
+        video.autoplay = true;
+        
+        // Simple direct assignment
+        video.srcObject = mediaStream;
+        
+        // Use simple property-based event handlers
+        video.onloadedmetadata = () => {
+          console.log('CAMERA: Metadata loaded');
+          setIsVideoReady(true);
         };
         
-        // Handle video errors
-        videoRef.current.onerror = (error) => {
-          console.error('CAMERA: Video element error:', error);
-          toast({
-            title: "Camera Display Error",
-            description: "Video display failed. Please try again.",
-            variant: "destructive",
-          });
+        video.oncanplay = () => {
+          console.log('CAMERA: Can play');
+          setIsVideoReady(true);
         };
         
-        console.log('CAMERA: Video stream attached to element');
+        video.onerror = (e) => {
+          console.error('CAMERA: Video error:', e);
+        };
+        
+        // Immediately try to play
+        video.play().catch(e => {
+          console.log('CAMERA: Autoplay failed, but stream should be visible:', e);
+          setIsVideoReady(true); // Set ready even if autoplay fails
+        });
+        
+        console.log('CAMERA: Video setup complete');
       }
       
     } catch (error) {
@@ -431,6 +428,19 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
     console.log('CAMERA: Resetting photo and stopping camera...');
     setCapturedPhoto(null);
     setIsVideoReady(false);
+    
+    if (videoRef.current) {
+      // Clean up event listeners if they exist
+      const video = videoRef.current;
+      if ((video as any).cameraCleanup) {
+        (video as any).cameraCleanup();
+        delete (video as any).cameraCleanup;
+      }
+      
+      // Clear video source
+      video.srcObject = null;
+    }
+    
     if (stream) {
       stream.getTracks().forEach(track => {
         track.stop();
