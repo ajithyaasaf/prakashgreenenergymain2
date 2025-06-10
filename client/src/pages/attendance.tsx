@@ -135,13 +135,25 @@ export default function Attendance() {
 
   return (
     <div className="space-y-6">
-      {/* Header Section */}
+      {/* Breadcrumb Navigation */}
+      <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+        <span>Dashboard</span>
+        <span>/</span>
+        <span className="font-medium text-foreground">Attendance</span>
+      </div>
+
+      {/* Header Section with Clear Status */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Attendance Management</h1>
-          <p className="text-muted-foreground">
-            Track employee attendance with geolocation verification and overtime monitoring
-          </p>
+          <h1 className="text-3xl font-bold tracking-tight">My Attendance</h1>
+          <div className="flex items-center gap-4 mt-2">
+            <p className="text-muted-foreground">Track your daily attendance and work hours</p>
+            {todayAttendance && (
+              <Badge variant={todayAttendance.checkOutTime ? "default" : "secondary"} className="text-xs">
+                {todayAttendance.checkOutTime ? "Day Complete" : todayAttendance.checkInTime ? "Checked In" : "Not Started"}
+              </Badge>
+            )}
+          </div>
         </div>
         <div className="flex gap-2">
           <Button onClick={refreshAttendance} variant="outline" size="sm">
@@ -151,52 +163,123 @@ export default function Attendance() {
         </div>
       </div>
 
-      {/* Quick Actions for Current User */}
+      {/* Today's Status Card - Primary Action Area */}
       {user && (
-        <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <UserCheck className="h-5 w-5" />
-              Today's Attendance
-            </CardTitle>
-            <CardDescription>
-              {todayAttendance ? (
-                <div className="flex items-center gap-4 text-sm">
-                  {todayAttendance.checkInTime && (
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-4 w-4" />
-                      In: {formatTime(todayAttendance.checkInTime)}
-                    </span>
-                  )}
-                  {todayAttendance.checkOutTime && (
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-4 w-4" />
-                      Out: {formatTime(todayAttendance.checkOutTime)}
-                    </span>
-                  )}
-                  {todayAttendance.overtimeHours && todayAttendance.overtimeHours > 0 && (
-                    <span className="flex items-center gap-1 text-orange-600">
-                      <Zap className="h-4 w-4" />
-                      OT: {todayAttendance.overtimeHours.toFixed(1)}h
-                    </span>
-                  )}
+        <Card className="border-2 border-primary/20 bg-gradient-to-r from-blue-50 to-indigo-50">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Activity className="h-5 w-5 text-primary" />
+                Today's Attendance
+                <span className="text-sm font-normal text-muted-foreground">
+                  ({new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })})
+                </span>
+              </CardTitle>
+              {departmentTiming && (
+                <div className="text-xs text-muted-foreground">
+                  Office: {departmentTiming.checkInTime} - {departmentTiming.checkOutTime}
                 </div>
-              ) : (
-                "No attendance record for today"
               )}
-            </CardDescription>
+            </div>
           </CardHeader>
-          <CardContent>
-            <div className="flex gap-3">
+          <CardContent className="space-y-4">
+            {/* Current Status Display */}
+            {todayAttendance ? (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="flex items-center gap-3 p-3 bg-white rounded-lg border">
+                  <div className="p-2 bg-green-100 rounded-full">
+                    <Clock className="h-4 w-4 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Check In</p>
+                    <p className="font-semibold">{formatTime(todayAttendance.checkInTime)}</p>
+                    <p className="text-xs text-muted-foreground">{todayAttendance.attendanceType || 'Office'}</p>
+                  </div>
+                </div>
+                
+                {todayAttendance.checkOutTime ? (
+                  <div className="flex items-center gap-3 p-3 bg-white rounded-lg border">
+                    <div className="p-2 bg-red-100 rounded-full">
+                      <Timer className="h-4 w-4 text-red-600" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Check Out</p>
+                      <p className="font-semibold">{formatTime(todayAttendance.checkOutTime)}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {(() => {
+                          const checkIn = new Date(todayAttendance.checkInTime);
+                          const checkOut = new Date(todayAttendance.checkOutTime);
+                          const hours = Math.floor((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60));
+                          const minutes = Math.floor(((checkOut.getTime() - checkIn.getTime()) % (1000 * 60 * 60)) / (1000 * 60));
+                          return `${hours}h ${minutes}m worked`;
+                        })()}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-dashed">
+                    <div className="p-2 bg-gray-100 rounded-full">
+                      <Timer className="h-4 w-4 text-gray-400" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Check Out</p>
+                      <p className="font-semibold text-gray-400">Pending</p>
+                      <p className="text-xs text-muted-foreground">Still working</p>
+                    </div>
+                  </div>
+                )}
+
+                {todayAttendance.overtimeHours && todayAttendance.overtimeHours > 0 ? (
+                  <div className="flex items-center gap-3 p-3 bg-white rounded-lg border border-orange-200">
+                    <div className="p-2 bg-orange-100 rounded-full">
+                      <Zap className="h-4 w-4 text-orange-600" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Overtime</p>
+                      <p className="font-semibold text-orange-600">{todayAttendance.overtimeHours.toFixed(1)}h</p>
+                      <p className="text-xs text-muted-foreground">Extra hours</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-dashed">
+                    <div className="p-2 bg-gray-100 rounded-full">
+                      <Zap className="h-4 w-4 text-gray-400" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Overtime</p>
+                      <p className="font-semibold text-gray-400">None</p>
+                      <p className="text-xs text-muted-foreground">Regular hours</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <Activity className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="font-semibold mb-2">No attendance recorded today</h3>
+                <p className="text-sm text-muted-foreground mb-4">Start your workday by checking in</p>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex gap-3 pt-2">
               {canCheckIn && (
-                <Button onClick={() => setShowCheckInModal(true)} className="bg-green-600 hover:bg-green-700">
-                  <UserCheck className="h-4 w-4 mr-2" />
-                  Check In
+                <Button 
+                  onClick={() => setShowCheckInModal(true)} 
+                  className="bg-green-600 hover:bg-green-700 flex-1 h-12"
+                  size="lg"
+                >
+                  <UserCheck className="h-5 w-5 mr-2" />
+                  Check In Now
                 </Button>
               )}
               {canCheckOut && (
-                <Button onClick={() => setShowCheckOutModal(true)} className="bg-red-600 hover:bg-red-700">
-                  <Timer className="h-4 w-4 mr-2" />
+                <Button 
+                  onClick={() => setShowCheckOutModal(true)} 
+                  className="bg-red-600 hover:bg-red-700 flex-1 h-12"
+                  size="lg"
+                >
+                  <Timer className="h-5 w-5 mr-2" />
                   Check Out
                 </Button>
               )}
@@ -210,94 +293,71 @@ export default function Attendance() {
         </Card>
       )}
 
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.total}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Present</CardTitle>
-            <UserCheck className="h-4 w-4 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{stats.present}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Absent</CardTitle>
-            <Activity className="h-4 w-4 text-red-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">{stats.absent}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Late</CardTitle>
-            <Clock className="h-4 w-4 text-yellow-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">{stats.late}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Overtime</CardTitle>
-            <Zap className="h-4 w-4 text-orange-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{stats.overtime}</div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Attendance Records */}
+      {/* Weekly Summary Section */}
       <Card>
         <CardHeader>
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-              <CardTitle>Attendance Records</CardTitle>
-              <CardDescription>
-                View and manage employee attendance for {formatDate(date)}
-              </CardDescription>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5" />
+            Weekly Summary
+          </CardTitle>
+          <CardDescription>Your attendance performance this week</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="text-center p-4 bg-green-50 rounded-lg border border-green-200">
+              <div className="text-2xl font-bold text-green-600">{stats.present}</div>
+              <div className="text-xs text-green-700">Days Present</div>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search employees..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-8 w-64"
-                />
+            <div className="text-center p-4 bg-orange-50 rounded-lg border border-orange-200">
+              <div className="text-2xl font-bold text-orange-600">{stats.overtime}</div>
+              <div className="text-xs text-orange-700">Overtime Days</div>
+            </div>
+            <div className="text-center p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+              <div className="text-2xl font-bold text-yellow-600">{stats.late}</div>
+              <div className="text-xs text-yellow-700">Late Arrivals</div>
+            </div>
+            <div className="text-center p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="text-2xl font-bold text-blue-600">
+                {stats.total > 0 ? Math.round((stats.present / stats.total) * 100) : 0}%
               </div>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="justify-start text-left font-normal">
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {formatDate(date)}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="end">
-                  <Calendar
-                    mode="single"
-                    selected={date}
-                    onSelect={(newDate) => newDate && setDate(newDate)}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
+              <div className="text-xs text-blue-700">Attendance Rate</div>
             </div>
           </div>
-        </CardHeader>
+        </CardContent>
+      </Card>
+
+      {/* Attendance History with Improved Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h2 className="text-xl font-semibold">Attendance History</h2>
+            <p className="text-sm text-muted-foreground">Track your daily attendance records and patterns</p>
+          </div>
+          <TabsList className="grid w-full sm:w-auto grid-cols-3">
+            <TabsTrigger value="today">Today</TabsTrigger>
+            <TabsTrigger value="week">This Week</TabsTrigger>
+            <TabsTrigger value="month">This Month</TabsTrigger>
+          </TabsList>
+        </div>
+
+        <TabsContent value="today" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <CardTitle className="text-lg">Today's Details</CardTitle>
+                <div className="flex items-center gap-2">
+                  <div className="relative">
+                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search records..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-8 w-48"
+                    />
+                  </div>
+                </div>
+              </div>
+            </CardHeader>
         <CardContent>
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
@@ -386,7 +446,177 @@ export default function Attendance() {
             </div>
           )}
         </CardContent>
-      </Card>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="week" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">This Week's Records</CardTitle>
+              <CardDescription>
+                Showing attendance records for the current week
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin" />
+                </div>
+              ) : filteredAttendance.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  No attendance records found for this week
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {filteredAttendance.slice(0, 7).map((record: any) => (
+                    <div key={record.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border">
+                      <div className="flex items-center gap-4">
+                        <div className="flex flex-col">
+                          <span className="font-medium">{formatDate(record.checkInTime)}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(record.checkInTime).toLocaleDateString('en-US', { weekday: 'short' })}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Clock className="h-4 w-4 text-green-600" />
+                          <span className="text-sm">{formatTime(record.checkInTime)}</span>
+                          {record.checkOutTime && (
+                            <>
+                              <span className="text-muted-foreground">→</span>
+                              <Timer className="h-4 w-4 text-red-600" />
+                              <span className="text-sm">{formatTime(record.checkOutTime)}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant={record.status === 'present' ? 'default' : record.status === 'late' ? 'secondary' : 'destructive'}>
+                          {record.status}
+                        </Badge>
+                        {record.overtimeHours && record.overtimeHours > 0 && (
+                          <Badge variant="outline" className="text-orange-600">
+                            <Zap className="h-3 w-3 mr-1" />
+                            {record.overtimeHours.toFixed(1)}h OT
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="month" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                  <CardTitle className="text-lg">Monthly Overview</CardTitle>
+                  <CardDescription>
+                    Comprehensive view of your monthly attendance
+                  </CardDescription>
+                </div>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="justify-start text-left font-normal">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {formatDate(date)}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="end">
+                    <Calendar
+                      mode="single"
+                      selected={date}
+                      onSelect={(newDate) => newDate && setDate(newDate)}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin" />
+                </div>
+              ) : filteredAttendance.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  No attendance records found for the selected month
+                </div>
+              ) : (
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Check In</TableHead>
+                        <TableHead>Check Out</TableHead>
+                        <TableHead>Hours</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredAttendance.map((record: any) => (
+                        <TableRow key={record.id}>
+                          <TableCell>
+                            <div className="flex flex-col">
+                              <span className="font-medium">{formatDate(record.checkInTime)}</span>
+                              <span className="text-xs text-muted-foreground">
+                                {new Date(record.checkInTime).toLocaleDateString('en-US', { weekday: 'short' })}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {record.checkInTime ? formatTime(record.checkInTime) : '-'}
+                          </TableCell>
+                          <TableCell>
+                            {record.checkOutTime ? formatTime(record.checkOutTime) : '-'}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              {record.workingHours ? (
+                                <>
+                                  <span>{record.workingHours.toFixed(1)}h</span>
+                                  {record.overtimeHours && record.overtimeHours > 0 && (
+                                    <Badge variant="secondary" className="bg-orange-100 text-orange-800">
+                                      <Zap className="h-3 w-3 mr-1" />
+                                      +{record.overtimeHours.toFixed(1)}h
+                                    </Badge>
+                                  )}
+                                </>
+                              ) : '-'}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={
+                              record.attendanceType === 'office' ? 'default' :
+                              record.attendanceType === 'remote' ? 'secondary' : 'outline'
+                            }>
+                              {record.attendanceType === 'office' ? 'Office' :
+                               record.attendanceType === 'remote' ? 'Remote' : 'Field Work'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={
+                              record.status === 'present' ? 'default' :
+                              record.status === 'late' ? 'secondary' : 'destructive'
+                            }>
+                              {record.status}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Check-in Modal */}
       <EnterpriseAttendanceCheckIn
