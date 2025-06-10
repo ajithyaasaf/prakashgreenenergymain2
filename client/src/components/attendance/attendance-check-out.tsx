@@ -430,50 +430,70 @@ export function AttendanceCheckOut({
             <div className="space-y-4">
               <Label>Overtime Photo Verification *</Label>
               
-              {!capturedPhoto ? (
-                <div className="space-y-4">
-                  {!isCameraActive ? (
-                    <Button onClick={startCamera} variant="outline" className="w-full">
-                      <Camera className="h-4 w-4 mr-2" />
-                      Start Camera for OT Verification
-                    </Button>
-                  ) : (
-                    <div className="space-y-4">
-                      <div className="relative bg-gray-100 rounded-lg overflow-hidden">
-                        <video
-                          ref={videoRef}
-                          autoPlay
-                          playsInline
-                          className="w-full h-64 object-cover"
-                        />
-                      </div>
-                      <div className="flex gap-2">
-                        <Button onClick={capturePhoto} className="flex-1">
-                          <Camera className="h-4 w-4 mr-2" />
-                          Capture Photo
-                        </Button>
-                        <Button onClick={stopCamera} variant="outline">
-                          Cancel
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="relative bg-gray-100 rounded-lg overflow-hidden">
-                    <img
-                      src={capturedPhoto}
-                      alt="Overtime verification photo"
-                      className="w-full h-64 object-cover"
-                    />
+              {!capturedPhoto && !isCameraActive && (
+                <Button onClick={startCamera} variant="outline" className="w-full">
+                  <Camera className="h-4 w-4 mr-2" />
+                  Take Photo for OT Verification
+                </Button>
+              )}
+
+              {/* Camera view - always render video element but hide when not active */}
+              <div className="space-y-2" style={{ display: isCameraActive ? 'block' : 'none' }}>
+                <div className="relative bg-black rounded border overflow-hidden">
+                  <video 
+                    ref={videoRef} 
+                    autoPlay 
+                    playsInline
+                    muted
+                    className="w-full h-64 object-cover"
+                    style={{ 
+                      transform: 'scaleX(-1)',
+                      minHeight: '16rem',
+                      backgroundColor: '#000'
+                    }}
+                    onCanPlay={() => {
+                      console.log('CAMERA: Overtime video can play - stream is ready');
+                    }}
+                    onLoadedData={() => {
+                      console.log('CAMERA: Overtime video data loaded');
+                    }}
+                    onPlaying={() => {
+                      console.log('CAMERA: Overtime video is now playing');
+                    }}
+                    onLoadedMetadata={() => {
+                      console.log('CAMERA: Overtime video metadata loaded');
+                    }}
+                  />
+                  <div className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded">
+                    LIVE - OT VERIFICATION
                   </div>
-                  <Button
+                </div>
+                {isCameraActive && (
+                  <div className="flex gap-2">
+                    <Button onClick={capturePhoto} className="flex-1">
+                      <Camera className="h-4 w-4 mr-2" />
+                      Capture Photo
+                    </Button>
+                    <Button onClick={stopCamera} variant="outline">
+                      Cancel
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              {capturedPhoto && (
+                <div className="space-y-2">
+                  <img 
+                    src={capturedPhoto} 
+                    alt="Overtime verification photo" 
+                    className="w-full rounded border" 
+                  />
+                  <Button 
                     onClick={() => {
                       setCapturedPhoto(null);
                       startCamera();
-                    }}
-                    variant="outline"
+                    }} 
+                    variant="outline" 
                     className="w-full"
                   >
                     Retake Photo
