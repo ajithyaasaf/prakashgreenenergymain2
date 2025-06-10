@@ -14,55 +14,100 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { 
-  Calculator, DollarSign, FileText, Download, Upload, Settings, 
+  Calculator, FileText, Download, Upload, Settings, 
   Users, Plus, Edit, Trash2, Eye, CheckCircle, XCircle, 
-  AlertCircle, TrendingUp, PieChart, BarChart3, Calendar
+  AlertCircle, TrendingUp, PieChart, BarChart3, Calendar,
+  IndianRupee, Clock, UserCheck, FileSpreadsheet, Save,
+  RefreshCw, Filter, Search, ChevronDown, ChevronUp,
+  Briefcase, MapPin, DollarSign
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+
+// Interface matching the salary sheet structure from the image
+interface EmployeePayrollData {
+  id: string;
+  userId: string;
+  employeeId: string;
+  designation: string;
+  department: string;
+  dateOfJoining: string;
+  
+  // Fixed Salary Components
+  fixedBasic: number;
+  fixedHra: number;
+  
+  // Days/Hours Data
+  monthDays: number;
+  presentDays: number;
+  paidDays: number;
+  perDaySalary: number;
+  otHours: number;
+  perDayOt: number;
+  
+  // Variable Components
+  betta: number;
+  
+  // Earned Salary
+  earnedBasic: number;
+  earnedHra: number;
+  grossSalary: number;
+  overtimeAmount: number;
+  finalGross: number;
+  
+  // Deductions
+  epf: number;
+  vpf: number;
+  esi: number;
+  fine: number;
+  credit: number;
+  salaryAdvance: number;
+  totalDeduction: number;
+  
+  // Final Amount
+  netSalary: number;
+  remarks: string;
+  
+  // Status and Metadata
+  month: number;
+  year: number;
+  status: "draft" | "pending" | "approved" | "paid" | "cancelled";
+  processedBy?: string;
+  approvedBy?: string;
+  userName?: string;
+  userEmail?: string;
+}
 
 interface SalaryStructure {
   id: string;
   userId: string;
   employeeId: string;
-  fixedSalary: number;
-  basicSalary: number;
-  hra: number;
-  allowances: number;
-  variableComponent: number;
-  effectiveFrom: Date;
+  userName: string;
+  designation: string;
+  department: string;
+  dateOfJoining: string;
+  fixedBasic: number;
+  fixedHra: number;
   isActive: boolean;
+  effectiveFrom: Date;
+  createdBy: string;
 }
 
-interface PayrollRecord {
+interface PayrollSettings {
   id: string;
-  userId: string;
-  employeeId: string;
-  month: number;
-  year: number;
-  workingDays: number;
-  presentDays: number;
-  absentDays: number;
-  overtimeHours: number;
-  leaveDays: number;
-  fixedSalary: number;
-  basicSalary: number;
-  hra: number;
-  allowances: number;
-  variableComponent: number;
-  overtimePay: number;
-  grossSalary: number;
-  pfDeduction: number;
-  esiDeduction: number;
-  tdsDeduction: number;
-  advanceDeduction: number;
-  totalDeductions: number;
-  netSalary: number;
-  status: "draft" | "pending" | "approved" | "paid" | "cancelled";
-  userName?: string;
-  userDepartment?: string;
-  userDesignation?: string;
+  pfRate: number;
+  esiRate: number;
+  tdsRate: number;
+  overtimeMultiplier: number;
+  standardWorkingHours: number;
+  standardWorkingDays: number;
+  pfApplicableFromSalary: number;
+  esiApplicableFromSalary: number;
+  companyName: string;
+  updatedBy: string;
 }
 
 export default function PayrollManagement() {
@@ -70,27 +115,38 @@ export default function PayrollManagement() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  // Period Selection States
+  const currentDate = new Date();
+  const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
   const [selectedDepartment, setSelectedDepartment] = useState<string>("all");
-  const [activeTab, setActiveTab] = useState("overview");
   
-  // Modal states
+  // View and Filter States
+  const [activeTab, setActiveTab] = useState("payroll-sheet");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedEmployees, setSelectedEmployees] = useState<Set<string>>(new Set());
+  
+  // Modal States
   const [showSalaryModal, setShowSalaryModal] = useState(false);
   const [showProcessModal, setShowProcessModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showBulkActionsModal, setShowBulkActionsModal] = useState(false);
   const [editingSalary, setEditingSalary] = useState<SalaryStructure | null>(null);
   
-  // Form states
+  // Form States
   const [salaryForm, setSalaryForm] = useState({
     userId: '',
     employeeId: '',
-    fixedSalary: 0,
-    basicSalary: 0,
-    hra: 0,
-    allowances: 0,
-    variableComponent: 0
+    designation: '',
+    department: '',
+    dateOfJoining: '',
+    fixedBasic: 0,
+    fixedHra: 0
   });
+
+  // Processing States
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [processingProgress, setProcessingProgress] = useState(0);
 
   // Fetch payroll data for selected month/year
   const { data: payrollData = [], isLoading: isLoadingPayroll, refetch: refetchPayroll } = useQuery({
@@ -102,69 +158,113 @@ export default function PayrollManagement() {
         ...(selectedDepartment !== "all" && { department: selectedDepartment })
       });
       
-      const response = await fetch(`/api/payroll?${params}`);
+      const token = await user?.firebaseUser?.getIdToken();
+      const response = await fetch(`/api/payroll?${params}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        }
+      });
       if (!response.ok) throw new Error('Failed to fetch payroll data');
       return response.json();
     },
+    enabled: !!user?.firebaseUser
   });
 
   // Fetch salary structures
   const { data: salaryStructures = [] } = useQuery({
     queryKey: ['/api/salary-structures'],
     queryFn: async () => {
-      const response = await fetch('/api/salary-structures');
+      const token = await user?.firebaseUser?.getIdToken();
+      const response = await fetch('/api/salary-structures', {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        }
+      });
       if (!response.ok) throw new Error('Failed to fetch salary structures');
       return response.json();
     },
+    enabled: !!user?.firebaseUser
   });
 
   // Fetch payroll settings
   const { data: payrollSettings } = useQuery({
     queryKey: ['/api/payroll-settings'],
     queryFn: async () => {
-      const response = await fetch('/api/payroll-settings');
+      const token = await user?.firebaseUser?.getIdToken();
+      const response = await fetch('/api/payroll-settings', {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        }
+      });
       if (!response.ok) throw new Error('Failed to fetch payroll settings');
       return response.json();
     },
+    enabled: !!user?.firebaseUser
   });
 
   // Fetch payroll statistics
   const { data: payrollStats } = useQuery({
     queryKey: ['/api/payroll/stats', { month: selectedMonth, year: selectedYear }],
     queryFn: async () => {
-      const response = await fetch(`/api/payroll/stats?month=${selectedMonth}&year=${selectedYear}`);
+      const token = await user?.firebaseUser?.getIdToken();
+      const response = await fetch(`/api/payroll/stats?month=${selectedMonth}&year=${selectedYear}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        }
+      });
       if (!response.ok) throw new Error('Failed to fetch payroll statistics');
       return response.json();
     },
+    enabled: !!user?.firebaseUser
   });
 
   // Fetch users for salary structure assignment
   const { data: users = [] } = useQuery({
     queryKey: ['/api/users'],
     queryFn: async () => {
-      const response = await fetch('/api/users');
+      const token = await user?.firebaseUser?.getIdToken();
+      const response = await fetch('/api/users', {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        }
+      });
       if (!response.ok) throw new Error('Failed to fetch users');
       return response.json();
     },
+    enabled: !!user?.firebaseUser
   });
 
   // Process payroll mutation
   const processPayrollMutation = useMutation({
     mutationFn: async ({ month, year, userIds }: { month: number; year: number; userIds?: string[] }) => {
-      return apiRequest('/api/payroll/process', {
+      const token = await user?.firebaseUser?.getIdToken();
+      const response = await fetch('/api/payroll/process', {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ month, year, userIds })
       });
+      if (!response.ok) throw new Error('Failed to process payroll');
+      return response.json();
     },
     onSuccess: () => {
       refetchPayroll();
       setShowProcessModal(false);
+      setIsProcessing(false);
       toast({
         title: "Success",
         description: "Payroll processed successfully",
       });
     },
     onError: (error: any) => {
+      setIsProcessing(false);
       toast({
         title: "Error",
         description: error.message || "Failed to process payroll",
@@ -176,9 +276,15 @@ export default function PayrollManagement() {
   // Create/Update salary structure mutation
   const saveSalaryMutation = useMutation({
     mutationFn: async (data: any) => {
+      const token = await user?.firebaseUser?.getIdToken();
       const url = editingSalary ? `/api/salary-structures/${editingSalary.id}` : '/api/salary-structures';
       const method = editingSalary ? 'PATCH' : 'POST';
-      return apiRequest(url, { method, body: JSON.stringify(data) });
+      return apiRequest(method, url, {
+        ...data,
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/salary-structures'] });
@@ -198,62 +304,15 @@ export default function PayrollManagement() {
     },
   });
 
-  // Approve payroll mutation
-  const approvePayrollMutation = useMutation({
-    mutationFn: async (payrollIds: string[]) => {
-      return apiRequest('/api/payroll/approve', {
-        method: 'POST',
-        body: JSON.stringify({ payrollIds })
-      });
-    },
-    onSuccess: () => {
-      refetchPayroll();
-      toast({
-        title: "Success",
-        description: "Payroll records approved successfully",
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to approve payroll",
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Generate payslips mutation
-  const generatePayslipsMutation = useMutation({
-    mutationFn: async (payrollIds: string[]) => {
-      return apiRequest('/api/payroll/generate-payslips', {
-        method: 'POST',
-        body: JSON.stringify({ payrollIds })
-      });
-    },
-    onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "Payslips generated successfully",
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to generate payslips",
-        variant: "destructive",
-      });
-    },
-  });
-
   const resetSalaryForm = () => {
     setSalaryForm({
       userId: '',
       employeeId: '',
-      fixedSalary: 0,
-      basicSalary: 0,
-      hra: 0,
-      allowances: 0,
-      variableComponent: 0
+      designation: '',
+      department: '',
+      dateOfJoining: '',
+      fixedBasic: 0,
+      fixedHra: 0
     });
     setEditingSalary(null);
   };
@@ -263,11 +322,11 @@ export default function PayrollManagement() {
     setSalaryForm({
       userId: salary.userId,
       employeeId: salary.employeeId,
-      fixedSalary: salary.fixedSalary,
-      basicSalary: salary.basicSalary,
-      hra: salary.hra || 0,
-      allowances: salary.allowances || 0,
-      variableComponent: salary.variableComponent || 0
+      designation: salary.designation,
+      department: salary.department,
+      dateOfJoining: salary.dateOfJoining,
+      fixedBasic: salary.fixedBasic,
+      fixedHra: salary.fixedHra
     });
     setShowSalaryModal(true);
   };
@@ -313,6 +372,58 @@ export default function PayrollManagement() {
     }).format(amount);
   };
 
+  const getDepartmentColor = (department: string) => {
+    const colors = {
+      'cre': 'bg-blue-100 text-blue-800',
+      'accounts': 'bg-green-100 text-green-800',
+      'hr': 'bg-purple-100 text-purple-800',
+      'sales_and_marketing': 'bg-orange-100 text-orange-800',
+      'technical_team': 'bg-indigo-100 text-indigo-800'
+    };
+    return colors[department as keyof typeof colors] || 'bg-gray-100 text-gray-800';
+  };
+
+  const getDesignationLevel = (designation: string) => {
+    const levels = {
+      'director': 8,
+      'manager': 7,
+      'assistant_manager': 6,
+      'senior_executive': 5,
+      'executive': 4,
+      'junior_executive': 3,
+      'trainee': 2,
+      'intern': 1
+    };
+    return levels[designation as keyof typeof levels] || 1;
+  };
+
+  const handleSelectEmployee = (employeeId: string, checked: boolean) => {
+    const newSelected = new Set(selectedEmployees);
+    if (checked) {
+      newSelected.add(employeeId);
+    } else {
+      newSelected.delete(employeeId);
+    }
+    setSelectedEmployees(newSelected);
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const allIds = payrollData.map((emp: EmployeePayrollData) => emp.id);
+      setSelectedEmployees(new Set(allIds));
+    } else {
+      setSelectedEmployees(new Set());
+    }
+  };
+
+  const filteredPayrollData = payrollData.filter((emp: EmployeePayrollData) => {
+    const matchesSearch = emp.userName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         emp.designation.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         emp.employeeId.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesDepartment = selectedDepartment === "all" || emp.department === selectedDepartment;
+    return matchesSearch && matchesDepartment;
+  });
+
   // Check if user is master admin
   if (user?.role !== "master_admin") {
     return (
@@ -327,30 +438,41 @@ export default function PayrollManagement() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="space-y-6 p-6">
+      {/* Header Section */}
+      <div className="flex justify-between items-start">
         <div>
-          <h1 className="text-3xl font-bold">Payroll Management</h1>
-          <p className="text-gray-500">Enterprise payroll processing and management system</p>
+          <h1 className="text-3xl font-bold text-gray-900">Payroll Management</h1>
+          <p className="text-gray-500 mt-1">
+            Manage employee salaries based on attendance and performance - April 2025 Format
+          </p>
+          <div className="flex items-center mt-2 text-sm text-gray-600">
+            <Calendar className="h-4 w-4 mr-1" />
+            {new Date(selectedYear, selectedMonth - 1).toLocaleDateString('en-US', { 
+              month: 'long', 
+              year: 'numeric' 
+            })}
+          </div>
         </div>
-        <div className="flex space-x-2">
+        <div className="flex space-x-3">
           <Button 
             onClick={() => setShowSettingsModal(true)}
             variant="outline"
+            className="flex items-center"
           >
             <Settings className="h-4 w-4 mr-2" />
             Settings
           </Button>
           <Button 
             onClick={() => setShowSalaryModal(true)}
-            className="bg-blue-600 hover:bg-blue-700"
+            className="bg-blue-600 hover:bg-blue-700 flex items-center"
           >
             <Plus className="h-4 w-4 mr-2" />
-            Add Salary Structure
+            Add Employee Salary
           </Button>
           <Button 
             onClick={() => setShowProcessModal(true)}
-            className="bg-green-600 hover:bg-green-700"
+            className="bg-green-600 hover:bg-green-700 flex items-center"
           >
             <Calculator className="h-4 w-4 mr-2" />
             Process Payroll
@@ -359,14 +481,14 @@ export default function PayrollManagement() {
       </div>
 
       {/* Period and Department Selection */}
-      <Card>
+      <Card className="shadow-sm">
         <CardContent className="p-4">
           <div className="flex justify-between items-center">
             <div className="flex space-x-4">
               <div>
-                <Label htmlFor="month">Month</Label>
+                <Label htmlFor="month" className="text-sm font-medium">Month</Label>
                 <Select value={selectedMonth.toString()} onValueChange={(value) => setSelectedMonth(parseInt(value))}>
-                  <SelectTrigger className="w-32">
+                  <SelectTrigger className="w-36">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -380,9 +502,9 @@ export default function PayrollManagement() {
               </div>
               
               <div>
-                <Label htmlFor="year">Year</Label>
+                <Label htmlFor="year" className="text-sm font-medium">Year</Label>
                 <Select value={selectedYear.toString()} onValueChange={(value) => setSelectedYear(parseInt(value))}>
-                  <SelectTrigger className="w-24">
+                  <SelectTrigger className="w-28">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -399,7 +521,7 @@ export default function PayrollManagement() {
               </div>
               
               <div>
-                <Label htmlFor="department">Department</Label>
+                <Label htmlFor="department" className="text-sm font-medium">Department</Label>
                 <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
                   <SelectTrigger className="w-48">
                     <SelectValue />
@@ -414,14 +536,38 @@ export default function PayrollManagement() {
                   </SelectContent>
                 </Select>
               </div>
+
+              <div>
+                <Label htmlFor="search" className="text-sm font-medium">Search</Label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="search"
+                    placeholder="Search employees..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 w-48"
+                  />
+                </div>
+              </div>
             </div>
             
             <div className="flex space-x-2">
-              <Button variant="outline">
+              {selectedEmployees.size > 0 && (
+                <Button 
+                  variant="outline"
+                  onClick={() => setShowBulkActionsModal(true)}
+                  className="flex items-center"
+                >
+                  <Users className="h-4 w-4 mr-2" />
+                  Bulk Actions ({selectedEmployees.size})
+                </Button>
+              )}
+              <Button variant="outline" className="flex items-center">
                 <Download className="h-4 w-4 mr-2" />
-                Export Payroll
+                Export Excel
               </Button>
-              <Button variant="outline">
+              <Button variant="outline" className="flex items-center">
                 <FileText className="h-4 w-4 mr-2" />
                 Generate Reports
               </Button>
@@ -433,50 +579,50 @@ export default function PayrollManagement() {
       {/* Payroll Statistics */}
       {payrollStats && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
+          <Card className="shadow-sm">
             <CardContent className="p-4">
               <div className="flex justify-between items-center">
                 <div>
                   <p className="text-sm text-gray-500">Total Employees</p>
-                  <p className="text-2xl font-bold">{payrollStats.totalEmployees}</p>
+                  <p className="text-2xl font-bold text-gray-900">{payrollStats.totalEmployees || 0}</p>
                 </div>
                 <Users className="h-8 w-8 text-blue-600" />
               </div>
             </CardContent>
           </Card>
           
-          <Card>
+          <Card className="shadow-sm">
             <CardContent className="p-4">
               <div className="flex justify-between items-center">
                 <div>
-                  <p className="text-sm text-gray-500">Gross Salary</p>
-                  <p className="text-2xl font-bold">{formatCurrency(payrollStats.totalGrossSalary)}</p>
+                  <p className="text-sm text-gray-500">Total Gross Salary</p>
+                  <p className="text-2xl font-bold text-green-600">{formatCurrency(payrollStats.totalGrossSalary || 0)}</p>
                 </div>
                 <TrendingUp className="h-8 w-8 text-green-600" />
               </div>
             </CardContent>
           </Card>
           
-          <Card>
+          <Card className="shadow-sm">
             <CardContent className="p-4">
               <div className="flex justify-between items-center">
                 <div>
                   <p className="text-sm text-gray-500">Total Deductions</p>
-                  <p className="text-2xl font-bold">{formatCurrency(payrollStats.totalDeductions)}</p>
+                  <p className="text-2xl font-bold text-orange-600">{formatCurrency(payrollStats.totalDeductions || 0)}</p>
                 </div>
                 <PieChart className="h-8 w-8 text-orange-600" />
               </div>
             </CardContent>
           </Card>
           
-          <Card>
+          <Card className="shadow-sm">
             <CardContent className="p-4">
               <div className="flex justify-between items-center">
                 <div>
-                  <p className="text-sm text-gray-500">Net Payable</p>
-                  <p className="text-2xl font-bold">{formatCurrency(payrollStats.totalNetSalary)}</p>
+                  <p className="text-sm text-gray-500">Net Salary</p>
+                  <p className="text-2xl font-bold text-blue-600">{formatCurrency(payrollStats.totalNetSalary || 0)}</p>
                 </div>
-                <DollarSign className="h-8 w-8 text-purple-600" />
+                <DollarSign className="h-8 w-8 text-blue-600" />
               </div>
             </CardContent>
           </Card>
@@ -484,201 +630,293 @@ export default function PayrollManagement() {
       )}
 
       {/* Main Content Tabs */}
-      <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList>
-          <TabsTrigger value="overview">Payroll Overview</TabsTrigger>
-          <TabsTrigger value="salary-structures">Salary Structures</TabsTrigger>
-          <TabsTrigger value="advances">Salary Advances</TabsTrigger>
-          <TabsTrigger value="reports">Reports & Analytics</TabsTrigger>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="payroll-sheet" className="flex items-center">
+            <FileSpreadsheet className="h-4 w-4 mr-2" />
+            Payroll Sheet
+          </TabsTrigger>
+          <TabsTrigger value="salary-structures" className="flex items-center">
+            <Briefcase className="h-4 w-4 mr-2" />
+            Salary Structures
+          </TabsTrigger>
+          <TabsTrigger value="reports" className="flex items-center">
+            <BarChart3 className="h-4 w-4 mr-2" />
+            Reports & Analytics
+          </TabsTrigger>
         </TabsList>
 
-        {/* Payroll Overview Tab */}
-        <TabsContent value="overview" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>
-                Payroll for {new Date(selectedYear, selectedMonth - 1).toLocaleString('en', { month: 'long', year: 'numeric' })}
-              </CardTitle>
-              <CardDescription>
-                Comprehensive payroll data with salary components and deductions
-              </CardDescription>
+        {/* Payroll Sheet Tab - Main salary sheet like the image */}
+        <TabsContent value="payroll-sheet" className="space-y-4">
+          <Card className="shadow-sm">
+            <CardHeader className="pb-3">
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle className="text-xl">Employee Payroll Sheet</CardTitle>
+                  <CardDescription>
+                    Monthly salary calculation based on attendance, overtime, and deductions
+                  </CardDescription>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    checked={selectedEmployees.size === filteredPayrollData.length && filteredPayrollData.length > 0}
+                    onCheckedChange={handleSelectAll}
+                  />
+                  <span className="text-sm text-gray-500">Select All</span>
+                </div>
+              </div>
             </CardHeader>
-            <CardContent>
-              <div className="rounded-md border overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="min-w-[150px]">Employee</TableHead>
-                      <TableHead>Dept</TableHead>
-                      <TableHead>Working Days</TableHead>
-                      <TableHead>Present</TableHead>
-                      <TableHead>Fixed Salary</TableHead>
-                      <TableHead>Basic</TableHead>
-                      <TableHead>HRA</TableHead>
-                      <TableHead>Allowances</TableHead>
-                      <TableHead>OT Pay</TableHead>
-                      <TableHead>Gross</TableHead>
-                      <TableHead>PF</TableHead>
-                      <TableHead>ESI</TableHead>
-                      <TableHead>TDS</TableHead>
-                      <TableHead>Advance</TableHead>
-                      <TableHead>Net Salary</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {isLoadingPayroll ? (
+            <CardContent className="p-0">
+              <ScrollArea className="h-[600px] w-full">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader className="bg-green-50 sticky top-0 z-10">
                       <TableRow>
-                        <TableCell colSpan={17} className="text-center py-8">
-                          <div className="flex justify-center">
-                            Loading payroll data...
-                          </div>
-                        </TableCell>
+                        <TableHead className="w-12"></TableHead>
+                        <TableHead className="min-w-[120px] font-semibold text-green-800">DESIGNATION</TableHead>
+                        <TableHead className="min-w-[120px] font-semibold text-green-800">DEPARTMENT</TableHead>
+                        <TableHead className="min-w-[100px] font-semibold text-green-800">DATE OF JOINING</TableHead>
+                        
+                        {/* Fixed Salary Section */}
+                        <TableHead className="bg-blue-50 min-w-[100px] font-semibold text-blue-800 border-l-2 border-blue-200">
+                          FIXED BASIC
+                        </TableHead>
+                        <TableHead className="bg-blue-50 min-w-[100px] font-semibold text-blue-800">FIXED HRA</TableHead>
+                        
+                        {/* Days/Hours Section */}
+                        <TableHead className="bg-yellow-50 min-w-[80px] font-semibold text-yellow-800 border-l-2 border-yellow-200">
+                          MONTH DAYS
+                        </TableHead>
+                        <TableHead className="bg-yellow-50 min-w-[80px] font-semibold text-yellow-800">PRESENT DAYS</TableHead>
+                        <TableHead className="bg-yellow-50 min-w-[80px] font-semibold text-yellow-800">PAID DAYS</TableHead>
+                        <TableHead className="bg-yellow-50 min-w-[100px] font-semibold text-yellow-800">PER DAY SALARY</TableHead>
+                        <TableHead className="bg-yellow-50 min-w-[80px] font-semibold text-yellow-800">OT HOURS</TableHead>
+                        <TableHead className="bg-yellow-50 min-w-[80px] font-semibold text-yellow-800">PER DAY OT</TableHead>
+                        
+                        {/* Variable Section */}
+                        <TableHead className="bg-purple-50 min-w-[80px] font-semibold text-purple-800 border-l-2 border-purple-200">
+                          BETTA
+                        </TableHead>
+                        
+                        {/* Earned Salary Section */}
+                        <TableHead className="bg-green-50 min-w-[100px] font-semibold text-green-800 border-l-2 border-green-200">
+                          EARNED BASIC
+                        </TableHead>
+                        <TableHead className="bg-green-50 min-w-[100px] font-semibold text-green-800">EARNED HRA</TableHead>
+                        <TableHead className="bg-green-50 min-w-[100px] font-semibold text-green-800">GROSS SALARY</TableHead>
+                        <TableHead className="bg-green-50 min-w-[80px] font-semibold text-green-800">OT</TableHead>
+                        <TableHead className="bg-green-50 min-w-[80px] font-semibold text-green-800">BETTA</TableHead>
+                        <TableHead className="bg-green-50 min-w-[120px] font-semibold text-green-800">FINAL GROSS</TableHead>
+                        
+                        {/* Deductions Section */}
+                        <TableHead className="bg-red-50 min-w-[80px] font-semibold text-red-800 border-l-2 border-red-200">
+                          EPF
+                        </TableHead>
+                        <TableHead className="bg-red-50 min-w-[80px] font-semibold text-red-800">VPF</TableHead>
+                        <TableHead className="bg-red-50 min-w-[80px] font-semibold text-red-800">ESI</TableHead>
+                        <TableHead className="bg-red-50 min-w-[80px] font-semibold text-red-800">FINE</TableHead>
+                        <TableHead className="bg-red-50 min-w-[80px] font-semibold text-red-800">CREDIT</TableHead>
+                        <TableHead className="bg-red-50 min-w-[120px] font-semibold text-red-800">SALARY ADVANCE</TableHead>
+                        <TableHead className="bg-red-50 min-w-[120px] font-semibold text-red-800">TOTAL DEDUCTION</TableHead>
+                        
+                        {/* Final Section */}
+                        <TableHead className="bg-gray-50 min-w-[120px] font-semibold text-gray-800 border-l-2 border-gray-200">
+                          NET SALARY
+                        </TableHead>
+                        <TableHead className="bg-gray-50 min-w-[150px] font-semibold text-gray-800">REMARKS</TableHead>
                       </TableRow>
-                    ) : payrollData.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={17} className="text-center py-8 text-gray-500">
-                          No payroll records found. Process payroll for this period.
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      payrollData.map((record: PayrollRecord) => (
-                        <TableRow key={record.id}>
-                          <TableCell className="font-medium">
-                            <div>
-                              <div>{record.userName}</div>
-                              <div className="text-xs text-gray-500">{record.employeeId}</div>
-                            </div>
-                          </TableCell>
-                          <TableCell className="capitalize text-xs">
-                            {record.userDepartment?.replace('_', ' ') || 'N/A'}
-                          </TableCell>
-                          <TableCell className="text-center">{record.workingDays}</TableCell>
-                          <TableCell className="text-center">{record.presentDays}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(record.fixedSalary)}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(record.basicSalary)}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(record.hra)}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(record.allowances)}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(record.overtimePay)}</TableCell>
-                          <TableCell className="text-right font-medium">{formatCurrency(record.grossSalary)}</TableCell>
-                          <TableCell className="text-right text-red-600">{formatCurrency(record.pfDeduction)}</TableCell>
-                          <TableCell className="text-right text-red-600">{formatCurrency(record.esiDeduction)}</TableCell>
-                          <TableCell className="text-right text-red-600">{formatCurrency(record.tdsDeduction)}</TableCell>
-                          <TableCell className="text-right text-red-600">{formatCurrency(record.advanceDeduction)}</TableCell>
-                          <TableCell className="text-right font-bold text-green-600">{formatCurrency(record.netSalary)}</TableCell>
-                          <TableCell>{getStatusBadge(record.status)}</TableCell>
-                          <TableCell>
-                            <div className="flex space-x-1">
-                              <Button size="sm" variant="outline">
-                                <Eye className="h-3 w-3" />
-                              </Button>
-                              <Button size="sm" variant="outline">
-                                <Edit className="h-3 w-3" />
-                              </Button>
-                              <Button size="sm" variant="outline">
-                                <FileText className="h-3 w-3" />
-                              </Button>
-                            </div>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredPayrollData.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={25} className="text-center py-8 text-gray-500">
+                            {isLoadingPayroll ? (
+                              <div className="flex items-center justify-center">
+                                <RefreshCw className="h-5 w-5 animate-spin mr-2" />
+                                Loading payroll data...
+                              </div>
+                            ) : (
+                              <div>
+                                <FileSpreadsheet className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                                <p>No payroll data found for the selected period.</p>
+                                <p className="text-sm">Click "Process Payroll" to generate salary calculations.</p>
+                              </div>
+                            )}
                           </TableCell>
                         </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
+                      ) : (
+                        filteredPayrollData.map((employee: EmployeePayrollData) => (
+                          <TableRow key={employee.id} className="hover:bg-gray-50">
+                            <TableCell>
+                              <Checkbox
+                                checked={selectedEmployees.has(employee.id)}
+                                onCheckedChange={(checked) => handleSelectEmployee(employee.id, checked as boolean)}
+                              />
+                            </TableCell>
+                            <TableCell className="font-medium">
+                              <div>
+                                <div className="font-semibold text-gray-900">{employee.designation}</div>
+                                <div className="text-sm text-gray-500">{employee.userName}</div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge className={cn("text-xs", getDepartmentColor(employee.department))}>
+                                {employee.department.replace('_', ' ').toUpperCase()}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-sm">{employee.dateOfJoining}</TableCell>
+                            
+                            {/* Fixed Salary */}
+                            <TableCell className="bg-blue-50/50 text-right font-mono">
+                              {employee.fixedBasic?.toLocaleString('en-IN') || '0'}
+                            </TableCell>
+                            <TableCell className="bg-blue-50/50 text-right font-mono">
+                              {employee.fixedHra?.toLocaleString('en-IN') || '0'}
+                            </TableCell>
+                            
+                            {/* Days/Hours */}
+                            <TableCell className="bg-yellow-50/50 text-center font-mono">
+                              {employee.monthDays || 30}
+                            </TableCell>
+                            <TableCell className="bg-yellow-50/50 text-center font-mono">
+                              {employee.presentDays || 0}
+                            </TableCell>
+                            <TableCell className="bg-yellow-50/50 text-center font-mono">
+                              {employee.paidDays || 0}
+                            </TableCell>
+                            <TableCell className="bg-yellow-50/50 text-right font-mono">
+                              {employee.perDaySalary?.toLocaleString('en-IN') || '0'}
+                            </TableCell>
+                            <TableCell className="bg-yellow-50/50 text-center font-mono">
+                              {employee.otHours || 0}
+                            </TableCell>
+                            <TableCell className="bg-yellow-50/50 text-right font-mono">
+                              {employee.perDayOt?.toLocaleString('en-IN') || '0'}
+                            </TableCell>
+                            
+                            {/* Variable */}
+                            <TableCell className="bg-purple-50/50 text-right font-mono">
+                              {employee.betta?.toLocaleString('en-IN') || '0'}
+                            </TableCell>
+                            
+                            {/* Earned Salary */}
+                            <TableCell className="bg-green-50/50 text-right font-mono font-medium">
+                              {employee.earnedBasic?.toLocaleString('en-IN') || '0'}
+                            </TableCell>
+                            <TableCell className="bg-green-50/50 text-right font-mono font-medium">
+                              {employee.earnedHra?.toLocaleString('en-IN') || '0'}
+                            </TableCell>
+                            <TableCell className="bg-green-50/50 text-right font-mono font-medium">
+                              {employee.grossSalary?.toLocaleString('en-IN') || '0'}
+                            </TableCell>
+                            <TableCell className="bg-green-50/50 text-right font-mono">
+                              {employee.overtimeAmount?.toLocaleString('en-IN') || '0'}
+                            </TableCell>
+                            <TableCell className="bg-green-50/50 text-right font-mono">
+                              {employee.betta?.toLocaleString('en-IN') || '0'}
+                            </TableCell>
+                            <TableCell className="bg-green-50/50 text-right font-mono font-bold text-green-700">
+                              {employee.finalGross?.toLocaleString('en-IN') || '0'}
+                            </TableCell>
+                            
+                            {/* Deductions */}
+                            <TableCell className="bg-red-50/50 text-right font-mono">
+                              {employee.epf?.toLocaleString('en-IN') || '0'}
+                            </TableCell>
+                            <TableCell className="bg-red-50/50 text-right font-mono">
+                              {employee.vpf?.toLocaleString('en-IN') || '0'}
+                            </TableCell>
+                            <TableCell className="bg-red-50/50 text-right font-mono">
+                              {employee.esi?.toLocaleString('en-IN') || '0'}
+                            </TableCell>
+                            <TableCell className="bg-red-50/50 text-right font-mono">
+                              {employee.fine?.toLocaleString('en-IN') || '0'}
+                            </TableCell>
+                            <TableCell className="bg-red-50/50 text-right font-mono">
+                              {employee.credit?.toLocaleString('en-IN') || '0'}
+                            </TableCell>
+                            <TableCell className="bg-red-50/50 text-right font-mono">
+                              {employee.salaryAdvance?.toLocaleString('en-IN') || '0'}
+                            </TableCell>
+                            <TableCell className="bg-red-50/50 text-right font-mono font-bold text-red-700">
+                              {employee.totalDeduction?.toLocaleString('en-IN') || '0'}
+                            </TableCell>
+                            
+                            {/* Final */}
+                            <TableCell className="bg-gray-50/50 text-right font-mono font-bold text-lg text-blue-700">
+                              {employee.netSalary?.toLocaleString('en-IN') || '0'}
+                            </TableCell>
+                            <TableCell className="bg-gray-50/50 text-sm">
+                              {employee.remarks || '-'}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </ScrollArea>
             </CardContent>
           </Card>
         </TabsContent>
 
         {/* Salary Structures Tab */}
         <TabsContent value="salary-structures" className="space-y-4">
-          <Card>
+          <Card className="shadow-sm">
             <CardHeader>
               <CardTitle>Employee Salary Structures</CardTitle>
               <CardDescription>
-                Manage salary components for all employees
+                Manage fixed salary components for all employees
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Employee</TableHead>
-                      <TableHead>Employee ID</TableHead>
-                      <TableHead>Fixed Salary</TableHead>
-                      <TableHead>Basic Salary</TableHead>
-                      <TableHead>HRA</TableHead>
-                      <TableHead>Allowances</TableHead>
-                      <TableHead>Variable</TableHead>
-                      <TableHead>Effective From</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {salaryStructures.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={10} className="text-center py-8 text-gray-500">
-                          No salary structures found. Add salary structures for employees.
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      salaryStructures.map((salary: SalaryStructure) => (
-                        <TableRow key={salary.id}>
-                          <TableCell className="font-medium">
-                            {users.find(u => u.id === salary.userId)?.displayName || 'Unknown'}
-                          </TableCell>
-                          <TableCell>{salary.employeeId}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(salary.fixedSalary)}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(salary.basicSalary)}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(salary.hra || 0)}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(salary.allowances || 0)}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(salary.variableComponent || 0)}</TableCell>
-                          <TableCell>{formatDate(salary.effectiveFrom)}</TableCell>
-                          <TableCell>
-                            <Badge className={cn("font-medium", salary.isActive ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800")}>
-                              {salary.isActive ? 'Active' : 'Inactive'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex space-x-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleEditSalaryStructure(salary)}
-                              >
-                                <Edit className="h-3 w-3" />
-                              </Button>
-                              <Button size="sm" variant="outline">
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
+              <div className="space-y-4">
+                {salaryStructures.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <Briefcase className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                    <p>No salary structures found.</p>
+                    <p className="text-sm">Create salary structures for employees to start payroll processing.</p>
+                  </div>
+                ) : (
+                  <div className="grid gap-4">
+                    {salaryStructures.map((structure: SalaryStructure) => (
+                      <div key={structure.id} className="border rounded-lg p-4 hover:bg-gray-50">
+                        <div className="flex justify-between items-start">
+                          <div className="space-y-2">
+                            <div className="flex items-center space-x-3">
+                              <h3 className="font-semibold text-lg">{structure.userName}</h3>
+                              <Badge className={cn("text-xs", getDepartmentColor(structure.department))}>
+                                {structure.department.replace('_', ' ').toUpperCase()}
+                              </Badge>
+                              <Badge variant="outline" className="text-xs">
+                                {structure.designation.replace('_', ' ').toUpperCase()}
+                              </Badge>
                             </div>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Salary Advances Tab */}
-        <TabsContent value="advances" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Salary Advances</CardTitle>
-              <CardDescription>
-                Manage salary advance requests and deductions
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8 text-gray-500">
-                <AlertCircle className="h-12 w-12 mx-auto mb-4" />
-                <p>Salary advances feature will be implemented here</p>
+                            <div className="text-sm text-gray-600 space-y-1">
+                              <p>Employee ID: {structure.employeeId}</p>
+                              <p>Date of Joining: {structure.dateOfJoining}</p>
+                              <p>Fixed Basic: ₹{structure.fixedBasic.toLocaleString('en-IN')}</p>
+                              <p>Fixed HRA: ₹{structure.fixedHra.toLocaleString('en-IN')}</p>
+                              <p className="font-medium">
+                                Total Fixed: ₹{(structure.fixedBasic + structure.fixedHra).toLocaleString('en-IN')}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex space-x-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEditSalaryStructure(structure)}
+                            >
+                              <Edit className="h-4 w-4 mr-1" />
+                              Edit
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -686,154 +924,147 @@ export default function PayrollManagement() {
 
         {/* Reports Tab */}
         <TabsContent value="reports" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Payroll Reports & Analytics</CardTitle>
-              <CardDescription>
-                Comprehensive payroll analytics and reporting
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8 text-gray-500">
-                <BarChart3 className="h-12 w-12 mx-auto mb-4" />
-                <p>Advanced payroll analytics and reports will be available here</p>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card className="shadow-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <BarChart3 className="h-5 w-5 mr-2" />
+                  Department-wise Analysis
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="text-center py-8 text-gray-500">
+                    <PieChart className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                    <p>Department analytics will be displayed here</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <TrendingUp className="h-5 w-5 mr-2" />
+                  Salary Trends
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="text-center py-8 text-gray-500">
+                    <BarChart3 className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                    <p>Salary trend analysis will be displayed here</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
 
-      {/* Add/Edit Salary Structure Modal */}
+      {/* Add Salary Structure Modal */}
       <Dialog open={showSalaryModal} onOpenChange={setShowSalaryModal}>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>
               {editingSalary ? 'Edit Salary Structure' : 'Add Salary Structure'}
             </DialogTitle>
             <DialogDescription>
-              Configure salary components for employee
+              Set up fixed salary components for the employee
             </DialogDescription>
           </DialogHeader>
-          
-          <div className="space-y-4 py-2">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="employee">Employee</Label>
-                <Select value={salaryForm.userId} onValueChange={(value) => {
-                  const selectedUser = users.find(u => u.id === value);
-                  setSalaryForm({ 
-                    ...salaryForm, 
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="user">Employee</Label>
+              <Select 
+                value={salaryForm.userId} 
+                onValueChange={(value) => {
+                  const selectedUser = users.find((u: any) => u.id === value);
+                  setSalaryForm(prev => ({
+                    ...prev,
                     userId: value,
-                    employeeId: selectedUser?.employeeId || ''
-                  });
-                }}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select employee" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {users.map((user: any) => (
-                      <SelectItem key={user.id} value={user.id}>
-                        {user.displayName} ({user.email})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
+                    employeeId: selectedUser?.employeeId || '',
+                    designation: selectedUser?.designation || '',
+                    department: selectedUser?.department || '',
+                    dateOfJoining: selectedUser?.joinDate ? new Date(selectedUser.joinDate).toISOString().split('T')[0] : ''
+                  }));
+                }}
+                disabled={!!editingSalary}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select employee" />
+                </SelectTrigger>
+                <SelectContent>
+                  {users.map((user: any) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.displayName} - {user.designation}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="employeeId">Employee ID</Label>
                 <Input
                   id="employeeId"
                   value={salaryForm.employeeId}
-                  onChange={(e) => setSalaryForm({ ...salaryForm, employeeId: e.target.value })}
-                  placeholder="Enter employee ID"
+                  onChange={(e) => setSalaryForm(prev => ({ ...prev, employeeId: e.target.value }))}
+                  placeholder="EMP001"
+                />
+              </div>
+              <div>
+                <Label htmlFor="dateOfJoining">Date of Joining</Label>
+                <Input
+                  id="dateOfJoining"
+                  type="date"
+                  value={salaryForm.dateOfJoining}
+                  onChange={(e) => setSalaryForm(prev => ({ ...prev, dateOfJoining: e.target.value }))}
                 />
               </div>
             </div>
-            
-            <Separator />
-            
+
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="fixedSalary">Fixed Salary</Label>
+                <Label htmlFor="fixedBasic">Fixed Basic Salary</Label>
                 <Input
-                  id="fixedSalary"
+                  id="fixedBasic"
                   type="number"
-                  value={salaryForm.fixedSalary}
-                  onChange={(e) => setSalaryForm({ ...salaryForm, fixedSalary: parseFloat(e.target.value) || 0 })}
+                  value={salaryForm.fixedBasic}
+                  onChange={(e) => setSalaryForm(prev => ({ ...prev, fixedBasic: parseFloat(e.target.value) || 0 }))}
+                  placeholder="25000"
                 />
               </div>
-              
               <div>
-                <Label htmlFor="basicSalary">Basic Salary</Label>
+                <Label htmlFor="fixedHra">Fixed HRA</Label>
                 <Input
-                  id="basicSalary"
+                  id="fixedHra"
                   type="number"
-                  value={salaryForm.basicSalary}
-                  onChange={(e) => setSalaryForm({ ...salaryForm, basicSalary: parseFloat(e.target.value) || 0 })}
+                  value={salaryForm.fixedHra}
+                  onChange={(e) => setSalaryForm(prev => ({ ...prev, fixedHra: parseFloat(e.target.value) || 0 }))}
+                  placeholder="7500"
                 />
               </div>
             </div>
-            
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <Label htmlFor="hra">HRA</Label>
-                <Input
-                  id="hra"
-                  type="number"
-                  value={salaryForm.hra}
-                  onChange={(e) => setSalaryForm({ ...salaryForm, hra: parseFloat(e.target.value) || 0 })}
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="allowances">Allowances</Label>
-                <Input
-                  id="allowances"
-                  type="number"
-                  value={salaryForm.allowances}
-                  onChange={(e) => setSalaryForm({ ...salaryForm, allowances: parseFloat(e.target.value) || 0 })}
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="variableComponent">Variable Component</Label>
-                <Input
-                  id="variableComponent"
-                  type="number"
-                  value={salaryForm.variableComponent}
-                  onChange={(e) => setSalaryForm({ ...salaryForm, variableComponent: parseFloat(e.target.value) || 0 })}
-                />
-              </div>
-            </div>
-            
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <p className="text-sm font-medium">Total Monthly Salary:</p>
-              <p className="text-lg font-bold text-green-600">
-                {formatCurrency(
-                  salaryForm.fixedSalary + 
-                  salaryForm.basicSalary + 
-                  salaryForm.hra + 
-                  salaryForm.allowances + 
-                  salaryForm.variableComponent
-                )}
+
+            <div className="bg-gray-50 p-3 rounded">
+              <p className="text-sm text-gray-600">
+                Total Fixed Salary: ₹{(salaryForm.fixedBasic + salaryForm.fixedHra).toLocaleString('en-IN')}
               </p>
             </div>
           </div>
-          
           <DialogFooter>
-            <Button variant="outline" onClick={() => {
-              setShowSalaryModal(false);
-              resetSalaryForm();
-            }}>
+            <Button variant="outline" onClick={() => setShowSalaryModal(false)}>
               Cancel
             </Button>
-            <Button 
-              onClick={handleSaveSalaryStructure}
-              disabled={saveSalaryMutation.isPending}
-            >
-              {saveSalaryMutation.isPending && <Calculator className="mr-2 h-4 w-4 animate-spin" />}
-              Save Structure
+            <Button onClick={handleSaveSalaryStructure} disabled={saveSalaryMutation.isPending}>
+              {saveSalaryMutation.isPending ? (
+                <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Save className="h-4 w-4 mr-2" />
+              )}
+              {editingSalary ? 'Update' : 'Save'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -845,35 +1076,73 @@ export default function PayrollManagement() {
           <DialogHeader>
             <DialogTitle>Process Payroll</DialogTitle>
             <DialogDescription>
-              Process payroll for {new Date(selectedYear, selectedMonth - 1).toLocaleString('en', { month: 'long', year: 'numeric' })}
+              Generate salary calculations for {new Date(selectedYear, selectedMonth - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
             </DialogDescription>
           </DialogHeader>
-          
-          <div className="space-y-4 py-2">
+          <div className="space-y-4">
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-              <div className="flex">
-                <AlertCircle className="h-5 w-5 text-yellow-400 mr-2" />
+              <div className="flex items-start">
+                <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5 mr-3" />
                 <div>
-                  <h4 className="text-sm font-medium text-yellow-800">Important</h4>
-                  <div className="text-sm text-yellow-700 mt-1">
-                    <p>This will process payroll for all employees for the selected period.</p>
-                    <p>Ensure attendance data is complete before processing.</p>
-                  </div>
+                  <h4 className="font-medium text-yellow-800">Important Notes:</h4>
+                  <ul className="text-sm text-yellow-700 mt-2 space-y-1">
+                    <li>• Payroll will be calculated based on attendance records</li>
+                    <li>• Overtime hours will be considered if available</li>
+                    <li>• EPF, ESI, and other deductions will be auto-calculated</li>
+                    <li>• This action will overwrite existing draft payroll data</li>
+                  </ul>
                 </div>
               </div>
             </div>
+
+            {isProcessing && (
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span>Processing payroll...</span>
+                  <span>{processingProgress}%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                    style={{ width: `${processingProgress}%` }}
+                  ></div>
+                </div>
+              </div>
+            )}
           </div>
-          
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowProcessModal(false)}>
+            <Button variant="outline" onClick={() => setShowProcessModal(false)} disabled={isProcessing}>
               Cancel
             </Button>
             <Button 
-              onClick={() => processPayrollMutation.mutate({ month: selectedMonth, year: selectedYear })}
-              disabled={processPayrollMutation.isPending}
+              onClick={() => {
+                setIsProcessing(true);
+                setProcessingProgress(0);
+                
+                // Simulate processing progress
+                const interval = setInterval(() => {
+                  setProcessingProgress(prev => {
+                    if (prev >= 90) {
+                      clearInterval(interval);
+                      return prev;
+                    }
+                    return prev + 10;
+                  });
+                }, 200);
+
+                processPayrollMutation.mutate({
+                  month: selectedMonth,
+                  year: selectedYear
+                });
+              }}
+              disabled={isProcessing || processPayrollMutation.isPending}
               className="bg-green-600 hover:bg-green-700"
             >
-              {processPayrollMutation.isPending && <Calculator className="mr-2 h-4 w-4 animate-spin" />}
+              {isProcessing ? (
+                <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Calculator className="h-4 w-4 mr-2" />
+              )}
               Process Payroll
             </Button>
           </DialogFooter>
