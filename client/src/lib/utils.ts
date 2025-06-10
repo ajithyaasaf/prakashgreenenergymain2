@@ -120,3 +120,22 @@ export function truncateText(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;
   return text.slice(0, maxLength) + "...";
 }
+
+// Convert 24-hour time string to 12-hour format
+export function formatTimeString(timeString: string): string {
+  if (!timeString) return "";
+  
+  // Handle both HH:MM and HH:MM:SS formats
+  const [hours, minutes] = timeString.split(':').map(Number);
+  
+  if (isNaN(hours) || isNaN(minutes)) return timeString;
+  
+  const date = new Date();
+  date.setHours(hours, minutes, 0);
+  
+  return date.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}

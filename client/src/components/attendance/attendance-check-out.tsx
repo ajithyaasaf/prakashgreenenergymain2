@@ -14,6 +14,7 @@ import {
   Loader2, Timer, Zap, Wifi, WifiOff, RefreshCw
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { formatTimeString, formatTime } from "@/lib/utils";
 
 interface AttendanceCheckOutProps {
   isOpen: boolean;
@@ -300,7 +301,7 @@ export function AttendanceCheckOut({
                   <span className="text-sm font-medium">Check-in Time:</span>
                   <span className="text-sm">
                     {currentAttendance?.checkInTime 
-                      ? new Date(currentAttendance.checkInTime).toLocaleTimeString()
+                      ? formatTime(currentAttendance.checkInTime)
                       : 'Not available'
                     }
                   </span>
