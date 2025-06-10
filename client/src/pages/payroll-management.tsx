@@ -446,8 +446,8 @@ export default function EnhancedPayrollManagement() {
                   month: selectedMonth, 
                   year: selectedYear,
                   userIds: selectedDepartment && selectedDepartment !== "all" ? users
-                    .filter(user => user.department === selectedDepartment)
-                    .map(user => user.id) : undefined
+                    .filter((user: any) => user.department === selectedDepartment)
+                    .map((user: any) => user.id) : undefined
                 })}
                 disabled={bulkProcessPayrollMutation.isPending}
                 className="w-full"
