@@ -1180,10 +1180,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         now.getMinutes(),
       );
 
-      // Get department-specific checkout timing (default to 6:30 PM)
-      const defaultCheckOutTime = "18:30";
-      const [checkOutHour, checkOutMinute] = defaultCheckOutTime.split(":").map(Number);
-      const expectedCheckOutTime = new Date(
+      // Get department timing from database
+      const departmentTiming = user.department 
+        ? await storage.getDepartmentTiming(user.department)
+        : null;
+
+      // Use department-specific timing or defaults
+      const expectedCheckOutTime = departmentTiming?.checkOutTime || "18:30";
+      const [checkOutHour, checkOutMinute] = expectedCheckOutTime.split(":").map(Number);
+      const expectedCheckOutTimeObj = new Date(
         now.getFullYear(),
         now.getMonth(),
         now.getDate(),
@@ -1191,18 +1196,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         checkOutMinute,
       );
 
-      // Calculate working hours and overtime
+      // Calculate working hours and overtime using department settings
       const checkInTime = new Date(attendanceRecord.checkInTime || new Date());
       const workingMilliseconds = checkOutTime.getTime() - checkInTime.getTime();
       const workingHours = workingMilliseconds / (1000 * 60 * 60);
       
-      // Standard working hours (9 hours: 9:30 AM to 6:30 PM)
-      const standardWorkingHours = 9;
+      // Use department-specific working hours
+      const standardWorkingHours = departmentTiming?.workingHours || 8;
+      const overtimeThresholdMinutes = departmentTiming?.overtimeThresholdMinutes || 30;
       const overtimeHours = Math.max(0, workingHours - standardWorkingHours);
       
+      // Check if overtime meets the threshold
+      const overtimeMinutes = overtimeHours * 60;
+      const hasOvertimeThreshold = overtimeMinutes >= overtimeThresholdMinutes;
+      
       // Check if overtime requires approval and photo
-      const hasOvertime = overtimeHours > 0;
-      if (hasOvertime) {
+      if (hasOvertimeThreshold) {
         if (!otReason) {
           return res.status(400).json({
             message: "Overtime requires a reason to be provided",
@@ -1219,16 +1228,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Check for early checkout (disabled for testing - allow checkout anytime)
-      const earlyCheckout = checkOutTime < expectedCheckOutTime;
-      const earlyMinutes = earlyCheckout ? Math.floor((expectedCheckOutTime.getTime() - checkOutTime.getTime()) / (1000 * 60)) : 0;
+      // Check for early checkout using department timing
+      const earlyCheckout = checkOutTime < expectedCheckOutTimeObj;
+      const earlyMinutes = earlyCheckout ? Math.floor((expectedCheckOutTimeObj.getTime() - checkOutTime.getTime()) / (1000 * 60)) : 0;
       
       console.log("CHECKOUT DEBUG:", {
         currentTime: checkOutTime.toLocaleTimeString(),
-        expectedTime: expectedCheckOutTime.toLocaleTimeString(),
+        expectedTime: expectedCheckOutTimeObj.toLocaleTimeString(),
         earlyCheckout,
         earlyMinutes,
-        reason: reason || "no reason provided"
+        reason: reason || "no reason provided",
+        departmentTiming: departmentTiming ? 'loaded' : 'default'
       });
       
       // Temporarily disabled early checkout validation for testing
@@ -1253,8 +1263,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         checkOutImageUrl: imageUrl,
         workingHours: Math.round(workingHours * 100) / 100,
         overtimeHours: Math.round(overtimeHours * 100) / 100,
-        otReason: hasOvertime ? otReason : undefined,
-        remarks: reason || (hasOvertime ? `Overtime: ${otReason}` : undefined)
+        otReason: hasOvertimeThreshold ? otReason : undefined,
+        remarks: reason || (hasOvertimeThreshold ? `Overtime: ${otReason}` : undefined)
       });
 
       // Log activity
