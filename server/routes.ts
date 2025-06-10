@@ -4050,8 +4050,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const { month, year, userIds } = req.body;
       
-      // Mock bulk processing
       const processedPayrolls = [];
+      const settings = await storage.getEnhancedPayrollSettings();
+      
+      // Process payroll for each user
+      for (const userId of userIds) {
+        const existingPayroll = await storage.getEnhancedPayrollByUserAndMonth(userId, month, year);
+        if (existingPayroll) {
+          continue; // Skip if already processed
+        }
+        
+        const user = await storage.getUser(userId);
+        if (!user) continue;
+        
+        const salaryStructure = await storage.getEnhancedSalaryStructureByUser(userId);
+        if (!salaryStructure) continue;
+        
+        // Calculate payroll with real data
+        const basicSalary = salaryStructure.basicSalary || 0;
+        const grossSalary = salaryStructure.grossSalary || basicSalary;
+        
+        // Calculate statutory deductions
+        const epfContribution = Math.min(basicSalary * (settings?.epfEmployeeRate || 12) / 100, (settings?.epfCeiling || 15000) * 0.12);
+        const esiContribution = grossSalary <= (settings?.esiThreshold || 21000) ? grossSalary * (settings?.esiEmployeeRate || 0.75) / 100 : 0;
+        const professionalTax = grossSalary > 10000 ? 200 : 0;
+        
+        const totalDeductions = epfContribution + esiContribution + professionalTax;
+        const netSalary = grossSalary - totalDeductions;
+        
+        const payrollData = {
+          userId,
+          month,
+          year,
+          basicSalary,
+          grossSalary,
+          netSalary,
+          epfContribution,
+          esiContribution,
+          professionalTax,
+          totalDeductions,
+          status: 'processed',
+          processedBy: user.uid,
+          processedAt: new Date()
+        };
+        
+        const newPayroll = await storage.createEnhancedPayroll(payrollData);
+        processedPayrolls.push(newPayroll);
+      }
       
       res.json({
         message: "Payroll processing completed",
