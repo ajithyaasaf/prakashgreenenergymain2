@@ -298,68 +298,80 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
   const startCamera = async () => {
     try {
       console.log('CAMERA: Starting camera for attendance photo...');
+      console.log('CAMERA: Navigator available:', !!navigator);
+      console.log('CAMERA: MediaDevices available:', !!navigator.mediaDevices);
+      console.log('CAMERA: getUserMedia available:', !!navigator.mediaDevices?.getUserMedia);
       
-      // Try front camera first (for selfies), then fallback to any available camera
-      let mediaStream;
-      try {
-        mediaStream = await navigator.mediaDevices.getUserMedia({ 
-          video: { 
-            facingMode: 'user',  // Front camera for selfies
-            width: { ideal: 640 },
-            height: { ideal: 480 }
-          },
-          audio: false
-        });
-        console.log('CAMERA: Front camera accessed successfully');
-      } catch (frontCameraError) {
-        console.log('CAMERA: Front camera not available, trying any camera...');
-        mediaStream = await navigator.mediaDevices.getUserMedia({ 
-          video: { 
-            width: { ideal: 640 },
-            height: { ideal: 480 }
-          },
-          audio: false
-        });
-        console.log('CAMERA: Camera accessed successfully');
-      }
+      // Try basic camera access first
+      const mediaStream = await navigator.mediaDevices.getUserMedia({ 
+        video: true,
+        audio: false
+      });
+      
+      console.log('CAMERA: Stream obtained:', {
+        id: mediaStream.id,
+        active: mediaStream.active,
+        tracks: mediaStream.getTracks().length,
+        videoTracks: mediaStream.getVideoTracks().length
+      });
       
       setStream(mediaStream);
       setIsCameraActive(true);
       
       if (videoRef.current) {
         const video = videoRef.current;
-        console.log('CAMERA: Setting up video element');
+        console.log('CAMERA: Video element found, setting up...');
         
-        // Set video properties
+        // Clear any existing content
+        video.srcObject = null;
+        
+        // Set essential video properties
         video.muted = true;
         video.playsInline = true;
-        video.autoplay = true;
+        video.controls = false;
+        video.style.width = '100%';
+        video.style.height = '100%';
+        video.style.objectFit = 'cover';
         
-        // Simple direct assignment
-        video.srcObject = mediaStream;
-        
-        // Use simple property-based event handlers
-        video.onloadedmetadata = () => {
-          console.log('CAMERA: Metadata loaded');
-          setIsVideoReady(true);
-        };
-        
-        video.oncanplay = () => {
-          console.log('CAMERA: Can play');
-          setIsVideoReady(true);
-        };
-        
-        video.onerror = (e) => {
-          console.error('CAMERA: Video error:', e);
-        };
-        
-        // Immediately try to play
-        video.play().catch(e => {
-          console.log('CAMERA: Autoplay failed, but stream should be visible:', e);
-          setIsVideoReady(true); // Set ready even if autoplay fails
+        // Add comprehensive event logging
+        const events = ['loadstart', 'loadedmetadata', 'loadeddata', 'canplay', 'canplaythrough', 'playing', 'pause', 'ended', 'error'];
+        events.forEach(eventName => {
+          video.addEventListener(eventName, (e) => {
+            console.log(`CAMERA: Video event - ${eventName}`, e);
+            if (eventName === 'loadedmetadata' || eventName === 'canplay') {
+              setIsVideoReady(true);
+            }
+          });
         });
         
+        // Assign the stream
+        console.log('CAMERA: Assigning stream to video element');
+        video.srcObject = mediaStream;
+        
+        // Force play with multiple attempts
+        const attemptPlay = async (attempt = 1) => {
+          try {
+            console.log(`CAMERA: Play attempt ${attempt}`);
+            await video.play();
+            console.log('CAMERA: Video playing successfully');
+            setIsVideoReady(true);
+          } catch (playError) {
+            console.log(`CAMERA: Play attempt ${attempt} failed:`, playError);
+            if (attempt < 3) {
+              setTimeout(() => attemptPlay(attempt + 1), 200 * attempt);
+            } else {
+              console.log('CAMERA: All play attempts failed, but stream should be visible');
+              setIsVideoReady(true);
+            }
+          }
+        };
+        
+        // Start play attempts after short delay
+        setTimeout(() => attemptPlay(), 100);
+        
         console.log('CAMERA: Video setup complete');
+      } else {
+        console.error('CAMERA: Video ref is null!');
       }
       
     } catch (error) {
