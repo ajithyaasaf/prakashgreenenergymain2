@@ -3952,34 +3952,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied - Master Admin only" });
       }
       
-      // Mock field configs until storage implementation
-      const fieldConfigs = [
-        {
-          id: "1",
-          name: "special_allowance",
-          displayName: "Special Allowance",
-          category: "earnings",
-          dataType: "number",
-          isRequired: false,
-          isSystemField: false,
-          defaultValue: 0,
-          sortOrder: 1,
-          isActive: true
-        },
-        {
-          id: "2",
-          name: "professional_tax",
-          displayName: "Professional Tax",
-          category: "deductions",
-          dataType: "number",
-          isRequired: false,
-          isSystemField: false,
-          defaultValue: 200,
-          sortOrder: 1,
-          isActive: true
-        }
-      ];
-      
+      const fieldConfigs = await storage.listPayrollFieldConfigs();
       res.json(fieldConfigs);
     } catch (error) {
       console.error("Error fetching field configs:", error);
@@ -3994,14 +3967,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied - Master Admin only" });
       }
       
-      const fieldData = req.body;
-      const newField = {
-        id: Date.now().toString(),
-        ...fieldData,
+      const fieldData = {
+        ...req.body,
         isSystemField: false,
         isActive: true
       };
       
+      const newField = await storage.createPayrollFieldConfig(fieldData);
       res.status(201).json(newField);
     } catch (error) {
       console.error("Error creating field config:", error);
@@ -4017,8 +3989,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied - Master Admin only" });
       }
       
-      // Mock salary structures
-      const structures = [];
+      const structures = await storage.listEnhancedSalaryStructures();
       res.json(structures);
     } catch (error) {
       console.error("Error fetching salary structures:", error);
@@ -4033,13 +4004,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied - Master Admin only" });
       }
       
-      const structureData = req.body;
-      const newStructure = {
-        id: Date.now().toString(),
-        ...structureData,
+      const structureData = {
+        ...req.body,
         isActive: true
       };
       
+      const newStructure = await storage.createEnhancedSalaryStructure(structureData);
       res.status(201).json(newStructure);
     } catch (error) {
       console.error("Error creating salary structure:", error);
@@ -4055,10 +4025,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied - Master Admin only" });
       }
       
-      const { month, year, department } = req.query;
+      const { month, year, department, status } = req.query;
       
-      // Mock payroll data
-      const payrolls = [];
+      const filters: any = {};
+      if (month) filters.month = parseInt(month as string);
+      if (year) filters.year = parseInt(year as string);
+      if (department && department !== 'all') filters.department = department as string;
+      if (status) filters.status = status as string;
+      
+      const payrolls = await storage.listEnhancedPayrolls(filters);
       res.json(payrolls);
     } catch (error) {
       console.error("Error fetching payrolls:", error);
@@ -4112,12 +4087,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied - Master Admin only" });
       }
       
-      const settingsData = req.body;
-      const updatedSettings = {
-        id: "1",
-        ...settingsData
+      const settingsData = {
+        ...req.body,
+        updatedBy: user.uid
       };
       
+      const updatedSettings = await storage.updateEnhancedPayrollSettings(settingsData);
       res.json(updatedSettings);
     } catch (error) {
       console.error("Error updating payroll settings:", error);
