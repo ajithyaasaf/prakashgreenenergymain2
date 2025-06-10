@@ -1270,19 +1270,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Log activity
       await storage.createActivityLog({
         type: 'attendance',
-        title: `Check-out ${hasOvertime ? 'with Overtime' : ''}`,
-        description: `${user.displayName} checked out${hasOvertime ? ` with ${Math.round(overtimeHours * 100) / 100} hours overtime` : ''}${earlyCheckout ? ' (early checkout)' : ''}`,
+        title: `Check-out ${hasOvertimeThreshold ? 'with Overtime' : ''}`,
+        description: `${user.displayName} checked out${hasOvertimeThreshold ? ` with ${Math.round(overtimeHours * 100) / 100} hours overtime` : ''}${earlyCheckout ? ' (early checkout)' : ''}`,
         entityId: attendanceRecord.id,
         entityType: 'attendance',
         userId: user.uid
       });
 
       res.json({
-        message: `Checked out successfully${hasOvertime ? ` with ${Math.round(overtimeHours * 100) / 100} hours overtime` : ''}`,
+        message: `Checked out successfully${hasOvertimeThreshold ? ` with ${Math.round(overtimeHours * 100) / 100} hours overtime` : ''}`,
         attendance: updatedAttendance,
         workingHours: Math.round(workingHours * 100) / 100,
         overtimeHours: Math.round(overtimeHours * 100) / 100,
-        hasOvertime
+        hasOvertime: hasOvertimeThreshold,
+        departmentSettings: {
+          expectedCheckOut: expectedCheckOutTime,
+          standardHours: standardWorkingHours,
+          overtimeThreshold: overtimeThresholdMinutes
+        }
       });
     } catch (error: any) {
       console.error("Error checking out:", error);
