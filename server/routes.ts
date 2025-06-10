@@ -1364,76 +1364,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied" });
       }
       
-      // Default timing configuration for the department
-      const defaultTimings = {
-        "cre": {
-          departmentId: "cre",
-          checkInTime: "09:30",
-          checkOutTime: "18:30",
-          workingHours: 8,
-          overtimeThresholdMinutes: 30,
-          lateThresholdMinutes: 15,
-          allowEarlyCheckOut: false,
-          allowRemoteWork: true,
-          allowFieldWork: true
-        },
-        "accounts": {
-          departmentId: "accounts", 
-          checkInTime: "09:00",
-          checkOutTime: "18:00",
-          workingHours: 8,
-          overtimeThresholdMinutes: 30,
-          lateThresholdMinutes: 10,
-          allowEarlyCheckOut: true,
-          allowRemoteWork: true,
-          allowFieldWork: false
-        },
-        "hr": {
-          departmentId: "hr",
-          checkInTime: "09:00",
-          checkOutTime: "18:00",
-          workingHours: 8,
-          overtimeThresholdMinutes: 30,
-          lateThresholdMinutes: 10,
-          allowEarlyCheckOut: true,
-          allowRemoteWork: true,
-          allowFieldWork: false
-        },
-        "sales_and_marketing": {
-          departmentId: "sales_and_marketing",
-          checkInTime: "09:30",
-          checkOutTime: "18:30",
-          workingHours: 8,
-          overtimeThresholdMinutes: 30,
-          lateThresholdMinutes: 15,
-          allowEarlyCheckOut: false,
-          allowRemoteWork: true,
-          allowFieldWork: true
-        },
-        "technical_team": {
-          departmentId: "technical_team",
-          checkInTime: "10:00",
-          checkOutTime: "19:00",
-          workingHours: 8,
-          overtimeThresholdMinutes: 30,
-          lateThresholdMinutes: 15,
-          allowEarlyCheckOut: false,
-          allowRemoteWork: true,
-          allowFieldWork: true
-        }
-      };
+      // Get timing from database using storage layer
+      const timing = await storage.getDepartmentTiming(departmentId);
       
-      const timing = defaultTimings[departmentId] || {
-        departmentId,
-        checkInTime: "09:30",
-        checkOutTime: "18:30",
-        workingHours: 8,
-        overtimeThresholdMinutes: 30,
-        lateThresholdMinutes: 15,
-        allowEarlyCheckOut: false,
-        allowRemoteWork: true,
-        allowFieldWork: true
-      };
+      if (!timing) {
+        return res.status(404).json({ message: "Department timing not found" });
+      }
       
       res.json(timing);
     } catch (error: any) {
@@ -1459,9 +1395,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         workingHours,
         overtimeThresholdMinutes,
         lateThresholdMinutes,
-        allowEarlyCheckOut,
-        allowRemoteWork,
-        allowFieldWork
+        isFlexibleTiming,
+        flexibleCheckInStart,
+        flexibleCheckInEnd,
+        breakDurationMinutes,
+        weeklyOffDays
       } = req.body;
       
       // Validate timing data
@@ -1469,21 +1407,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Check-in time, check-out time, and working hours are required" });
       }
       
-      // In a real implementation, this would be saved to database
-      // For now, we'll just return success
-      const updatedTiming = {
-        departmentId,
+      const timingData = {
         checkInTime,
         checkOutTime,
         workingHours: parseInt(workingHours),
         overtimeThresholdMinutes: parseInt(overtimeThresholdMinutes) || 30,
         lateThresholdMinutes: parseInt(lateThresholdMinutes) || 15,
-        allowEarlyCheckOut: Boolean(allowEarlyCheckOut),
-        allowRemoteWork: Boolean(allowRemoteWork),
-        allowFieldWork: Boolean(allowFieldWork),
-        updatedAt: new Date().toISOString(),
+        isFlexibleTiming: Boolean(isFlexibleTiming),
+        flexibleCheckInStart,
+        flexibleCheckInEnd,
+        breakDurationMinutes: parseInt(breakDurationMinutes) || 60,
+        weeklyOffDays: weeklyOffDays || [0],
         updatedBy: user.uid
       };
+
+      // Save to database using storage layer
+      const updatedTiming = await storage.updateDepartmentTiming(departmentId, timingData);
       
       // Log activity
       await storage.createActivityLog({

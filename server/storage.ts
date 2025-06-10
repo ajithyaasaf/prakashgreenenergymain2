@@ -2964,8 +2964,71 @@ export class FirestoreStorage implements IStorage {
         .get();
 
       if (querySnapshot.empty) {
-        // Return default timing if none exists
-        return {
+        // Return department-specific default timing if none exists
+        const defaultTimings = {
+          "cre": {
+            departmentId: "cre",
+            checkInTime: "09:30",
+            checkOutTime: "18:30",
+            workingHours: 8,
+            overtimeThresholdMinutes: 30,
+            lateThresholdMinutes: 15,
+            isFlexibleTiming: false,
+            breakDurationMinutes: 60,
+            weeklyOffDays: [0], // Sunday
+            isActive: true
+          },
+          "accounts": {
+            departmentId: "accounts", 
+            checkInTime: "09:00",
+            checkOutTime: "18:00",
+            workingHours: 8,
+            overtimeThresholdMinutes: 30,
+            lateThresholdMinutes: 10,
+            isFlexibleTiming: false,
+            breakDurationMinutes: 60,
+            weeklyOffDays: [0],
+            isActive: true
+          },
+          "hr": {
+            departmentId: "hr",
+            checkInTime: "09:00",
+            checkOutTime: "18:00",
+            workingHours: 8,
+            overtimeThresholdMinutes: 30,
+            lateThresholdMinutes: 10,
+            isFlexibleTiming: false,
+            breakDurationMinutes: 60,
+            weeklyOffDays: [0],
+            isActive: true
+          },
+          "sales_and_marketing": {
+            departmentId: "sales_and_marketing",
+            checkInTime: "09:30",
+            checkOutTime: "18:30",
+            workingHours: 8,
+            overtimeThresholdMinutes: 30,
+            lateThresholdMinutes: 15,
+            isFlexibleTiming: false,
+            breakDurationMinutes: 60,
+            weeklyOffDays: [0],
+            isActive: true
+          },
+          "technical_team": {
+            departmentId: "technical_team",
+            checkInTime: "10:00",
+            checkOutTime: "19:00",
+            workingHours: 8,
+            overtimeThresholdMinutes: 30,
+            lateThresholdMinutes: 15,
+            isFlexibleTiming: false,
+            breakDurationMinutes: 60,
+            weeklyOffDays: [0],
+            isActive: true
+          }
+        };
+
+        return defaultTimings[departmentId] || {
           departmentId,
           workingHours: 8,
           checkInTime: "09:00",
@@ -2974,15 +3037,29 @@ export class FirestoreStorage implements IStorage {
           overtimeThresholdMinutes: 30,
           isFlexibleTiming: false,
           breakDurationMinutes: 60,
-          weeklyOffDays: [0], // Sunday
+          weeklyOffDays: [0],
           isActive: true
         };
       }
 
       const doc = querySnapshot.docs[0];
+      const data = doc.data();
       return {
         id: doc.id,
-        ...doc.data()
+        departmentId: data.departmentId,
+        checkInTime: data.checkInTime,
+        checkOutTime: data.checkOutTime,
+        workingHours: data.workingHours,
+        overtimeThresholdMinutes: data.overtimeThresholdMinutes,
+        lateThresholdMinutes: data.lateThresholdMinutes,
+        isFlexibleTiming: data.isFlexibleTiming,
+        flexibleCheckInStart: data.flexibleCheckInStart,
+        flexibleCheckInEnd: data.flexibleCheckInEnd,
+        breakDurationMinutes: data.breakDurationMinutes,
+        weeklyOffDays: data.weeklyOffDays,
+        isActive: data.isActive,
+        createdAt: data.createdAt?.toDate() || new Date(),
+        updatedAt: data.updatedAt?.toDate() || new Date()
       };
     } catch (error) {
       console.error("Error getting department timing:", error);
@@ -2999,25 +3076,64 @@ export class FirestoreStorage implements IStorage {
 
       const batch = this.db.batch();
       existingQuery.docs.forEach(doc => {
-        batch.update(doc.ref, { isActive: false, updatedAt: new Date() });
+        batch.update(doc.ref, { isActive: false, updatedAt: Timestamp.now() });
       });
 
-      // Create new timing
-      const newTimingRef = this.db.collection('departmentTimings').doc();
+      // Create new timing record
+      const timingRef = this.db.collection('departmentTimings').doc();
       const newTiming = {
         ...timingData,
-        id: newTimingRef.id,
+        isActive: true,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now()
+      };
+
+      batch.set(timingRef, newTiming);
+      await batch.commit();
+
+      return {
+        id: timingRef.id,
+        ...timingData,
         isActive: true,
         createdAt: new Date(),
         updatedAt: new Date()
       };
-
-      batch.set(newTimingRef, newTiming);
-      await batch.commit();
-
-      return newTiming;
     } catch (error) {
       console.error("Error creating department timing:", error);
+      throw error;
+    }
+  }
+
+  async updateDepartmentTiming(departmentId: string, timingData: any): Promise<any> {
+    try {
+      // Get current active timing
+      const querySnapshot = await this.db.collection('departmentTimings')
+        .where('departmentId', '==', departmentId)
+        .where('isActive', '==', true)
+        .limit(1)
+        .get();
+
+      if (querySnapshot.empty) {
+        // Create new if doesn't exist
+        return this.createDepartmentTiming({ ...timingData, departmentId });
+      }
+
+      const doc = querySnapshot.docs[0];
+      const updateData = {
+        ...timingData,
+        updatedAt: Timestamp.now()
+      };
+
+      await doc.ref.update(updateData);
+
+      return {
+        id: doc.id,
+        departmentId,
+        ...timingData,
+        updatedAt: new Date()
+      };
+    } catch (error) {
+      console.error("Error updating department timing:", error);
       throw error;
     }
   }
