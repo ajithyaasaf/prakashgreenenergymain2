@@ -3494,13 +3494,17 @@ export class FirestoreStorage implements IStorage {
       const id = this.db.collection('enhanced_salary_structures').doc().id;
       const now = new Date();
       
+      // Ensure dates are properly converted
+      const effectiveFromDate = data.effectiveFrom instanceof Date ? data.effectiveFrom : new Date(data.effectiveFrom || now);
+      const effectiveToDate = data.effectiveTo ? (data.effectiveTo instanceof Date ? data.effectiveTo : new Date(data.effectiveTo)) : null;
+      
       const structureData = {
         ...data,
         id,
         createdAt: Timestamp.fromDate(now),
         updatedAt: Timestamp.fromDate(now),
-        effectiveFrom: Timestamp.fromDate(data.effectiveFrom || now),
-        effectiveTo: data.effectiveTo ? Timestamp.fromDate(data.effectiveTo) : null
+        effectiveFrom: Timestamp.fromDate(effectiveFromDate),
+        effectiveTo: effectiveToDate ? Timestamp.fromDate(effectiveToDate) : null
       };
 
       await this.db.collection('enhanced_salary_structures').doc(id).set(structureData);
@@ -3510,8 +3514,8 @@ export class FirestoreStorage implements IStorage {
         id,
         createdAt: now,
         updatedAt: now,
-        effectiveFrom: data.effectiveFrom || now,
-        effectiveTo: data.effectiveTo || undefined
+        effectiveFrom: effectiveFromDate,
+        effectiveTo: effectiveToDate || undefined
       } as EnhancedSalaryStructure;
     } catch (error) {
       console.error("Error creating enhanced salary structure:", error);

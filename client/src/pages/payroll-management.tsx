@@ -316,14 +316,14 @@ export default function EnhancedPayrollManagement() {
             <DialogTrigger asChild>
               <Button variant="outline" size="sm">
                 <DollarSign className="h-4 w-4 mr-2" />
-                Salary Structure
+                Create Salary Structure
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-3xl">
+            <DialogContent className="max-w-7xl max-h-[95vh] overflow-hidden">
               <DialogHeader>
-                <DialogTitle>Create Salary Structure</DialogTitle>
+                <DialogTitle className="text-xl font-bold">Create Comprehensive Salary Structure</DialogTitle>
                 <DialogDescription>
-                  Define salary components for an employee
+                  Define detailed salary components, deductions, and working parameters for an employee
                 </DialogDescription>
               </DialogHeader>
               <SalaryStructureForm 
@@ -945,22 +945,133 @@ function SalaryStructureForm({
   onSubmit: (data: any) => void;
 }) {
   const [formData, setFormData] = useState({
+    // Employee Information
     userId: "",
     employeeId: "",
+    designation: "",
+    department: "",
+    dateOfJoining: "",
+    
+    // Fixed Salary Components (Monthly)
+    fixedSalary: 0,
     fixedBasic: 0,
     fixedHRA: 0,
     fixedConveyance: 0,
-    customEarnings: {} as Record<string, number>,
-    customDeductions: {} as Record<string, number>,
-    perDaySalaryBase: "basic_hra" as "basic" | "basic_hra" | "gross",
+    
+    // Day Structure
+    monthDays: 30,
+    perDaySalary: 0,
+    workingDays: 30,
+    monthWorkingHours: 0,
+    perDayWorkingHours: 8,
     overtimeRate: 1.5,
+    
+    // Earnings
+    earnedBasic: 0,
+    earnedHRA: 0,
+    earnedConveyance: 0,
+    otherEarnings: 0,
+    grossSalary: 0,
+    overtimePay: 0,
+    
+    // Deductions
+    epfDeduction: 0,
+    esiDeduction: 0,
+    vptDeduction: 0,
+    tdsDeduction: 0,
+    loanDeduction: 0,
+    advanceDeduction: 0,
+    fineDeduction: 0,
+    creditDeduction: 0,
+    totalDeductions: 0,
+    
+    // Final Salary
+    netSalary: 0,
+    
+    // Configuration
+    perDaySalaryBase: "basic_hra" as "basic" | "basic_hra" | "gross",
     epfApplicable: true,
     esiApplicable: true,
-    vptAmount: 0,
-    effectiveFrom: new Date().toISOString().split('T')[0]
+    autoCalculate: true,
+    effectiveFrom: new Date().toISOString().split('T')[0],
+    
+    // Custom fields
+    customEarnings: {} as Record<string, number>,
+    customDeductions: {} as Record<string, number>,
+    
+    // Remarks
+    remarks: ""
   });
 
   const selectedUser = users.find(u => u.id === formData.userId);
+
+  // Auto-calculation when values change
+  React.useEffect(() => {
+    if (formData.autoCalculate) {
+      calculateSalary();
+    }
+  }, [
+    formData.fixedSalary,
+    formData.fixedBasic,
+    formData.fixedHRA,
+    formData.fixedConveyance,
+    formData.monthDays,
+    formData.workingDays,
+    formData.overtimePay,
+    formData.epfApplicable,
+    formData.esiApplicable,
+    formData.autoCalculate
+  ]);
+
+  const calculateSalary = () => {
+    const gross = formData.fixedBasic + formData.fixedHRA + formData.fixedConveyance + formData.otherEarnings;
+    const perDay = gross / formData.monthDays;
+    const earnedBasic = (formData.fixedBasic / formData.monthDays) * formData.workingDays;
+    const earnedHRA = (formData.fixedHRA / formData.monthDays) * formData.workingDays;
+    const earnedConveyance = (formData.fixedConveyance / formData.monthDays) * formData.workingDays;
+    
+    // Statutory deductions
+    let epf = 0, esi = 0;
+    if (formData.epfApplicable && gross <= 15000) {
+      epf = Math.min(gross * 0.12, 1800); // 12% capped at 15000 salary
+    }
+    if (formData.esiApplicable && gross <= 21000) {
+      esi = gross * 0.0075; // 0.75%
+    }
+    
+    const totalDeductions = epf + esi + formData.vptDeduction + formData.tdsDeduction + 
+                           formData.loanDeduction + formData.advanceDeduction + 
+                           formData.fineDeduction + formData.creditDeduction;
+    
+    const totalEarnings = earnedBasic + earnedHRA + earnedConveyance + formData.otherEarnings + formData.overtimePay;
+    const netSalary = totalEarnings - totalDeductions;
+
+    setFormData(prev => ({
+      ...prev,
+      perDaySalary: Math.round(perDay),
+      earnedBasic: Math.round(earnedBasic),
+      earnedHRA: Math.round(earnedHRA),
+      earnedConveyance: Math.round(earnedConveyance),
+      grossSalary: Math.round(gross),
+      epfDeduction: Math.round(epf),
+      esiDeduction: Math.round(esi),
+      totalDeductions: Math.round(totalDeductions),
+      netSalary: Math.round(netSalary)
+    }));
+  };
+
+  const handleUserChange = (userId: string) => {
+    const user = users.find(u => u.id === userId);
+    if (user) {
+      setFormData(prev => ({
+        ...prev,
+        userId,
+        employeeId: user.employeeId || user.uid || "",
+        designation: user.designation || "",
+        department: user.department || ""
+      }));
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -973,37 +1084,86 @@ function SalaryStructureForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 max-h-[600px] overflow-y-auto">
-      {/* Employee Selection */}
-      <div>
-        <Label htmlFor="userId">Employee</Label>
-        <Select value={formData.userId} onValueChange={(value) => 
-          setFormData({ ...formData, userId: value })
-        }>
-          <SelectTrigger>
-            <SelectValue placeholder="Select Employee" />
-          </SelectTrigger>
-          <SelectContent>
-            {users.map(user => (
-              <SelectItem key={user.id} value={user.id}>
-                {user.displayName} ({user.department?.toUpperCase()})
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+    <form onSubmit={handleSubmit} className="space-y-8 max-h-[80vh] overflow-y-auto">
+      {/* Employee Information */}
+      <div className="bg-gray-50 p-6 rounded-lg">
+        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+          <Users className="h-5 w-5" />
+          Employee Information
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div>
+            <Label htmlFor="userId">Employee</Label>
+            <Select value={formData.userId} onValueChange={handleUserChange}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select Employee" />
+              </SelectTrigger>
+              <SelectContent>
+                {users.map(user => (
+                  <SelectItem key={user.id} value={user.id}>
+                    {user.displayName} ({user.department?.toUpperCase()})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="designation">Designation</Label>
+            <Input
+              id="designation"
+              value={formData.designation}
+              onChange={(e) => setFormData(prev => ({ ...prev, designation: e.target.value }))}
+              placeholder="Auto-filled from user"
+              readOnly
+            />
+          </div>
+          <div>
+            <Label htmlFor="department">Department</Label>
+            <Input
+              id="department"
+              value={formData.department}
+              onChange={(e) => setFormData(prev => ({ ...prev, department: e.target.value }))}
+              placeholder="Auto-filled from user"
+              readOnly
+            />
+          </div>
+          <div>
+            <Label htmlFor="effectiveFrom">Effective From</Label>
+            <Input
+              id="effectiveFrom"
+              type="date"
+              value={formData.effectiveFrom}
+              onChange={(e) => setFormData(prev => ({ ...prev, effectiveFrom: e.target.value }))}
+              required
+            />
+          </div>
+        </div>
       </div>
 
-      {/* Fixed Components */}
-      <div>
-        <h3 className="text-lg font-semibold mb-4">Fixed Salary Components</h3>
-        <div className="grid grid-cols-3 gap-4">
+      {/* Fixed Salary Structure */}
+      <div className="bg-green-50 p-6 rounded-lg">
+        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+          <DollarSign className="h-5 w-5" />
+          Fixed Salary Structure (Monthly)
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div>
+            <Label htmlFor="fixedSalary">Fixed Salary</Label>
+            <Input
+              id="fixedSalary"
+              type="number"
+              value={formData.fixedSalary}
+              onChange={(e) => setFormData(prev => ({ ...prev, fixedSalary: parseFloat(e.target.value) || 0 }))}
+              required
+            />
+          </div>
           <div>
             <Label htmlFor="fixedBasic">Fixed Basic</Label>
             <Input
               id="fixedBasic"
               type="number"
               value={formData.fixedBasic}
-              onChange={(e) => setFormData({ ...formData, fixedBasic: parseFloat(e.target.value) || 0 })}
+              onChange={(e) => setFormData(prev => ({ ...prev, fixedBasic: parseFloat(e.target.value) || 0 }))}
               required
             />
           </div>
@@ -1013,7 +1173,7 @@ function SalaryStructureForm({
               id="fixedHRA"
               type="number"
               value={formData.fixedHRA}
-              onChange={(e) => setFormData({ ...formData, fixedHRA: parseFloat(e.target.value) || 0 })}
+              onChange={(e) => setFormData(prev => ({ ...prev, fixedHRA: parseFloat(e.target.value) || 0 }))}
               required
             />
           </div>
@@ -1023,73 +1183,250 @@ function SalaryStructureForm({
               id="fixedConveyance"
               type="number"
               value={formData.fixedConveyance}
-              onChange={(e) => setFormData({ ...formData, fixedConveyance: parseFloat(e.target.value) || 0 })}
+              onChange={(e) => setFormData(prev => ({ ...prev, fixedConveyance: parseFloat(e.target.value) || 0 }))}
               required
             />
           </div>
         </div>
       </div>
 
-      {/* Custom Earnings */}
-      {earningsFields.filter(f => !f.isSystemField).length > 0 && (
-        <div>
-          <h3 className="text-lg font-semibold mb-4">Custom Earnings</h3>
-          <div className="grid grid-cols-2 gap-4">
-            {earningsFields.filter(f => !f.isSystemField).map(field => (
-              <div key={field.id}>
-                <Label htmlFor={field.name}>{field.displayName}</Label>
-                <Input
-                  id={field.name}
-                  type="number"
-                  value={formData.customEarnings[field.name] || field.defaultValue || 0}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    customEarnings: {
-                      ...formData.customEarnings,
-                      [field.name]: parseFloat(e.target.value) || 0
-                    }
-                  })}
-                />
-              </div>
-            ))}
+      {/* Day Structure */}
+      <div className="bg-blue-50 p-6 rounded-lg">
+        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+          <Calendar className="h-5 w-5" />
+          Day Structure & Working Hours
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div>
+            <Label htmlFor="monthDays">Month Days</Label>
+            <Input
+              id="monthDays"
+              type="number"
+              value={formData.monthDays}
+              onChange={(e) => setFormData(prev => ({ ...prev, monthDays: parseFloat(e.target.value) || 30 }))}
+              required
+            />
+          </div>
+          <div>
+            <Label htmlFor="workingDays">Working Days</Label>
+            <Input
+              id="workingDays"
+              type="number"
+              value={formData.workingDays}
+              onChange={(e) => setFormData(prev => ({ ...prev, workingDays: parseFloat(e.target.value) || 30 }))}
+              required
+            />
+          </div>
+          <div>
+            <Label htmlFor="perDaySalary">Per Day Salary</Label>
+            <Input
+              id="perDaySalary"
+              type="number"
+              value={formData.perDaySalary}
+              readOnly
+              className="bg-gray-100"
+            />
+          </div>
+          <div>
+            <Label htmlFor="perDayWorkingHours">Per Day Hours</Label>
+            <Input
+              id="perDayWorkingHours"
+              type="number"
+              value={formData.perDayWorkingHours}
+              onChange={(e) => setFormData(prev => ({ ...prev, perDayWorkingHours: parseFloat(e.target.value) || 8 }))}
+              required
+            />
+          </div>
+          <div>
+            <Label htmlFor="overtimeRate">OT Rate (x)</Label>
+            <Input
+              id="overtimeRate"
+              type="number"
+              step="0.1"
+              value={formData.overtimeRate}
+              onChange={(e) => setFormData(prev => ({ ...prev, overtimeRate: parseFloat(e.target.value) || 1.5 }))}
+            />
           </div>
         </div>
-      )}
+      </div>
 
-      {/* Custom Deductions */}
-      {deductionsFields.filter(f => !f.isSystemField).length > 0 && (
-        <div>
-          <h3 className="text-lg font-semibold mb-4">Custom Deductions</h3>
-          <div className="grid grid-cols-2 gap-4">
-            {deductionsFields.filter(f => !f.isSystemField).map(field => (
-              <div key={field.id}>
-                <Label htmlFor={field.name}>{field.displayName}</Label>
-                <Input
-                  id={field.name}
-                  type="number"
-                  value={formData.customDeductions[field.name] || field.defaultValue || 0}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    customDeductions: {
-                      ...formData.customDeductions,
-                      [field.name]: parseFloat(e.target.value) || 0
-                    }
-                  })}
-                />
-              </div>
-            ))}
+      {/* Earnings */}
+      <div className="bg-yellow-50 p-6 rounded-lg">
+        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+          <Plus className="h-5 w-5" />
+          Earned Salary & Overtime
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+          <div>
+            <Label htmlFor="earnedBasic">Earned Basic</Label>
+            <Input
+              id="earnedBasic"
+              type="number"
+              value={formData.earnedBasic}
+              readOnly
+              className="bg-gray-100"
+            />
+          </div>
+          <div>
+            <Label htmlFor="earnedHRA">Earned HRA</Label>
+            <Input
+              id="earnedHRA"
+              type="number"
+              value={formData.earnedHRA}
+              readOnly
+              className="bg-gray-100"
+            />
+          </div>
+          <div>
+            <Label htmlFor="earnedConveyance">Earned Conveyance</Label>
+            <Input
+              id="earnedConveyance"
+              type="number"
+              value={formData.earnedConveyance}
+              readOnly
+              className="bg-gray-100"
+            />
+          </div>
+          <div>
+            <Label htmlFor="otherEarnings">Other Earnings</Label>
+            <Input
+              id="otherEarnings"
+              type="number"
+              value={formData.otherEarnings}
+              onChange={(e) => setFormData(prev => ({ ...prev, otherEarnings: parseFloat(e.target.value) || 0 }))}
+            />
+          </div>
+          <div>
+            <Label htmlFor="overtimePay">Overtime Pay</Label>
+            <Input
+              id="overtimePay"
+              type="number"
+              value={formData.overtimePay}
+              onChange={(e) => setFormData(prev => ({ ...prev, overtimePay: parseFloat(e.target.value) || 0 }))}
+            />
+          </div>
+          <div>
+            <Label htmlFor="grossSalary">Gross Salary</Label>
+            <Input
+              id="grossSalary"
+              type="number"
+              value={formData.grossSalary}
+              readOnly
+              className="bg-gray-100 font-bold"
+            />
           </div>
         </div>
-      )}
+      </div>
 
-      {/* Configuration */}
-      <div>
-        <h3 className="text-lg font-semibold mb-4">Configuration</h3>
-        <div className="grid grid-cols-2 gap-4">
+      {/* Deductions */}
+      <div className="bg-red-50 p-6 rounded-lg">
+        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+          <AlertCircle className="h-5 w-5" />
+          Deductions
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+          <div>
+            <Label htmlFor="epfDeduction">EPF</Label>
+            <Input
+              id="epfDeduction"
+              type="number"
+              value={formData.epfDeduction}
+              onChange={(e) => setFormData(prev => ({ ...prev, epfDeduction: parseFloat(e.target.value) || 0 }))}
+              readOnly={formData.autoCalculate}
+              className={formData.autoCalculate ? "bg-gray-100" : ""}
+            />
+          </div>
+          <div>
+            <Label htmlFor="esiDeduction">ESI</Label>
+            <Input
+              id="esiDeduction"
+              type="number"
+              value={formData.esiDeduction}
+              onChange={(e) => setFormData(prev => ({ ...prev, esiDeduction: parseFloat(e.target.value) || 0 }))}
+              readOnly={formData.autoCalculate}
+              className={formData.autoCalculate ? "bg-gray-100" : ""}
+            />
+          </div>
+          <div>
+            <Label htmlFor="vptDeduction">VPT</Label>
+            <Input
+              id="vptDeduction"
+              type="number"
+              value={formData.vptDeduction}
+              onChange={(e) => setFormData(prev => ({ ...prev, vptDeduction: parseFloat(e.target.value) || 0 }))}
+            />
+          </div>
+          <div>
+            <Label htmlFor="tdsDeduction">TDS</Label>
+            <Input
+              id="tdsDeduction"
+              type="number"
+              value={formData.tdsDeduction}
+              onChange={(e) => setFormData(prev => ({ ...prev, tdsDeduction: parseFloat(e.target.value) || 0 }))}
+            />
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div>
+            <Label htmlFor="loanDeduction">Loan</Label>
+            <Input
+              id="loanDeduction"
+              type="number"
+              value={formData.loanDeduction}
+              onChange={(e) => setFormData(prev => ({ ...prev, loanDeduction: parseFloat(e.target.value) || 0 }))}
+            />
+          </div>
+          <div>
+            <Label htmlFor="advanceDeduction">Advance</Label>
+            <Input
+              id="advanceDeduction"
+              type="number"
+              value={formData.advanceDeduction}
+              onChange={(e) => setFormData(prev => ({ ...prev, advanceDeduction: parseFloat(e.target.value) || 0 }))}
+            />
+          </div>
+          <div>
+            <Label htmlFor="fineDeduction">Fine</Label>
+            <Input
+              id="fineDeduction"
+              type="number"
+              value={formData.fineDeduction}
+              onChange={(e) => setFormData(prev => ({ ...prev, fineDeduction: parseFloat(e.target.value) || 0 }))}
+            />
+          </div>
+          <div>
+            <Label htmlFor="creditDeduction">Credit</Label>
+            <Input
+              id="creditDeduction"
+              type="number"
+              value={formData.creditDeduction}
+              onChange={(e) => setFormData(prev => ({ ...prev, creditDeduction: parseFloat(e.target.value) || 0 }))}
+            />
+          </div>
+          <div>
+            <Label htmlFor="totalDeductions">Total Deductions</Label>
+            <Input
+              id="totalDeductions"
+              type="number"
+              value={formData.totalDeductions}
+              readOnly
+              className="bg-gray-100 font-bold"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Configuration & Controls */}
+      <div className="bg-purple-50 p-6 rounded-lg">
+        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+          <Settings className="h-5 w-5" />
+          Configuration & Final Salary
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
           <div>
             <Label htmlFor="perDaySalaryBase">Per Day Salary Base</Label>
             <Select value={formData.perDaySalaryBase} onValueChange={(value: "basic" | "basic_hra" | "gross") => 
-              setFormData({ ...formData, perDaySalaryBase: value })
+              setFormData(prev => ({ ...prev, perDaySalaryBase: value }))
             }>
               <SelectTrigger>
                 <SelectValue />
@@ -1101,50 +1438,72 @@ function SalaryStructureForm({
               </SelectContent>
             </Select>
           </div>
-          <div>
-            <Label htmlFor="overtimeRate">Overtime Rate</Label>
-            <Input
-              id="overtimeRate"
-              type="number"
-              step="0.1"
-              value={formData.overtimeRate}
-              onChange={(e) => setFormData({ ...formData, overtimeRate: parseFloat(e.target.value) || 1.5 })}
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-3 gap-4 mt-4">
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 pt-6">
             <Checkbox
               id="epfApplicable"
               checked={formData.epfApplicable}
-              onCheckedChange={(checked) => setFormData({ ...formData, epfApplicable: checked === true })}
+              onCheckedChange={(checked) => setFormData(prev => ({ ...prev, epfApplicable: !!checked }))}
             />
             <Label htmlFor="epfApplicable">EPF Applicable</Label>
           </div>
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 pt-6">
             <Checkbox
               id="esiApplicable"
               checked={formData.esiApplicable}
-              onCheckedChange={(checked) => setFormData({ ...formData, esiApplicable: checked === true })}
+              onCheckedChange={(checked) => setFormData(prev => ({ ...prev, esiApplicable: !!checked }))}
             />
             <Label htmlFor="esiApplicable">ESI Applicable</Label>
           </div>
+          <div className="flex items-center space-x-2 pt-6">
+            <Checkbox
+              id="autoCalculate"
+              checked={formData.autoCalculate}
+              onCheckedChange={(checked) => setFormData(prev => ({ ...prev, autoCalculate: !!checked }))}
+            />
+            <Label htmlFor="autoCalculate">Auto Calculate</Label>
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <Label htmlFor="effectiveFrom">Effective From</Label>
+            <Label htmlFor="netSalary">Net Salary</Label>
             <Input
-              id="effectiveFrom"
-              type="date"
-              value={formData.effectiveFrom}
-              onChange={(e) => setFormData({ ...formData, effectiveFrom: e.target.value })}
-              required
+              id="netSalary"
+              type="number"
+              value={formData.netSalary}
+              readOnly
+              className="bg-green-100 font-bold text-lg"
+            />
+          </div>
+          <div>
+            <Label htmlFor="remarks">Remarks</Label>
+            <Input
+              id="remarks"
+              value={formData.remarks}
+              onChange={(e) => setFormData(prev => ({ ...prev, remarks: e.target.value }))}
+              placeholder="Additional notes or comments"
             />
           </div>
         </div>
       </div>
 
-      <div className="flex justify-end gap-2">
-        <Button type="submit">Create Salary Structure</Button>
+      {/* Action Buttons */}
+      <div className="flex justify-between items-center pt-6 border-t">
+        <Button 
+          type="button" 
+          variant="outline" 
+          onClick={calculateSalary}
+          className="flex items-center gap-2"
+        >
+          <Calculator className="h-4 w-4" />
+          Recalculate
+        </Button>
+        <div className="flex gap-2">
+          <Button type="submit" size="lg" className="bg-primary hover:bg-primary-dark">
+            <CheckCircle className="h-4 w-4 mr-2" />
+            Create Salary Structure
+          </Button>
+        </div>
       </div>
     </form>
   );
