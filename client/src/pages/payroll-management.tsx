@@ -166,7 +166,7 @@ export default function EnhancedPayrollManagement() {
     enabled: !!user?.firebaseUser
   });
 
-  const { data: payrolls = [] } = useQuery<EnhancedPayroll[]>({
+  const { data: payrolls = [], refetch: refetchPayrolls } = useQuery<EnhancedPayroll[]>({
     queryKey: ["/api/enhanced-payrolls", selectedMonth, selectedYear, selectedDepartment],
     queryFn: async () => {
       const queryParams = {
@@ -176,19 +176,28 @@ export default function EnhancedPayrollManagement() {
       };
       
       const response = await apiRequest('GET', '/api/enhanced-payrolls', queryParams);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch payrolls: ${response.status}`);
+      }
       const data = await response.json();
       return Array.isArray(data) ? data : [];
     },
-    enabled: !!user?.firebaseUser
+    enabled: !!user?.uid,
+    refetchInterval: 5000 // Real-time updates every 5 seconds
   });
 
-  const { data: salaryStructures = [] } = useQuery<EnhancedSalaryStructure[]>({
+  const { data: salaryStructures = [], refetch: refetchSalaryStructures } = useQuery<EnhancedSalaryStructure[]>({
     queryKey: ["/api/enhanced-salary-structures"],
     queryFn: async () => {
       const response = await apiRequest('GET', '/api/enhanced-salary-structures');
-      return response.json();
+      if (!response.ok) {
+        throw new Error(`Failed to fetch salary structures: ${response.status}`);
+      }
+      const data = await response.json();
+      return Array.isArray(data) ? data : [];
     },
-    enabled: !!user?.firebaseUser
+    enabled: !!user?.uid,
+    refetchInterval: 5000 // Real-time updates every 5 seconds
   });
 
   const { data: settings } = useQuery<EnhancedPayrollSettings>({
@@ -216,26 +225,49 @@ export default function EnhancedPayrollManagement() {
   const createSalaryStructureMutation = useMutation({
     mutationFn: async (data: any) => {
       const response = await apiRequest("POST", "/api/enhanced-salary-structures", data);
+      if (!response.ok) {
+        throw new Error(`Failed to create salary structure: ${response.status}`);
+      }
       return response.json();
     },
     onSuccess: () => {
+      // Invalidate all related queries for real-time sync
       queryClient.invalidateQueries({ queryKey: ["/api/enhanced-salary-structures"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/enhanced-payrolls"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       setIsSalaryStructureDialogOpen(false);
       toast({ title: "Salary structure created successfully" });
+      // Force refetch to show immediate updates
+      refetchSalaryStructures();
+    },
+    onError: (error: any) => {
+      toast({ title: "Error creating salary structure", description: error.message, variant: "destructive" });
     }
   });
 
   const bulkProcessPayrollMutation = useMutation({
     mutationFn: async (data: { month: number; year: number; userIds?: string[] }) => {
       const response = await apiRequest("POST", "/api/enhanced-payrolls/bulk-process", data);
+      if (!response.ok) {
+        throw new Error(`Failed to process payroll: ${response.status}`);
+      }
       return response.json();
     },
     onSuccess: (data) => {
+      // Invalidate all related queries for complete synchronization
       queryClient.invalidateQueries({ queryKey: ["/api/enhanced-payrolls"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/enhanced-salary-structures"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       toast({ 
         title: "Bulk processing completed", 
         description: `Processed ${data.payrolls?.length || 0} payrolls successfully` 
       });
+      // Force immediate refetch for real-time updates
+      refetchPayrolls();
+      refetchSalaryStructures();
+    },
+    onError: (error: any) => {
+      toast({ title: "Error processing payroll", description: error.message, variant: "destructive" });
     }
   });
 
@@ -1087,9 +1119,7 @@ function SalaryStructureForm({
     });
   };
 
-  // Debug users data
-  console.log('SalaryStructureForm - Users data:', users);
-  console.log('SalaryStructureForm - Users length:', users?.length);
+
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8 max-h-[80vh] overflow-y-auto">
