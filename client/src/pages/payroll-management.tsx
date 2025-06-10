@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -141,23 +142,11 @@ export default function EnhancedPayrollManagement() {
   const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
   const [editingPayroll, setEditingPayroll] = useState<string | null>(null);
 
-  // Helper function to get auth headers
-  const getAuthHeaders = async () => {
-    const token = await user?.firebaseUser?.getIdToken();
-    return {
-      'Content-Type': 'application/json',
-      ...(token && { 'Authorization': `Bearer ${token}` })
-    };
-  };
-
   // API Queries
   const { data: users = [] } = useQuery({
     queryKey: ["/api/users"],
     queryFn: async () => {
-      const response = await fetch('/api/users', {
-        headers: await getAuthHeaders()
-      });
-      if (!response.ok) throw new Error('Failed to fetch users');
+      const response = await apiRequest('GET', '/api/users');
       const data = await response.json();
       return data.filter((user: any) => user.role !== "master_admin");
     },
@@ -167,10 +156,7 @@ export default function EnhancedPayrollManagement() {
   const { data: fieldConfigs = [] } = useQuery<PayrollFieldConfig[]>({
     queryKey: ["/api/payroll/field-configs"],
     queryFn: async () => {
-      const response = await fetch('/api/payroll/field-configs', {
-        headers: await getAuthHeaders()
-      });
-      if (!response.ok) throw new Error('Failed to fetch field configs');
+      const response = await apiRequest('GET', '/api/payroll/field-configs');
       return response.json();
     },
     enabled: !!user?.firebaseUser
@@ -179,17 +165,13 @@ export default function EnhancedPayrollManagement() {
   const { data: payrolls = [] } = useQuery<EnhancedPayroll[]>({
     queryKey: ["/api/enhanced-payrolls", selectedMonth, selectedYear, selectedDepartment],
     queryFn: async () => {
-      const params = new URLSearchParams();
-      params.append("month", selectedMonth.toString());
-      params.append("year", selectedYear.toString());
-      if (selectedDepartment && selectedDepartment !== "all") {
-        params.append("department", selectedDepartment);
-      }
+      const queryParams = {
+        month: selectedMonth.toString(),
+        year: selectedYear.toString(),
+        ...(selectedDepartment && selectedDepartment !== "all" && { department: selectedDepartment })
+      };
       
-      const response = await fetch(`/api/enhanced-payrolls?${params}`, {
-        headers: await getAuthHeaders()
-      });
-      if (!response.ok) throw new Error('Failed to fetch payrolls');
+      const response = await apiRequest('GET', '/api/enhanced-payrolls', queryParams);
       const data = await response.json();
       return Array.isArray(data) ? data : [];
     },
@@ -199,10 +181,7 @@ export default function EnhancedPayrollManagement() {
   const { data: salaryStructures = [] } = useQuery<EnhancedSalaryStructure[]>({
     queryKey: ["/api/enhanced-salary-structures"],
     queryFn: async () => {
-      const response = await fetch('/api/enhanced-salary-structures', {
-        headers: await getAuthHeaders()
-      });
-      if (!response.ok) throw new Error('Failed to fetch salary structures');
+      const response = await apiRequest('GET', '/api/enhanced-salary-structures');
       return response.json();
     },
     enabled: !!user?.firebaseUser
@@ -211,10 +190,7 @@ export default function EnhancedPayrollManagement() {
   const { data: settings } = useQuery<EnhancedPayrollSettings>({
     queryKey: ["/api/enhanced-payroll-settings"],
     queryFn: async () => {
-      const response = await fetch('/api/enhanced-payroll-settings', {
-        headers: await getAuthHeaders()
-      });
-      if (!response.ok) throw new Error('Failed to fetch payroll settings');
+      const response = await apiRequest('GET', '/api/enhanced-payroll-settings');
       return response.json();
     },
     enabled: !!user?.firebaseUser
