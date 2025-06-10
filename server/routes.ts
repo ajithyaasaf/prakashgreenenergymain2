@@ -4097,28 +4097,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied - Master Admin only" });
       }
       
-      const defaultSettings = {
-        id: "1",
-        epfEmployeeRate: 12,
-        epfEmployerRate: 12,
-        esiEmployeeRate: 0.75,
-        esiEmployerRate: 3.25,
-        epfCeiling: 15000,
-        esiThreshold: 21000,
-        tdsThreshold: 250000,
-        standardWorkingDays: 26,
-        standardWorkingHours: 8,
-        overtimeThresholdHours: 8,
-        companyName: "Prakash Greens Energy",
-        companyAddress: "",
-        companyPan: "",
-        companyTan: "",
-        autoCalculateStatutory: true,
-        allowManualOverride: true,
-        requireApprovalForProcessing: false
-      };
-      
-      res.json(defaultSettings);
+      const settings = await storage.getEnhancedPayrollSettings();
+      res.json(settings);
     } catch (error) {
       console.error("Error fetching payroll settings:", error);
       res.status(500).json({ message: "Failed to fetch payroll settings" });

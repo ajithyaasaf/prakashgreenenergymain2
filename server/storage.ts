@@ -439,6 +439,97 @@ export interface AttendancePolicy {
   updatedAt: Date;
 }
 
+// Enhanced Payroll Interfaces
+export interface EnhancedPayroll {
+  id: string;
+  userId: string;
+  employeeId: string;
+  month: number;
+  year: number;
+  monthDays: number;
+  presentDays: number;
+  paidLeaveDays: number;
+  overtimeHours: number;
+  perDaySalary: number;
+  earnedBasic: number;
+  earnedHRA: number;
+  earnedConveyance: number;
+  overtimePay: number;
+  dynamicEarnings: Record<string, number>;
+  dynamicDeductions: Record<string, number>;
+  epfDeduction: number;
+  esiDeduction: number;
+  vptDeduction: number;
+  tdsDeduction: number;
+  totalEarnings: number;
+  totalDeductions: number;
+  netSalary: number;
+  status: "draft" | "processed" | "approved" | "paid";
+  processedBy?: string;
+  processedAt?: Date;
+  approvedBy?: string;
+  approvedAt?: Date;
+  remarks?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface EnhancedSalaryStructure {
+  id: string;
+  userId: string;
+  employeeId: string;
+  basicSalary: number;
+  hra: number;
+  conveyanceAllowance: number;
+  fixedSalary: number;
+  overtimeRate: number;
+  dynamicFields: Record<string, number>;
+  isActive: boolean;
+  effectiveFrom: Date;
+  effectiveTo?: Date;
+  createdBy: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface EnhancedPayrollSettings {
+  id: string;
+  epfEmployeeRate: number;
+  epfEmployerRate: number;
+  esiEmployeeRate: number;
+  esiEmployerRate: number;
+  epfCeiling: number;
+  esiThreshold: number;
+  tdsThreshold: number;
+  standardWorkingDays: number;
+  standardWorkingHours: number;
+  overtimeThresholdHours: number;
+  companyName: string;
+  companyAddress?: string;
+  companyPan?: string;
+  companyTan?: string;
+  autoCalculateStatutory: boolean;
+  allowManualOverride: boolean;
+  requireApprovalForProcessing: boolean;
+  updatedBy: string;
+  updatedAt: Date;
+}
+
+export interface PayrollFieldConfig {
+  id: string;
+  name: string;
+  displayName: string;
+  category: "earnings" | "deductions";
+  dataType: "number" | "text" | "boolean";
+  isRequired: boolean;
+  isSystemField: boolean;
+  defaultValue?: any;
+  sortOrder: number;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface IStorage {
   // User management
   getUser(id: string): Promise<User | undefined>;
@@ -555,6 +646,32 @@ export interface IStorage {
     overtimeHours: number;
     leaveDays: number;
   }>;
+
+  // Enhanced Payroll Management Methods
+  getEnhancedPayroll(id: string): Promise<EnhancedPayroll | undefined>;
+  getEnhancedPayrollByUserAndMonth(userId: string, month: number, year: number): Promise<EnhancedPayroll | undefined>;
+  createEnhancedPayroll(data: any): Promise<EnhancedPayroll>;
+  updateEnhancedPayroll(id: string, data: Partial<EnhancedPayroll>): Promise<EnhancedPayroll>;
+  listEnhancedPayrolls(filters?: { month?: number; year?: number; department?: string; status?: string }): Promise<EnhancedPayroll[]>;
+  listEnhancedPayrollsByUser(userId: string): Promise<EnhancedPayroll[]>;
+  
+  // Enhanced Salary Structure Management
+  getEnhancedSalaryStructure(id: string): Promise<EnhancedSalaryStructure | undefined>;
+  getEnhancedSalaryStructureByUser(userId: string): Promise<EnhancedSalaryStructure | undefined>;
+  createEnhancedSalaryStructure(data: any): Promise<EnhancedSalaryStructure>;
+  updateEnhancedSalaryStructure(id: string, data: Partial<EnhancedSalaryStructure>): Promise<EnhancedSalaryStructure>;
+  listEnhancedSalaryStructures(): Promise<EnhancedSalaryStructure[]>;
+  
+  // Enhanced Payroll Settings
+  getEnhancedPayrollSettings(): Promise<EnhancedPayrollSettings | undefined>;
+  updateEnhancedPayrollSettings(data: any): Promise<EnhancedPayrollSettings>;
+  
+  // Payroll Field Configuration
+  getPayrollFieldConfig(id: string): Promise<PayrollFieldConfig | undefined>;
+  listPayrollFieldConfigs(): Promise<PayrollFieldConfig[]>;
+  createPayrollFieldConfig(data: any): Promise<PayrollFieldConfig>;
+  updatePayrollFieldConfig(id: string, data: Partial<PayrollFieldConfig>): Promise<PayrollFieldConfig>;
+  deletePayrollFieldConfig(id: string): Promise<boolean>;
   
   listOfficeLocations(): Promise<OfficeLocation[]>;
   getOfficeLocation(id: string): Promise<OfficeLocation | undefined>;
@@ -3162,6 +3279,497 @@ export class FirestoreStorage implements IStorage {
     } catch (error) {
       console.error("Error getting user attendance for date:", error);
       return null;
+    }
+  }
+
+  // Enhanced Payroll Management Methods
+  async getEnhancedPayroll(id: string): Promise<EnhancedPayroll | undefined> {
+    try {
+      const doc = await this.db.collection('enhanced_payrolls').doc(id).get();
+      if (!doc.exists) return undefined;
+      
+      const data = doc.data()!;
+      return {
+        id: doc.id,
+        ...data,
+        processedAt: data.processedAt?.toDate() || undefined,
+        approvedAt: data.approvedAt?.toDate() || undefined,
+        createdAt: data.createdAt?.toDate() || new Date(),
+        updatedAt: data.updatedAt?.toDate() || new Date()
+      } as EnhancedPayroll;
+    } catch (error) {
+      console.error("Error getting enhanced payroll:", error);
+      return undefined;
+    }
+  }
+
+  async getEnhancedPayrollByUserAndMonth(userId: string, month: number, year: number): Promise<EnhancedPayroll | undefined> {
+    try {
+      const querySnapshot = await this.db.collection('enhanced_payrolls')
+        .where('userId', '==', userId)
+        .where('month', '==', month)
+        .where('year', '==', year)
+        .limit(1)
+        .get();
+
+      if (querySnapshot.empty) return undefined;
+
+      const doc = querySnapshot.docs[0];
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        processedAt: data.processedAt?.toDate() || undefined,
+        approvedAt: data.approvedAt?.toDate() || undefined,
+        createdAt: data.createdAt?.toDate() || new Date(),
+        updatedAt: data.updatedAt?.toDate() || new Date()
+      } as EnhancedPayroll;
+    } catch (error) {
+      console.error("Error getting enhanced payroll by user and month:", error);
+      return undefined;
+    }
+  }
+
+  async createEnhancedPayroll(data: any): Promise<EnhancedPayroll> {
+    try {
+      const id = this.db.collection('enhanced_payrolls').doc().id;
+      const now = new Date();
+      
+      const payrollData = {
+        ...data,
+        id,
+        createdAt: Timestamp.fromDate(now),
+        updatedAt: Timestamp.fromDate(now)
+      };
+
+      await this.db.collection('enhanced_payrolls').doc(id).set(payrollData);
+      
+      return {
+        ...payrollData,
+        createdAt: now,
+        updatedAt: now
+      } as EnhancedPayroll;
+    } catch (error) {
+      console.error("Error creating enhanced payroll:", error);
+      throw error;
+    }
+  }
+
+  async updateEnhancedPayroll(id: string, data: Partial<EnhancedPayroll>): Promise<EnhancedPayroll> {
+    try {
+      const updateData = {
+        ...data,
+        updatedAt: Timestamp.fromDate(new Date())
+      };
+
+      await this.db.collection('enhanced_payrolls').doc(id).update(updateData);
+      
+      const updated = await this.getEnhancedPayroll(id);
+      if (!updated) throw new Error('Failed to retrieve updated payroll');
+      
+      return updated;
+    } catch (error) {
+      console.error("Error updating enhanced payroll:", error);
+      throw error;
+    }
+  }
+
+  async listEnhancedPayrolls(filters?: { month?: number; year?: number; department?: string; status?: string }): Promise<EnhancedPayroll[]> {
+    try {
+      let query: any = this.db.collection('enhanced_payrolls');
+
+      if (filters?.month) {
+        query = query.where('month', '==', filters.month);
+      }
+      if (filters?.year) {
+        query = query.where('year', '==', filters.year);
+      }
+      if (filters?.status) {
+        query = query.where('status', '==', filters.status);
+      }
+
+      query = query.orderBy('createdAt', 'desc');
+      const querySnapshot = await query.get();
+
+      const payrolls = querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          processedAt: data.processedAt?.toDate() || undefined,
+          approvedAt: data.approvedAt?.toDate() || undefined,
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date()
+        } as EnhancedPayroll;
+      });
+
+      // Filter by department if needed (requires joining with users)
+      if (filters?.department && filters.department !== 'all') {
+        const userIds = (await this.getUsersByDepartment(filters.department)).map(u => u.uid);
+        return payrolls.filter(p => userIds.includes(p.userId));
+      }
+
+      return payrolls;
+    } catch (error) {
+      console.error("Error listing enhanced payrolls:", error);
+      return [];
+    }
+  }
+
+  async listEnhancedPayrollsByUser(userId: string): Promise<EnhancedPayroll[]> {
+    try {
+      const querySnapshot = await this.db.collection('enhanced_payrolls')
+        .where('userId', '==', userId)
+        .orderBy('year', 'desc')
+        .orderBy('month', 'desc')
+        .get();
+
+      return querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          processedAt: data.processedAt?.toDate() || undefined,
+          approvedAt: data.approvedAt?.toDate() || undefined,
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date()
+        } as EnhancedPayroll;
+      });
+    } catch (error) {
+      console.error("Error listing enhanced payrolls by user:", error);
+      return [];
+    }
+  }
+
+  // Enhanced Salary Structure Management
+  async getEnhancedSalaryStructure(id: string): Promise<EnhancedSalaryStructure | undefined> {
+    try {
+      const doc = await this.db.collection('enhanced_salary_structures').doc(id).get();
+      if (!doc.exists) return undefined;
+      
+      const data = doc.data()!;
+      return {
+        id: doc.id,
+        ...data,
+        effectiveFrom: data.effectiveFrom?.toDate() || new Date(),
+        effectiveTo: data.effectiveTo?.toDate() || undefined,
+        createdAt: data.createdAt?.toDate() || new Date(),
+        updatedAt: data.updatedAt?.toDate() || new Date()
+      } as EnhancedSalaryStructure;
+    } catch (error) {
+      console.error("Error getting enhanced salary structure:", error);
+      return undefined;
+    }
+  }
+
+  async getEnhancedSalaryStructureByUser(userId: string): Promise<EnhancedSalaryStructure | undefined> {
+    try {
+      const querySnapshot = await this.db.collection('enhanced_salary_structures')
+        .where('userId', '==', userId)
+        .where('isActive', '==', true)
+        .orderBy('effectiveFrom', 'desc')
+        .limit(1)
+        .get();
+
+      if (querySnapshot.empty) return undefined;
+
+      const doc = querySnapshot.docs[0];
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        effectiveFrom: data.effectiveFrom?.toDate() || new Date(),
+        effectiveTo: data.effectiveTo?.toDate() || undefined,
+        createdAt: data.createdAt?.toDate() || new Date(),
+        updatedAt: data.updatedAt?.toDate() || new Date()
+      } as EnhancedSalaryStructure;
+    } catch (error) {
+      console.error("Error getting enhanced salary structure by user:", error);
+      return undefined;
+    }
+  }
+
+  async createEnhancedSalaryStructure(data: any): Promise<EnhancedSalaryStructure> {
+    try {
+      const id = this.db.collection('enhanced_salary_structures').doc().id;
+      const now = new Date();
+      
+      const structureData = {
+        ...data,
+        id,
+        createdAt: Timestamp.fromDate(now),
+        updatedAt: Timestamp.fromDate(now),
+        effectiveFrom: Timestamp.fromDate(data.effectiveFrom || now),
+        effectiveTo: data.effectiveTo ? Timestamp.fromDate(data.effectiveTo) : null
+      };
+
+      await this.db.collection('enhanced_salary_structures').doc(id).set(structureData);
+      
+      return {
+        ...data,
+        id,
+        createdAt: now,
+        updatedAt: now,
+        effectiveFrom: data.effectiveFrom || now,
+        effectiveTo: data.effectiveTo || undefined
+      } as EnhancedSalaryStructure;
+    } catch (error) {
+      console.error("Error creating enhanced salary structure:", error);
+      throw error;
+    }
+  }
+
+  async updateEnhancedSalaryStructure(id: string, data: Partial<EnhancedSalaryStructure>): Promise<EnhancedSalaryStructure> {
+    try {
+      const updateData: any = {
+        ...data,
+        updatedAt: Timestamp.fromDate(new Date())
+      };
+
+      if (data.effectiveFrom) {
+        updateData.effectiveFrom = Timestamp.fromDate(data.effectiveFrom);
+      }
+      if (data.effectiveTo) {
+        updateData.effectiveTo = Timestamp.fromDate(data.effectiveTo);
+      }
+
+      await this.db.collection('enhanced_salary_structures').doc(id).update(updateData);
+      
+      const updated = await this.getEnhancedSalaryStructure(id);
+      if (!updated) throw new Error('Failed to retrieve updated salary structure');
+      
+      return updated;
+    } catch (error) {
+      console.error("Error updating enhanced salary structure:", error);
+      throw error;
+    }
+  }
+
+  async listEnhancedSalaryStructures(): Promise<EnhancedSalaryStructure[]> {
+    try {
+      const querySnapshot = await this.db.collection('enhanced_salary_structures')
+        .orderBy('createdAt', 'desc')
+        .get();
+
+      return querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          effectiveFrom: data.effectiveFrom?.toDate() || new Date(),
+          effectiveTo: data.effectiveTo?.toDate() || undefined,
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date()
+        } as EnhancedSalaryStructure;
+      });
+    } catch (error) {
+      console.error("Error listing enhanced salary structures:", error);
+      return [];
+    }
+  }
+
+  // Enhanced Payroll Settings
+  async getEnhancedPayrollSettings(): Promise<EnhancedPayrollSettings | undefined> {
+    try {
+      const querySnapshot = await this.db.collection('enhanced_payroll_settings')
+        .orderBy('updatedAt', 'desc')
+        .limit(1)
+        .get();
+
+      if (querySnapshot.empty) {
+        // Return default settings if none exist
+        const defaultSettings: EnhancedPayrollSettings = {
+          id: 'default',
+          epfEmployeeRate: 12,
+          epfEmployerRate: 12,
+          esiEmployeeRate: 0.75,
+          esiEmployerRate: 3.25,
+          epfCeiling: 15000,
+          esiThreshold: 21000,
+          tdsThreshold: 250000,
+          standardWorkingDays: 26,
+          standardWorkingHours: 8,
+          overtimeThresholdHours: 8,
+          companyName: "Prakash Greens Energy",
+          companyAddress: "",
+          companyPan: "",
+          companyTan: "",
+          autoCalculateStatutory: true,
+          allowManualOverride: true,
+          requireApprovalForProcessing: false,
+          updatedBy: "system",
+          updatedAt: new Date()
+        };
+        return defaultSettings;
+      }
+
+      const doc = querySnapshot.docs[0];
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        updatedAt: data.updatedAt?.toDate() || new Date()
+      } as EnhancedPayrollSettings;
+    } catch (error) {
+      console.error("Error getting enhanced payroll settings:", error);
+      return undefined;
+    }
+  }
+
+  async updateEnhancedPayrollSettings(data: any): Promise<EnhancedPayrollSettings> {
+    try {
+      const id = data.id || 'default';
+      const now = new Date();
+      
+      const settingsData = {
+        ...data,
+        id,
+        updatedAt: Timestamp.fromDate(now)
+      };
+
+      await this.db.collection('enhanced_payroll_settings').doc(id).set(settingsData, { merge: true });
+      
+      return {
+        ...data,
+        id,
+        updatedAt: now
+      } as EnhancedPayrollSettings;
+    } catch (error) {
+      console.error("Error updating enhanced payroll settings:", error);
+      throw error;
+    }
+  }
+
+  // Payroll Field Configuration
+  async getPayrollFieldConfig(id: string): Promise<PayrollFieldConfig | undefined> {
+    try {
+      const doc = await this.db.collection('payroll_field_configs').doc(id).get();
+      if (!doc.exists) return undefined;
+      
+      const data = doc.data()!;
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: data.createdAt?.toDate() || new Date(),
+        updatedAt: data.updatedAt?.toDate() || new Date()
+      } as PayrollFieldConfig;
+    } catch (error) {
+      console.error("Error getting payroll field config:", error);
+      return undefined;
+    }
+  }
+
+  async listPayrollFieldConfigs(): Promise<PayrollFieldConfig[]> {
+    try {
+      const querySnapshot = await this.db.collection('payroll_field_configs')
+        .where('isActive', '==', true)
+        .orderBy('sortOrder', 'asc')
+        .get();
+
+      if (querySnapshot.empty) {
+        // Return default field configs
+        return [
+          {
+            id: "1",
+            name: "special_allowance",
+            displayName: "Special Allowance",
+            category: "earnings",
+            dataType: "number",
+            isRequired: false,
+            isSystemField: false,
+            defaultValue: 0,
+            sortOrder: 1,
+            isActive: true,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          },
+          {
+            id: "2",
+            name: "professional_tax",
+            displayName: "Professional Tax",
+            category: "deductions",
+            dataType: "number",
+            isRequired: false,
+            isSystemField: false,
+            defaultValue: 200,
+            sortOrder: 1,
+            isActive: true,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          }
+        ];
+      }
+
+      return querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date()
+        } as PayrollFieldConfig;
+      });
+    } catch (error) {
+      console.error("Error listing payroll field configs:", error);
+      return [];
+    }
+  }
+
+  async createPayrollFieldConfig(data: any): Promise<PayrollFieldConfig> {
+    try {
+      const id = this.db.collection('payroll_field_configs').doc().id;
+      const now = new Date();
+      
+      const configData = {
+        ...data,
+        id,
+        createdAt: Timestamp.fromDate(now),
+        updatedAt: Timestamp.fromDate(now)
+      };
+
+      await this.db.collection('payroll_field_configs').doc(id).set(configData);
+      
+      return {
+        ...data,
+        id,
+        createdAt: now,
+        updatedAt: now
+      } as PayrollFieldConfig;
+    } catch (error) {
+      console.error("Error creating payroll field config:", error);
+      throw error;
+    }
+  }
+
+  async updatePayrollFieldConfig(id: string, data: Partial<PayrollFieldConfig>): Promise<PayrollFieldConfig> {
+    try {
+      const updateData = {
+        ...data,
+        updatedAt: Timestamp.fromDate(new Date())
+      };
+
+      await this.db.collection('payroll_field_configs').doc(id).update(updateData);
+      
+      const updated = await this.getPayrollFieldConfig(id);
+      if (!updated) throw new Error('Failed to retrieve updated field config');
+      
+      return updated;
+    } catch (error) {
+      console.error("Error updating payroll field config:", error);
+      throw error;
+    }
+  }
+
+  async deletePayrollFieldConfig(id: string): Promise<boolean> {
+    try {
+      await this.db.collection('payroll_field_configs').doc(id).update({
+        isActive: false,
+        updatedAt: Timestamp.fromDate(new Date())
+      });
+      return true;
+    } catch (error) {
+      console.error("Error deleting payroll field config:", error);
+      return false;
     }
   }
 }
