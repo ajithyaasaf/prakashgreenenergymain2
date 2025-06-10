@@ -360,12 +360,16 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
   };
 
   const resetPhoto = () => {
+    console.log('CAMERA: Resetting photo and stopping camera...');
     setCapturedPhoto(null);
     if (stream) {
-      stream.getTracks().forEach(track => track.stop());
+      stream.getTracks().forEach(track => {
+        track.stop();
+        console.log('CAMERA: Stopped track:', track.kind);
+      });
       setStream(null);
-      setIsCameraActive(false);
     }
+    setIsCameraActive(false);
   };
 
   // Form validation
