@@ -147,10 +147,14 @@ export default function EnhancedPayrollManagement() {
     queryKey: ["/api/users"],
     queryFn: async () => {
       const response = await apiRequest('GET', '/api/users');
+      if (!response.ok) {
+        throw new Error(`Failed to fetch users: ${response.status}`);
+      }
       const data = await response.json();
-      return data.filter((user: any) => user.role !== "master_admin");
+      // Return all users for salary structure creation (including admins if needed)
+      return Array.isArray(data) ? data : [];
     },
-    enabled: !!user?.firebaseUser
+    enabled: !!user?.uid
   });
 
   const { data: fieldConfigs = [] } = useQuery<PayrollFieldConfig[]>({
@@ -1083,6 +1087,10 @@ function SalaryStructureForm({
     });
   };
 
+  // Debug users data
+  console.log('SalaryStructureForm - Users data:', users);
+  console.log('SalaryStructureForm - Users length:', users?.length);
+
   return (
     <form onSubmit={handleSubmit} className="space-y-8 max-h-[80vh] overflow-y-auto">
       {/* Employee Information */}
@@ -1093,17 +1101,23 @@ function SalaryStructureForm({
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
-            <Label htmlFor="userId">Employee</Label>
+            <Label htmlFor="userId">Employee ({users?.length || 0} available)</Label>
             <Select value={formData.userId} onValueChange={handleUserChange}>
               <SelectTrigger>
-                <SelectValue placeholder="Select Employee" />
+                <SelectValue placeholder={users?.length > 0 ? "Select Employee" : "Loading employees..."} />
               </SelectTrigger>
               <SelectContent>
-                {users.map(user => (
-                  <SelectItem key={user.id} value={user.id}>
-                    {user.displayName} ({user.department?.toUpperCase()})
+                {users?.length > 0 ? (
+                  users.map(user => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.displayName || user.email} ({user.department?.toUpperCase() || 'N/A'})
+                    </SelectItem>
+                  ))
+                ) : (
+                  <SelectItem value="no-users" disabled>
+                    No employees found
                   </SelectItem>
-                ))}
+                )}
               </SelectContent>
             </Select>
           </div>
