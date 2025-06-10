@@ -279,12 +279,16 @@ export default function PayrollManagement() {
       const token = await user?.firebaseUser?.getIdToken();
       const url = editingSalary ? `/api/salary-structures/${editingSalary.id}` : '/api/salary-structures';
       const method = editingSalary ? 'PATCH' : 'POST';
-      return apiRequest(method, url, {
-        ...data,
+      const response = await fetch(url, {
+        method,
         headers: {
-          'Authorization': `Bearer ${token}`
-        }
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        },
+        body: JSON.stringify(data)
       });
+      if (!response.ok) throw new Error('Failed to save salary structure');
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/salary-structures'] });
