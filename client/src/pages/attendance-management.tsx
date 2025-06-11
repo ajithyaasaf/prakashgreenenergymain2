@@ -22,6 +22,7 @@ import {
   CheckCircle, XCircle, AlertCircle, MapPin, Camera
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { departments } from "@shared/schema";
 
 export default function AttendanceManagement() {
   const { user } = useAuthContext();
@@ -427,13 +428,11 @@ export default function AttendanceManagement() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Departments</SelectItem>
-                <SelectItem value="operations">Operations</SelectItem>
-                <SelectItem value="admin">Administration</SelectItem>
-                <SelectItem value="hr">Human Resources</SelectItem>
-                <SelectItem value="marketing">Marketing</SelectItem>
-                <SelectItem value="sales">Sales</SelectItem>
-                <SelectItem value="technical">Technical</SelectItem>
-                <SelectItem value="housekeeping">Housekeeping</SelectItem>
+                {departments.map((dept) => (
+                  <SelectItem key={dept} value={dept}>
+                    {dept.charAt(0).toUpperCase() + dept.slice(1).replace('_', ' ')}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
 

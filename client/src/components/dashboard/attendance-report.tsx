@@ -16,6 +16,7 @@ import { FileDown, Filter, Search, Loader2, BarChart2, Clock, Users, UserPlus, U
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { startOfDay, endOfDay, subDays, format, isAfter, isBefore, isEqual, addDays, eachDayOfInterval } from "date-fns";
 import * as XLSX from 'xlsx';
+import { departments } from "@shared/schema";
 
 // Status styles for attendance badges
 const statusStyles = {
@@ -202,9 +203,9 @@ export function AttendanceReport() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all_departments">All Departments</SelectItem>
-                  {departments.map((dept: any) => (
-                    <SelectItem key={dept.id} value={dept.name.toLowerCase()}>
-                      {dept.name}
+                  {departments.map((dept) => (
+                    <SelectItem key={dept} value={dept}>
+                      {dept.charAt(0).toUpperCase() + dept.slice(1).replace('_', ' ')}
                     </SelectItem>
                   ))}
                 </SelectContent>

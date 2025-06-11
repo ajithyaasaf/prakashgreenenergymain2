@@ -1,164 +1,85 @@
 import { useAuthContext } from "@/contexts/auth-context";
+import type { SystemPermission } from "@shared/schema";
 
-// Define permission types
+/**
+ * Legacy permission hook - DEPRECATED
+ * This hook is maintained for backward compatibility only.
+ * New components should use the schema-based permission system from useAuthContext:
+ * - hasPermission() for SystemPermission checks
+ * - hasRole() for role-based checks  
+ * - isDepartmentMember() for department-based checks
+ * - canAccessModule() for module access checks
+ */
+
+// Legacy permission types - mapped to new schema permissions
 export type Permission =
-  | "manage_departments" // Create, update, delete departments
-  | "set_office_locations" // Define office locations with geo-fencing
-  | "manage_access" // Manage application access for departments/roles
-  | "assign_departments" // Assign departments to employees
-  | "view_all_reports" // View reports across all departments
-  | "view_department_reports" // View reports for specific department
-  | "manage_customers" // Add, update, delete customers
-  | "manage_products" // Add, update, delete products
-  | "manage_quotations" // Create quotations
-  | "manage_invoices" // Create invoices
-  | "manage_attendance" // Manage attendance
-  | "manage_leaves" // Manage leaves
-  | "approve_leaves" // Approve leave applications
-  | "hr_operations" // HR department operations
-  | "accounts_operations" // Administration department operations
-  | "cre_operations" // Sales department operations
-  | "sales_operations" // Marketing department operations
-  | "technical_operations"; // Technical department operations
-
-// Define permission mappings for each role and department
-const rolePermissions: Record<string, Permission[]> = {
-  master_admin: [
-    "manage_departments",
-    "set_office_locations",
-    "manage_access",
-    "assign_departments",
-    "view_all_reports",
-    "manage_customers",
-    "manage_products",
-    "manage_quotations",
-    "manage_invoices",
-    "manage_attendance",
-    "manage_leaves",
-    "approve_leaves",
-    "hr_operations",
-    "accounts_operations",
-    "cre_operations",
-    "sales_operations",
-    "technical_operations",
-  ],
-  admin: [
-    "assign_departments",
-    "view_all_reports",
-    "manage_customers",
-    "manage_products",
-    "manage_quotations",
-    "manage_invoices",
-    "manage_attendance",
-    "approve_leaves",
-  ],
-  employee: [
-    "view_department_reports",
-  ],
-};
-
-// Define department-specific permissions (updated for new organizational structure)
-const departmentPermissions: Record<string, Permission[]> = {
-  operations: [
-    "manage_departments",
-    "set_office_locations",
-    "view_all_reports",
-  ],
-  admin: [
-    "accounts_operations",
-    "manage_invoices",
-    "view_all_reports",
-  ],
-  hr: [
-    "hr_operations",
-    "manage_attendance",
-    "manage_leaves",
-    "approve_leaves",
-  ],
-  marketing: [
-    "sales_operations",
-    "manage_customers",
-    "manage_quotations",
-  ],
-  sales: [
-    "cre_operations",
-    "manage_customers",
-    "manage_quotations",
-  ],
-  technical: [
-    "technical_operations",
-    "manage_products",
-  ],
-  housekeeping: [
-    "manage_attendance",
-  ],
-};
+  | "manage_departments" // -> departments.create, departments.edit, departments.delete
+  | "set_office_locations" // -> system.settings
+  | "manage_access" // -> permissions.manage
+  | "assign_departments" // -> users.edit
+  | "view_all_reports" // -> reports.advanced, analytics.enterprise
+  | "view_department_reports" // -> reports.basic, analytics.departmental
+  | "manage_customers" // -> customers.create, customers.edit
+  | "manage_products" // -> products.create, products.edit
+  | "manage_quotations" // -> quotations.create, quotations.edit
+  | "manage_invoices" // -> invoices.create, invoices.edit
+  | "manage_attendance" // -> attendance.view_all, attendance.approve
+  | "manage_leaves" // -> leave.approve
+  | "approve_leaves" // -> leave.approve
+  | "hr_operations" // -> HR department permissions
+  | "admin_operations" // -> Admin department permissions
+  | "sales_operations" // -> Sales department permissions
+  | "marketing_operations" // -> Marketing department permissions
+  | "technical_operations"; // -> Technical department permissions
 
 export function usePermissions() {
-  const { user } = useAuthContext();
+  const { user, hasPermission: newHasPermission } = useAuthContext();
+
+  // Legacy permission mapping to new schema permissions
+  const legacyPermissionMap: Record<Permission, SystemPermission[]> = {
+    "manage_departments": ["departments.create", "departments.edit", "departments.delete"],
+    "set_office_locations": ["system.settings"],
+    "manage_access": ["permissions.manage"],
+    "assign_departments": ["users.edit"],
+    "view_all_reports": ["reports.advanced", "analytics.enterprise"],
+    "view_department_reports": ["reports.basic", "analytics.departmental"],
+    "manage_customers": ["customers.create", "customers.edit"],
+    "manage_products": ["products.create", "products.edit"],
+    "manage_quotations": ["quotations.create", "quotations.edit"],
+    "manage_invoices": ["invoices.create", "invoices.edit"],
+    "manage_attendance": ["attendance.view_all", "attendance.approve"],
+    "manage_leaves": ["leave.approve"],
+    "approve_leaves": ["leave.approve"],
+    "hr_operations": ["leave.approve", "attendance.view_all"],
+    "admin_operations": ["invoices.create", "invoices.edit"],
+    "sales_operations": ["customers.create", "quotations.create"],
+    "marketing_operations": ["customers.create", "quotations.create"],
+    "technical_operations": ["products.create", "products.edit"],
+  };
 
   const hasPermission = (permission: Permission): boolean => {
     if (!user) return false;
 
-    // Check role-based permissions
-    const userRolePermissions = rolePermissions[user.role] || [];
-    
-    // Check department-based permissions
-    const userDepartmentPermissions = user.department 
-      ? departmentPermissions[user.department] || []
-      : [];
+    // Master admin has all permissions
+    if (user.role === "master_admin") return true;
 
-    // Combine both permission sets
-    return userRolePermissions.includes(permission) || userDepartmentPermissions.includes(permission);
+    // Map legacy permission to new schema permissions and check
+    const mappedPermissions = legacyPermissionMap[permission] || [];
+    return mappedPermissions.some(perm => newHasPermission(perm));
   };
 
-  const canManageDepartments = (): boolean => {
-    return hasPermission("manage_departments");
-  };
-
-  const canSetOfficeLocations = (): boolean => {
-    return hasPermission("set_office_locations");
-  };
-
-  const canManageAccess = (): boolean => {
-    return hasPermission("manage_access");
-  };
-
-  const canAssignDepartments = (): boolean => {
-    return hasPermission("assign_departments");
-  };
-
-  const canViewAllReports = (): boolean => {
-    return hasPermission("view_all_reports");
-  };
-
-  const canManageCustomers = (): boolean => {
-    return hasPermission("manage_customers");
-  };
-
-  const canManageProducts = (): boolean => {
-    return hasPermission("manage_products");
-  };
-
-  const canManageQuotations = (): boolean => {
-    return hasPermission("manage_quotations");
-  };
-
-  const canManageInvoices = (): boolean => {
-    return hasPermission("manage_invoices");
-  };
-
-  const canManageAttendance = (): boolean => {
-    return hasPermission("manage_attendance");
-  };
-
-  const canManageLeaves = (): boolean => {
-    return hasPermission("manage_leaves");
-  };
-
-  const canApproveLeaves = (): boolean => {
-    return hasPermission("approve_leaves");
-  };
+  const canManageDepartments = (): boolean => hasPermission("manage_departments");
+  const canSetOfficeLocations = (): boolean => hasPermission("set_office_locations");
+  const canManageAccess = (): boolean => hasPermission("manage_access");
+  const canAssignDepartments = (): boolean => hasPermission("assign_departments");
+  const canViewAllReports = (): boolean => hasPermission("view_all_reports");
+  const canManageCustomers = (): boolean => hasPermission("manage_customers");
+  const canManageProducts = (): boolean => hasPermission("manage_products");
+  const canManageQuotations = (): boolean => hasPermission("manage_quotations");
+  const canManageInvoices = (): boolean => hasPermission("manage_invoices");
+  const canManageAttendance = (): boolean => hasPermission("manage_attendance");
+  const canManageLeaves = (): boolean => hasPermission("manage_leaves");
+  const canApproveLeaves = (): boolean => hasPermission("approve_leaves");
 
   return {
     hasPermission,
@@ -174,7 +95,6 @@ export function usePermissions() {
     canManageAttendance,
     canManageLeaves,
     canApproveLeaves,
-    // Return user role and department for reference
     userRole: user?.role,
     userDepartment: user?.department,
   };
