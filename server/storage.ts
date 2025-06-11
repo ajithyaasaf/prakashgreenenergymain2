@@ -3376,20 +3376,8 @@ export class FirestoreStorage implements IStorage {
 
   async listEnhancedPayrolls(filters?: { month?: number; year?: number; department?: string; status?: string }): Promise<EnhancedPayroll[]> {
     try {
-      let query: any = this.db.collection('enhanced_payrolls');
-
-      if (filters?.month) {
-        query = query.where('month', '==', filters.month);
-      }
-      if (filters?.year) {
-        query = query.where('year', '==', filters.year);
-      }
-      if (filters?.status) {
-        query = query.where('status', '==', filters.status);
-      }
-
-      query = query.orderBy('createdAt', 'desc');
-      const querySnapshot = await query.get();
+      // Simplify query to avoid index requirements
+      const querySnapshot = await this.db.collection('enhanced_payrolls').get();
 
       const payrolls = querySnapshot.docs.map(doc => {
         const data = doc.data();

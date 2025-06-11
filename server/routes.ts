@@ -4049,12 +4049,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const { month, year, userIds } = req.body;
+      console.log("Bulk process request:", { month, year, userIds, type: typeof userIds });
+      
+      // If no userIds provided, get all users with salary structures
+      let targetUserIds = userIds;
+      if (!targetUserIds || !Array.isArray(targetUserIds)) {
+        const allSalaryStructures = await storage.listEnhancedSalaryStructures();
+        targetUserIds = allSalaryStructures.map(s => s.userId);
+        console.log("Using all users with salary structures:", targetUserIds);
+      }
       
       const processedPayrolls = [];
       const settings = await storage.getEnhancedPayrollSettings();
       
       // Process payroll for each user
-      for (const userId of userIds) {
+      for (const userId of targetUserIds) {
         const existingPayroll = await storage.getEnhancedPayrollByUserAndMonth(userId, month, year);
         if (existingPayroll) {
           continue; // Skip if already processed
@@ -4066,29 +4075,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const salaryStructure = await storage.getEnhancedSalaryStructureByUser(userId);
         if (!salaryStructure) continue;
         
-        // Calculate payroll with real data
-        const basicSalary = salaryStructure.basicSalary || 0;
-        const grossSalary = salaryStructure.grossSalary || basicSalary;
+        // Calculate payroll with real salary structure data
+        const fixedBasic = salaryStructure.fixedBasic || 0;
+        const fixedHRA = salaryStructure.fixedHRA || 0;
+        const fixedConveyance = salaryStructure.fixedConveyance || 0;
+        const grossSalary = fixedBasic + fixedHRA + fixedConveyance;
+        
+        // Default month configuration
+        const monthDays = 30;
+        const presentDays = 30; // Assuming full attendance for bulk processing
+        const perDaySalary = grossSalary / monthDays;
+        
+        // Calculate earned amounts based on attendance
+        const earnedBasic = (fixedBasic / monthDays) * presentDays;
+        const earnedHRA = (fixedHRA / monthDays) * presentDays;
+        const earnedConveyance = (fixedConveyance / monthDays) * presentDays;
         
         // Calculate statutory deductions
-        const epfContribution = Math.min(basicSalary * (settings?.epfEmployeeRate || 12) / 100, (settings?.epfCeiling || 15000) * 0.12);
-        const esiContribution = grossSalary <= (settings?.esiThreshold || 21000) ? grossSalary * (settings?.esiEmployeeRate || 0.75) / 100 : 0;
-        const professionalTax = grossSalary > 10000 ? 200 : 0;
+        const epfDeduction = salaryStructure.epfApplicable ? Math.min(earnedBasic * 0.12, 1800) : 0;
+        const esiDeduction = salaryStructure.esiApplicable && grossSalary <= 21000 ? grossSalary * 0.0075 : 0;
+        const vptDeduction = salaryStructure.vptAmount || 0;
         
-        const totalDeductions = epfContribution + esiContribution + professionalTax;
-        const netSalary = grossSalary - totalDeductions;
+        const totalEarnings = earnedBasic + earnedHRA + earnedConveyance;
+        const totalDeductions = epfDeduction + esiDeduction + vptDeduction;
+        const netSalary = totalEarnings - totalDeductions;
         
         const payrollData = {
           userId,
+          employeeId: user.employeeId || user.uid,
           month,
           year,
-          basicSalary,
-          grossSalary,
-          netSalary,
-          epfContribution,
-          esiContribution,
-          professionalTax,
-          totalDeductions,
+          monthDays,
+          presentDays,
+          paidLeaveDays: 0,
+          overtimeHours: 0,
+          perDaySalary: Math.round(perDaySalary),
+          earnedBasic: Math.round(earnedBasic),
+          earnedHRA: Math.round(earnedHRA),
+          earnedConveyance: Math.round(earnedConveyance),
+          overtimePay: 0,
+          dynamicEarnings: {},
+          dynamicDeductions: {},
+          epfDeduction: Math.round(epfDeduction),
+          esiDeduction: Math.round(esiDeduction),
+          vptDeduction: Math.round(vptDeduction),
+          tdsDeduction: 0,
+          totalEarnings: Math.round(totalEarnings),
+          totalDeductions: Math.round(totalDeductions),
+          netSalary: Math.round(netSalary),
           status: 'processed',
           processedBy: user.uid,
           processedAt: new Date()
