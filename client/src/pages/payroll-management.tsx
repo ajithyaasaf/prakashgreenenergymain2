@@ -744,11 +744,11 @@ function PayrollTable({
       </div>
 
       {/* Advanced Filters */}
-      <div className="flex flex-wrap gap-4 p-4 bg-gray-50 rounded-lg">
-        <div className="flex-1 min-w-[200px]">
-          <Label htmlFor="status-filter">Filter by Status</Label>
+      <div className="flex flex-col sm:flex-row gap-4 p-4 bg-gray-50 rounded-lg">
+        <div className="flex-1 space-y-2">
+          <Label htmlFor="status-filter" className="text-sm font-medium">Filter by Status</Label>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger>
+            <SelectTrigger className="w-full">
               <SelectValue placeholder="All Statuses" />
             </SelectTrigger>
             <SelectContent>
@@ -760,10 +760,10 @@ function PayrollTable({
             </SelectContent>
           </Select>
         </div>
-        <div className="flex-1 min-w-[200px]">
-          <Label htmlFor="department-filter">Filter by Department</Label>
+        <div className="flex-1 space-y-2">
+          <Label htmlFor="department-filter" className="text-sm font-medium">Filter by Department</Label>
           <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-            <SelectTrigger>
+            <SelectTrigger className="w-full">
               <SelectValue placeholder="All Departments" />
             </SelectTrigger>
             <SelectContent>
@@ -778,8 +778,180 @@ function PayrollTable({
         </div>
       </div>
 
-      {/* Enhanced Payroll Table */}
-      <div className="overflow-x-auto">
+      {/* Enhanced Payroll Table - Mobile-First Responsive */}
+      <div className="block lg:hidden space-y-4">
+        {/* Mobile Card Layout */}
+        {filteredPayrolls.map((payroll) => {
+          const payrollUser = users.find((u: any) => u.id === payroll.userId);
+          const isExpanded = expandedRows.has(payroll.id);
+          const { overtimeHours, overtimePay, perHourRate } = calculateOvertimeDetails(payroll);
+          
+          return (
+            <Card key={payroll.id} className="w-full">
+              <CardHeader className="pb-3">
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <CardTitle className="text-lg font-semibold">{payrollUser?.displayName}</CardTitle>
+                    <p className="text-sm text-muted-foreground mt-1">{payroll.employeeId}</p>
+                    <div className="flex gap-2 mt-2">
+                      <Badge variant="outline" className="text-xs">
+                        {payrollUser?.department?.toUpperCase() || 'N/A'}
+                      </Badge>
+                      <Badge className={`text-xs ${getStatusColor(payroll.status)}`}>
+                        {payroll.status}
+                      </Badge>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => toggleRowExpansion(payroll.id)}
+                    className="ml-2"
+                  >
+                    {isExpanded ? "−" : "+"}
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <h4 className="font-medium text-sm text-gray-600">Attendance</h4>
+                    <div className="text-sm space-y-1 mt-1">
+                      <div>Present: {payroll.presentDays}/{payroll.monthDays}</div>
+                      <div>Leave: {payroll.paidLeaveDays || 0} days</div>
+                      <div>Per Day: {formatCurrency(payroll.perDaySalary)}</div>
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-sm text-gray-600">Basic Earnings</h4>
+                    <div className="text-sm space-y-1 mt-1">
+                      <div>Basic: {formatCurrency(payroll.earnedBasic)}</div>
+                      <div>HRA: {formatCurrency(payroll.earnedHRA)}</div>
+                      <div>Conv: {formatCurrency(payroll.earnedConveyance)}</div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <h4 className="font-medium text-sm text-gray-600">Overtime</h4>
+                    <div className="text-sm space-y-1 mt-1">
+                      <div className="font-medium text-orange-600">{overtimeHours.toFixed(1)} hrs</div>
+                      <div>{formatCurrency(overtimePay)}</div>
+                      {perHourRate > 0 && (
+                        <div className="text-muted-foreground">@{formatCurrency(perHourRate)}/hr</div>
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-sm text-gray-600">Summary</h4>
+                    <div className="text-sm space-y-1 mt-1">
+                      <div className="font-medium text-green-600">{formatCurrency(payroll.totalEarnings)}</div>
+                      <div className="text-red-600">-{formatCurrency(payroll.totalDeductions)}</div>
+                      <div className="font-bold text-blue-600">{formatCurrency(payroll.netSalary)}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => onEdit(payroll.id)}
+                    className="flex-1"
+                  >
+                    <Edit3 className="h-3 w-3 mr-2" />
+                    Edit
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => toggleRowExpansion(payroll.id)}
+                    className="flex-1"
+                  >
+                    <Eye className="h-3 w-3 mr-2" />
+                    {isExpanded ? "Hide" : "Details"}
+                  </Button>
+                </div>
+
+                {/* Expanded Details for Mobile */}
+                {isExpanded && (
+                  <div className="border-t pt-4 space-y-4">
+                    <h4 className="font-semibold text-lg">Complete Details - {payrollUser?.displayName}</h4>
+                    
+                    <div className="grid grid-cols-1 gap-4">
+                      <Card>
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-sm text-blue-600">Statutory Deductions</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-2">
+                          <div className="flex justify-between">
+                            <span>EPF:</span>
+                            <span className="font-medium">{formatCurrency(payroll.epfDeduction)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>ESI:</span>
+                            <span className="font-medium">{formatCurrency(payroll.esiDeduction)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>VPT:</span>
+                            <span className="font-medium">{formatCurrency(payroll.vptDeduction)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>TDS:</span>
+                            <span className="font-medium">{formatCurrency(payroll.tdsDeduction)}</span>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      {Object.keys(payroll.dynamicEarnings).length > 0 && (
+                        <Card>
+                          <CardHeader className="pb-3">
+                            <CardTitle className="text-sm text-green-600">Additional Earnings</CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-2">
+                            {Object.entries(payroll.dynamicEarnings).map(([key, value]) => {
+                              const field = earningsFields.find(f => f.name === key);
+                              return (
+                                <div key={key} className="flex justify-between">
+                                  <span>{field?.displayName || key}:</span>
+                                  <span className="font-medium">{formatCurrency(value as number)}</span>
+                                </div>
+                              );
+                            })}
+                          </CardContent>
+                        </Card>
+                      )}
+
+                      {Object.keys(payroll.dynamicDeductions).length > 0 && (
+                        <Card>
+                          <CardHeader className="pb-3">
+                            <CardTitle className="text-sm text-red-600">Additional Deductions</CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-2">
+                            {Object.entries(payroll.dynamicDeductions).map(([key, value]) => {
+                              const field = deductionsFields.find(f => f.name === key);
+                              return (
+                                <div key={key} className="flex justify-between">
+                                  <span>{field?.displayName || key}:</span>
+                                  <span className="font-medium">{formatCurrency(value as number)}</span>
+                                </div>
+                              );
+                            })}
+                          </CardContent>
+                        </Card>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* Desktop Table Layout */}
+      <div className="hidden lg:block overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
