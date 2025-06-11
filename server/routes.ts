@@ -4145,7 +4145,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const fixedBasic = salaryStructure.fixedBasic || 0;
         const fixedHRA = salaryStructure.fixedHRA || 0;
         const fixedConveyance = salaryStructure.fixedConveyance || 0;
-        const grossSalary = fixedBasic + fixedHRA + fixedConveyance;
+        const totalFixedSalary = fixedBasic + fixedHRA + fixedConveyance;
         
         // Get actual attendance records for the specific month and year
         const allAttendanceRecords = await storage.listAttendanceByUser(userId);
@@ -4164,7 +4164,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           sum + (record.overtimeHours || 0), 0
         );
         
-        const perDaySalary = grossSalary / monthDays;
+        const perDaySalary = totalFixedSalary / monthDays;
         
         // Calculate earned amounts based on attendance
         const earnedBasic = (fixedBasic / monthDays) * presentDays;
@@ -4172,11 +4172,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const earnedConveyance = (fixedConveyance / monthDays) * presentDays;
         
         // Calculate statutory deductions
+        const grossSalaryAmount = earnedBasic + earnedHRA + earnedConveyance;
         const epfDeduction = salaryStructure.epfApplicable ? Math.min(earnedBasic * 0.12, 1800) : 0;
-        const esiDeduction = salaryStructure.esiApplicable && grossSalary <= 21000 ? grossSalary * 0.0075 : 0;
+        const esiDeduction = salaryStructure.esiApplicable && grossSalaryAmount <= 21000 ? grossSalaryAmount * 0.0075 : 0;
         const vptDeduction = salaryStructure.vptAmount || 0;
         
-        const grossSalaryAmount = earnedBasic + earnedHRA + earnedConveyance;
         const finalGrossAmount = grossSalaryAmount; // Initially same as gross, can be modified with BETTA
         
         // Calculate total deductions including new manual system fields
@@ -4202,8 +4202,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           overtimePay: 0,
           betta: 0, // BETTA allowance from manual system
           dynamicEarnings: {},
-          grossSalary: Math.round(totalEarnings), // Gross before BETTA
-          finalGross: Math.round(totalEarnings), // Final gross after BETTA (initially same as gross)
+          grossSalary: Math.round(grossSalaryAmount), // Gross before BETTA
+          finalGross: Math.round(finalGrossAmount), // Final gross after BETTA (initially same as gross)
           dynamicDeductions: {},
           epfDeduction: Math.round(epfDeduction),
           esiDeduction: Math.round(esiDeduction),
@@ -4212,7 +4212,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           fineDeduction: 0, // FINE from manual system
           salaryAdvance: 0, // SALARY ADVANCE from manual system
           creditAdjustment: 0, // CREDIT from manual system
-          esiEligible: grossSalary <= 21000, // ESI eligibility based on salary
+          esiEligible: grossSalaryAmount <= 21000, // ESI eligibility based on salary
           totalEarnings: Math.round(grossSalaryAmount),
           totalDeductions: Math.round(totalDeductions),
           netSalary: Math.round(netSalary),

@@ -2689,7 +2689,7 @@ function PayrollSettingsForm({
             <Checkbox
               id="autoCalculateStatutory"
               checked={formData.autoCalculateStatutory}
-              onCheckedChange={(checked) => setFormData({ ...formData, autoCalculateStatutory: !!checked })}
+              onCheckedChange={(checked) => setFormData({ ...formData, autoCalculateStatutory: checked === true })}
             />
             <Label htmlFor="autoCalculateStatutory">Auto Calculate Statutory Deductions</Label>
           </div>
