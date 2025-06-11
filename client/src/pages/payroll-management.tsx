@@ -578,15 +578,10 @@ export default function EnhancedPayrollManagement() {
                 Field Configuration
               </CardTitle>
               <CardDescription>
-                Configure custom earnings and deduction fields for flexible payroll processing
+                Configure custom earnings and deduction fields
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="flex justify-between items-center mb-4">
-                <div className="text-sm text-muted-foreground">
-                  Manage additional salary components beyond Basic, HRA, and Conveyance
-                </div>
-              </div>
               <FieldConfigTable fieldConfigs={fieldConfigs} />
             </CardContent>
           </Card>
@@ -1490,56 +1485,6 @@ function SalaryStructuresTable({
 
 // Field Configuration Table Component
 function FieldConfigTable({ fieldConfigs }: { fieldConfigs: PayrollFieldConfig[] }) {
-  if (fieldConfigs.length === 0) {
-    return (
-      <div className="text-center py-12">
-        <Settings className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-        <h3 className="text-xl font-semibold mb-3">No Custom Fields Configured</h3>
-        <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-          Create custom earnings and deduction fields to extend your payroll processing beyond the standard Basic, HRA, and Conveyance components.
-        </p>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto mt-8">
-          <Card className="text-left">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm text-green-600 flex items-center gap-2">
-                <DollarSign className="h-4 w-4" />
-                Sample Earnings Fields
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="text-sm space-y-2">
-              <div>• Performance Bonus</div>
-              <div>• Transport Allowance</div>
-              <div>• Medical Allowance</div>
-              <div>• Overtime Premium</div>
-              <div>• Special Incentive</div>
-            </CardContent>
-          </Card>
-          
-          <Card className="text-left">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm text-red-600 flex items-center gap-2">
-                <Calculator className="h-4 w-4" />
-                Sample Deduction Fields
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="text-sm space-y-2">
-              <div>• Professional Tax</div>
-              <div>• Loan EMI</div>
-              <div>• Insurance Premium</div>
-              <div>• Uniform Deduction</div>
-              <div>• Canteen Charges</div>
-            </CardContent>
-          </Card>
-        </div>
-        
-        <p className="text-xs text-muted-foreground mt-6">
-          Click "Add Custom Field" above to create your first custom payroll component
-        </p>
-      </div>
-    );
-  }
-
   return (
     <div className="overflow-x-auto">
       <Table>
