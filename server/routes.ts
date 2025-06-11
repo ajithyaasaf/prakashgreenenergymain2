@@ -14,7 +14,8 @@ import {
   insertPayrollSchema,
   insertPayrollSettingsSchema,
   insertSalaryAdvanceSchema,
-  insertAttendancePolicySchema
+  insertAttendancePolicySchema,
+  departments
 } from "@shared/schema";
 // Import all the necessary schemas from storage.ts since they've been moved there
 import { 
@@ -1337,79 +1338,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied" });
       }
       
-      // Return department timings (for now using default values)
-      const departmentTimings = {
-        "operations": {
-          checkInTime: "09:00",
-          checkOutTime: "18:00", 
-          workingHours: 9,
-          overtimeThresholdMinutes: 30,
-          lateThresholdMinutes: 15,
-          allowEarlyCheckOut: false,
-          allowRemoteWork: false,
-          allowFieldWork: true
+      // Generate department timings dynamically from schema
+      const departmentTimingDefaults = {
+        operations: {
+          checkInTime: "09:00", checkOutTime: "18:00", workingHours: 9,
+          overtimeThresholdMinutes: 30, lateThresholdMinutes: 15,
+          allowEarlyCheckOut: false, allowRemoteWork: false, allowFieldWork: true
         },
-        "admin": {
-          checkInTime: "09:30",
-          checkOutTime: "18:30",
-          workingHours: 8,
-          overtimeThresholdMinutes: 30,
-          lateThresholdMinutes: 15,
-          allowEarlyCheckOut: true,
-          allowRemoteWork: true,
-          allowFieldWork: false
+        admin: {
+          checkInTime: "09:30", checkOutTime: "18:30", workingHours: 8,
+          overtimeThresholdMinutes: 30, lateThresholdMinutes: 15,
+          allowEarlyCheckOut: true, allowRemoteWork: true, allowFieldWork: false
         },
-        "hr": {
-          checkInTime: "09:30",
-          checkOutTime: "18:30",
-          workingHours: 8,
-          overtimeThresholdMinutes: 30,
-          lateThresholdMinutes: 15,
-          allowEarlyCheckOut: true,
-          allowRemoteWork: true,
-          allowFieldWork: false
+        hr: {
+          checkInTime: "09:30", checkOutTime: "18:30", workingHours: 8,
+          overtimeThresholdMinutes: 30, lateThresholdMinutes: 15,
+          allowEarlyCheckOut: true, allowRemoteWork: true, allowFieldWork: false
         },
-        "marketing": {
-          checkInTime: "09:30",
-          checkOutTime: "18:30",
-          workingHours: 8,
-          overtimeThresholdMinutes: 30,
-          lateThresholdMinutes: 15,
-          allowEarlyCheckOut: false,
-          allowRemoteWork: true,
-          allowFieldWork: true
+        marketing: {
+          checkInTime: "09:30", checkOutTime: "18:30", workingHours: 8,
+          overtimeThresholdMinutes: 30, lateThresholdMinutes: 15,
+          allowEarlyCheckOut: false, allowRemoteWork: true, allowFieldWork: true
         },
-        "sales": {
-          checkInTime: "09:00",
-          checkOutTime: "19:00",
-          workingHours: 9,
-          overtimeThresholdMinutes: 30,
-          lateThresholdMinutes: 15,
-          allowEarlyCheckOut: false,
-          allowRemoteWork: true,
-          allowFieldWork: true
+        sales: {
+          checkInTime: "09:00", checkOutTime: "19:00", workingHours: 9,
+          overtimeThresholdMinutes: 30, lateThresholdMinutes: 15,
+          allowEarlyCheckOut: false, allowRemoteWork: true, allowFieldWork: true
         },
-        "technical": {
-          checkInTime: "10:00",
-          checkOutTime: "19:00",
-          workingHours: 8,
-          overtimeThresholdMinutes: 30,
-          lateThresholdMinutes: 15,
-          allowEarlyCheckOut: false,
-          allowRemoteWork: false,
-          allowFieldWork: true
+        technical: {
+          checkInTime: "10:00", checkOutTime: "19:00", workingHours: 8,
+          overtimeThresholdMinutes: 30, lateThresholdMinutes: 15,
+          allowEarlyCheckOut: false, allowRemoteWork: false, allowFieldWork: true
         },
-        "housekeeping": {
-          checkInTime: "08:00",
-          checkOutTime: "17:00",
-          workingHours: 8,
-          overtimeThresholdMinutes: 30,
-          lateThresholdMinutes: 10,
-          allowEarlyCheckOut: false,
-          allowRemoteWork: false,
-          allowFieldWork: false
+        housekeeping: {
+          checkInTime: "08:00", checkOutTime: "17:00", workingHours: 8,
+          overtimeThresholdMinutes: 30, lateThresholdMinutes: 10,
+          allowEarlyCheckOut: false, allowRemoteWork: false, allowFieldWork: false
         }
       };
+
+      // Build department timings object from schema
+      const departmentTimings = Object.fromEntries(
+        departments.map(dept => [
+          dept, 
+          departmentTimingDefaults[dept as keyof typeof departmentTimingDefaults] || {
+            checkInTime: "09:00", checkOutTime: "18:00", workingHours: 8,
+            overtimeThresholdMinutes: 30, lateThresholdMinutes: 15,
+            allowEarlyCheckOut: false, allowRemoteWork: false, allowFieldWork: false
+          }
+        ])
+      );
       
       res.json(departmentTimings);
     } catch (error: any) {
