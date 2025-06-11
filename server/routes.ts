@@ -4069,6 +4069,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update enhanced payroll record
+  app.put("/api/enhanced-payrolls/:id", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || (user.role !== "master_admin" && user.role !== "admin")) {
+        return res.status(403).json({ message: "Access denied - Admin or Master Admin only" });
+      }
+
+      const { id } = req.params;
+      const updateData = req.body;
+
+      // Remove id from update data if present
+      delete updateData.id;
+
+      // Add metadata
+      updateData.updatedAt = new Date();
+      updateData.updatedBy = user.id;
+
+      const updatedPayroll = await storage.updateEnhancedPayroll(id, updateData);
+      
+      // Create audit log
+      await storage.createAuditLog({
+        userId: user.id,
+        action: "payroll_updated",
+        entityType: "enhanced_payroll",
+        entityId: id,
+        changes: updateData,
+        department: user.department,
+        designation: user.designation
+      });
+
+      res.json(updatedPayroll);
+    } catch (error) {
+      console.error("Error updating enhanced payroll:", error);
+      res.status(500).json({ message: "Failed to update enhanced payroll" });
+    }
+  });
+
   app.post("/api/enhanced-payrolls/bulk-process", verifyAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.user.uid);
