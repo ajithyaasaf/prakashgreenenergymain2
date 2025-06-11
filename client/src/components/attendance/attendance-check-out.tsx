@@ -288,7 +288,33 @@ export function AttendanceCheckOut({
 
       console.log('FRONTEND: Submitting check-out request with data:', checkOutData);
 
-      const response = await apiRequest('POST', '/api/attendance/check-out', checkOutData);
+      // Get Firebase auth token
+      const auth = await import('firebase/auth');
+      const currentUser = auth.getAuth().currentUser;
+      if (!currentUser) {
+        throw new Error('User not authenticated');
+      }
+      const token = await currentUser.getIdToken();
+
+      const response = await fetch('/api/attendance/check-out', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(checkOutData),
+      });
+
+      console.log('FRONTEND: Check-out response status:', response.status);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('FRONTEND: Check-out error response:', errorData);
+        throw new Error(errorData.message || 'Failed to check out');
+      }
+
+      const responseData = await response.json();
+      console.log('FRONTEND: Check-out success response:', responseData);
 
       toast({
         title: "Check-out Successful",
