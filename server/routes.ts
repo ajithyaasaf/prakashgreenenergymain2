@@ -4081,9 +4081,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const fixedConveyance = salaryStructure.fixedConveyance || 0;
         const grossSalary = fixedBasic + fixedHRA + fixedConveyance;
         
-        // Default month configuration
-        const monthDays = 30;
-        const presentDays = 30; // Assuming full attendance for bulk processing
+        // Get actual attendance records for the specific month and year
+        const allAttendanceRecords = await storage.listAttendanceByUser(userId);
+        const attendanceRecords = allAttendanceRecords.filter(record => {
+          const recordDate = new Date(record.date);
+          return recordDate.getMonth() === (month - 1) && recordDate.getFullYear() === year;
+        });
+        
+        const presentDays = attendanceRecords.filter(record => 
+          record.status === 'present' || record.status === 'late'
+        ).length;
+        
+        // Calculate month days and overtime from attendance
+        const monthDays = new Date(year, month, 0).getDate(); // Actual days in month
+        const totalOvertimeHours = attendanceRecords.reduce((sum, record) => 
+          sum + (record.overtimeHours || 0), 0
+        );
+        
         const perDaySalary = grossSalary / monthDays;
         
         // Calculate earned amounts based on attendance
@@ -4108,7 +4122,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           monthDays,
           presentDays,
           paidLeaveDays: 0,
-          overtimeHours: 0,
+          overtimeHours: totalOvertimeHours,
           perDaySalary: Math.round(perDaySalary),
           earnedBasic: Math.round(earnedBasic),
           earnedHRA: Math.round(earnedHRA),
