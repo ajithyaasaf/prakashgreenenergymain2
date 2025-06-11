@@ -214,6 +214,27 @@ export default function EnhancedPayrollManagement() {
   });
 
   // Mutations
+  const updatePayrollMutation = useMutation({
+    mutationFn: async (data: { id: string; [key: string]: any }) => {
+      const response = await apiRequest('PUT', `/api/enhanced-payrolls/${data.id}`, data);
+      if (!response.ok) throw new Error('Failed to update payroll');
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Payroll updated successfully!" });
+      queryClient.invalidateQueries({ queryKey: ["/api/enhanced-payrolls"] });
+      refetchPayrolls();
+    },
+    onError: (error) => {
+      console.error('Update payroll error:', error);
+      toast({ 
+        title: "Error", 
+        description: "Failed to update payroll record",
+        variant: "destructive" 
+      });
+    }
+  });
+
   const createFieldConfigMutation = useMutation({
     mutationFn: async (data: any) => {
       const response = await apiRequest("POST", "/api/payroll/field-configs", data);
@@ -381,6 +402,34 @@ export default function EnhancedPayrollManagement() {
           </Dialog>
         </div>
       </div>
+
+      {/* Edit Payroll Dialog */}
+      {editingPayroll && (
+        <Dialog open={!!editingPayroll} onOpenChange={() => setEditingPayroll(null)}>
+          <DialogContent className="w-[95vw] h-[95vh] max-w-6xl mx-auto overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="text-lg lg:text-xl font-bold">Edit Payroll Record</DialogTitle>
+              <DialogDescription>
+                Modify payroll components and deductions for this employee
+              </DialogDescription>
+            </DialogHeader>
+            <div className="max-h-[calc(95vh-120px)] overflow-y-auto">
+              <EditPayrollForm 
+                payrollId={editingPayroll}
+                payroll={payrolls.find(p => p.id === editingPayroll)}
+                users={users}
+                earningsFields={earningsFields}
+                deductionsFields={deductionsFields}
+                onSubmit={(data) => {
+                  updatePayrollMutation.mutate({ id: editingPayroll, ...data });
+                  setEditingPayroll(null);
+                }}
+                onCancel={() => setEditingPayroll(null)}
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Filters */}
       <Card>
