@@ -4098,6 +4098,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           sum + (record.overtimeHours || 0), 0
         );
         
+        console.log(`PAYROLL DEBUG for user ${userId}: Month ${month}/${year} - MonthDays: ${monthDays}, AttendanceRecords: ${attendanceRecords.length}, PresentDays: ${presentDays}`);
+        
         const perDaySalary = grossSalary / monthDays;
         
         // Calculate earned amounts based on attendance
