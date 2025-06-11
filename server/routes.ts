@@ -1205,12 +1205,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log('CHECKOUT DEBUG: User found:', user.displayName, user.department);
 
-      const today = new Date();
+      // Handle midnight boundary: look for attendance record from today OR yesterday
+      // This covers cases where someone checked in late and is checking out after midnight
+      const now = new Date();
+      const today = new Date(now);
       today.setHours(0, 0, 0, 0);
-      const attendanceRecord = await storage.getAttendanceByUserAndDate(userId, today);
+      
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      
+      // First try to find attendance record for today
+      let attendanceRecord = await storage.getAttendanceByUserAndDate(userId, today);
+      
+      // If not found today and it's early hours (before 6 AM), check yesterday
+      // This handles night shift workers who check in late and checkout after midnight
+      if (!attendanceRecord && now.getHours() < 6) {
+        console.log('CHECKOUT DEBUG: No record found for today, checking yesterday for night shift');
+        attendanceRecord = await storage.getAttendanceByUserAndDate(userId, yesterday);
+      }
+      
       if (!attendanceRecord) {
-        console.log('CHECKOUT DEBUG: No attendance record found for today');
+        console.log('CHECKOUT DEBUG: No attendance record found for today or yesterday');
         return res.status(400).json({ message: "No check-in record found for today" });
+      }
+      
+      // Additional validation: ensure the record doesn't already have checkout
+      if (attendanceRecord && !attendanceRecord.checkOutTime) {
+        console.log('CHECKOUT DEBUG: Valid attendance record found for checkout');
       }
 
       console.log('CHECKOUT DEBUG: Attendance record found:', {
@@ -1240,18 +1261,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Use department-specific timing or defaults
       const expectedCheckOutTime = departmentTiming?.checkOutTime || "18:30";
       const [checkOutHour, checkOutMinute] = expectedCheckOutTime.split(":").map(Number);
-      const expectedCheckOutTimeObj = new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        now.getDate(),
+      
+      // Handle midnight boundary for expected checkout time
+      const checkInTime = new Date(attendanceRecord.checkInTime || new Date());
+      const checkInDate = new Date(checkInTime);
+      checkInDate.setHours(0, 0, 0, 0); // Get check-in date (midnight)
+      
+      // Expected checkout should be on the same day as check-in, unless it's a night shift
+      let expectedCheckOutTimeObj = new Date(
+        checkInDate.getFullYear(),
+        checkInDate.getMonth(),
+        checkInDate.getDate(),
         checkOutHour,
         checkOutMinute,
       );
+      
+      // If expected checkout is before check-in time, it means it's next day (night shift)
+      if (expectedCheckOutTimeObj <= checkInTime) {
+        expectedCheckOutTimeObj.setDate(expectedCheckOutTimeObj.getDate() + 1);
+      }
 
-      // Calculate working hours and overtime using department settings
-      const checkInTime = new Date(attendanceRecord.checkInTime || new Date());
-      const workingMilliseconds = checkOutTime.getTime() - checkInTime.getTime();
-      const workingHours = workingMilliseconds / (1000 * 60 * 60);
+      // Calculate working hours with proper midnight boundary handling
+      let workingMilliseconds = checkOutTime.getTime() - checkInTime.getTime();
+      
+      // If working time is negative, it means checkout happened next day
+      if (workingMilliseconds < 0) {
+        // This shouldn't happen in normal cases, but handle edge cases
+        console.warn('CHECKOUT WARNING: Negative working time detected, possible date boundary issue');
+        workingMilliseconds = Math.abs(workingMilliseconds);
+      }
+      
+      // Cap maximum working hours to prevent absurd calculations (e.g., 24+ hours)
+      const maxWorkingHours = 24; // Maximum 24 hours in a single shift
+      const calculatedWorkingHours = workingMilliseconds / (1000 * 60 * 60);
+      const workingHours = Math.min(calculatedWorkingHours, maxWorkingHours);
+      
+      // Log midnight boundary handling for debugging
+      console.log('MIDNIGHT BOUNDARY DEBUG:', {
+        checkInTime: checkInTime.toISOString(),
+        checkOutTime: checkOutTime.toISOString(),
+        calculatedWorkingHours,
+        cappedWorkingHours: workingHours,
+        expectedCheckOut: expectedCheckOutTimeObj.toISOString(),
+        crossedMidnight: checkOutTime.getDate() !== checkInTime.getDate()
+      });
       
       // Use department-specific working hours
       const standardWorkingHours = departmentTiming?.workingHours || 8;
