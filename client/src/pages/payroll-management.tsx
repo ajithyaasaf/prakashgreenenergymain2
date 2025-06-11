@@ -1924,7 +1924,7 @@ function FieldConfigForm({ onSubmit }: { onSubmit: (data: any) => void }) {
         <Checkbox
           id="isRequired"
           checked={formData.isRequired}
-          onCheckedChange={(checked) => setFormData({ ...formData, isRequired: !!checked })}
+          onCheckedChange={(checked) => setFormData({ ...formData, isRequired: Boolean(checked) })}
         />
         <Label htmlFor="isRequired">Required Field</Label>
       </div>
@@ -2445,7 +2445,7 @@ function SalaryStructureForm({
             <Checkbox
               id="epfApplicable"
               checked={formData.epfApplicable}
-              onCheckedChange={(checked) => setFormData(prev => ({ ...prev, epfApplicable: !!checked }))}
+              onCheckedChange={(checked) => setFormData(prev => ({ ...prev, epfApplicable: Boolean(checked) }))}
             />
             <Label htmlFor="epfApplicable">EPF Applicable</Label>
           </div>
@@ -2453,7 +2453,7 @@ function SalaryStructureForm({
             <Checkbox
               id="esiApplicable"
               checked={formData.esiApplicable}
-              onCheckedChange={(checked) => setFormData(prev => ({ ...prev, esiApplicable: !!checked }))}
+              onCheckedChange={(checked) => setFormData(prev => ({ ...prev, esiApplicable: Boolean(checked) }))}
             />
             <Label htmlFor="esiApplicable">ESI Applicable</Label>
           </div>
@@ -2461,7 +2461,7 @@ function SalaryStructureForm({
             <Checkbox
               id="autoCalculate"
               checked={formData.autoCalculate}
-              onCheckedChange={(checked) => setFormData(prev => ({ ...prev, autoCalculate: !!checked }))}
+              onCheckedChange={(checked) => setFormData(prev => ({ ...prev, autoCalculate: Boolean(checked) }))}
             />
             <Label htmlFor="autoCalculate">Auto Calculate</Label>
           </div>
@@ -2709,7 +2709,7 @@ function PayrollSettingsForm({
             <Checkbox
               id="autoCalculateStatutory"
               checked={formData.autoCalculateStatutory}
-              onCheckedChange={(checked) => setFormData({ ...formData, autoCalculateStatutory: checked === true })}
+              onCheckedChange={(checked) => setFormData({ ...formData, autoCalculateStatutory: Boolean(checked) })}
             />
             <Label htmlFor="autoCalculateStatutory">Auto Calculate Statutory Deductions</Label>
           </div>
@@ -2717,7 +2717,7 @@ function PayrollSettingsForm({
             <Checkbox
               id="allowManualOverride"
               checked={formData.allowManualOverride}
-              onCheckedChange={(checked) => setFormData({ ...formData, allowManualOverride: checked === true })}
+              onCheckedChange={(checked) => setFormData({ ...formData, allowManualOverride: Boolean(checked) })}
             />
             <Label htmlFor="allowManualOverride">Allow Manual Override</Label>
           </div>
@@ -2725,7 +2725,7 @@ function PayrollSettingsForm({
             <Checkbox
               id="requireApprovalForProcessing"
               checked={formData.requireApprovalForProcessing}
-              onCheckedChange={(checked) => setFormData({ ...formData, requireApprovalForProcessing: checked === true })}
+              onCheckedChange={(checked) => setFormData({ ...formData, requireApprovalForProcessing: Boolean(checked) })}
             />
             <Label htmlFor="requireApprovalForProcessing">Require Approval for Processing</Label>
           </div>
