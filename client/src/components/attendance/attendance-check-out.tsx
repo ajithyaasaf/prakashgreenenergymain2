@@ -259,8 +259,11 @@ export function AttendanceCheckOut({
             attendanceType: 'overtime_checkout'
           });
 
-          if (uploadResponse.success) {
-            photoUploadUrl = uploadResponse.url;
+          const uploadData = await uploadResponse.json();
+          console.log('FRONTEND: Upload response data:', uploadData);
+          
+          if (uploadData.success) {
+            photoUploadUrl = uploadData.url;
             console.log('FRONTEND: Overtime photo uploaded successfully:', photoUploadUrl);
           } else {
             throw new Error('Photo upload failed');
