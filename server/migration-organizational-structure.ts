@@ -1,7 +1,8 @@
 import { storage } from './storage';
+import { departments, designations } from '@shared/schema';
 
 /**
- * Migration script to update organizational structure based on the provided chart
+ * Migration script to update organizational structure based on the organizational chart
  * 
  * Chart Analysis:
  * - CEO, GM, Officer -> Operations Department
@@ -19,14 +20,15 @@ export async function migrateOrganizationalStructure() {
     const users = await storage.listUsers();
     console.log(`Found ${users.length} users to migrate`);
 
-    const migrationMap: Record<string, { department: string; designation: string }> = {
-      // Current department "cre" users should become designation "cre" in "sales" department
-      'cre': { department: 'sales', designation: 'cre' },
-      // Current department mappings to new structure
+    // Legacy department mappings to new structure (only for historical data)
+    const legacyDepartmentMap: Record<string, { department: string; designation: string }> = {
+      // Legacy departments that may exist in old data
       'accounts': { department: 'admin', designation: 'executive' },
-      'hr': { department: 'hr', designation: 'executive' },
+      'administration': { department: 'admin', designation: 'executive' },
+      'human_resources': { department: 'hr', designation: 'executive' },
       'sales_and_marketing': { department: 'marketing', designation: 'executive' },
-      'technical_team': { department: 'technical', designation: 'technician' }
+      'technical_team': { department: 'technical', designation: 'technician' },
+      'cre': { department: 'sales', designation: 'cre' } // CRE was incorrectly used as department
     };
 
     let migratedCount = 0;
@@ -34,18 +36,33 @@ export async function migrateOrganizationalStructure() {
       let needsUpdate = false;
       const updateData: any = {};
 
-      // Migrate department if it exists in our mapping
-      if (user.department && migrationMap[user.department]) {
-        updateData.department = migrationMap[user.department].department;
-        updateData.designation = migrationMap[user.department].designation;
+      // Migrate legacy departments to current organizational structure
+      if (user.department && legacyDepartmentMap[user.department]) {
+        updateData.department = legacyDepartmentMap[user.department].department;
+        updateData.designation = legacyDepartmentMap[user.department].designation;
         needsUpdate = true;
         console.log(`Migrating user ${user.email}: ${user.department} -> ${updateData.department} (${updateData.designation})`);
       }
 
-      // Update designation mapping for existing users
-      const designationMapping: Record<string, string> = {
+      // Validate current department exists in schema
+      if (user.department && !departments.includes(user.department as any)) {
+        console.log(`Invalid department ${user.department} for user ${user.email}, setting to null`);
+        updateData.department = null;
+        updateData.designation = null;
+        needsUpdate = true;
+      }
+
+      // Validate current designation exists in schema
+      if (user.designation && !designations.includes(user.designation as any)) {
+        console.log(`Invalid designation ${user.designation} for user ${user.email}, setting to null`);
+        updateData.designation = null;
+        needsUpdate = true;
+      }
+
+      // Legacy designation mapping (only for historical data)
+      const legacyDesignationMap: Record<string, string> = {
         'director': 'ceo',
-        'manager': 'gm',
+        'manager': 'gm', 
         'assistant_manager': 'officer',
         'senior_executive': 'team_leader',
         'junior_executive': 'cre',
@@ -53,8 +70,8 @@ export async function migrateOrganizationalStructure() {
         'intern': 'house_man'
       };
 
-      if (user.designation && designationMapping[user.designation]) {
-        updateData.designation = designationMapping[user.designation];
+      if (user.designation && legacyDesignationMap[user.designation]) {
+        updateData.designation = legacyDesignationMap[user.designation];
         needsUpdate = true;
         console.log(`Updating designation for ${user.email}: ${user.designation} -> ${updateData.designation}`);
       }
@@ -70,7 +87,7 @@ export async function migrateOrganizationalStructure() {
 
   } catch (error) {
     console.error('Migration failed:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
   }
 }
 
