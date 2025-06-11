@@ -427,11 +427,13 @@ export default function AttendanceManagement() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Departments</SelectItem>
-                <SelectItem value="cre">CRE</SelectItem>
-                <SelectItem value="accounts">Accounts</SelectItem>
-                <SelectItem value="hr">HR</SelectItem>
-                <SelectItem value="sales_and_marketing">Sales & Marketing</SelectItem>
-                <SelectItem value="technical_team">Technical Team</SelectItem>
+                <SelectItem value="operations">Operations</SelectItem>
+                <SelectItem value="admin">Administration</SelectItem>
+                <SelectItem value="hr">Human Resources</SelectItem>
+                <SelectItem value="marketing">Marketing</SelectItem>
+                <SelectItem value="sales">Sales</SelectItem>
+                <SelectItem value="technical">Technical</SelectItem>
+                <SelectItem value="housekeeping">Housekeeping</SelectItem>
               </SelectContent>
             </Select>
 

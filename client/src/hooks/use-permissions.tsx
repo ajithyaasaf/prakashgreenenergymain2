@@ -16,10 +16,10 @@ export type Permission =
   | "manage_leaves" // Manage leaves
   | "approve_leaves" // Approve leave applications
   | "hr_operations" // HR department operations
-  | "accounts_operations" // Accounts department operations
-  | "cre_operations" // CRE department operations
-  | "sales_operations" // Sales and Marketing operations
-  | "technical_operations"; // Technical team operations
+  | "accounts_operations" // Administration department operations
+  | "cre_operations" // Sales department operations
+  | "sales_operations" // Marketing department operations
+  | "technical_operations"; // Technical department operations
 
 // Define permission mappings for each role and department
 const rolePermissions: Record<string, Permission[]> = {
@@ -57,29 +57,40 @@ const rolePermissions: Record<string, Permission[]> = {
   ],
 };
 
-// Define department-specific permissions
+// Define department-specific permissions (updated for new organizational structure)
 const departmentPermissions: Record<string, Permission[]> = {
+  operations: [
+    "manage_departments",
+    "set_office_locations",
+    "view_all_reports",
+  ],
+  admin: [
+    "accounts_operations",
+    "manage_invoices",
+    "view_all_reports",
+  ],
   hr: [
     "hr_operations",
     "manage_attendance",
     "manage_leaves",
     "approve_leaves",
   ],
-  accounts: [
-    "accounts_operations",
-    "manage_invoices",
-  ],
-  cre: [
-    "cre_operations",
-  ],
-  sales_and_marketing: [
+  marketing: [
     "sales_operations",
     "manage_customers",
     "manage_quotations",
   ],
-  technical_team: [
+  sales: [
+    "cre_operations",
+    "manage_customers",
+    "manage_quotations",
+  ],
+  technical: [
     "technical_operations",
     "manage_products",
+  ],
+  housekeeping: [
+    "manage_attendance",
   ],
 };
 

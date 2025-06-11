@@ -190,7 +190,7 @@ interface FirestoreUser {
   email?: string;
   displayName?: string;
   role?: "master_admin" | "admin" | "employee";
-  department?: "cre" | "accounts" | "hr" | "sales_and_marketing" | "technical_team" | null;
+  department?: "operations" | "admin" | "hr" | "marketing" | "sales" | "technical" | "housekeeping" | null;
   [key: string]: any; // For other fields that might be present
 }
 
