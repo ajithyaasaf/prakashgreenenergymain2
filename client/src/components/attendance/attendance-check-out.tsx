@@ -246,29 +246,61 @@ export function AttendanceCheckOut({
 
     setIsSubmitting(true);
     try {
-      const response = await apiRequest('POST', '/api/attendance/check-out', {
+      let photoUploadUrl = undefined;
+
+      // Upload photo to Cloudinary if overtime requires it
+      if (overtimeInfo.hasOvertime && capturedPhoto) {
+        console.log('FRONTEND: Uploading overtime photo to Cloudinary...');
+        
+        try {
+          const uploadResponse = await apiRequest('POST', '/api/attendance/upload-photo', {
+            imageData: capturedPhoto,
+            userId: user?.uid,
+            attendanceType: 'overtime_checkout'
+          });
+
+          if (uploadResponse.success) {
+            photoUploadUrl = uploadResponse.url;
+            console.log('FRONTEND: Overtime photo uploaded successfully:', photoUploadUrl);
+          } else {
+            throw new Error('Photo upload failed');
+          }
+        } catch (uploadError) {
+          console.error('FRONTEND: Photo upload failed:', uploadError);
+          toast({
+            title: "Photo Upload Failed",
+            description: "Unable to upload overtime verification photo. Please try again.",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
+      // Submit check-out with uploaded photo URL
+      const checkOutData = {
         userId: user?.uid,
-        latitude: location!.latitude.toString(),
-        longitude: location!.longitude.toString(),
+        latitude: location!.latitude,
+        longitude: location!.longitude,
         reason: reason || undefined,
         otReason: overtimeInfo.hasOvertime ? otReason : undefined,
-        otImageUrl: overtimeInfo.hasOvertime ? capturedPhoto : undefined,
-        overtimeHours: overtimeInfo.hasOvertime ? (overtimeInfo.overtimeHours + overtimeInfo.overtimeMinutes / 60) : undefined,
-      });
+        imageUrl: photoUploadUrl, // Use uploaded Cloudinary URL
+      };
 
-      if (response.ok) {
-        toast({
-          title: "Check-out Successful",
-          description: `Work session completed${overtimeInfo.hasOvertime ? ' with overtime recorded' : ''}`,
-        });
-        resetForm();
-        onSuccess();
-        onClose();
-      } else {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to check out');
-      }
+      console.log('FRONTEND: Submitting check-out request with data:', checkOutData);
+
+      const response = await apiRequest('POST', '/api/attendance/check-out', checkOutData);
+
+      toast({
+        title: "Check-out Successful",
+        description: `Work session completed${overtimeInfo.hasOvertime ? ' with overtime recorded' : ''}`,
+      });
+      
+      resetForm();
+      onSuccess();
+      onClose();
+
     } catch (error: any) {
+      console.error('FRONTEND: Check-out failed:', error);
       toast({
         title: "Check-out Failed",
         description: error.message || "Failed to record check-out",
