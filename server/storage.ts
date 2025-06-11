@@ -30,10 +30,9 @@ export const insertUserSchema = z.object({
   email: z.string().email(),
   displayName: z.string().nullable().optional().transform(val => val || "User"),
   role: z.enum(["master_admin", "admin", "employee"]).default("employee"),
-  department: z.enum(["cre", "accounts", "hr", "sales_and_marketing", "technical_team"]).nullable().optional(),
+  department: z.enum(["operations", "admin", "hr", "marketing", "sales", "technical", "housekeeping"]).nullable().optional(),
   designation: z.enum([
-    "director", "manager", "assistant_manager", "senior_executive", 
-    "executive", "junior_executive", "trainee", "intern"
+    "ceo", "gm", "officer", "executive", "cre", "team_leader", "technician", "welder", "house_man"
   ]).nullable().optional(),
   employeeId: z.string().optional(),
   reportingManagerId: z.string().nullable().optional(),
@@ -52,10 +51,9 @@ export const insertDesignationSchema = z.object({
 
 export const insertPermissionGroupSchema = z.object({
   name: z.string(),
-  department: z.enum(["cre", "accounts", "hr", "sales_and_marketing", "technical_team"]),
+  department: z.enum(["operations", "admin", "hr", "marketing", "sales", "technical", "housekeeping"]),
   designation: z.enum([
-    "director", "manager", "assistant_manager", "senior_executive", 
-    "executive", "junior_executive", "trainee", "intern"
+    "ceo", "gm", "officer", "executive", "cre", "team_leader", "technician", "welder", "house_man"
   ]),
   permissions: z.array(z.string()),
   canApprove: z.boolean().default(false),
@@ -111,21 +109,24 @@ export interface User {
   displayName: string;
   role: "master_admin" | "admin" | "employee";
   department:
-    | "cre"
-    | "accounts"
+    | "operations"
+    | "admin"
     | "hr"
-    | "sales_and_marketing"
-    | "technical_team"
+    | "marketing"
+    | "sales"
+    | "technical"
+    | "housekeeping"
     | null;
   designation:
-    | "director"
-    | "manager"
-    | "assistant_manager"
-    | "senior_executive"
+    | "ceo"
+    | "gm"
+    | "officer"
     | "executive"
-    | "junior_executive"
-    | "trainee"
-    | "intern"
+    | "cre"
+    | "team_leader"
+    | "technician"
+    | "welder"
+    | "house_man"
     | null;
   employeeId?: string;
   reportingManagerId?: string | null;
@@ -148,8 +149,8 @@ export interface Designation {
 export interface PermissionGroup {
   id: string;
   name: string;
-  department: "cre" | "accounts" | "hr" | "sales_and_marketing" | "technical_team";
-  designation: "director" | "manager" | "assistant_manager" | "senior_executive" | "executive" | "junior_executive" | "trainee" | "intern";
+  department: "operations" | "admin" | "hr" | "marketing" | "sales" | "technical" | "housekeeping";
+  designation: "ceo" | "gm" | "officer" | "executive" | "cre" | "team_leader" | "technician" | "welder" | "house_man";
   permissions: string[];
   canApprove: boolean;
   maxApprovalAmount?: number | null;

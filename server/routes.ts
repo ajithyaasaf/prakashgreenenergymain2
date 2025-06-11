@@ -83,12 +83,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             // Set approval capabilities based on designation
             const designationLevels = {
-              "trainee": 1, "intern": 2, "junior_executive": 3, "executive": 4,
-              "senior_executive": 5, "assistant_manager": 6, "manager": 7, "director": 8
+              "house_man": 1, "welder": 2, "technician": 3, "cre": 4,
+              "executive": 5, "team_leader": 6, "officer": 7, "gm": 8, "ceo": 9
             };
             const level = designationLevels[userProfile.designation] || 1;
             req.authenticatedUser.canApprove = level >= 5;
-            req.authenticatedUser.maxApprovalAmount = level >= 7 ? 1000000 : level >= 6 ? 500000 : level >= 5 ? 100000 : null;
+            req.authenticatedUser.maxApprovalAmount = level >= 8 ? null : level >= 7 ? 1000000 : level >= 6 ? 500000 : level >= 5 ? 100000 : null;
           } catch (error) {
             console.error("Error calculating permissions:", error);
             console.error("Error details:", error.stack);
@@ -581,11 +581,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Test different department + designation combinations
       const testCases = [
-        { department: "cre", designation: "assistant_manager" },
-        { department: "accounts", designation: "manager" },
-        { department: "hr", designation: "director" },
-        { department: "sales_and_marketing", designation: "executive" },
-        { department: "technical_team", designation: "senior_executive" }
+        { department: "operations", designation: "ceo" },
+        { department: "admin", designation: "executive" },
+        { department: "hr", designation: "executive" },
+        { department: "marketing", designation: "executive" },
+        { department: "sales", designation: "cre" },
+        { department: "technical", designation: "team_leader" },
+        { department: "housekeeping", designation: "house_man" }
       ];
 
       const results = testCases.map(({ department, designation }) => ({
