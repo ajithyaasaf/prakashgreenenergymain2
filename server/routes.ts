@@ -1339,37 +1339,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Return department timings (for now using default values)
       const departmentTimings = {
-        "cre": {
-          checkInTime: "09:30",
-          checkOutTime: "18:30", 
-          workingHours: 8,
+        "operations": {
+          checkInTime: "09:00",
+          checkOutTime: "18:00", 
+          workingHours: 9,
           overtimeThresholdMinutes: 30,
           lateThresholdMinutes: 15,
           allowEarlyCheckOut: false,
-          allowRemoteWork: true,
+          allowRemoteWork: false,
           allowFieldWork: true
         },
-        "accounts": {
-          checkInTime: "09:00",
-          checkOutTime: "18:00",
+        "admin": {
+          checkInTime: "09:30",
+          checkOutTime: "18:30",
           workingHours: 8,
           overtimeThresholdMinutes: 30,
-          lateThresholdMinutes: 10,
+          lateThresholdMinutes: 15,
           allowEarlyCheckOut: true,
           allowRemoteWork: true,
           allowFieldWork: false
         },
         "hr": {
-          checkInTime: "09:00",
-          checkOutTime: "18:00",
+          checkInTime: "09:30",
+          checkOutTime: "18:30",
           workingHours: 8,
           overtimeThresholdMinutes: 30,
-          lateThresholdMinutes: 10,
+          lateThresholdMinutes: 15,
           allowEarlyCheckOut: true,
           allowRemoteWork: true,
           allowFieldWork: false
         },
-        "sales_and_marketing": {
+        "marketing": {
           checkInTime: "09:30",
           checkOutTime: "18:30",
           workingHours: 8,
@@ -1379,15 +1379,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
           allowRemoteWork: true,
           allowFieldWork: true
         },
-        "technical_team": {
+        "sales": {
+          checkInTime: "09:00",
+          checkOutTime: "19:00",
+          workingHours: 9,
+          overtimeThresholdMinutes: 30,
+          lateThresholdMinutes: 15,
+          allowEarlyCheckOut: false,
+          allowRemoteWork: true,
+          allowFieldWork: true
+        },
+        "technical": {
           checkInTime: "10:00",
           checkOutTime: "19:00",
           workingHours: 8,
           overtimeThresholdMinutes: 30,
           lateThresholdMinutes: 15,
           allowEarlyCheckOut: false,
-          allowRemoteWork: true,
+          allowRemoteWork: false,
           allowFieldWork: true
+        },
+        "housekeeping": {
+          checkInTime: "08:00",
+          checkOutTime: "17:00",
+          workingHours: 8,
+          overtimeThresholdMinutes: 30,
+          lateThresholdMinutes: 10,
+          allowEarlyCheckOut: false,
+          allowRemoteWork: false,
+          allowFieldWork: false
         }
       };
       
