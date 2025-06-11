@@ -3452,10 +3452,10 @@ export class FirestoreStorage implements IStorage {
 
   async getEnhancedSalaryStructureByUser(userId: string): Promise<EnhancedSalaryStructure | undefined> {
     try {
+      // Simplify query to avoid complex index requirement
       const querySnapshot = await this.db.collection('enhanced_salary_structures')
         .where('userId', '==', userId)
         .where('isActive', '==', true)
-        .orderBy('effectiveFrom', 'desc')
         .limit(1)
         .get();
 
