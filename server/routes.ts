@@ -1310,8 +1310,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update attendance record with checkout details
       const updatedAttendance = await storage.updateAttendance(attendanceRecord.id, {
         checkOutTime,
-        checkOutLatitude: latitude,
-        checkOutLongitude: longitude,
+        checkOutLatitude: String(latitude),
+        checkOutLongitude: String(longitude),
         checkOutImageUrl: imageUrl,
         workingHours: Math.round(workingHours * 100) / 100,
         overtimeHours: Math.round(overtimeHours * 100) / 100,
