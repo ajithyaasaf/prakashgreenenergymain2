@@ -37,6 +37,17 @@ export default function AttendanceManagement() {
   // Modal states
   const [showEditModal, setShowEditModal] = useState(false);
   const [showPolicyModal, setShowPolicyModal] = useState(false);
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<{
+    url: string;
+    employeeName: string;
+    date: string;
+    time: string;
+    attendanceType: string;
+    customerName?: string;
+    location?: string;
+  } | null>(null);
+  const [imageLoading, setImageLoading] = useState(false);
   const [editingAttendance, setEditingAttendance] = useState<any>(null);
   const [editForm, setEditForm] = useState({
     checkInTime: '',
@@ -217,6 +228,42 @@ export default function AttendanceManagement() {
       id: editingAttendance.id,
       data: updateData
     });
+  };
+
+  // Handle image viewing with preloading
+  const handleViewImage = async (record: any) => {
+    if (!record.checkInImageUrl) return;
+    
+    setImageLoading(true);
+    setShowImageModal(true);
+    
+    // Prepare image metadata
+    const imageData = {
+      url: record.checkInImageUrl,
+      employeeName: record.userName || 'Unknown Employee',
+      date: formatDate(new Date(record.date)),
+      time: record.checkInTime ? formatTime(new Date(record.checkInTime)) : 'Unknown Time',
+      attendanceType: record.location === 'field_work' ? 'Field Work' : 
+                     record.location === 'remote' ? 'Remote Work' : 'Office',
+      customerName: record.customerName,
+      location: record.location
+    };
+    
+    // Preload image for better UX
+    const img = new Image();
+    img.onload = () => {
+      setSelectedImage(imageData);
+      setImageLoading(false);
+    };
+    img.onerror = () => {
+      setImageLoading(false);
+      toast({
+        title: "Error",
+        description: "Failed to load attendance image",
+        variant: "destructive",
+      });
+    };
+    img.src = record.checkInImageUrl;
   };
 
   // Status badge styles
@@ -462,7 +509,12 @@ export default function AttendanceManagement() {
                                 <Edit className="h-3 w-3" />
                               </Button>
                               {record.checkInImageUrl && (
-                                <Button size="sm" variant="outline">
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  onClick={() => handleViewImage(record)}
+                                  title="View Field Work Photo"
+                                >
                                   <Camera className="h-3 w-3" />
                                 </Button>
                               )}
