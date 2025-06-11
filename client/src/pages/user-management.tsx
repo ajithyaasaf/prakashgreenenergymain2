@@ -224,25 +224,28 @@ export default function UserManagement() {
     employee: "bg-green-100 text-green-800",
   };
 
-  // Department display names
+  // Department display names (updated for new organizational structure)
   const departmentNames: Record<string, string> = {
-    cre: "Customer Relations",
-    accounts: "Accounts",
+    operations: "Operations",
+    admin: "Administration", 
     hr: "Human Resources",
-    sales_and_marketing: "Sales & Marketing",
-    technical_team: "Technical Team",
+    marketing: "Marketing",
+    sales: "Sales",
+    technical: "Technical",
+    housekeeping: "Housekeeping",
   };
 
-  // Designation display names
+  // Designation display names (updated based on organizational chart)
   const designationNames: Record<string, string> = {
-    director: "Director",
-    manager: "Manager",
-    assistant_manager: "Assistant Manager",
-    senior_executive: "Senior Executive",
+    ceo: "CEO",
+    gm: "GM", 
+    officer: "Officer",
     executive: "Executive",
-    junior_executive: "Junior Executive",
-    trainee: "Trainee",
-    intern: "Intern",
+    cre: "CRE",
+    team_leader: "Team Leader",
+    technician: "Technician",
+    welder: "Welder",
+    house_man: "House Man",
   };
 
   // Fetch designations for form dropdown

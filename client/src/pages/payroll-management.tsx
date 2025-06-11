@@ -296,7 +296,7 @@ export default function EnhancedPayrollManagement() {
     "July", "August", "September", "October", "November", "December"
   ];
 
-  const departments = ["cre", "operations", "accounts", "hr", "it", "sales"];
+  const departments = ["operations", "admin", "hr", "marketing", "sales", "technical", "housekeeping"];
 
   // Get earnings and deductions field configs
   const earningsFields = fieldConfigs.filter(field => field.category === "earnings" && field.isActive);
@@ -661,7 +661,7 @@ function PayrollTable({
     return statusMatch && departmentMatch;
   });
 
-  const departments = ["cre", "operations", "accounts", "hr", "it", "sales"];
+  const departments = ["operations", "admin", "hr", "marketing", "sales", "technical", "housekeeping"];
 
   // Enhanced summary calculations
   const totalPayrolls = filteredPayrolls.length;
