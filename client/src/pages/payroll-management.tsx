@@ -141,6 +141,10 @@ export default function EnhancedPayrollManagement() {
   const [isSalaryStructureDialogOpen, setIsSalaryStructureDialogOpen] = useState(false);
   const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
   const [editingPayroll, setEditingPayroll] = useState<string | null>(null);
+  const [selectedStructures, setSelectedStructures] = useState<Set<string>>(new Set());
+  const [selectedPayrolls, setSelectedPayrolls] = useState<Set<string>>(new Set());
+  const [bulkProcessing, setBulkProcessing] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
 
   // API Queries
   const { data: users = [] } = useQuery({
