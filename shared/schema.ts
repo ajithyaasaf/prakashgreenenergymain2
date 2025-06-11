@@ -1,26 +1,26 @@
 import { z } from "zod";
 
-// Core enterprise user management schemas
+// Core enterprise user management schemas - Updated to match organizational chart
 export const departments = [
-  "cre", "accounts", "hr", "sales_and_marketing", "technical_team"
+  "operations", "admin", "hr", "marketing", "sales", "technical", "housekeeping"
 ] as const;
 
-// Enterprise organizational hierarchy with levels
+// Enterprise organizational hierarchy with levels - Updated to match organizational chart
 export const designations = [
-  "director", "manager", "assistant_manager", "senior_executive", 
-  "executive", "junior_executive", "trainee", "intern"
+  "ceo", "gm", "officer", "executive", "cre", "team_leader", "technician", "welder", "house_man"
 ] as const;
 
-// Designation hierarchy levels (higher number = more authority)
+// Designation hierarchy levels (higher number = more authority) - Updated to match organizational chart
 export const designationLevels = {
-  "director": 8,
-  "manager": 7,
-  "assistant_manager": 6,
-  "senior_executive": 5,
-  "executive": 4,
-  "junior_executive": 3,
-  "trainee": 2,
-  "intern": 1
+  "ceo": 9,
+  "gm": 8,
+  "officer": 7,
+  "team_leader": 6,
+  "executive": 5,
+  "cre": 4,
+  "technician": 3,
+  "welder": 2,
+  "house_man": 1
 } as const;
 
 export const payrollGrades = [
