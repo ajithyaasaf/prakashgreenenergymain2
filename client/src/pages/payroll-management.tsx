@@ -854,10 +854,22 @@ function PayrollTable({
                           {payroll.status}
                         </Badge>
                         <div className="flex gap-1">
-                          <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => onEdit(payroll.id)}>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="h-8 w-8 p-0" 
+                            onClick={() => onEdit(payroll.id)}
+                            title="Edit Payroll"
+                          >
                             <Edit3 className="h-3 w-3" />
                           </Button>
-                          <Button variant="outline" size="sm" className="h-8 w-8 p-0">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="h-8 w-8 p-0"
+                            onClick={() => toggleRowExpansion(payroll.id)}
+                            title="View Details"
+                          >
                             <Eye className="h-3 w-3" />
                           </Button>
                         </div>
@@ -1940,25 +1952,16 @@ function SalaryStructureForm({
           <Calendar className="h-5 w-5" />
           Day Structure & Working Hours
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
-            <Label htmlFor="monthDays">Month Days</Label>
+            <Label htmlFor="monthDays">Month Days <span className="text-sm text-gray-500">(Auto-calculated)</span></Label>
             <Input
               id="monthDays"
               type="number"
               value={formData.monthDays}
-              onChange={(e) => setFormData(prev => ({ ...prev, monthDays: parseFloat(e.target.value) || 30 }))}
-              required
-            />
-          </div>
-          <div>
-            <Label htmlFor="workingDays">Working Days</Label>
-            <Input
-              id="workingDays"
-              type="number"
-              value={formData.workingDays}
-              onChange={(e) => setFormData(prev => ({ ...prev, workingDays: parseFloat(e.target.value) || 30 }))}
-              required
+              readOnly
+              className="bg-blue-50 border-blue-200"
+              title="Automatically calculated based on selected month/year"
             />
           </div>
           <div>
