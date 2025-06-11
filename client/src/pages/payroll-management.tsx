@@ -1331,7 +1331,7 @@ function SalaryStructuresTable({
     return departmentMatch && salaryRangeMatch;
   });
 
-  const departments = ["cre", "operations", "accounts", "hr", "it", "sales"];
+  const departments = ["operations", "admin", "hr", "marketing", "sales", "technical", "housekeeping"];
 
   // Summary calculations
   const totalStructures = filteredStructures.length;
@@ -1743,7 +1743,7 @@ function FieldConfigForm({ onSubmit }: { onSubmit: (data: any) => void }) {
     sortOrder: 1
   });
 
-  const departments = ["cre", "operations", "accounts", "hr", "it", "sales"];
+  const departments = ["operations", "admin", "hr", "marketing", "sales", "technical", "housekeeping"];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
