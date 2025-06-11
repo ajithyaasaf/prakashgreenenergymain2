@@ -456,12 +456,19 @@ export interface EnhancedPayroll {
   earnedHRA: number;
   earnedConveyance: number;
   overtimePay: number;
+  betta: number; // BETTA allowance from manual system
   dynamicEarnings: Record<string, number>;
+  grossSalary: number; // Gross before BETTA
+  finalGross: number; // Final gross after BETTA
   dynamicDeductions: Record<string, number>;
   epfDeduction: number;
   esiDeduction: number;
   vptDeduction: number;
   tdsDeduction: number;
+  fineDeduction: number; // FINE from manual system
+  salaryAdvance: number; // SALARY ADVANCE from manual system
+  creditAdjustment: number; // CREDIT from manual system
+  esiEligible: boolean; // ESI eligibility status
   totalEarnings: number;
   totalDeductions: number;
   netSalary: number;
@@ -479,16 +486,20 @@ export interface EnhancedSalaryStructure {
   id: string;
   userId: string;
   employeeId: string;
-  basicSalary: number;
-  hra: number;
-  conveyanceAllowance: number;
-  fixedSalary: number;
+  fixedBasic: number;
+  fixedHRA: number;
+  fixedConveyance: number;
+  customEarnings: Record<string, number>;
+  customDeductions: Record<string, number>;
+  perDaySalaryBase: "basic" | "basic_hra" | "gross";
   overtimeRate: number;
-  dynamicFields: Record<string, number>;
-  isActive: boolean;
+  epfApplicable: boolean;
+  esiApplicable: boolean;
+  vptAmount: number;
+  templateId?: string;
   effectiveFrom: Date;
   effectiveTo?: Date;
-  createdBy: string;
+  isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

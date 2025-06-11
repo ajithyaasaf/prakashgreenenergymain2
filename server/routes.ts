@@ -4176,9 +4176,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const esiDeduction = salaryStructure.esiApplicable && grossSalary <= 21000 ? grossSalary * 0.0075 : 0;
         const vptDeduction = salaryStructure.vptAmount || 0;
         
-        const totalEarnings = earnedBasic + earnedHRA + earnedConveyance;
+        const grossSalaryAmount = earnedBasic + earnedHRA + earnedConveyance;
+        const finalGrossAmount = grossSalaryAmount; // Initially same as gross, can be modified with BETTA
+        
+        // Calculate total deductions including new manual system fields
         const totalDeductions = epfDeduction + esiDeduction + vptDeduction;
-        const netSalary = totalEarnings - totalDeductions;
+        
+        // NET SALARY = FINAL GROSS + CREDIT - (EPF + VPF + ESI + TDS + FINE + SALARY ADVANCE)
+        // Using same formula as manual system
+        const netSalary = finalGrossAmount - totalDeductions;
         
         const payrollData = {
           userId,
@@ -4194,13 +4200,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           earnedHRA: Math.round(earnedHRA),
           earnedConveyance: Math.round(earnedConveyance),
           overtimePay: 0,
+          betta: 0, // BETTA allowance from manual system
           dynamicEarnings: {},
+          grossSalary: Math.round(totalEarnings), // Gross before BETTA
+          finalGross: Math.round(totalEarnings), // Final gross after BETTA (initially same as gross)
           dynamicDeductions: {},
           epfDeduction: Math.round(epfDeduction),
           esiDeduction: Math.round(esiDeduction),
           vptDeduction: Math.round(vptDeduction),
           tdsDeduction: 0,
-          totalEarnings: Math.round(totalEarnings),
+          fineDeduction: 0, // FINE from manual system
+          salaryAdvance: 0, // SALARY ADVANCE from manual system
+          creditAdjustment: 0, // CREDIT from manual system
+          esiEligible: grossSalary <= 21000, // ESI eligibility based on salary
+          totalEarnings: Math.round(grossSalaryAmount),
           totalDeductions: Math.round(totalDeductions),
           netSalary: Math.round(netSalary),
           status: 'processed',
