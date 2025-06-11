@@ -1829,8 +1829,25 @@ export class FirestoreStorage implements IStorage {
     id: string,
     data: Partial<z.infer<typeof insertAttendanceSchema>>,
   ): Promise<Attendance> {
-    // First validate the data without timestamp conversion
-    const validatedData = insertAttendanceSchema.partial().parse(data);
+    // Handle data type conversions before validation
+    const processedData = { ...data };
+    
+    // Convert latitude/longitude from numbers to strings if they exist
+    if (typeof processedData.checkOutLatitude === 'number') {
+      processedData.checkOutLatitude = String(processedData.checkOutLatitude);
+    }
+    if (typeof processedData.checkOutLongitude === 'number') {
+      processedData.checkOutLongitude = String(processedData.checkOutLongitude);
+    }
+    if (typeof processedData.checkInLatitude === 'number') {
+      processedData.checkInLatitude = String(processedData.checkInLatitude);
+    }
+    if (typeof processedData.checkInLongitude === 'number') {
+      processedData.checkInLongitude = String(processedData.checkInLongitude);
+    }
+    
+    // Now validate the processed data
+    const validatedData = insertAttendanceSchema.partial().parse(processedData);
     
     // Then prepare for Firestore with timestamp conversion
     const firestoreData: any = {
