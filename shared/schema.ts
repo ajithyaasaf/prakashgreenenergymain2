@@ -477,16 +477,20 @@ export const getDepartmentModuleAccess = (department: Department): SystemPermiss
   const baseAccess: SystemPermission[] = ["dashboard.view"];
   
   switch (department) {
-    case "cre":
-      return [...baseAccess, "customers.view", "customers.create", "customers.edit", "customers.export"];
-    case "accounts":
-      return [...baseAccess, "invoices.view", "invoices.create", "invoices.edit", "invoices.approve", "reports.financial", "reports.export"];
+    case "operations":
+      return [...baseAccess, "dashboard.full_access", "analytics.enterprise", "reports.advanced", "reports.export", "users.view", "departments.view"];
+    case "admin":
+      return [...baseAccess, "users.view", "users.create", "users.edit", "departments.view", "designations.view", "analytics.departmental", "reports.basic"];
     case "hr":
       return [...baseAccess, "attendance.view_all", "leave.view_all", "leave.approve", "users.view", "users.create", "users.edit", "customers.view", "products.view", "quotations.view", "invoices.view"];
-    case "sales_and_marketing":
-      return [...baseAccess, "customers.view", "quotations.view", "quotations.create", "quotations.edit", "products.view", "reports.basic"];
-    case "technical_team":
+    case "marketing":
+      return [...baseAccess, "customers.view", "customers.create", "customers.edit", "products.view", "quotations.view", "reports.basic"];
+    case "sales":
+      return [...baseAccess, "customers.view", "customers.create", "customers.edit", "quotations.view", "quotations.create", "quotations.edit", "products.view", "reports.basic"];
+    case "technical":
       return [...baseAccess, "products.view", "products.create", "products.edit", "products.specifications", "products.inventory"];
+    case "housekeeping":
+      return [...baseAccess, "attendance.view_own"];
     default:
       return baseAccess;
   }
@@ -502,34 +506,49 @@ export const getDesignationActionPermissions = (designation: Designation): Syste
   // Basic permissions for all designations
   permissions.push("dashboard.view", "attendance.view_own", "leave.view_own", "leave.request");
   
-  // Level 3+ (Junior Executive and above)
+  // Level 1 (House Man)
+  if (level >= 1) {
+    permissions.push("attendance.mark");
+  }
+  
+  // Level 2+ (Welder and above)
+  if (level >= 2) {
+    permissions.push("products.view");
+  }
+  
+  // Level 3+ (Technician and above)
   if (level >= 3) {
-    permissions.push("customers.create", "products.create", "quotations.create");
+    permissions.push("products.create", "products.edit");
   }
   
-  // Level 4+ (Executive and above)
+  // Level 4+ (CRE and above)
   if (level >= 4) {
-    permissions.push("customers.edit", "products.edit", "quotations.edit", "invoices.create");
+    permissions.push("customers.create", "customers.edit", "quotations.create", "quotations.edit");
   }
   
-  // Level 5+ (Senior Executive and above)
+  // Level 5+ (Executive and above)
   if (level >= 5) {
-    permissions.push("approve.quotations.basic", "approve.expenses.basic", "attendance.view_team");
+    permissions.push("invoices.create", "approve.quotations.basic", "attendance.view_team");
   }
   
-  // Level 6+ (Assistant Manager and above)
+  // Level 6+ (Team Leader and above)
   if (level >= 6) {
     permissions.push("approve.quotations.advanced", "approve.leave.team", "users.view", "reports.advanced");
   }
   
-  // Level 7+ (Manager and above)
+  // Level 7+ (Officer and above)
   if (level >= 7) {
     permissions.push("approve.invoices.basic", "approve.leave.department", "users.create", "users.edit", "analytics.departmental");
   }
   
-  // Level 8 (Director)
+  // Level 8+ (GM and above)
   if (level >= 8) {
     permissions.push("approve.invoices.advanced", "users.permissions", "analytics.enterprise", "system.settings");
+  }
+  
+  // Level 9 (CEO)
+  if (level >= 9) {
+    permissions.push("system.backup", "system.audit", "system.integrations", "users.delete", "departments.create", "departments.edit", "departments.delete");
   }
   
   return permissions;

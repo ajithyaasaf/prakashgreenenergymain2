@@ -9,17 +9,16 @@ export const createUserSchema = z.object({
   displayName: z.string().min(2, "Display name must be at least 2 characters"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   role: z.enum(["master_admin", "admin", "employee"]).default("employee"),
-  department: z.enum(["cre", "accounts", "hr", "sales_and_marketing", "technical_team"]).nullable().default(null)
+  department: z.enum(["operations", "admin", "hr", "marketing", "sales", "technical", "housekeeping"]).nullable().default(null)
 });
 
 // User update schema
 export const updateUserSchema = z.object({
   displayName: z.string().min(2).optional(),
   role: z.enum(["master_admin", "admin", "employee"]).optional(),
-  department: z.enum(["cre", "accounts", "hr", "sales_and_marketing", "technical_team"]).nullable().optional(),
+  department: z.enum(["operations", "admin", "hr", "marketing", "sales", "technical", "housekeeping"]).nullable().optional(),
   designation: z.enum([
-    "director", "manager", "assistant_manager", "senior_executive", 
-    "executive", "junior_executive", "trainee", "intern"
+    "ceo", "gm", "officer", "executive", "cre", "team_leader", "technician", "welder", "house_man"
   ]).nullable().optional(),
   employeeId: z.string().optional(),
   reportingManagerId: z.string().nullable().optional(),

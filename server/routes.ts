@@ -783,6 +783,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Migration endpoint for organizational structure
+  app.post("/api/admin/migrate-organization", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || user.role !== "master_admin") {
+        return res.status(403).json({ message: "Access denied - master admin only" });
+      }
+      
+      const { migrateOrganizationalStructure } = await import('./migration-organizational-structure');
+      const result = await migrateOrganizationalStructure();
+      
+      if (result.success) {
+        res.json({ 
+          message: "Migration completed successfully", 
+          migratedCount: result.migratedCount 
+        });
+      } else {
+        res.status(500).json({ 
+          message: "Migration failed", 
+          error: result.error 
+        });
+      }
+    } catch (error) {
+      console.error("Error running migration:", error);
+      res.status(500).json({ message: "Failed to run migration" });
+    }
+  });
+
   // Departments
   app.get("/api/departments", verifyAuth, async (req, res) => {
     try {

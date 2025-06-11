@@ -1022,7 +1022,7 @@ export class FirestoreStorage implements IStorage {
   }
 
   async listDepartments(): Promise<string[]> {
-    return ["cre", "accounts", "hr", "sales_and_marketing", "technical_team"];
+    return ["operations", "admin", "hr", "marketing", "sales", "technical", "housekeeping"];
   }
 
   async createDepartment(
