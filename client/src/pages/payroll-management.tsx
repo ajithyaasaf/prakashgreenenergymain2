@@ -40,7 +40,7 @@ interface PayrollFieldConfig {
   dataType: "number" | "percentage" | "boolean" | "text";
   isRequired: boolean;
   isSystemField: boolean;
-  defaultValue?: number;
+  defaultValue?: number | boolean | string;
   department?: string;
   sortOrder: number;
   isActive: boolean;
@@ -125,6 +125,26 @@ interface EnhancedPayrollSettings {
   companyAddress?: string;
   companyPan?: string;
   companyTan?: string;
+  autoCalculateStatutory: boolean;
+  allowManualOverride: boolean;
+  requireApprovalForProcessing: boolean;
+}
+
+interface PayrollSettingsFormData {
+  epfEmployeeRate: number;
+  epfEmployerRate: number;
+  esiEmployeeRate: number;
+  esiEmployerRate: number;
+  epfCeiling: number;
+  esiThreshold: number;
+  tdsThreshold: number;
+  standardWorkingDays: number;
+  standardWorkingHours: number;
+  overtimeThresholdHours: number;
+  companyName: string;
+  companyAddress: string;
+  companyPan: string;
+  companyTan: string;
   autoCalculateStatutory: boolean;
   allowManualOverride: boolean;
   requireApprovalForProcessing: boolean;
@@ -2498,9 +2518,9 @@ function PayrollSettingsForm({
   onSubmit 
 }: {
   settings?: EnhancedPayrollSettings;
-  onSubmit: (data: any) => void;
+  onSubmit: (data: PayrollSettingsFormData) => void;
 }) {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<PayrollSettingsFormData>({
     epfEmployeeRate: settings?.epfEmployeeRate || 12,
     epfEmployerRate: settings?.epfEmployerRate || 12,
     esiEmployeeRate: settings?.esiEmployeeRate || 0.75,
@@ -2515,9 +2535,9 @@ function PayrollSettingsForm({
     companyAddress: settings?.companyAddress || "",
     companyPan: settings?.companyPan || "",
     companyTan: settings?.companyTan || "",
-    autoCalculateStatutory: settings?.autoCalculateStatutory || true,
-    allowManualOverride: settings?.allowManualOverride || true,
-    requireApprovalForProcessing: settings?.requireApprovalForProcessing || false
+    autoCalculateStatutory: Boolean(settings?.autoCalculateStatutory ?? true),
+    allowManualOverride: Boolean(settings?.allowManualOverride ?? true),
+    requireApprovalForProcessing: Boolean(settings?.requireApprovalForProcessing ?? false)
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -2697,7 +2717,7 @@ function PayrollSettingsForm({
             <Checkbox
               id="allowManualOverride"
               checked={formData.allowManualOverride}
-              onCheckedChange={(checked) => setFormData({ ...formData, allowManualOverride: !!checked })}
+              onCheckedChange={(checked) => setFormData({ ...formData, allowManualOverride: checked === true })}
             />
             <Label htmlFor="allowManualOverride">Allow Manual Override</Label>
           </div>
@@ -2705,7 +2725,7 @@ function PayrollSettingsForm({
             <Checkbox
               id="requireApprovalForProcessing"
               checked={formData.requireApprovalForProcessing}
-              onCheckedChange={(checked) => setFormData({ ...formData, requireApprovalForProcessing: !!checked })}
+              onCheckedChange={(checked) => setFormData({ ...formData, requireApprovalForProcessing: checked === true })}
             />
             <Label htmlFor="requireApprovalForProcessing">Require Approval for Processing</Label>
           </div>
