@@ -1181,22 +1181,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/attendance/check-out", verifyAuth, async (req, res) => {
     try {
+      console.log('CHECKOUT DEBUG: Request body:', JSON.stringify(req.body, null, 2));
+      
       const { userId, latitude, longitude, imageUrl, reason, otReason } = req.body;
+      
+      console.log('CHECKOUT DEBUG: Extracted data:', {
+        userId, latitude, longitude, 
+        hasImageUrl: !!imageUrl, 
+        reason, otReason,
+        reqUserUid: req.user.uid
+      });
+      
       if (!userId || userId !== req.user.uid) {
+        console.log('CHECKOUT DEBUG: Access denied - userId mismatch');
         return res.status(403).json({ message: "Access denied" });
       }
 
       const user = await storage.getUser(userId);
       if (!user) {
+        console.log('CHECKOUT DEBUG: User not found');
         return res.status(404).json({ message: "User not found" });
       }
+
+      console.log('CHECKOUT DEBUG: User found:', user.displayName, user.department);
 
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const attendanceRecord = await storage.getAttendanceByUserAndDate(userId, today);
       if (!attendanceRecord) {
+        console.log('CHECKOUT DEBUG: No attendance record found for today');
         return res.status(400).json({ message: "No check-in record found for today" });
       }
+
+      console.log('CHECKOUT DEBUG: Attendance record found:', {
+        id: attendanceRecord.id,
+        hasCheckOut: !!attendanceRecord.checkOutTime,
+        checkInTime: attendanceRecord.checkInTime
+      });
 
       if (attendanceRecord.checkOutTime) {
         return res.status(400).json({ message: "You have already checked out today" });
