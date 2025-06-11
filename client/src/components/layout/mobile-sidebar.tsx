@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { LogOut } from "lucide-react";
+import { LogOut, User } from "lucide-react";
 import { useAuthContext } from "@/contexts/auth-context";
 import { useEffect, useState } from "react";
 import type { SystemPermission } from "@shared/schema";
@@ -136,7 +136,7 @@ export function MobileSidebar({ isOpen, setIsOpen }: MobileSidebarProps) {
                     className="h-10 w-10 rounded-full object-cover"
                   />
                 ) : (
-                  <i className="ri-user-line text-gray-500"></i>
+                  <User className="h-5 w-5 text-gray-500" />
                 )}
               </div>
               <div className="ml-3 min-w-0">
