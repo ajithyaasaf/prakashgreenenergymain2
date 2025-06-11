@@ -587,7 +587,7 @@ export default function EnhancedPayrollManagement() {
   );
 }
 
-// Payroll Table Component
+// Enhanced Payroll Processing Table Component
 function PayrollTable({ 
   payrolls, 
   users, 
@@ -601,6 +601,10 @@ function PayrollTable({
   deductionsFields: PayrollFieldConfig[];
   onEdit: (id: string) => void;
 }) {
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [departmentFilter, setDepartmentFilter] = useState<string>("all");
+
   const formatCurrency = (amount: number) => 
     new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(amount);
 
@@ -613,6 +617,40 @@ function PayrollTable({
       default: return "bg-gray-100 text-gray-800";
     }
   };
+
+  const toggleRowExpansion = (payrollId: string) => {
+    const newExpanded = new Set(expandedRows);
+    if (newExpanded.has(payrollId)) {
+      newExpanded.delete(payrollId);
+    } else {
+      newExpanded.add(payrollId);
+    }
+    setExpandedRows(newExpanded);
+  };
+
+  const calculateOvertimeDetails = (payroll: EnhancedPayroll) => {
+    const overtimeHours = payroll.overtimeHours || 0;
+    const overtimePay = payroll.overtimePay || 0;
+    const perHourRate = overtimeHours > 0 ? overtimePay / overtimeHours : 0;
+    return { overtimeHours, overtimePay, perHourRate };
+  };
+
+  const filteredPayrolls = payrolls.filter(payroll => {
+    const payrollUser = users.find((u: any) => u.id === payroll.userId);
+    const statusMatch = statusFilter === "all" || payroll.status === statusFilter;
+    const departmentMatch = departmentFilter === "all" || payrollUser?.department === departmentFilter;
+    return statusMatch && departmentMatch;
+  });
+
+  const departments = ["cre", "operations", "accounts", "hr", "it", "sales"];
+
+  // Enhanced summary calculations
+  const totalPayrolls = filteredPayrolls.length;
+  const totalGrossEarnings = filteredPayrolls.reduce((sum, p) => sum + p.totalEarnings, 0);
+  const totalDeductions = filteredPayrolls.reduce((sum, p) => sum + p.totalDeductions, 0);
+  const totalNetPayable = filteredPayrolls.reduce((sum, p) => sum + p.netSalary, 0);
+  const totalOvertimeHours = filteredPayrolls.reduce((sum, p) => sum + (p.overtimeHours || 0), 0);
+  const totalOvertimePay = filteredPayrolls.reduce((sum, p) => sum + (p.overtimePay || 0), 0);
 
   if (payrolls.length === 0) {
     return (
@@ -627,85 +665,402 @@ function PayrollTable({
   }
 
   return (
-    <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Employee</TableHead>
-            <TableHead>Department</TableHead>
-            <TableHead>Basic</TableHead>
-            <TableHead>HRA</TableHead>
-            <TableHead>Conveyance</TableHead>
-            {earningsFields.filter(f => !f.isSystemField).map(field => (
-              <TableHead key={field.id}>{field.displayName}</TableHead>
-            ))}
-            <TableHead>Gross Earnings</TableHead>
-            <TableHead>EPF</TableHead>
-            <TableHead>ESI</TableHead>
-            {deductionsFields.filter(f => !f.isSystemField).map(field => (
-              <TableHead key={field.id}>{field.displayName}</TableHead>
-            ))}
-            <TableHead>Total Deductions</TableHead>
-            <TableHead>Net Salary</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {payrolls.map((payroll) => {
-            const payrollUser = users.find((u: any) => u.id === payroll.userId);
-            return (
-              <TableRow key={payroll.id}>
-                <TableCell>
-                  <div>
-                    <div className="font-medium">{payrollUser?.displayName}</div>
-                    <div className="text-sm text-muted-foreground">{payroll.employeeId}</div>
-                  </div>
-                </TableCell>
-                <TableCell>{payrollUser?.department?.toUpperCase()}</TableCell>
-                <TableCell>{formatCurrency(payroll.earnedBasic)}</TableCell>
-                <TableCell>{formatCurrency(payroll.earnedHRA)}</TableCell>
-                <TableCell>{formatCurrency(payroll.earnedConveyance)}</TableCell>
-                {earningsFields.filter(f => !f.isSystemField).map(field => (
-                  <TableCell key={field.id}>
-                    {formatCurrency(payroll.dynamicEarnings[field.name] || 0)}
-                  </TableCell>
-                ))}
-                <TableCell className="font-medium">{formatCurrency(payroll.totalEarnings)}</TableCell>
-                <TableCell>{formatCurrency(payroll.epfDeduction)}</TableCell>
-                <TableCell>{formatCurrency(payroll.esiDeduction)}</TableCell>
-                {deductionsFields.filter(f => !f.isSystemField).map(field => (
-                  <TableCell key={field.id}>
-                    {formatCurrency(payroll.dynamicDeductions[field.name] || 0)}
-                  </TableCell>
-                ))}
-                <TableCell>{formatCurrency(payroll.totalDeductions)}</TableCell>
-                <TableCell className="font-medium">{formatCurrency(payroll.netSalary)}</TableCell>
-                <TableCell>
-                  <Badge className={getStatusColor(payroll.status)}>
-                    {payroll.status}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => onEdit(payroll.id)}>
-                      <Edit3 className="h-4 w-4" />
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
+    <div className="space-y-6">
+      {/* Enhanced Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Payrolls</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalPayrolls}</div>
+            <p className="text-xs text-muted-foreground">Processed records</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Gross Earnings</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">{formatCurrency(totalGrossEarnings)}</div>
+            <p className="text-xs text-muted-foreground">Total earnings</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Deductions</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">{formatCurrency(totalDeductions)}</div>
+            <p className="text-xs text-muted-foreground">All deductions</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Net Payable</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-600">{formatCurrency(totalNetPayable)}</div>
+            <p className="text-xs text-muted-foreground">Final amount</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">OT Hours</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-orange-600">{totalOvertimeHours.toFixed(1)}</div>
+            <p className="text-xs text-muted-foreground">Overtime hours</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">OT Pay</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-orange-600">{formatCurrency(totalOvertimePay)}</div>
+            <p className="text-xs text-muted-foreground">Overtime payment</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Advanced Filters */}
+      <div className="flex flex-wrap gap-4 p-4 bg-gray-50 rounded-lg">
+        <div className="flex-1 min-w-[200px]">
+          <Label htmlFor="status-filter">Filter by Status</Label>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger>
+              <SelectValue placeholder="All Statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="draft">Draft</SelectItem>
+              <SelectItem value="processed">Processed</SelectItem>
+              <SelectItem value="approved">Approved</SelectItem>
+              <SelectItem value="paid">Paid</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex-1 min-w-[200px]">
+          <Label htmlFor="department-filter">Filter by Department</Label>
+          <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+            <SelectTrigger>
+              <SelectValue placeholder="All Departments" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Departments</SelectItem>
+              {departments.map(dept => (
+                <SelectItem key={dept} value={dept}>
+                  {dept.toUpperCase()}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* Enhanced Payroll Table */}
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-8"></TableHead>
+              <TableHead>Employee Details</TableHead>
+              <TableHead>Attendance & Days</TableHead>
+              <TableHead>Basic Earnings</TableHead>
+              <TableHead>Overtime Details</TableHead>
+              <TableHead>Gross & Net</TableHead>
+              <TableHead>Statutory Deductions</TableHead>
+              <TableHead>Status & Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredPayrolls.map((payroll) => {
+              const payrollUser = users.find((u: any) => u.id === payroll.userId);
+              const isExpanded = expandedRows.has(payroll.id);
+              const { overtimeHours, overtimePay, perHourRate } = calculateOvertimeDetails(payroll);
+              
+              return (
+                <React.Fragment key={payroll.id}>
+                  <TableRow className="hover:bg-gray-50">
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => toggleRowExpansion(payroll.id)}
+                        className="p-1"
+                      >
+                        {isExpanded ? "−" : "+"}
+                      </Button>
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        <div className="font-medium">{payrollUser?.displayName}</div>
+                        <div className="text-sm text-muted-foreground">{payroll.employeeId}</div>
+                        <Badge variant="outline" className="text-xs">
+                          {payrollUser?.department?.toUpperCase() || 'N/A'}
+                        </Badge>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1 text-sm">
+                        <div>Present: {payroll.presentDays}/{payroll.monthDays}</div>
+                        <div>Leave: {payroll.paidLeaveDays || 0} days</div>
+                        <div>Per Day: {formatCurrency(payroll.perDaySalary)}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1 text-sm">
+                        <div>Basic: {formatCurrency(payroll.earnedBasic)}</div>
+                        <div>HRA: {formatCurrency(payroll.earnedHRA)}</div>
+                        <div>Conv: {formatCurrency(payroll.earnedConveyance)}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1 text-sm">
+                        <div className="font-medium text-orange-600">{overtimeHours.toFixed(1)} hrs</div>
+                        <div>{formatCurrency(overtimePay)}</div>
+                        {perHourRate > 0 && (
+                          <div className="text-muted-foreground">@{formatCurrency(perHourRate)}/hr</div>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        <div className="font-medium text-green-600">{formatCurrency(payroll.totalEarnings)}</div>
+                        <div className="text-sm text-red-600">-{formatCurrency(payroll.totalDeductions)}</div>
+                        <div className="font-bold border-t pt-1">{formatCurrency(payroll.netSalary)}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1 text-sm">
+                        <div>EPF: {formatCurrency(payroll.epfDeduction)}</div>
+                        <div>ESI: {formatCurrency(payroll.esiDeduction)}</div>
+                        {payroll.vptDeduction > 0 && (
+                          <div>VPT: {formatCurrency(payroll.vptDeduction)}</div>
+                        )}
+                        {payroll.tdsDeduction > 0 && (
+                          <div>TDS: {formatCurrency(payroll.tdsDeduction)}</div>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-2">
+                        <Badge className={getStatusColor(payroll.status)}>
+                          {payroll.status}
+                        </Badge>
+                        <div className="flex gap-1">
+                          <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => onEdit(payroll.id)}>
+                            <Edit3 className="h-3 w-3" />
+                          </Button>
+                          <Button variant="outline" size="sm" className="h-8 w-8 p-0">
+                            <Eye className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                  
+                  {/* Expanded Row Details */}
+                  {isExpanded && (
+                    <TableRow className="bg-gray-50">
+                      <TableCell colSpan={8}>
+                        <div className="p-4 space-y-4">
+                          <h4 className="font-semibold text-lg">Comprehensive Payroll Details - {payrollUser?.displayName}</h4>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                            {/* Attendance Details */}
+                            <Card>
+                              <CardHeader className="pb-3">
+                                <CardTitle className="text-sm text-blue-600">Attendance Details</CardTitle>
+                              </CardHeader>
+                              <CardContent className="space-y-2">
+                                <div className="flex justify-between">
+                                  <span>Month Days:</span>
+                                  <span className="font-medium">{payroll.monthDays}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Present Days:</span>
+                                  <span className="font-medium">{payroll.presentDays}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Paid Leave:</span>
+                                  <span className="font-medium">{payroll.paidLeaveDays || 0}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Overtime Hours:</span>
+                                  <span className="font-medium text-orange-600">{overtimeHours.toFixed(1)}</span>
+                                </div>
+                                <div className="border-t pt-2 flex justify-between font-bold">
+                                  <span>Per Day Salary:</span>
+                                  <span>{formatCurrency(payroll.perDaySalary)}</span>
+                                </div>
+                              </CardContent>
+                            </Card>
+
+                            {/* Earnings Breakdown */}
+                            <Card>
+                              <CardHeader className="pb-3">
+                                <CardTitle className="text-sm text-green-600">Earnings Breakdown</CardTitle>
+                              </CardHeader>
+                              <CardContent className="space-y-2">
+                                <div className="flex justify-between">
+                                  <span>Earned Basic:</span>
+                                  <span className="font-medium">{formatCurrency(payroll.earnedBasic)}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Earned HRA:</span>
+                                  <span className="font-medium">{formatCurrency(payroll.earnedHRA)}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Earned Conveyance:</span>
+                                  <span className="font-medium">{formatCurrency(payroll.earnedConveyance)}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Overtime Pay:</span>
+                                  <span className="font-medium text-orange-600">{formatCurrency(overtimePay)}</span>
+                                </div>
+                                
+                                {Object.keys(payroll.dynamicEarnings || {}).length > 0 && (
+                                  <>
+                                    <div className="border-t pt-2 mt-2">
+                                      <div className="text-sm font-medium text-muted-foreground mb-1">Additional Earnings:</div>
+                                      {Object.entries(payroll.dynamicEarnings || {}).map(([key, value]) => (
+                                        <div key={key} className="flex justify-between text-sm">
+                                          <span>{key}:</span>
+                                          <span>{formatCurrency(value)}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </>
+                                )}
+                                
+                                <div className="border-t pt-2 flex justify-between font-bold text-green-600">
+                                  <span>Total Earnings:</span>
+                                  <span>{formatCurrency(payroll.totalEarnings)}</span>
+                                </div>
+                              </CardContent>
+                            </Card>
+
+                            {/* Deductions Breakdown */}
+                            <Card>
+                              <CardHeader className="pb-3">
+                                <CardTitle className="text-sm text-red-600">Deductions Breakdown</CardTitle>
+                              </CardHeader>
+                              <CardContent className="space-y-2">
+                                <div className="flex justify-between">
+                                  <span>EPF:</span>
+                                  <span className="font-medium">{formatCurrency(payroll.epfDeduction)}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>ESI:</span>
+                                  <span className="font-medium">{formatCurrency(payroll.esiDeduction)}</span>
+                                </div>
+                                {payroll.vptDeduction > 0 && (
+                                  <div className="flex justify-between">
+                                    <span>VPT:</span>
+                                    <span className="font-medium">{formatCurrency(payroll.vptDeduction)}</span>
+                                  </div>
+                                )}
+                                {payroll.tdsDeduction > 0 && (
+                                  <div className="flex justify-between">
+                                    <span>TDS:</span>
+                                    <span className="font-medium">{formatCurrency(payroll.tdsDeduction)}</span>
+                                  </div>
+                                )}
+                                
+                                {Object.keys(payroll.dynamicDeductions || {}).length > 0 && (
+                                  <>
+                                    <div className="border-t pt-2 mt-2">
+                                      <div className="text-sm font-medium text-muted-foreground mb-1">Other Deductions:</div>
+                                      {Object.entries(payroll.dynamicDeductions || {}).map(([key, value]) => (
+                                        <div key={key} className="flex justify-between text-sm">
+                                          <span>{key}:</span>
+                                          <span>{formatCurrency(value)}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </>
+                                )}
+                                
+                                <div className="border-t pt-2 flex justify-between font-bold text-red-600">
+                                  <span>Total Deductions:</span>
+                                  <span>{formatCurrency(payroll.totalDeductions)}</span>
+                                </div>
+                              </CardContent>
+                            </Card>
+
+                            {/* Processing Information */}
+                            <Card>
+                              <CardHeader className="pb-3">
+                                <CardTitle className="text-sm text-purple-600">Processing Info</CardTitle>
+                              </CardHeader>
+                              <CardContent className="space-y-2">
+                                <div className="flex justify-between">
+                                  <span>Status:</span>
+                                  <Badge className={getStatusColor(payroll.status)}>
+                                    {payroll.status}
+                                  </Badge>
+                                </div>
+                                {payroll.processedBy && (
+                                  <div className="flex justify-between">
+                                    <span>Processed By:</span>
+                                    <span className="font-medium">{payroll.processedBy}</span>
+                                  </div>
+                                )}
+                                {payroll.processedAt && (
+                                  <div className="flex justify-between">
+                                    <span>Processed At:</span>
+                                    <span className="font-medium">{new Date(payroll.processedAt).toLocaleDateString()}</span>
+                                  </div>
+                                )}
+                                {payroll.approvedBy && (
+                                  <div className="flex justify-between">
+                                    <span>Approved By:</span>
+                                    <span className="font-medium">{payroll.approvedBy}</span>
+                                  </div>
+                                )}
+                                {payroll.remarks && (
+                                  <div className="mt-2">
+                                    <div className="text-sm font-medium text-muted-foreground mb-1">Remarks:</div>
+                                    <div className="text-sm bg-gray-100 p-2 rounded">{payroll.remarks}</div>
+                                  </div>
+                                )}
+                                <div className="border-t pt-2 flex justify-between font-bold text-blue-600">
+                                  <span>Net Salary:</span>
+                                  <span>{formatCurrency(payroll.netSalary)}</span>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          </div>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
+
+      {filteredPayrolls.length === 0 && (
+        <div className="text-center py-8">
+          <FileSpreadsheet className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-2">No payroll records found</h3>
+          <p className="text-muted-foreground">
+            {payrolls.length === 0 
+              ? "Process payroll for the selected month to see data here."
+              : "No payroll records match the selected filters."
+            }
+          </p>
+        </div>
+      )}
     </div>
   );
 }
 
-// Salary Structures Table Component  
+// Enhanced Salary Structures Table Component  
 function SalaryStructuresTable({ 
   structures, 
   users, 
@@ -717,68 +1072,409 @@ function SalaryStructuresTable({
   earningsFields: PayrollFieldConfig[];
   deductionsFields: PayrollFieldConfig[];
 }) {
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [filterDepartment, setFilterDepartment] = useState<string>("all");
+  const [salaryRangeFilter, setSalaryRangeFilter] = useState<string>("all");
+
   const formatCurrency = (amount: number) => 
     new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(amount);
 
+  const toggleRowExpansion = (structureId: string) => {
+    const newExpanded = new Set(expandedRows);
+    if (newExpanded.has(structureId)) {
+      newExpanded.delete(structureId);
+    } else {
+      newExpanded.add(structureId);
+    }
+    setExpandedRows(newExpanded);
+  };
+
+  const calculateGrossSalary = (structure: EnhancedSalaryStructure) => {
+    const customEarningsTotal = Object.values(structure.customEarnings || {}).reduce((sum, val) => sum + val, 0);
+    return structure.fixedBasic + structure.fixedHRA + structure.fixedConveyance + customEarningsTotal;
+  };
+
+  const calculateTotalDeductions = (structure: EnhancedSalaryStructure) => {
+    const customDeductionsTotal = Object.values(structure.customDeductions || {}).reduce((sum, val) => sum + val, 0);
+    const epfAmount = structure.epfApplicable ? (structure.fixedBasic * 0.12) : 0;
+    const esiAmount = structure.esiApplicable ? (calculateGrossSalary(structure) * 0.0075) : 0;
+    return customDeductionsTotal + epfAmount + esiAmount + (structure.vptAmount || 0);
+  };
+
+  const filteredStructures = structures.filter(structure => {
+    const structureUser = users.find((u: any) => u.id === structure.userId);
+    const departmentMatch = filterDepartment === "all" || structureUser?.department === filterDepartment;
+    
+    const grossSalary = calculateGrossSalary(structure);
+    let salaryRangeMatch = true;
+    
+    if (salaryRangeFilter !== "all") {
+      switch (salaryRangeFilter) {
+        case "0-25000":
+          salaryRangeMatch = grossSalary <= 25000;
+          break;
+        case "25000-50000":
+          salaryRangeMatch = grossSalary > 25000 && grossSalary <= 50000;
+          break;
+        case "50000-100000":
+          salaryRangeMatch = grossSalary > 50000 && grossSalary <= 100000;
+          break;
+        case "100000+":
+          salaryRangeMatch = grossSalary > 100000;
+          break;
+      }
+    }
+    
+    return departmentMatch && salaryRangeMatch;
+  });
+
+  const departments = ["cre", "operations", "accounts", "hr", "it", "sales"];
+
+  // Summary calculations
+  const totalStructures = filteredStructures.length;
+  const totalGrossPayroll = filteredStructures.reduce((sum, s) => sum + calculateGrossSalary(s), 0);
+  const totalDeductions = filteredStructures.reduce((sum, s) => sum + calculateTotalDeductions(s), 0);
+  const averageSalary = totalStructures > 0 ? totalGrossPayroll / totalStructures : 0;
+
   return (
-    <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Employee</TableHead>
-            <TableHead>Department</TableHead>
-            <TableHead>Basic</TableHead>
-            <TableHead>HRA</TableHead>
-            <TableHead>Conveyance</TableHead>
-            <TableHead>Custom Earnings</TableHead>
-            <TableHead>Custom Deductions</TableHead>
-            <TableHead>EPF/ESI</TableHead>
-            <TableHead>Effective From</TableHead>
-            <TableHead>Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {structures.map((structure) => {
-            const structureUser = users.find((u: any) => u.id === structure.userId);
-            const customEarningsTotal = Object.values(structure.customEarnings).reduce((sum, val) => sum + val, 0);
-            const customDeductionsTotal = Object.values(structure.customDeductions).reduce((sum, val) => sum + val, 0);
-            
-            return (
-              <TableRow key={structure.id}>
-                <TableCell>
-                  <div>
-                    <div className="font-medium">{structureUser?.displayName}</div>
-                    <div className="text-sm text-muted-foreground">{structure.employeeId}</div>
-                  </div>
-                </TableCell>
-                <TableCell>{structureUser?.department?.toUpperCase()}</TableCell>
-                <TableCell>{formatCurrency(structure.fixedBasic)}</TableCell>
-                <TableCell>{formatCurrency(structure.fixedHRA)}</TableCell>
-                <TableCell>{formatCurrency(structure.fixedConveyance)}</TableCell>
-                <TableCell>{formatCurrency(customEarningsTotal)}</TableCell>
-                <TableCell>{formatCurrency(customDeductionsTotal)}</TableCell>
-                <TableCell>
-                  <div className="text-sm">
-                    <div>EPF: {structure.epfApplicable ? "Yes" : "No"}</div>
-                    <div>ESI: {structure.esiApplicable ? "Yes" : "No"}</div>
-                  </div>
-                </TableCell>
-                <TableCell>{new Date(structure.effectiveFrom).toLocaleDateString()}</TableCell>
-                <TableCell>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm">
-                      <Edit3 className="h-4 w-4" />
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
+    <div className="space-y-6">
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Structures</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalStructures}</div>
+            <p className="text-xs text-muted-foreground">Active salary structures</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Gross Payroll</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(totalGrossPayroll)}</div>
+            <p className="text-xs text-muted-foreground">Monthly gross payroll</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Deductions</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(totalDeductions)}</div>
+            <p className="text-xs text-muted-foreground">Monthly deductions</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Average Salary</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(averageSalary)}</div>
+            <p className="text-xs text-muted-foreground">Average gross salary</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Advanced Filters */}
+      <div className="flex flex-wrap gap-4 p-4 bg-gray-50 rounded-lg">
+        <div className="flex-1 min-w-[200px]">
+          <Label htmlFor="department-filter">Filter by Department</Label>
+          <Select value={filterDepartment} onValueChange={setFilterDepartment}>
+            <SelectTrigger>
+              <SelectValue placeholder="All Departments" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Departments</SelectItem>
+              {departments.map(dept => (
+                <SelectItem key={dept} value={dept}>
+                  {dept.toUpperCase()}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex-1 min-w-[200px]">
+          <Label htmlFor="salary-range-filter">Filter by Salary Range</Label>
+          <Select value={salaryRangeFilter} onValueChange={setSalaryRangeFilter}>
+            <SelectTrigger>
+              <SelectValue placeholder="All Ranges" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Ranges</SelectItem>
+              <SelectItem value="0-25000">₹0 - ₹25,000</SelectItem>
+              <SelectItem value="25000-50000">₹25,000 - ₹50,000</SelectItem>
+              <SelectItem value="50000-100000">₹50,000 - ₹1,00,000</SelectItem>
+              <SelectItem value="100000+">₹1,00,000+</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* Enhanced Table */}
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-8"></TableHead>
+              <TableHead>Employee Details</TableHead>
+              <TableHead>Fixed Salary Components</TableHead>
+              <TableHead>Day Structure</TableHead>
+              <TableHead>Gross & Net</TableHead>
+              <TableHead>Statutory</TableHead>
+              <TableHead>Configuration</TableHead>
+              <TableHead>Status & Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredStructures.map((structure) => {
+              const structureUser = users.find((u: any) => u.id === structure.userId);
+              const customEarningsTotal = Object.values(structure.customEarnings || {}).reduce((sum, val) => sum + val, 0);
+              const customDeductionsTotal = Object.values(structure.customDeductions || {}).reduce((sum, val) => sum + val, 0);
+              const grossSalary = calculateGrossSalary(structure);
+              const totalDeductions = calculateTotalDeductions(structure);
+              const netSalary = grossSalary - totalDeductions;
+              const isExpanded = expandedRows.has(structure.id);
+              
+              return (
+                <React.Fragment key={structure.id}>
+                  <TableRow className="hover:bg-gray-50">
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => toggleRowExpansion(structure.id)}
+                        className="p-1"
+                      >
+                        {isExpanded ? "−" : "+"}
+                      </Button>
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        <div className="font-medium">{structureUser?.displayName}</div>
+                        <div className="text-sm text-muted-foreground">{structure.employeeId}</div>
+                        <Badge variant="outline" className="text-xs">
+                          {structureUser?.department?.toUpperCase() || 'N/A'}
+                        </Badge>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1 text-sm">
+                        <div>Basic: {formatCurrency(structure.fixedBasic)}</div>
+                        <div>HRA: {formatCurrency(structure.fixedHRA)}</div>
+                        <div>Conv: {formatCurrency(structure.fixedConveyance)}</div>
+                        {customEarningsTotal > 0 && (
+                          <div className="text-green-600">+{formatCurrency(customEarningsTotal)}</div>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1 text-sm">
+                        <div>Base: {structure.perDaySalaryBase || 'basic'}</div>
+                        <div>OT Rate: {structure.overtimeRate || 1.5}x</div>
+                        <div className="text-muted-foreground">Per day calculated</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        <div className="font-medium text-green-600">{formatCurrency(grossSalary)}</div>
+                        <div className="text-sm text-red-600">-{formatCurrency(totalDeductions)}</div>
+                        <div className="font-bold border-t pt-1">{formatCurrency(netSalary)}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1 text-sm">
+                        <div className={`px-2 py-1 rounded text-xs ${structure.epfApplicable ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                          EPF: {structure.epfApplicable ? "Yes" : "No"}
+                        </div>
+                        <div className={`px-2 py-1 rounded text-xs ${structure.esiApplicable ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'}`}>
+                          ESI: {structure.esiApplicable ? "Yes" : "No"}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1 text-sm">
+                        <div>VPT: {formatCurrency(structure.vptAmount || 0)}</div>
+                        <div className="text-muted-foreground">
+                          Since: {new Date(structure.effectiveFrom).toLocaleDateString()}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-2">
+                        <Badge className="text-xs bg-green-100 text-green-800">
+                          {structure.isActive ? "Active" : "Inactive"}
+                        </Badge>
+                        <div className="flex gap-1">
+                          <Button variant="outline" size="sm" className="h-8 w-8 p-0">
+                            <Edit3 className="h-3 w-3" />
+                          </Button>
+                          <Button variant="outline" size="sm" className="h-8 w-8 p-0">
+                            <Eye className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                  
+                  {/* Expanded Row Details */}
+                  {isExpanded && (
+                    <TableRow className="bg-gray-50">
+                      <TableCell colSpan={8}>
+                        <div className="p-4 space-y-4">
+                          <h4 className="font-semibold text-lg">Detailed Salary Breakdown - {structureUser?.displayName}</h4>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            {/* Earnings Breakdown */}
+                            <Card>
+                              <CardHeader className="pb-3">
+                                <CardTitle className="text-sm text-green-600">Earnings Components</CardTitle>
+                              </CardHeader>
+                              <CardContent className="space-y-2">
+                                <div className="flex justify-between">
+                                  <span>Fixed Basic:</span>
+                                  <span className="font-medium">{formatCurrency(structure.fixedBasic)}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Fixed HRA:</span>
+                                  <span className="font-medium">{formatCurrency(structure.fixedHRA)}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Fixed Conveyance:</span>
+                                  <span className="font-medium">{formatCurrency(structure.fixedConveyance)}</span>
+                                </div>
+                                
+                                {Object.keys(structure.customEarnings || {}).length > 0 && (
+                                  <>
+                                    <div className="border-t pt-2 mt-2">
+                                      <div className="text-sm font-medium text-muted-foreground mb-1">Custom Earnings:</div>
+                                      {Object.entries(structure.customEarnings || {}).map(([key, value]) => (
+                                        <div key={key} className="flex justify-between text-sm">
+                                          <span>{key}:</span>
+                                          <span>{formatCurrency(value)}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </>
+                                )}
+                                
+                                <div className="border-t pt-2 flex justify-between font-bold text-green-600">
+                                  <span>Gross Earnings:</span>
+                                  <span>{formatCurrency(grossSalary)}</span>
+                                </div>
+                              </CardContent>
+                            </Card>
+
+                            {/* Deductions Breakdown */}
+                            <Card>
+                              <CardHeader className="pb-3">
+                                <CardTitle className="text-sm text-red-600">Deductions</CardTitle>
+                              </CardHeader>
+                              <CardContent className="space-y-2">
+                                {structure.epfApplicable && (
+                                  <div className="flex justify-between">
+                                    <span>EPF (12%):</span>
+                                    <span className="font-medium">{formatCurrency(structure.fixedBasic * 0.12)}</span>
+                                  </div>
+                                )}
+                                {structure.esiApplicable && (
+                                  <div className="flex justify-between">
+                                    <span>ESI (0.75%):</span>
+                                    <span className="font-medium">{formatCurrency(grossSalary * 0.0075)}</span>
+                                  </div>
+                                )}
+                                {structure.vptAmount && structure.vptAmount > 0 && (
+                                  <div className="flex justify-between">
+                                    <span>VPT:</span>
+                                    <span className="font-medium">{formatCurrency(structure.vptAmount)}</span>
+                                  </div>
+                                )}
+                                
+                                {Object.keys(structure.customDeductions || {}).length > 0 && (
+                                  <>
+                                    <div className="border-t pt-2 mt-2">
+                                      <div className="text-sm font-medium text-muted-foreground mb-1">Custom Deductions:</div>
+                                      {Object.entries(structure.customDeductions || {}).map(([key, value]) => (
+                                        <div key={key} className="flex justify-between text-sm">
+                                          <span>{key}:</span>
+                                          <span>{formatCurrency(value)}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </>
+                                )}
+                                
+                                <div className="border-t pt-2 flex justify-between font-bold text-red-600">
+                                  <span>Total Deductions:</span>
+                                  <span>{formatCurrency(totalDeductions)}</span>
+                                </div>
+                              </CardContent>
+                            </Card>
+
+                            {/* Configuration Details */}
+                            <Card>
+                              <CardHeader className="pb-3">
+                                <CardTitle className="text-sm text-blue-600">Configuration</CardTitle>
+                              </CardHeader>
+                              <CardContent className="space-y-2">
+                                <div className="flex justify-between">
+                                  <span>Per Day Base:</span>
+                                  <span className="font-medium capitalize">{structure.perDaySalaryBase || 'basic'}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Overtime Rate:</span>
+                                  <span className="font-medium">{structure.overtimeRate || 1.5}x</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>EPF Applicable:</span>
+                                  <Badge className={structure.epfApplicable ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}>
+                                    {structure.epfApplicable ? "Yes" : "No"}
+                                  </Badge>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>ESI Applicable:</span>
+                                  <Badge className={structure.esiApplicable ? "bg-blue-100 text-blue-800" : "bg-gray-100 text-gray-800"}>
+                                    {structure.esiApplicable ? "Yes" : "No"}
+                                  </Badge>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Status:</span>
+                                  <Badge className={structure.isActive ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}>
+                                    {structure.isActive ? "Active" : "Inactive"}
+                                  </Badge>
+                                </div>
+                                <div className="border-t pt-2 flex justify-between font-bold text-blue-600">
+                                  <span>Net Salary:</span>
+                                  <span>{formatCurrency(netSalary)}</span>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          </div>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
+
+      {filteredStructures.length === 0 && (
+        <div className="text-center py-8">
+          <Building2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-2">No salary structures found</h3>
+          <p className="text-muted-foreground">
+            {structures.length === 0 
+              ? "Create salary structures to see data here."
+              : "No structures match the selected filters."
+            }
+          </p>
+        </div>
+      )}
     </div>
   );
 }
