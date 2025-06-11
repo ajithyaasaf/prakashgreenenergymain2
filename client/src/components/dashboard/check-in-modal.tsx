@@ -448,7 +448,7 @@ export function CheckInModal({ open, onOpenChange }: CheckInModalProps) {
   const isBeforeCheckInTime = currentTime < minCheckInTime;
   
   // Calculate checkout time based on department
-  const isFieldStaff = user?.department === 'sales_and_marketing' || user?.department === 'technical_team';
+  const isFieldStaff = user?.department === 'sales' || user?.department === 'technical';
   const minCheckOutTime = new Date(currentTime);
   minCheckOutTime.setHours(isFieldStaff ? 19 : 18, 30, 0, 0);
   

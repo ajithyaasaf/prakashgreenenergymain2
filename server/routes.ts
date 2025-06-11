@@ -83,7 +83,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             // Set approval capabilities based on designation
             const designationLevels = {
-              "house_man": 1, "welder": 2, "technician": 3, "cre": 4,
+              "house_man": 1, "welder": 2, "technician": 3, "team_leader": 4, "cre": 5,
               "executive": 5, "team_leader": 6, "officer": 7, "gm": 8, "ceo": 9
             };
             const level = designationLevels[userProfile.designation] || 1;

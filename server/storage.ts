@@ -2372,7 +2372,7 @@ export class FirestoreStorage implements IStorage {
     if (user.role === "master_admin") {
       // Import the required functions
       const { getEffectivePermissions } = await import("@shared/schema");
-      const allPermissions = getEffectivePermissions(user.department || "cre", user.designation || "director");
+      const allPermissions = getEffectivePermissions(user.department || "sales", user.designation || "cre");
       // Add system-level permissions for master admin
       allPermissions.forEach(p => permissions.add(p));
       permissions.add("system.settings");
@@ -3083,27 +3083,27 @@ export class FirestoreStorage implements IStorage {
 
       if (querySnapshot.empty) {
         // Return department-specific default timing if none exists
-        const defaultTimings = {
-          "cre": {
-            departmentId: "cre",
+        const defaultTimings: Record<string, any> = {
+          "operations": {
+            departmentId: "operations",
+            checkInTime: "09:00",
+            checkOutTime: "18:00",
+            workingHours: 9,
+            overtimeThresholdMinutes: 30,
+            lateThresholdMinutes: 15,
+            isFlexibleTiming: false,
+            breakDurationMinutes: 60,
+            weeklyOffDays: [0],
+            isActive: true
+          },
+          "admin": {
+            departmentId: "admin",
             checkInTime: "09:30",
             checkOutTime: "18:30",
             workingHours: 8,
             overtimeThresholdMinutes: 30,
             lateThresholdMinutes: 15,
-            isFlexibleTiming: false,
-            breakDurationMinutes: 60,
-            weeklyOffDays: [0], // Sunday
-            isActive: true
-          },
-          "accounts": {
-            departmentId: "accounts", 
-            checkInTime: "09:00",
-            checkOutTime: "18:00",
-            workingHours: 8,
-            overtimeThresholdMinutes: 30,
-            lateThresholdMinutes: 10,
-            isFlexibleTiming: false,
+            isFlexibleTiming: true,
             breakDurationMinutes: 60,
             weeklyOffDays: [0],
             isActive: true
@@ -3120,8 +3120,8 @@ export class FirestoreStorage implements IStorage {
             weeklyOffDays: [0],
             isActive: true
           },
-          "sales_and_marketing": {
-            departmentId: "sales_and_marketing",
+          "marketing": {
+            departmentId: "marketing",
             checkInTime: "09:30",
             checkOutTime: "18:30",
             workingHours: 8,
@@ -3132,13 +3132,85 @@ export class FirestoreStorage implements IStorage {
             weeklyOffDays: [0],
             isActive: true
           },
-          "technical_team": {
-            departmentId: "technical_team",
+          "sales": {
+            departmentId: "sales",
+            checkInTime: "09:00",
+            checkOutTime: "19:00",
+            workingHours: 9,
+            overtimeThresholdMinutes: 30,
+            lateThresholdMinutes: 15,
+            isFlexibleTiming: false,
+            breakDurationMinutes: 60,
+            weeklyOffDays: [0],
+            isActive: true
+          },
+          "technical": {
+            departmentId: "technical",
             checkInTime: "10:00",
             checkOutTime: "19:00",
             workingHours: 8,
             overtimeThresholdMinutes: 30,
             lateThresholdMinutes: 15,
+            isFlexibleTiming: false,
+            breakDurationMinutes: 60,
+            weeklyOffDays: [0],
+            isActive: true
+          },
+          "operations": {
+            departmentId: "operations",
+            checkInTime: "09:00",
+            checkOutTime: "18:00",
+            workingHours: 9,
+            overtimeThresholdMinutes: 30,
+            lateThresholdMinutes: 15,
+            isFlexibleTiming: false,
+            breakDurationMinutes: 60,
+            weeklyOffDays: [0],
+            isActive: true
+          },
+          "admin": {
+            departmentId: "admin",
+            checkInTime: "09:30",
+            checkOutTime: "18:30",
+            workingHours: 8,
+            overtimeThresholdMinutes: 30,
+            lateThresholdMinutes: 15,
+            isFlexibleTiming: true,
+            breakDurationMinutes: 60,
+            weeklyOffDays: [0],
+            isActive: true
+          },
+          "marketing": {
+            departmentId: "marketing",
+            checkInTime: "09:30",
+            checkOutTime: "18:30",
+            workingHours: 8,
+            overtimeThresholdMinutes: 30,
+            lateThresholdMinutes: 15,
+            isFlexibleTiming: false,
+            breakDurationMinutes: 60,
+            weeklyOffDays: [0],
+            isActive: true
+          },
+          "sales": {
+            departmentId: "sales",
+            checkInTime: "09:00",
+            checkOutTime: "19:00",
+            workingHours: 9,
+            overtimeThresholdMinutes: 30,
+            lateThresholdMinutes: 15,
+            isFlexibleTiming: false,
+            breakDurationMinutes: 60,
+            weeklyOffDays: [0],
+            isActive: true
+          },
+          "housekeeping": {
+            departmentId: "housekeeping",
+            checkInTime: "08:00",
+            checkOutTime: "17:00",
+            workingHours: 8,
+            overtimeThresholdMinutes: 30,
+            lateThresholdMinutes: 10,
             isFlexibleTiming: false,
             breakDurationMinutes: 60,
             weeklyOffDays: [0],
