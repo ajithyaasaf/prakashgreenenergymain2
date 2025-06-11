@@ -2745,28 +2745,44 @@ function EditPayrollForm({
     earnedHRA: payroll?.earnedHRA || 0,
     earnedConveyance: payroll?.earnedConveyance || 0,
     overtimePay: payroll?.overtimePay || 0,
+    betta: (payroll as any)?.betta || 0,
     dynamicEarnings: payroll?.dynamicEarnings || {},
     dynamicDeductions: payroll?.dynamicDeductions || {},
     epfDeduction: payroll?.epfDeduction || 0,
     esiDeduction: payroll?.esiDeduction || 0,
     vptDeduction: payroll?.vptDeduction || 0,
     tdsDeduction: payroll?.tdsDeduction || 0,
+    fineDeduction: (payroll as any)?.fineDeduction || 0,
+    salaryAdvance: (payroll as any)?.salaryAdvance || 0,
+    creditAdjustment: (payroll as any)?.creditAdjustment || 0,
+    esiEligible: (payroll as any)?.esiEligible ?? true,
     remarks: payroll?.remarks || ""
   });
 
   const payrollUser = users.find(u => u.id === payroll?.userId);
 
   const calculateTotals = () => {
-    const totalEarnings = formData.earnedBasic + formData.earnedHRA + formData.earnedConveyance + 
-                         formData.overtimePay + Object.values(formData.dynamicEarnings).reduce((sum, val) => sum + val, 0);
+    // Calculate gross salary (before BETTA)
+    const grossSalary = formData.earnedBasic + formData.earnedHRA + formData.earnedConveyance + 
+                       formData.overtimePay + Object.values(formData.dynamicEarnings).reduce((sum, val) => sum + val, 0);
     
+    // Calculate final gross (after BETTA)
+    const finalGross = grossSalary + formData.betta;
+    
+    // Calculate total deductions (including new fields from manual system)
     const totalDeductions = formData.epfDeduction + formData.esiDeduction + formData.vptDeduction + 
-                           formData.tdsDeduction + Object.values(formData.dynamicDeductions).reduce((sum, val) => sum + val, 0);
+                           formData.tdsDeduction + formData.fineDeduction + formData.salaryAdvance +
+                           Object.values(formData.dynamicDeductions).reduce((sum, val) => sum + val, 0);
+    
+    // Calculate net salary (final gross + credit adjustment - total deductions)
+    const netSalary = finalGross + formData.creditAdjustment - totalDeductions;
     
     return {
-      totalEarnings,
+      grossSalary,
+      finalGross,
+      totalEarnings: finalGross,
       totalDeductions,
-      netSalary: totalEarnings - totalDeductions
+      netSalary
     };
   };
 
@@ -2915,6 +2931,15 @@ function EditPayrollForm({
               onChange={(e) => setFormData(prev => ({ ...prev, overtimePay: parseFloat(e.target.value) || 0 }))}
             />
           </div>
+          <div>
+            <Label htmlFor="betta">BETTA</Label>
+            <Input
+              id="betta"
+              type="number"
+              value={formData.betta}
+              onChange={(e) => setFormData(prev => ({ ...prev, betta: parseFloat(e.target.value) || 0 }))}
+            />
+          </div>
         </div>
 
         {/* Dynamic Earnings */}
@@ -2980,6 +3005,45 @@ function EditPayrollForm({
           </div>
         </div>
 
+        {/* Additional Deductions from Manual System */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
+          <div>
+            <Label htmlFor="fineDeduction">FINE</Label>
+            <Input
+              id="fineDeduction"
+              type="number"
+              value={formData.fineDeduction}
+              onChange={(e) => setFormData(prev => ({ ...prev, fineDeduction: parseFloat(e.target.value) || 0 }))}
+            />
+          </div>
+          <div>
+            <Label htmlFor="salaryAdvance">SALARY ADVANCE</Label>
+            <Input
+              id="salaryAdvance"
+              type="number"
+              value={formData.salaryAdvance}
+              onChange={(e) => setFormData(prev => ({ ...prev, salaryAdvance: parseFloat(e.target.value) || 0 }))}
+            />
+          </div>
+          <div>
+            <Label htmlFor="creditAdjustment">CREDIT</Label>
+            <Input
+              id="creditAdjustment"
+              type="number"
+              value={formData.creditAdjustment}
+              onChange={(e) => setFormData(prev => ({ ...prev, creditAdjustment: parseFloat(e.target.value) || 0 }))}
+            />
+          </div>
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="esiEligible"
+              checked={formData.esiEligible}
+              onCheckedChange={(checked) => setFormData(prev => ({ ...prev, esiEligible: !!checked }))}
+            />
+            <Label htmlFor="esiEligible">ESI Eligible</Label>
+          </div>
+        </div>
+
         {/* Dynamic Deductions */}
         {deductionsFields.length > 0 && (
           <div className="mt-4">
@@ -3001,21 +3065,32 @@ function EditPayrollForm({
         )}
       </div>
 
-      {/* Summary Section */}
-      <div className="bg-gray-50 p-4 rounded-lg">
-        <h3 className="text-lg font-semibold mb-4">Payroll Summary</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="text-center">
-            <div className="text-sm text-muted-foreground">Total Earnings</div>
-            <div className="text-xl font-bold text-green-600">{formatCurrency(totalEarnings)}</div>
+      {/* Summary Section - Enhanced to match manual system */}
+      <div className="bg-gradient-to-r from-green-50 to-blue-50 p-6 rounded-lg border-2 border-green-200">
+        <h3 className="text-lg font-semibold mb-4 text-center">📊 Payroll Summary</h3>
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <div className="text-center bg-white p-3 rounded-lg shadow-sm">
+            <div className="text-xs text-muted-foreground">GROSS SALARY</div>
+            <div className="text-lg font-bold text-green-600">{formatCurrency(calculateTotals().grossSalary)}</div>
           </div>
-          <div className="text-center">
-            <div className="text-sm text-muted-foreground">Total Deductions</div>
-            <div className="text-xl font-bold text-red-600">{formatCurrency(totalDeductions)}</div>
+          <div className="text-center bg-white p-3 rounded-lg shadow-sm">
+            <div className="text-xs text-muted-foreground">BETTA</div>
+            <div className="text-lg font-bold text-blue-600">{formatCurrency(formData.betta)}</div>
           </div>
-          <div className="text-center">
-            <div className="text-sm text-muted-foreground">Net Salary</div>
-            <div className="text-2xl font-bold text-blue-600">{formatCurrency(netSalary)}</div>
+          <div className="text-center bg-white p-3 rounded-lg shadow-sm">
+            <div className="text-xs text-muted-foreground">FINAL GROSS</div>
+            <div className="text-lg font-bold text-green-700">{formatCurrency(calculateTotals().finalGross)}</div>
+          </div>
+          <div className="text-center bg-white p-3 rounded-lg shadow-sm">
+            <div className="text-xs text-muted-foreground">TOTAL DEDUCTIONS</div>
+            <div className="text-lg font-bold text-red-600">{formatCurrency(totalDeductions)}</div>
+          </div>
+          <div className="text-center bg-white p-4 rounded-lg shadow-md border-2 border-blue-300">
+            <div className="text-xs text-muted-foreground">NET SALARY</div>
+            <div className="text-2xl font-bold text-blue-700">{formatCurrency(netSalary)}</div>
+            {!formData.esiEligible && (
+              <div className="text-xs text-orange-600 mt-1">ESI Not Eligible</div>
+            )}
           </div>
         </div>
       </div>

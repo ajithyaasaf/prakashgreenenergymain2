@@ -399,12 +399,19 @@ export const insertEnhancedPayrollSchema = z.object({
   earnedHRA: z.number().min(0),
   earnedConveyance: z.number().min(0),
   overtimePay: z.number().min(0).default(0),
+  betta: z.number().min(0).default(0), // BETTA allowance from manual system
   dynamicEarnings: z.record(z.number()).default({}),
+  grossSalary: z.number().min(0), // Gross before BETTA
+  finalGross: z.number().min(0), // Final gross after BETTA
   dynamicDeductions: z.record(z.number()).default({}),
   epfDeduction: z.number().min(0).default(0),
   esiDeduction: z.number().min(0).default(0),
   vptDeduction: z.number().min(0).default(0),
   tdsDeduction: z.number().min(0).default(0),
+  fineDeduction: z.number().min(0).default(0), // FINE from manual system
+  salaryAdvance: z.number().min(0).default(0), // SALARY ADVANCE from manual system
+  creditAdjustment: z.number().min(0).default(0), // CREDIT from manual system
+  esiEligible: z.boolean().default(true), // ESI eligibility status
   totalEarnings: z.number().min(0),
   totalDeductions: z.number().min(0),
   netSalary: z.number(),
