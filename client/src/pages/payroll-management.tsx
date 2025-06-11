@@ -586,23 +586,6 @@ export default function EnhancedPayrollManagement() {
                 <div className="text-sm text-muted-foreground">
                   Manage additional salary components beyond Basic, HRA, and Conveyance
                 </div>
-                <Dialog open={isFieldConfigDialogOpen} onOpenChange={setIsFieldConfigDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Custom Field
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-md">
-                    <DialogHeader>
-                      <DialogTitle>Add Custom Field</DialogTitle>
-                      <DialogDescription>
-                        Create a new earnings or deduction field for payroll processing
-                      </DialogDescription>
-                    </DialogHeader>
-                    <FieldConfigForm onSubmit={(data) => console.log("Field config:", data)} />
-                  </DialogContent>
-                </Dialog>
               </div>
               <FieldConfigTable fieldConfigs={fieldConfigs} />
             </CardContent>
