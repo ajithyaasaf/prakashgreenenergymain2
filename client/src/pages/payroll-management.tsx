@@ -303,24 +303,25 @@ export default function EnhancedPayrollManagement() {
   const deductionsFields = fieldConfigs.filter(field => field.category === "deductions" && field.isActive);
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
+    <div className="container mx-auto py-4 px-4 space-y-4 lg:py-6 lg:space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Enhanced Payroll Management</h1>
-          <p className="text-muted-foreground">
+      <div className="flex flex-col space-y-4 lg:flex-row lg:justify-between lg:items-center lg:space-y-0">
+        <div className="space-y-1">
+          <h1 className="text-2xl lg:text-3xl font-bold tracking-tight">Enhanced Payroll Management</h1>
+          <p className="text-sm lg:text-base text-muted-foreground">
             Comprehensive payroll processing with flexible salary components
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-2 lg:flex-row lg:gap-2">
           <Dialog open={isSettingsDialogOpen} onOpenChange={setIsSettingsDialogOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" className="w-full sm:w-auto">
                 <Settings className="h-4 w-4 mr-2" />
-                Settings
+                <span className="hidden sm:inline">Settings</span>
+                <span className="sm:hidden">Config</span>
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="w-[95vw] max-w-2xl mx-auto">
               <DialogHeader>
                 <DialogTitle>Payroll Settings</DialogTitle>
                 <DialogDescription>
@@ -336,12 +337,13 @@ export default function EnhancedPayrollManagement() {
 
           <Dialog open={isFieldConfigDialogOpen} onOpenChange={setIsFieldConfigDialogOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" className="w-full sm:w-auto">
                 <Plus className="h-4 w-4 mr-2" />
-                Add Field
+                <span className="hidden sm:inline">Add Field</span>
+                <span className="sm:hidden">Field</span>
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="w-[95vw] max-w-lg mx-auto">
               <DialogHeader>
                 <DialogTitle>Add Payroll Field</DialogTitle>
                 <DialogDescription>
@@ -354,24 +356,27 @@ export default function EnhancedPayrollManagement() {
 
           <Dialog open={isSalaryStructureDialogOpen} onOpenChange={setIsSalaryStructureDialogOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" className="w-full sm:w-auto">
                 <DollarSign className="h-4 w-4 mr-2" />
-                Create Salary Structure
+                <span className="hidden lg:inline">Create Salary Structure</span>
+                <span className="lg:hidden">Salary</span>
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-7xl max-h-[95vh] overflow-hidden">
+            <DialogContent className="w-[95vw] h-[95vh] max-w-7xl mx-auto overflow-y-auto">
               <DialogHeader>
-                <DialogTitle className="text-xl font-bold">Create Comprehensive Salary Structure</DialogTitle>
+                <DialogTitle className="text-lg lg:text-xl font-bold">Create Comprehensive Salary Structure</DialogTitle>
                 <DialogDescription>
                   Define detailed salary components, deductions, and working parameters for an employee
                 </DialogDescription>
               </DialogHeader>
-              <SalaryStructureForm 
-                users={users}
-                earningsFields={earningsFields}
-                deductionsFields={deductionsFields}
-                onSubmit={(data) => createSalaryStructureMutation.mutate(data)} 
-              />
+              <div className="max-h-[calc(95vh-120px)] overflow-y-auto">
+                <SalaryStructureForm 
+                  users={users}
+                  earningsFields={earningsFields}
+                  deductionsFields={deductionsFields}
+                  onSubmit={(data) => createSalaryStructureMutation.mutate(data)} 
+                />
+              </div>
             </DialogContent>
           </Dialog>
         </div>
@@ -379,18 +384,18 @@ export default function EnhancedPayrollManagement() {
 
       {/* Filters */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-lg">
             <Calendar className="h-5 w-5" />
             Payroll Filters
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
-              <Label htmlFor="month">Month</Label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="month" className="text-sm font-medium">Month</Label>
               <Select value={selectedMonth.toString()} onValueChange={(value) => setSelectedMonth(parseInt(value))}>
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -403,10 +408,10 @@ export default function EnhancedPayrollManagement() {
               </Select>
             </div>
 
-            <div>
-              <Label htmlFor="year">Year</Label>
+            <div className="space-y-2">
+              <Label htmlFor="year" className="text-sm font-medium">Year</Label>
               <Select value={selectedYear.toString()} onValueChange={(value) => setSelectedYear(parseInt(value))}>
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -419,10 +424,10 @@ export default function EnhancedPayrollManagement() {
               </Select>
             </div>
 
-            <div>
-              <Label htmlFor="department">Department</Label>
+            <div className="space-y-2">
+              <Label htmlFor="department" className="text-sm font-medium">Department</Label>
               <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="All Departments" />
                 </SelectTrigger>
                 <SelectContent>
@@ -436,7 +441,8 @@ export default function EnhancedPayrollManagement() {
               </Select>
             </div>
 
-            <div className="flex items-end">
+            <div className="space-y-2 sm:col-span-2 lg:col-span-1">
+              <Label className="text-sm font-medium">Actions</Label>
               <Button 
                 onClick={() => bulkProcessPayrollMutation.mutate({ 
                   month: selectedMonth, 
@@ -457,60 +463,60 @@ export default function EnhancedPayrollManagement() {
       </Card>
 
       {/* Payroll Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Employees</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="transition-all hover:shadow-md">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+            <CardTitle className="text-sm font-medium text-gray-600">Total Employees</CardTitle>
+            <Users className="h-5 w-5 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{payrolls.length}</div>
-            <p className="text-xs text-muted-foreground">
+            <div className="text-2xl lg:text-3xl font-bold text-gray-900">{payrolls.length}</div>
+            <p className="text-xs text-muted-foreground mt-1">
               {monthNames[selectedMonth - 1]} {selectedYear}
             </p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Gross</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+        <Card className="transition-all hover:shadow-md">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+            <CardTitle className="text-sm font-medium text-gray-600">Total Gross</CardTitle>
+            <DollarSign className="h-5 w-5 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-xl lg:text-2xl font-bold text-green-600">
               {formatCurrency(payrolls.reduce((sum, p) => sum + p.totalEarnings, 0))}
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground mt-1">
               Gross earnings
             </p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Deductions</CardTitle>
-            <AlertCircle className="h-4 w-4 text-muted-foreground" />
+        <Card className="transition-all hover:shadow-md">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+            <CardTitle className="text-sm font-medium text-gray-600">Total Deductions</CardTitle>
+            <AlertCircle className="h-5 w-5 text-orange-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-xl lg:text-2xl font-bold text-orange-600">
               {formatCurrency(payrolls.reduce((sum, p) => sum + p.totalDeductions, 0))}
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground mt-1">
               Total deductions
             </p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Net Payable</CardTitle>
-            <CheckCircle className="h-4 w-4 text-muted-foreground" />
+        <Card className="transition-all hover:shadow-md">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+            <CardTitle className="text-sm font-medium text-gray-600">Net Payable</CardTitle>
+            <CheckCircle className="h-5 w-5 text-purple-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-xl lg:text-2xl font-bold text-purple-600">
               {formatCurrency(payrolls.reduce((sum, p) => sum + p.netSalary, 0))}
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground mt-1">
               Final payable amount
             </p>
           </CardContent>
@@ -519,10 +525,19 @@ export default function EnhancedPayrollManagement() {
 
       {/* Main Content Tabs */}
       <Tabs defaultValue="payroll" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="payroll">Payroll Processing</TabsTrigger>
-          <TabsTrigger value="structures">Salary Structures</TabsTrigger>
-          <TabsTrigger value="fields">Field Configuration</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:grid-cols-none lg:flex">
+          <TabsTrigger value="payroll" className="text-xs sm:text-sm">
+            <span className="hidden sm:inline">Payroll Processing</span>
+            <span className="sm:hidden">Payroll</span>
+          </TabsTrigger>
+          <TabsTrigger value="structures" className="text-xs sm:text-sm">
+            <span className="hidden sm:inline">Salary Structures</span>
+            <span className="sm:hidden">Structures</span>
+          </TabsTrigger>
+          <TabsTrigger value="fields" className="text-xs sm:text-sm">
+            <span className="hidden sm:inline">Field Configuration</span>
+            <span className="sm:hidden">Fields</span>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="payroll" className="space-y-4">
@@ -671,58 +686,58 @@ function PayrollTable({
   return (
     <div className="space-y-6">
       {/* Enhanced Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-        <Card>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <Card className="transition-all hover:shadow-md">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Total Payrolls</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalPayrolls}</div>
+            <div className="text-xl lg:text-2xl font-bold">{totalPayrolls}</div>
             <p className="text-xs text-muted-foreground">Processed records</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="transition-all hover:shadow-md">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Gross Earnings</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{formatCurrency(totalGrossEarnings)}</div>
+            <div className="text-lg lg:text-xl font-bold text-green-600">{formatCurrency(totalGrossEarnings)}</div>
             <p className="text-xs text-muted-foreground">Total earnings</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="transition-all hover:shadow-md">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Total Deductions</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{formatCurrency(totalDeductions)}</div>
+            <div className="text-lg lg:text-xl font-bold text-red-600">{formatCurrency(totalDeductions)}</div>
             <p className="text-xs text-muted-foreground">All deductions</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="transition-all hover:shadow-md">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Net Payable</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{formatCurrency(totalNetPayable)}</div>
+            <div className="text-lg lg:text-xl font-bold text-blue-600">{formatCurrency(totalNetPayable)}</div>
             <p className="text-xs text-muted-foreground">Final amount</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="transition-all hover:shadow-md">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">OT Hours</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{totalOvertimeHours.toFixed(1)}</div>
+            <div className="text-xl lg:text-2xl font-bold text-orange-600">{totalOvertimeHours.toFixed(1)}</div>
             <p className="text-xs text-muted-foreground">Overtime hours</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="transition-all hover:shadow-md">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">OT Pay</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{formatCurrency(totalOvertimePay)}</div>
+            <div className="text-lg lg:text-xl font-bold text-orange-600">{formatCurrency(totalOvertimePay)}</div>
             <p className="text-xs text-muted-foreground">Overtime payment</p>
           </CardContent>
         </Card>
