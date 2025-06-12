@@ -1244,7 +1244,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "You have already checked out today" });
       }
 
-      const now = new Date();
       const checkOutTime = new Date(
         now.getFullYear(),
         now.getMonth(),
