@@ -138,6 +138,9 @@ export const insertAttendanceSchema = z.object({
   remarks: z.string().optional(),
   isWithinOfficeRadius: z.boolean().default(false),
   distanceFromOffice: z.number().optional(),
+  // New fields for smart attendance features
+  isAutoCheckout: z.boolean().default(false),
+  earlyCheckInReason: z.string().optional(),
 });
 
 export const insertOfficeLocationSchema = z.object({

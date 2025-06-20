@@ -1887,6 +1887,9 @@ export class FirestoreStorage implements IStorage {
       date: updatedData.date?.toDate() || new Date(),
       checkInTime: updatedData.checkInTime?.toDate() || null,
       checkOutTime: updatedData.checkOutTime?.toDate() || null,
+      // Handle new smart attendance fields
+      isAutoCheckout: updatedData.isAutoCheckout || false,
+      earlyCheckInReason: updatedData.earlyCheckInReason || undefined,
     } as Attendance;
   }
 
@@ -1914,6 +1917,9 @@ export class FirestoreStorage implements IStorage {
       date: data.date?.toDate() || new Date(),
       checkInTime: data.checkInTime?.toDate() || null,
       checkOutTime: data.checkOutTime?.toDate() || null,
+      // Handle new smart attendance fields
+      isAutoCheckout: data.isAutoCheckout || false,
+      earlyCheckInReason: data.earlyCheckInReason || undefined,
     } as Attendance;
   }
 
@@ -2027,6 +2033,9 @@ export class FirestoreStorage implements IStorage {
       date: data.date?.toDate() || new Date(),
       checkInTime: data.checkInTime?.toDate() || null,
       checkOutTime: data.checkOutTime?.toDate() || null,
+      // Handle new smart attendance fields
+      isAutoCheckout: data.isAutoCheckout || false,
+      earlyCheckInReason: data.earlyCheckInReason || undefined,
     } as Attendance;
   }
 

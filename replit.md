@@ -120,7 +120,13 @@ This is a comprehensive enterprise dashboard application for Prakash Greens Ener
 
 ```
 Changelog:
-- June 20, 2025. Initial setup
+- June 20, 2025: Initial setup
+- June 20, 2025: Implemented smart attendance features:
+  * Early check-in verification with photo + reason validation
+  * Smart auto-checkout with OT button for late departures
+  * 2-hour grace period with automatic logout prevention
+  * Enhanced backend schema with isAutoCheckout and earlyCheckInReason fields
+  * Updated all storage interfaces and services for feature alignment
 ```
 
 ## User Preferences
