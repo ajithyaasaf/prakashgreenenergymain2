@@ -562,29 +562,22 @@ export function SmartAttendanceCheckOut({
               )}
             </Button>
             
-            {/* OT Button appears when late */}
-            {timeStatus?.showOTButton && (
+            {/* Enable OT Button - only show after expected checkout time and when OT not enabled */}
+            {timeStatus?.showOTButton && !overtimeEnabled && (
               <Button
-                onClick={() => {
-                  setIsOvertimeCheckout(true);
-                  if (!isOvertimeCheckout) {
-                    // Just toggle to show OT form, don't submit yet
-                    return;
-                  }
-                  handleSubmit(true);
-                }}
-                disabled={isSubmitting || !location || !isOnline}
-                className="flex-1 sm:flex-none bg-amber-600 hover:bg-amber-700"
+                onClick={() => setShowOvertimeConfirmation(true)}
+                disabled={isSubmitting || !location || !isOnline || enableOvertimeMutation}
+                className="flex-1 sm:flex-none bg-orange-600 hover:bg-orange-700"
               >
-                {isSubmitting && isOvertimeCheckout ? (
+                {enableOvertimeMutation ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Processing OT...
+                    Enabling...
                   </>
                 ) : (
                   <>
                     <Zap className="mr-2 h-4 w-4" />
-                    OT
+                    Enable OT
                   </>
                 )}
               </Button>

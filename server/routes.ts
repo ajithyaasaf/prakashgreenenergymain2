@@ -18,7 +18,6 @@ import {
   departments
 } from "@shared/schema";
 // Import all the necessary schemas from storage.ts since they've been moved there
-import { AttendanceOvertimeService } from "./services/attendance-overtime-service.js";
 import { 
   insertUserSchema,
   insertDepartmentSchema,

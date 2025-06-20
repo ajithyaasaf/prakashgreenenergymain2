@@ -412,7 +412,7 @@ export class AttendanceOvertimeService {
           }
 
           await storage.updateAttendance(record.id, {
-            checkOutTime: effectiveCheckOutTime, // Always use expected checkout time
+            checkOutTime: effectiveCheckOutTime, // CRITICAL: Always use expected checkout time (7:00 PM), never the actual auto-checkout time
             isAutoCheckedOut: true,
             autoCheckOutReason,
             regularWorkingHours: Math.round(regularWorkingHours * 100) / 100,
