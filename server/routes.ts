@@ -18,6 +18,7 @@ import {
   departments
 } from "@shared/schema";
 // Import all the necessary schemas from storage.ts since they've been moved there
+import { AttendanceOvertimeService } from "./services/attendance-overtime-service.js";
 import { 
   insertUserSchema,
   insertDepartmentSchema,
@@ -4383,6 +4384,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error updating payroll settings:", error);
       res.status(500).json({ message: "Failed to update payroll settings" });
+    }
+  });
+
+  // Enhanced Attendance Overtime API Endpoints
+  app.post("/api/attendance/:id/enable-overtime", verifyAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.uid;
+
+      const result = await AttendanceOvertimeService.enableOvertime(id, userId);
+      
+      if (result.success) {
+        res.json(result);
+      } else {
+        res.status(400).json(result);
+      }
+    } catch (error) {
+      console.error("Error enabling overtime:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Internal server error while enabling overtime" 
+      });
+    }
+  });
+
+  app.post("/api/attendance/process-auto-checkouts", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || user.role !== "master_admin") {
+        return res.status(403).json({ message: "Access denied - Master Admin only" });
+      }
+
+      const result = await AttendanceOvertimeService.processAutoCheckOuts();
+      res.json(result);
+    } catch (error) {
+      console.error("Error processing auto checkouts:", error);
+      res.status(500).json({ message: "Failed to process auto checkouts" });
     }
   });
 

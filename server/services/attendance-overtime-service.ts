@@ -71,10 +71,25 @@ export class AttendanceOvertimeService {
   }
 
   /**
-   * Calculate auto check-out time (2 hours after expected checkout)
+   * Calculate auto check-out time based on OT status
+   * - If OT enabled: 11:55 PM same day (final cleanup)
+   * - If no OT: 2 hours after expected checkout time
    */
-  static calculateAutoCheckOutTime(departmentTiming: any): Date {
+  static calculateAutoCheckOutTime(departmentTiming: any, overtimeEnabled: boolean = false): Date {
     const now = new Date();
+    
+    if (overtimeEnabled) {
+      // If OT is enabled, auto checkout at 11:55 PM for final cleanup
+      return new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate(),
+        23,
+        55,
+        0,
+        0
+      );
+    }
     
     if (!departmentTiming?.checkOutTime) {
       // Default: 2 hours from now if no department timing
@@ -91,12 +106,13 @@ export class AttendanceOvertimeService {
       checkOutMinute
     );
 
-    // Auto checkout 2 hours after expected checkout time
+    // Auto checkout 2 hours after expected checkout time (only if no OT)
     return new Date(expectedCheckOutTime.getTime() + (2 * 60 * 60 * 1000));
   }
 
   /**
    * Enable overtime for an attendance record
+   * This disables the 2-hour auto checkout and sets final cleanup at 11:55 PM
    */
   static async enableOvertime(attendanceId: string, userId: string): Promise<{ success: boolean; message: string }> {
     try {
@@ -111,11 +127,23 @@ export class AttendanceOvertimeService {
 
       const now = new Date();
       
+      // Calculate new auto checkout time for final cleanup at 11:55 PM
+      const finalCleanupTime = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate(),
+        23,
+        55,
+        0,
+        0
+      );
+      
       await storage.updateAttendance(attendanceId, {
         overtimeEnabled: true,
         overtimeStartTime: now,
         overtimeApprovalStatus: "pending",
-        autoCheckOutEnabled: false, // Disable auto checkout when OT is enabled
+        autoCheckOutEnabled: true, // Keep enabled but change time to 11:55 PM
+        autoCheckOutTime: finalCleanupTime, // Final cleanup time
         lastModifiedAt: now,
         lastModifiedBy: userId
       });
@@ -124,13 +152,13 @@ export class AttendanceOvertimeService {
       await storage.createActivityLog({
         type: 'attendance',
         title: 'Overtime Enabled',
-        description: `User enabled overtime mode at ${now.toLocaleTimeString()}`,
+        description: `User enabled overtime mode at ${now.toLocaleTimeString()}. Auto checkout disabled until 11:55 PM.`,
         entityId: attendanceId,
         entityType: 'attendance',
         userId: userId
       });
 
-      return { success: true, message: "Overtime mode enabled successfully" };
+      return { success: true, message: "Overtime mode enabled successfully. Auto checkout disabled until 11:55 PM." };
     } catch (error) {
       console.error("Error enabling overtime:", error);
       return { success: false, message: "Failed to enable overtime mode" };
@@ -331,6 +359,9 @@ export class AttendanceOvertimeService {
 
   /**
    * Auto check-out users who forgot to check out
+   * Handles two scenarios:
+   * 1. Normal auto checkout after 2 hours (records working time up to expected checkout)
+   * 2. Final cleanup at 11:55 PM for OT users (records working time up to expected checkout)
    */
   static async processAutoCheckOuts(): Promise<{ processed: number; errors: number }> {
     let processed = 0;
@@ -354,38 +385,48 @@ export class AttendanceOvertimeService {
         try {
           const autoCheckOutTime = record.autoCheckOutTime!;
           const checkInTime = record.checkInTime!;
+          const now = new Date();
           
-          // Calculate working hours up to expected checkout time (not auto checkout time)
+          // Calculate working hours up to EXPECTED checkout time only
+          // Never count the grace period or time after expected checkout as working time
           let regularWorkingHours = 0;
+          let effectiveCheckOutTime: Date;
           
           if (record.expectedCheckOutTime) {
             const expectedCheckOutTime = record.expectedCheckOutTime;
             const workingMilliseconds = expectedCheckOutTime.getTime() - checkInTime.getTime();
             regularWorkingHours = Math.max(0, workingMilliseconds / (1000 * 60 * 60));
+            effectiveCheckOutTime = expectedCheckOutTime; // Always use expected checkout time
           } else {
-            // Fallback: 8 hours
+            // Fallback: 8 hours from check-in
             regularWorkingHours = 8;
+            effectiveCheckOutTime = new Date(checkInTime.getTime() + (8 * 60 * 60 * 1000));
           }
 
-          // Auto checkout at expected time, not at auto checkout time
-          const effectiveCheckOutTime = record.expectedCheckOutTime || new Date(checkInTime.getTime() + (8 * 60 * 60 * 1000));
+          // Determine the reason based on overtime status
+          let autoCheckOutReason: string;
+          if (record.overtimeEnabled) {
+            autoCheckOutReason = "Final automatic checkout at day end (11:55 PM) - OT user forgot to check out";
+          } else {
+            autoCheckOutReason = "Automatic checkout after 2-hour grace period - user forgot to check out";
+          }
 
           await storage.updateAttendance(record.id, {
-            checkOutTime: effectiveCheckOutTime,
+            checkOutTime: effectiveCheckOutTime, // Always use expected checkout time
             isAutoCheckedOut: true,
-            autoCheckOutReason: "Automatic checkout after 2-hour grace period",
+            autoCheckOutReason,
             regularWorkingHours: Math.round(regularWorkingHours * 100) / 100,
-            actualOvertimeHours: 0, // No overtime for auto checkout
-            overtimeHours: 0,
-            lastModifiedAt: new Date(),
+            actualOvertimeHours: 0, // No overtime for auto checkout (as per requirements)
+            overtimeHours: 0, // No overtime for auto checkout
+            lastModifiedAt: now,
             lastModifiedBy: "system"
           });
 
           // Log activity
           await storage.createActivityLog({
             type: 'attendance',
-            title: 'Auto Check-out',
-            description: `System automatically checked out user after grace period. Working hours: ${Math.round(regularWorkingHours * 100) / 100}`,
+            title: record.overtimeEnabled ? 'Final Auto Check-out (OT)' : 'Auto Check-out',
+            description: `${autoCheckOutReason}. Working hours recorded: ${Math.round(regularWorkingHours * 100) / 100} (up to expected checkout time only)`,
             entityId: record.id,
             entityType: 'attendance',
             userId: record.userId

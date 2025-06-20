@@ -55,6 +55,7 @@ export function SmartAttendanceCheckOut({
   const [timeStatus, setTimeStatus] = useState<CheckoutTimeStatus | null>(null);
   const [showOvertimeConfirmation, setShowOvertimeConfirmation] = useState(false);
   const [overtimeEnabled, setOvertimeEnabled] = useState(false);
+  const [enableOvertimeMutation, setEnableOvertimeMutation] = useState(false);
 
   // Camera states
   const [isCameraActive, setIsCameraActive] = useState(false);
@@ -126,8 +127,52 @@ export function SmartAttendanceCheckOut({
     if (isOpen) {
       getCurrentLocation();
       setTimeStatus(calculateCheckoutStatus());
+      setOvertimeEnabled(currentAttendance?.overtimeEnabled || false);
     }
   }, [isOpen, currentAttendance, departmentTiming]);
+
+  // Handle overtime enablement
+  const handleEnableOvertime = async () => {
+    if (!currentAttendance?.id) return;
+
+    setEnableOvertimeMutation(true);
+    try {
+      const response = await apiRequest('POST', `/api/attendance/${currentAttendance.id}/enable-overtime`);
+      
+      if (response.ok) {
+        setOvertimeEnabled(true);
+        setShowOvertimeConfirmation(false);
+        
+        // Update the time status to reflect new auto checkout time
+        setTimeStatus(calculateCheckoutStatus());
+        
+        toast({
+          title: "Overtime Enabled",
+          description: "Overtime mode activated. Auto checkout disabled until 11:55 PM.",
+          variant: "default"
+        });
+        
+        // Refresh the attendance data
+        onSuccess();
+      } else {
+        const errorData = await response.json();
+        toast({
+          title: "Failed to Enable Overtime",
+          description: errorData.message || "Could not enable overtime mode",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error("Error enabling overtime:", error);
+      toast({
+        title: "Error",
+        description: "Failed to enable overtime mode",
+        variant: "destructive"
+      });
+    } finally {
+      setEnableOvertimeMutation(false);
+    }
+  };
 
   // Real-time countdown update
   useEffect(() => {
@@ -562,6 +607,57 @@ export function SmartAttendanceCheckOut({
         {/* Hidden canvas for photo capture */}
         <canvas ref={canvasRef} className="hidden" />
       </DialogContent>
+
+      {/* Overtime Confirmation Dialog */}
+      <Dialog open={showOvertimeConfirmation} onOpenChange={setShowOvertimeConfirmation}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Zap className="h-5 w-5 text-orange-500" />
+              Enable Overtime Mode
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+              <p className="text-sm text-orange-800">
+                Are you sure you want to enable overtime mode?
+              </p>
+              <ul className="mt-2 text-xs text-orange-700 space-y-1">
+                <li>• Auto checkout will be disabled until 11:55 PM</li>
+                <li>• You'll need to manually check out when done</li>
+                <li>• Photo verification required for overtime checkout</li>
+                <li>• Overtime hours will be calculated for payroll</li>
+              </ul>
+            </div>
+          </div>
+          <DialogFooter className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowOvertimeConfirmation(false)}
+              disabled={enableOvertimeMutation}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleEnableOvertime}
+              disabled={enableOvertimeMutation}
+              className="bg-orange-600 hover:bg-orange-700"
+            >
+              {enableOvertimeMutation ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Enabling...
+                </>
+              ) : (
+                <>
+                  <Zap className="mr-2 h-4 w-4" />
+                  Yes, Enable OT
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }
