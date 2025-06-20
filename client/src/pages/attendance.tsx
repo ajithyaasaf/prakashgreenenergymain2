@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { EnterpriseAttendanceCheckIn } from "@/components/attendance/enterprise-attendance-check-in";
-import { AttendanceCheckOut } from "@/components/attendance/attendance-check-out";
+import { SmartAttendanceCheckOut } from "@/components/attendance/smart-attendance-check-out";
 
 export default function Attendance() {
   const { user } = useAuthContext();

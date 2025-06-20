@@ -995,7 +995,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         attendanceType = "office",
         customerName,
         reason,
-        imageUrl
+        imageUrl,
+        earlyCheckInReason
       } = req.body;
       
       if (!userId || userId !== req.user.uid) {
@@ -1017,6 +1018,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      // Get user for department timing validation
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // FEATURE 1: Early Check-in Verification
+      const departmentTiming = user.department 
+        ? await storage.getDepartmentTiming(user.department)
+        : null;
+
+      if (departmentTiming) {
+        const now = new Date();
+        const [checkInHour, checkInMinute] = departmentTiming.checkInTime.split(':').map(Number);
+        
+        const expectedCheckInTime = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate(),
+          checkInHour,
+          checkInMinute
+        );
+
+        const isEarlyCheckIn = now < expectedCheckInTime;
+        
+        console.log('EARLY CHECK-IN VALIDATION:', {
+          currentTime: now.toLocaleTimeString(),
+          expectedTime: expectedCheckInTime.toLocaleTimeString(),
+          isEarly: isEarlyCheckIn,
+          hasPhoto: !!imageUrl,
+          hasReason: !!earlyCheckInReason
+        });
+
+        if (isEarlyCheckIn) {
+          // Early check-in requires photo and reason
+          if (!imageUrl) {
+            return res.status(400).json({
+              message: "Early check-in requires photo verification",
+              isEarlyCheckIn: true,
+              expectedTime: departmentTiming.checkInTime,
+              currentTime: now.toLocaleTimeString(),
+              requiresPhoto: true
+            });
+          }
+          
+          if (!earlyCheckInReason || earlyCheckInReason.trim().length === 0) {
+            return res.status(400).json({
+              message: "Early check-in requires a reason",
+              isEarlyCheckIn: true,
+              expectedTime: departmentTiming.checkInTime,
+              currentTime: now.toLocaleTimeString(),
+              requiresReason: true
+            });
+          }
+
+          console.log('EARLY CHECK-IN: Approved with photo and reason');
+        }
+      }
+
       // Import and use unified attendance service
       const { UnifiedAttendanceService } = await import('./services/unified-attendance-service');
       
@@ -1028,7 +1088,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         attendanceType: attendanceType as 'office' | 'remote' | 'field_work',
         reason,
         customerName,
-        imageUrl
+        imageUrl,
+        earlyCheckInReason
       };
 
       console.log('ENTERPRISE CHECK-IN: Processing request with advanced location validation');
@@ -1183,12 +1244,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log('CHECKOUT DEBUG: Request body:', JSON.stringify(req.body, null, 2));
       
-      const { userId, latitude, longitude, imageUrl, reason, otReason } = req.body;
+      const { userId, latitude, longitude, imageUrl, reason, otReason, isOvertimeCheckout } = req.body;
       
       console.log('CHECKOUT DEBUG: Extracted data:', {
         userId, latitude, longitude, 
         hasImageUrl: !!imageUrl, 
-        reason, otReason,
+        reason, otReason, isOvertimeCheckout,
         reqUserUid: req.user.uid
       });
       
@@ -1289,75 +1350,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.warn('CHECKOUT WARNING: Negative working time detected, possible date boundary issue');
         workingMilliseconds = Math.abs(workingMilliseconds);
       }
-      
-      // Cap maximum working hours to prevent absurd calculations (e.g., 24+ hours)
-      const maxWorkingHours = 24; // Maximum 24 hours in a single shift
-      const calculatedWorkingHours = workingMilliseconds / (1000 * 60 * 60);
-      const workingHours = Math.min(calculatedWorkingHours, maxWorkingHours);
-      
-      // Log midnight boundary handling for debugging
-      console.log('MIDNIGHT BOUNDARY DEBUG:', {
-        checkInTime: checkInTime.toISOString(),
-        checkOutTime: checkOutTime.toISOString(),
-        calculatedWorkingHours,
-        cappedWorkingHours: workingHours,
-        expectedCheckOut: expectedCheckOutTimeObj.toISOString(),
-        crossedMidnight: checkOutTime.getDate() !== checkInTime.getDate()
-      });
-      
-      // Use department-specific working hours
-      const standardWorkingHours = departmentTiming?.workingHours || 8;
-      const overtimeThresholdMinutes = departmentTiming?.overtimeThresholdMinutes || 30;
-      const overtimeHours = Math.max(0, workingHours - standardWorkingHours);
-      
-      // Check if overtime meets the threshold
-      const overtimeMinutes = overtimeHours * 60;
-      const hasOvertimeThreshold = overtimeMinutes >= overtimeThresholdMinutes;
-      
-      // Check if overtime requires approval and photo
-      if (hasOvertimeThreshold) {
-        if (!otReason) {
-          return res.status(400).json({
-            message: "Overtime requires a reason to be provided",
-            overtimeHours: Math.round(overtimeHours * 100) / 100,
-            requiresOTReason: true
-          });
-        }
-        if (!imageUrl) {
-          return res.status(400).json({
-            message: "Overtime requires a photo to be captured",
-            overtimeHours: Math.round(overtimeHours * 100) / 100,
-            requiresPhoto: true
-          });
+
+      // FEATURE 2: Smart OT Detection and Auto-Checkout Logic
+      const isLateCheckout = checkOutTime > expectedCheckOutTimeObj;
+      let finalWorkingHours = 0;
+      let finalOvertimeHours = 0;
+
+      if (isLateCheckout && !isOvertimeCheckout) {
+        // Employee is checking out late but didn't declare OT
+        // Calculate only till expected checkout time
+        const workingMilliseconds = expectedCheckOutTimeObj.getTime() - checkInTime.getTime();
+        finalWorkingHours = Math.max(0, workingMilliseconds / (1000 * 60 * 60));
+        finalOvertimeHours = 0;
+        
+        console.log('LATE CHECKOUT WITHOUT OT:', {
+          checkOutTime: checkOutTime.toLocaleTimeString(),
+          expectedTime: expectedCheckOutTimeObj.toLocaleTimeString(),
+          calculatedTill: expectedCheckOutTimeObj.toLocaleTimeString(),
+          workingHours: finalWorkingHours
+        });
+      } else {
+        // Normal calculation for on-time checkout or declared OT
+        // Cap maximum working hours to prevent absurd calculations (e.g., 24+ hours)
+        const maxWorkingHours = 24; // Maximum 24 hours in a single shift
+        const calculatedWorkingHours = workingMilliseconds / (1000 * 60 * 60);
+        finalWorkingHours = Math.min(calculatedWorkingHours, maxWorkingHours);
+        
+        // Use department-specific working hours
+        const standardWorkingHours = departmentTiming?.workingHours || 8;
+        const overtimeThresholdMinutes = departmentTiming?.overtimeThresholdMinutes || 30;
+        finalOvertimeHours = Math.max(0, finalWorkingHours - standardWorkingHours);
+        
+        // Check if overtime meets the threshold for declared OT
+        const overtimeMinutes = finalOvertimeHours * 60;
+        const hasOvertimeThreshold = overtimeMinutes >= overtimeThresholdMinutes;
+        
+        // Validate OT requirements only for declared overtime
+        if (isOvertimeCheckout && hasOvertimeThreshold) {
+          if (!otReason) {
+            return res.status(400).json({
+              message: "Overtime requires a reason to be provided",
+              overtimeHours: Math.round(finalOvertimeHours * 100) / 100,
+              requiresOTReason: true
+            });
+          }
+          if (!imageUrl) {
+            return res.status(400).json({
+              message: "Overtime requires a photo to be captured",
+              overtimeHours: Math.round(finalOvertimeHours * 100) / 100,
+              requiresPhoto: true
+            });
+          }
         }
       }
-
-      // Check for early checkout using department timing
-      const earlyCheckout = checkOutTime < expectedCheckOutTimeObj;
-      const earlyMinutes = earlyCheckout ? Math.floor((expectedCheckOutTimeObj.getTime() - checkOutTime.getTime()) / (1000 * 60)) : 0;
       
-      console.log("CHECKOUT DEBUG:", {
-        currentTime: checkOutTime.toLocaleTimeString(),
-        expectedTime: expectedCheckOutTimeObj.toLocaleTimeString(),
-        earlyCheckout,
-        earlyMinutes,
-        reason: reason || "no reason provided",
-        departmentTiming: departmentTiming ? 'loaded' : 'default'
+      // Log checkout calculation details
+      console.log('CHECKOUT CALCULATION:', {
+        checkInTime: checkInTime.toLocaleTimeString(),
+        checkOutTime: checkOutTime.toLocaleTimeString(),
+        expectedCheckOut: expectedCheckOutTimeObj.toLocaleTimeString(),
+        isLateCheckout,
+        isOvertimeCheckout,
+        finalWorkingHours: Math.round(finalWorkingHours * 100) / 100,
+        finalOvertimeHours: Math.round(finalOvertimeHours * 100) / 100
       });
-      
-      // Temporarily disabled early checkout validation for testing
-      // if (earlyCheckout && earlyMinutes > 60 && (!reason || reason.trim().length === 0)) {
-      //   const currentTimeStr = checkOutTime.toLocaleTimeString();
-      //   const expectedTimeStr = expectedCheckOutTime.toLocaleTimeString();
-      //   return res.status(400).json({
-      //     message: `Early checkout (${earlyMinutes} minutes early) requires a reason. Current: ${currentTimeStr}, Expected: ${expectedTimeStr}`,
-      //     currentTime: checkOutTime,
-      //     expectedCheckOutTime,
-      //     requiresReason: true,
-      //     isEarlyCheckout: true,
-      //     earlyMinutes
-      //   });
-      // }
 
       // Update attendance record with checkout details
       const updatedAttendance = await storage.updateAttendance(attendanceRecord.id, {
@@ -1365,37 +1421,123 @@ export async function registerRoutes(app: Express): Promise<Server> {
         checkOutLatitude: String(latitude),
         checkOutLongitude: String(longitude),
         checkOutImageUrl: imageUrl,
-        workingHours: Math.round(workingHours * 100) / 100,
-        overtimeHours: Math.round(overtimeHours * 100) / 100,
-        otReason: hasOvertimeThreshold ? otReason : undefined,
-        remarks: reason || (hasOvertimeThreshold ? `Overtime: ${otReason}` : undefined)
+        workingHours: Math.round(finalWorkingHours * 100) / 100,
+        overtimeHours: Math.round(finalOvertimeHours * 100) / 100,
+        otReason: (isOvertimeCheckout && finalOvertimeHours > 0) ? otReason : undefined,
+        remarks: reason || (isOvertimeCheckout && finalOvertimeHours > 0 ? `Overtime: ${otReason}` : 
+                 isLateCheckout && !isOvertimeCheckout ? 'Late checkout - calculated till scheduled time' : undefined),
+        isAutoCheckout: false
       });
 
       // Log activity
       await storage.createActivityLog({
         type: 'attendance',
-        title: `Check-out ${hasOvertimeThreshold ? 'with Overtime' : ''}`,
-        description: `${user.displayName} checked out${hasOvertimeThreshold ? ` with ${Math.round(overtimeHours * 100) / 100} hours overtime` : ''}${earlyCheckout ? ' (early checkout)' : ''}`,
+        title: `Check-out ${isOvertimeCheckout && finalOvertimeHours > 0 ? 'with Overtime' : ''}`,
+        description: `${user.displayName} checked out${isOvertimeCheckout && finalOvertimeHours > 0 ? ` with ${Math.round(finalOvertimeHours * 100) / 100} hours overtime` : ''}${isLateCheckout && !isOvertimeCheckout ? ' (late but no OT claimed)' : ''}`,
         entityId: attendanceRecord.id,
         entityType: 'attendance',
         userId: user.uid
       });
 
       res.json({
-        message: `Checked out successfully${hasOvertimeThreshold ? ` with ${Math.round(overtimeHours * 100) / 100} hours overtime` : ''}`,
+        message: `Checked out successfully${isOvertimeCheckout && finalOvertimeHours > 0 ? ` with ${Math.round(finalOvertimeHours * 100) / 100} hours overtime` : ''}`,
         attendance: updatedAttendance,
-        workingHours: Math.round(workingHours * 100) / 100,
-        overtimeHours: Math.round(overtimeHours * 100) / 100,
-        hasOvertime: hasOvertimeThreshold,
+        workingHours: Math.round(finalWorkingHours * 100) / 100,
+        overtimeHours: Math.round(finalOvertimeHours * 100) / 100,
+        hasOvertime: isOvertimeCheckout && finalOvertimeHours > 0,
         departmentSettings: {
           expectedCheckOut: expectedCheckOutTime,
-          standardHours: standardWorkingHours,
-          overtimeThreshold: overtimeThresholdMinutes
+          standardHours: departmentTiming?.workingHours || 8,
+          overtimeThreshold: departmentTiming?.overtimeThresholdMinutes || 30
         }
       });
     } catch (error: any) {
       console.error("Error checking out:", error);
       res.status(500).json({ message: "Failed to process check-out" });
+    }
+  });
+
+  // FEATURE 2: Auto-checkout endpoint for system-triggered checkouts
+  app.post("/api/attendance/auto-checkout", verifyAuth, async (req, res) => {
+    try {
+      const userId = req.user.uid;
+
+      // Get user for validation
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Find today's attendance record
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const attendanceRecord = await storage.getAttendanceByUserAndDate(userId, today);
+      
+      if (!attendanceRecord || attendanceRecord.checkOutTime) {
+        return res.status(400).json({ message: "No valid check-in record found or already checked out" });
+      }
+
+      // Get department timing
+      const departmentTiming = user.department 
+        ? await storage.getDepartmentTiming(user.department)
+        : null;
+
+      const expectedCheckOutTime = departmentTiming?.checkOutTime || "18:30";
+      const [checkOutHour, checkOutMinute] = expectedCheckOutTime.split(":").map(Number);
+      
+      const checkInTime = new Date(attendanceRecord.checkInTime || new Date());
+      const checkInDate = new Date(checkInTime);
+      checkInDate.setHours(0, 0, 0, 0);
+      
+      // Calculate checkout at expected time (6:00 PM)
+      const autoCheckOutTime = new Date(
+        checkInDate.getFullYear(),
+        checkInDate.getMonth(),
+        checkInDate.getDate(),
+        checkOutHour,
+        checkOutMinute,
+      );
+
+      // Calculate working hours only till expected checkout time
+      const workingMilliseconds = autoCheckOutTime.getTime() - checkInTime.getTime();
+      const workingHours = Math.max(0, workingMilliseconds / (1000 * 60 * 60));
+
+      console.log('AUTO-CHECKOUT:', {
+        userId,
+        checkInTime: checkInTime.toLocaleTimeString(),
+        autoCheckOutTime: autoCheckOutTime.toLocaleTimeString(),
+        workingHours: Math.round(workingHours * 100) / 100
+      });
+
+      // Update attendance record with auto-checkout
+      const updatedAttendance = await storage.updateAttendance(attendanceRecord.id, {
+        checkOutTime: autoCheckOutTime,
+        workingHours: Math.round(workingHours * 100) / 100,
+        overtimeHours: 0, // No OT for auto-checkout
+        remarks: 'Auto-checkout - forgot to checkout manually',
+        isAutoCheckout: true
+      });
+
+      // Log activity
+      await storage.createActivityLog({
+        type: 'attendance',
+        title: 'Auto Check-out',
+        description: `${user.displayName} was automatically checked out after 2-hour grace period`,
+        entityId: attendanceRecord.id,
+        entityType: 'attendance',
+        userId: user.uid
+      });
+
+      res.json({
+        message: "Auto-checkout completed successfully",
+        attendance: updatedAttendance,
+        workingHours: Math.round(workingHours * 100) / 100,
+        isAutoCheckout: true
+      });
+    } catch (error: any) {
+      console.error("Error in auto-checkout:", error);
+      res.status(500).json({ message: "Failed to process auto-checkout" });
     }
   });
 

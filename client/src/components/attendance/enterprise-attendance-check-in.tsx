@@ -21,6 +21,7 @@ interface EnterpriseAttendanceCheckInProps {
   onClose: () => void;
   onSuccess: () => void;
   officeLocations?: any[];
+  departmentTiming?: any;
 }
 
 interface LocationValidation {
@@ -32,7 +33,7 @@ interface LocationValidation {
   recommendations: string[];
 }
 
-export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: EnterpriseAttendanceCheckInProps) {
+export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess, departmentTiming }: EnterpriseAttendanceCheckInProps) {
   const { user } = useAuthContext();
   const { location, error: locationError, isLoading: locationLoading, getCurrentLocation } = useGeolocation();
   const { toast } = useToast();
@@ -64,6 +65,9 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
   const [customerName, setCustomerName] = useState("");
   const [reason, setReason] = useState("");
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
+  const [earlyCheckInReason, setEarlyCheckInReason] = useState("");
+  const [isEarlyCheckIn, setIsEarlyCheckIn] = useState(false);
+  const [requiresEarlyVerification, setRequiresEarlyVerification] = useState(false);
 
   // Location validation states
   const [locationValidation, setLocationValidation] = useState<LocationValidation | null>(null);
@@ -78,6 +82,32 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
 
   // Network status
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  // Check if current time is before department check-in time
+  useEffect(() => {
+    if (departmentTiming && isOpen) {
+      const now = new Date();
+      const [checkInHour, checkInMinute] = departmentTiming.checkInTime.split(':').map(Number);
+      
+      const expectedCheckInTime = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate(),
+        checkInHour,
+        checkInMinute
+      );
+
+      const isEarly = now < expectedCheckInTime;
+      setIsEarlyCheckIn(isEarly);
+      setRequiresEarlyVerification(isEarly);
+      
+      console.log('EARLY CHECK-IN DETECTION:', {
+        currentTime: now.toLocaleTimeString(),
+        expectedTime: expectedCheckInTime.toLocaleTimeString(),
+        isEarly
+      });
+    }
+  }, [departmentTiming, isOpen]);
 
   // Device-aware location status display
   const getLocationStatus = () => {
@@ -143,16 +173,30 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
         throw new Error('Location data not available');
       }
 
-      // Ensure we have captured photo for field work
+      // Validate required fields
+      if (attendanceType === "field_work" && !customerName) {
+        throw new Error("Customer name is required for field work");
+      }
+
       if (attendanceType === "field_work" && !capturedPhoto) {
-        throw new Error('Photo is required for field work');
+        throw new Error("Photo is mandatory for field work attendance");
+      }
+
+      // Validate early check-in requirements
+      if (isEarlyCheckIn) {
+        if (!capturedPhoto) {
+          throw new Error("Photo is mandatory for early check-in verification");
+        }
+        if (!earlyCheckInReason.trim()) {
+          throw new Error("Reason is mandatory for early check-in verification");
+        }
       }
 
       // Prepare request data
       let photoUploadUrl = undefined;
 
-      // Upload photo to Cloudinary if available
-      if (capturedPhoto && attendanceType === "field_work") {
+      // Upload photo to Cloudinary if available (field work or early check-in)
+      if (capturedPhoto && (attendanceType === "field_work" || isEarlyCheckIn)) {
         console.log('FRONTEND: Uploading photo to Cloudinary...');
         
         try {
@@ -196,6 +240,7 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
         reason: attendanceType !== "office" ? reason : undefined,
         customerName: attendanceType === "field_work" ? customerName : undefined,
         imageUrl: photoUploadUrl,
+        earlyCheckInReason: isEarlyCheckIn ? earlyCheckInReason : undefined,
         deviceInfo: {
           type: deviceInfo.type,
           userAgent: deviceInfo.userAgent,
@@ -216,6 +261,16 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
 
       if (!response.ok) {
         const errorData = await response.json();
+        
+        // Handle early check-in validation errors
+        if (errorData.isEarlyCheckIn) {
+          if (errorData.requiresPhoto) {
+            throw new Error("Early check-in requires photo verification. Please capture a photo first.");
+          }
+          if (errorData.requiresReason) {
+            throw new Error("Early check-in requires a reason. Please provide a reason for checking in early.");
+          }
+        }
         
         // Store location validation results for display
         if (errorData.locationValidation) {
@@ -259,8 +314,11 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
       setAttendanceType("office");
       setCustomerName("");
       setReason("");
+      setEarlyCheckInReason("");
       setCapturedPhoto(null);
       setLocationValidation(null);
+      setIsEarlyCheckIn(false);
+      setRequiresEarlyVerification(false);
       
       // Cleanup camera
       if (stream) {

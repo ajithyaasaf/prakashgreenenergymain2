@@ -24,6 +24,13 @@ interface AttendanceCheckOutProps {
   departmentTiming?: any;
 }
 
+interface CheckoutTimeStatus {
+  isLate: boolean;
+  lateMinutes: number;
+  showOTButton: boolean;
+  autoCheckoutTime: Date;
+}
+
 // Default office coordinates
 const DEFAULT_OFFICE = {
   latitude: 9.966844592415782,
@@ -47,6 +54,8 @@ export function AttendanceCheckOut({
   const [otReason, setOtReason] = useState("");
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isOvertimeCheckout, setIsOvertimeCheckout] = useState(false);
+  const [timeStatus, setTimeStatus] = useState<CheckoutTimeStatus | null>(null);
 
   // Camera states
   const [isCameraActive, setIsCameraActive] = useState(false);
@@ -57,32 +66,39 @@ export function AttendanceCheckOut({
   // Network status
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
-  // Calculate overtime
-  const calculateOvertimeInfo = () => {
+  // Calculate checkout time status
+  const calculateCheckoutStatus = () => {
     if (!currentAttendance?.checkInTime || !departmentTiming) {
-      return { hasOvertime: false, overtimeHours: 0, overtimeMinutes: 0 };
+      return { isLate: false, lateMinutes: 0, showOTButton: false, autoCheckoutTime: new Date() };
     }
 
-    const checkInTime = new Date(currentAttendance.checkInTime);
-    const currentTime = new Date();
-    const workingMinutes = Math.floor((currentTime.getTime() - checkInTime.getTime()) / (1000 * 60));
+    const now = new Date();
+    const [checkOutHour, checkOutMinute] = departmentTiming.checkOutTime.split(':').map(Number);
     
-    const standardWorkingMinutes = (departmentTiming.workingHours || 8) * 60;
-    const overtimeThreshold = departmentTiming.overtimeThresholdMinutes || 30;
+    const expectedCheckOutTime = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      checkOutHour,
+      checkOutMinute
+    );
+
+    const isLate = now > expectedCheckOutTime;
+    const lateMinutes = isLate ? Math.floor((now.getTime() - expectedCheckOutTime.getTime()) / (1000 * 60)) : 0;
     
-    const potentialOvertimeMinutes = workingMinutes - standardWorkingMinutes;
-    const hasOvertime = potentialOvertimeMinutes >= overtimeThreshold;
-    
+    // Auto-checkout time is 2 hours after expected checkout
+    const autoCheckoutTime = new Date(expectedCheckOutTime.getTime() + (2 * 60 * 60 * 1000));
+
     return {
-      hasOvertime,
-      overtimeHours: Math.floor(potentialOvertimeMinutes / 60),
-      overtimeMinutes: potentialOvertimeMinutes % 60,
-      totalWorkingHours: Math.floor(workingMinutes / 60),
-      totalWorkingMinutes: workingMinutes % 60
+      isLate,
+      lateMinutes,
+      showOTButton: isLate,
+      autoCheckoutTime,
+      expectedCheckOutTime
     };
   };
 
-  const overtimeInfo = calculateOvertimeInfo();
+  const checkoutStatus = calculateCheckoutStatus();
 
   useEffect(() => {
     const handleOnlineStatus = () => setIsOnline(navigator.onLine);
@@ -98,6 +114,7 @@ export function AttendanceCheckOut({
   useEffect(() => {
     if (isOpen) {
       getCurrentLocation();
+      setTimeStatus(calculateCheckoutStatus());
     }
   }, [isOpen]);
 
