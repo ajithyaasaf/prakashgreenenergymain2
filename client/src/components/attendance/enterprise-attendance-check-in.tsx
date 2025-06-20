@@ -98,8 +98,18 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess, depart
       );
 
       const isEarly = now < expectedCheckInTime;
+      const minutesEarly = isEarly ? Math.floor((expectedCheckInTime.getTime() - now.getTime()) / (1000 * 60)) : 0;
+      
       setIsEarlyCheckIn(isEarly);
       setRequiresEarlyVerification(isEarly);
+      
+      if (isEarly) {
+        toast({
+          title: "Early Check-in Detected",
+          description: `You are ${minutesEarly} minutes early. Please provide reason and photo.`,
+          variant: "default"
+        });
+      }
       
       console.log('EARLY CHECK-IN DETECTION:', {
         currentTime: now.toLocaleTimeString(),

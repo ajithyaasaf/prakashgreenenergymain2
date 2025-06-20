@@ -32,6 +32,7 @@ import {
 import { isWithinGeoFence, calculateDistance, performAutomaticLocationCalibration } from "./utils";
 import { UnifiedAttendanceService } from "./services/unified-attendance-service";
 import { EnterprisePerformanceMonitor } from "./services/performance-monitor";
+import { AttendanceOvertimeService } from "./services/attendance-overtime-service";
 import { auth } from "./firebase";
 import { userService } from "./services/user-service";
 import { testFirebaseAdminSDK, testUserManagement } from "./test-firebase-admin";
@@ -3752,7 +3753,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Enhanced Check-in with geolocation and field work support
+  // Enhanced Check-in with early login detection and geolocation support
   app.post("/api/attendance/check-in", verifyAuth, async (req, res) => {
     try {
       if (!req.authenticatedUser) {

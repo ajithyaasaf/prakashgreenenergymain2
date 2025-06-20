@@ -225,6 +225,38 @@ export interface Attendance {
   status: string;
   overtimeHours?: number;
   otReason?: string;
+  
+  // Enhanced features for early login and auto checkout
+  isEarlyCheckIn?: boolean;
+  earlyCheckInReason?: string;
+  earlyCheckInImageUrl?: string;
+  isEarlyCheckOut?: boolean;
+  earlyCheckOutReason?: string;
+  
+  // Overtime management
+  overtimeEnabled?: boolean;
+  overtimeStartTime?: Date;
+  overtimeApprovalStatus?: "pending" | "approved" | "rejected";
+  
+  // Auto checkout functionality
+  autoCheckOutEnabled?: boolean;
+  autoCheckOutTime?: Date;
+  isAutoCheckedOut?: boolean;
+  autoCheckOutReason?: string;
+  
+  // Working hours calculation
+  regularWorkingHours?: number;
+  actualOvertimeHours?: number;
+  
+  // Timing compliance
+  expectedCheckInTime?: Date;
+  expectedCheckOutTime?: Date;
+  isLateCheckIn?: boolean;
+  lateCheckInMinutes?: number;
+  
+  // Audit trail
+  lastModifiedAt?: Date;
+  lastModifiedBy?: string;
 }
 
 export interface Leave {

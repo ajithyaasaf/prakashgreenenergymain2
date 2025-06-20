@@ -25,11 +25,14 @@ interface SmartAttendanceCheckOutProps {
 }
 
 interface CheckoutTimeStatus {
+  isEarly: boolean;
   isLate: boolean;
   lateMinutes: number;
+  earlyMinutes: number;
   showOTButton: boolean;
   autoCheckoutTime: Date;
   expectedCheckOutTime: Date;
+  canEnableOvertime: boolean;
 }
 
 export function SmartAttendanceCheckOut({ 
@@ -50,6 +53,8 @@ export function SmartAttendanceCheckOut({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isOvertimeCheckout, setIsOvertimeCheckout] = useState(false);
   const [timeStatus, setTimeStatus] = useState<CheckoutTimeStatus | null>(null);
+  const [showOvertimeConfirmation, setShowOvertimeConfirmation] = useState(false);
+  const [overtimeEnabled, setOvertimeEnabled] = useState(false);
 
   // Camera states
   const [isCameraActive, setIsCameraActive] = useState(false);
@@ -64,11 +69,14 @@ export function SmartAttendanceCheckOut({
   const calculateCheckoutStatus = (): CheckoutTimeStatus => {
     if (!currentAttendance?.checkInTime || !departmentTiming) {
       return { 
+        isEarly: false,
         isLate: false, 
-        lateMinutes: 0, 
+        lateMinutes: 0,
+        earlyMinutes: 0, 
         showOTButton: false, 
         autoCheckoutTime: new Date(),
-        expectedCheckOutTime: new Date()
+        expectedCheckOutTime: new Date(),
+        canEnableOvertime: false
       };
     }
 
@@ -84,17 +92,22 @@ export function SmartAttendanceCheckOut({
     );
 
     const isLate = now > expectedCheckOutTime;
+    const isEarly = now < expectedCheckOutTime;
     const lateMinutes = isLate ? Math.floor((now.getTime() - expectedCheckOutTime.getTime()) / (1000 * 60)) : 0;
+    const earlyMinutes = isEarly ? Math.floor((expectedCheckOutTime.getTime() - now.getTime()) / (1000 * 60)) : 0;
     
     // Auto-checkout time is 2 hours after expected checkout
     const autoCheckoutTime = new Date(expectedCheckOutTime.getTime() + (2 * 60 * 60 * 1000));
 
     return {
+      isEarly,
       isLate,
       lateMinutes,
+      earlyMinutes,
       showOTButton: isLate,
       autoCheckoutTime,
-      expectedCheckOutTime
+      expectedCheckOutTime,
+      canEnableOvertime: isLate && !currentAttendance?.overtimeEnabled
     };
   };
 

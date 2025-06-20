@@ -667,7 +667,7 @@ export default function Attendance() {
       />
 
       {/* Check-out Modal */}
-      <AttendanceCheckOut
+      <SmartAttendanceCheckOut
         isOpen={showCheckOutModal}
         onClose={() => setShowCheckOutModal(false)}
         onSuccess={refreshAttendance}

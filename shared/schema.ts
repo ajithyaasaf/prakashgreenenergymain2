@@ -138,9 +138,38 @@ export const insertAttendanceSchema = z.object({
   remarks: z.string().optional(),
   isWithinOfficeRadius: z.boolean().default(false),
   distanceFromOffice: z.number().optional(),
-  // New fields for smart attendance features
-  isAutoCheckout: z.boolean().default(false),
+  
+  // Enhanced features for early login and auto checkout
+  isEarlyCheckIn: z.boolean().default(false),
   earlyCheckInReason: z.string().optional(),
+  earlyCheckInImageUrl: z.string().optional(),
+  isEarlyCheckOut: z.boolean().default(false),
+  earlyCheckOutReason: z.string().optional(),
+  
+  // Overtime management
+  overtimeEnabled: z.boolean().default(false),
+  overtimeStartTime: z.date().optional(),
+  overtimeApprovalStatus: z.enum(["pending", "approved", "rejected"]).optional(),
+  
+  // Auto checkout functionality
+  autoCheckOutEnabled: z.boolean().default(true),
+  autoCheckOutTime: z.date().optional(),
+  isAutoCheckedOut: z.boolean().default(false),
+  autoCheckOutReason: z.string().optional(),
+  
+  // Working hours calculation
+  regularWorkingHours: z.number().min(0).default(0),
+  actualOvertimeHours: z.number().min(0).default(0),
+  
+  // Timing compliance
+  expectedCheckInTime: z.date().optional(),
+  expectedCheckOutTime: z.date().optional(),
+  isLateCheckIn: z.boolean().default(false),
+  lateCheckInMinutes: z.number().min(0).default(0),
+  
+  // Audit trail
+  lastModifiedAt: z.date().optional(),
+  lastModifiedBy: z.string().optional()
 });
 
 export const insertOfficeLocationSchema = z.object({
