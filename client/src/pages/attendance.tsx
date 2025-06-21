@@ -21,6 +21,7 @@ import { EnterpriseAttendanceCheckIn } from "@/components/attendance/enterprise-
 import { AttendanceCheckOut } from "@/components/attendance/attendance-check-out";
 import { OvertimeManagement } from "@/components/attendance/overtime-management";
 import { EnhancedCheckout } from "@/components/attendance/enhanced-checkout";
+import { AutoCheckoutStatus } from "@/components/attendance/auto-checkout-status";
 
 export default function Attendance() {
   const { user } = useAuthContext();
@@ -334,6 +335,14 @@ export default function Attendance() {
             )}
           </CardContent>
         </Card>
+      )}
+
+      {/* Auto-Checkout Status Section */}
+      {todayAttendance && (
+        <AutoCheckoutStatus 
+          attendanceRecord={todayAttendance}
+          departmentCheckoutTime={departmentTiming?.checkOutTime}
+        />
       )}
 
       {/* Overtime Management Section */}

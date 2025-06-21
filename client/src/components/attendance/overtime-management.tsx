@@ -227,8 +227,11 @@ export function OvertimeManagement({ attendanceRecord, onOvertimeRequested }: Ov
               <Alert className="border-orange-200 bg-orange-50">
                 <Clock className="h-4 w-4 text-orange-600" />
                 <AlertDescription className="text-orange-800">
-                  Overtime is active. Auto-checkout has been disabled.
-                  Remember to manually checkout when your work is complete.
+                  <strong>Overtime Active</strong><br />
+                  • 2-hour auto-checkout has been cancelled<br />
+                  • Manual checkout required when work is complete<br />
+                  • Emergency auto-checkout will occur at 11:55 PM if you forget<br />
+                  • Working hours will be calculated until {getDepartmentCheckoutTime()} for auto-checkout
                 </AlertDescription>
               </Alert>
             </div>
@@ -257,10 +260,11 @@ export function OvertimeManagement({ attendanceRecord, onOvertimeRequested }: Ov
                         <AlertDescription>
                           Requesting overtime will:
                           <ul className="list-disc list-inside mt-2 space-y-1">
-                            <li>Disable automatic checkout</li>
+                            <li>Cancel the 2-hour auto-checkout timer</li>
                             <li>Start overtime tracking from {getDepartmentCheckoutTime()}</li>
                             <li>Require manual checkout when work is complete</li>
                             <li>Track overtime hours for payroll processing</li>
+                            <li>If you forget to checkout, system will auto-checkout at 11:55 PM with department checkout time</li>
                           </ul>
                         </AlertDescription>
                       </Alert>

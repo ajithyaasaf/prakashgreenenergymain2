@@ -2056,9 +2056,45 @@ export class FirestoreStorage implements IStorage {
         overtimeStartTime: data.overtimeStartTime?.toDate() || null,
         overtimeEndTime: data.overtimeEndTime?.toDate() || null,
         autoCheckoutTime: data.autoCheckoutTime?.toDate() || null,
+        effectiveCheckOutTime: data.effectiveCheckOutTime?.toDate() || null,
         lastActivityTime: data.lastActivityTime?.toDate() || null,
       } as Attendance;
     });
+  }
+
+  async getPendingCheckouts(date: Date): Promise<Attendance[]> {
+    console.log('STORAGE: Getting pending checkouts for date:', date.toISOString());
+    try {
+      const dateStr = date.toISOString().split('T')[0];
+      const attendanceRef = this.db.collection("attendance");
+      const snapshot = await attendanceRef
+        .where("dateString", "==", dateStr)
+        .where("checkOutTime", "==", null)
+        .get();
+      
+      const results = [];
+      
+      for (const doc of snapshot.docs) {
+        const data = doc.data();
+        const convertedData = {
+          ...data,
+          id: doc.id,
+          checkInTime: data.checkInTime?.toDate?.() || data.checkInTime,
+          overtimeRequestedAt: data.overtimeRequestedAt?.toDate?.() || data.overtimeRequestedAt,
+          overtimeStartTime: data.overtimeStartTime?.toDate?.() || data.overtimeStartTime,
+          autoCheckoutTime: data.autoCheckoutTime?.toDate?.() || data.autoCheckoutTime,
+          effectiveCheckOutTime: data.effectiveCheckOutTime?.toDate?.() || data.effectiveCheckOutTime,
+          lastActivityTime: data.lastActivityTime?.toDate?.() || data.lastActivityTime
+        };
+        results.push(convertedData);
+      }
+      
+      console.log('STORAGE: Found pending checkouts:', results.length);
+      return results;
+    } catch (error) {
+      console.error('STORAGE: Error getting pending checkouts:', error);
+      throw error;
+    }
   }
 
   async listAttendanceBetweenDates(

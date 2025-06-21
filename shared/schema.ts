@@ -160,6 +160,7 @@ export const insertAttendanceSchema = z.object({
   isAutoCheckout: z.boolean().default(false),
   autoCheckoutTime: z.date().optional(),
   autoCheckoutReason: z.string().optional(),
+  effectiveCheckOutTime: z.date().optional(), // Department checkout time for auto-checkout calculations
   
   // System fields for tracking
   lastActivityTime: z.date().optional(),

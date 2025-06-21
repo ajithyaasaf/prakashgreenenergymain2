@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
+import { AutoCheckoutService } from "./services/auto-checkout-service";
 import { 
   insertAttendanceSchema, 
   insertOfficeLocationSchema, 
@@ -4300,5 +4301,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   const httpServer = createServer(app);
+  
+  // Initialize auto-checkout service after server setup
+  AutoCheckoutService.initialize();
+  console.log("Auto-checkout service initialized");
+  
   return httpServer;
 }

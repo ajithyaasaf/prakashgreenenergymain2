@@ -6,6 +6,7 @@
 import { storage } from '../storage';
 import { EnterpriseLocationService, LocationRequest, LocationValidationResult } from './enterprise-location-service';
 import { CloudinaryService } from './cloudinary-service';
+import { AutoCheckoutService } from './auto-checkout-service';
 
 export interface AttendanceCheckInRequest {
   userId: string;
@@ -216,6 +217,10 @@ export class UnifiedAttendanceService {
       };
 
       const newAttendance = await storage.createAttendance(attendanceData);
+
+      // Schedule auto-checkout (2 hours after department checkout time)
+      const departmentTiming = this.getDepartmentTiming(user?.department);
+      AutoCheckoutService.scheduleAutoCheckout(request.userId, newAttendance.id, departmentTiming.checkOutTime);
 
       // Log location validation for security and analytics
       await EnterpriseLocationService.logLocationValidation(
@@ -551,6 +556,9 @@ export class UnifiedAttendanceService {
         overtimeStartTime: expectedCheckOutTime,
         lastActivityTime: now
       });
+
+      // Cancel auto-checkout since overtime is requested
+      AutoCheckoutService.cancelAutoCheckoutForOvertime(userId);
 
       // Log activity
       await storage.createActivityLog({
