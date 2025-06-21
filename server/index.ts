@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { AttendanceOvertimeService } from "./services/attendance-overtime-service";
+import { AttendanceScheduler } from "./services/attendance-scheduler";
 
 const app = express();
 app.use(express.json());
@@ -68,12 +69,12 @@ app.use((req, res, next) => {
   }, () => {
     log(`serving on port ${port}`);
     
-    // Start the automatic check-out scheduler
+    // Start the enhanced attendance scheduler
     try {
-      AttendanceOvertimeService.startAutoCheckOutScheduler();
-      console.log("Attendance overtime scheduler started successfully");
+      AttendanceScheduler.start();
+      console.log("Enhanced attendance scheduler started successfully");
     } catch (error) {
-      console.error("Failed to start attendance overtime scheduler:", error);
+      console.error("Failed to start enhanced attendance scheduler:", error);
     }
   });
 })();

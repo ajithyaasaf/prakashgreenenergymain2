@@ -33,6 +33,7 @@ import { isWithinGeoFence, calculateDistance, performAutomaticLocationCalibratio
 import { UnifiedAttendanceService } from "./services/unified-attendance-service";
 import { EnterprisePerformanceMonitor } from "./services/performance-monitor";
 import { AttendanceOvertimeService } from "./services/attendance-overtime-service";
+import { EnhancedAttendanceOvertimeService } from "./services/enhanced-attendance-overtime-service";
 import { auth } from "./firebase";
 import { userService } from "./services/user-service";
 import { testFirebaseAdminSDK, testUserManagement } from "./test-firebase-admin";
@@ -4420,6 +4421,163 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error processing auto checkouts:", error);
       res.status(500).json({ message: "Failed to process auto checkouts" });
+    }
+  });
+
+  // Enhanced Attendance System Routes
+  
+  // Enhanced check-in with early login detection
+  app.post("/api/attendance/enhanced-check-in", verifyAuth, async (req, res) => {
+    try {
+      const { latitude, longitude, attendanceType, reason, imageUrl } = req.body;
+      const userId = req.user.uid;
+
+      // Get user for department timing
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Get department timing
+      const departmentTiming = await storage.getDepartmentTiming(user.department);
+
+      const result = await EnhancedAttendanceOvertimeService.processEnhancedCheckIn({
+        userId,
+        latitude,
+        longitude,
+        attendanceType: attendanceType || "office",
+        reason,
+        imageUrl,
+        departmentTiming
+      });
+
+      if (result.success) {
+        res.json(result);
+      } else {
+        res.status(400).json(result);
+      }
+    } catch (error) {
+      console.error("Error in enhanced check-in:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Internal server error during check-in" 
+      });
+    }
+  });
+
+  // Enhanced check-out with early checkout detection and overtime logic
+  app.post("/api/attendance/enhanced-check-out", verifyAuth, async (req, res) => {
+    try {
+      const { attendanceId, latitude, longitude, reason, imageUrl, isOvertimeCheckout, otReason } = req.body;
+      const userId = req.user.uid;
+
+      // Get user for department timing
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Get department timing
+      const departmentTiming = await storage.getDepartmentTiming(user.department);
+
+      const result = await EnhancedAttendanceOvertimeService.processEnhancedCheckOut({
+        attendanceId,
+        userId,
+        latitude,
+        longitude,
+        reason,
+        imageUrl,
+        isOvertimeCheckout: isOvertimeCheckout || false,
+        otReason,
+        departmentTiming
+      });
+
+      if (result.success) {
+        res.json(result);
+      } else {
+        res.status(400).json(result);
+      }
+    } catch (error) {
+      console.error("Error in enhanced check-out:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Internal server error during check-out" 
+      });
+    }
+  });
+
+  // Enable overtime for user
+  app.post("/api/attendance/:id/enable-overtime", verifyAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.uid;
+
+      const result = await EnhancedAttendanceOvertimeService.enableOvertimeForUser(id, userId);
+      
+      if (result.success) {
+        res.json(result);
+      } else {
+        res.status(400).json(result);
+      }
+    } catch (error) {
+      console.error("Error enabling overtime:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Internal server error while enabling overtime" 
+      });
+    }
+  });
+
+  // Check if user can request overtime
+  app.get("/api/attendance/:id/overtime-eligible", verifyAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.uid;
+
+      // Get attendance record
+      const attendance = await storage.getAttendance(id);
+      if (!attendance || attendance.userId !== userId) {
+        return res.status(404).json({ eligible: false, message: "Attendance record not found" });
+      }
+
+      // Get user for department timing
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ eligible: false, message: "User not found" });
+      }
+
+      // Get department timing
+      const departmentTiming = await storage.getDepartmentTiming(user.department);
+
+      // Check if user can request overtime
+      const canRequest = EnhancedAttendanceOvertimeService.canRequestOvertime(departmentTiming);
+
+      res.json({ 
+        eligible: canRequest,
+        message: canRequest ? "Overtime can be requested" : "Overtime not available yet"
+      });
+    } catch (error) {
+      console.error("Error checking overtime eligibility:", error);
+      res.status(500).json({ 
+        eligible: false, 
+        message: "Error checking overtime eligibility" 
+      });
+    }
+  });
+
+  // Enhanced auto checkouts processing
+  app.post("/api/attendance/enhanced-auto-checkouts", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || user.role !== "master_admin") {
+        return res.status(403).json({ message: "Access denied - Master Admin only" });
+      }
+
+      const result = await EnhancedAttendanceOvertimeService.processEnhancedAutoCheckouts();
+      res.json(result);
+    } catch (error) {
+      console.error("Error processing enhanced auto checkouts:", error);
+      res.status(500).json({ message: "Failed to process enhanced auto checkouts" });
     }
   });
 

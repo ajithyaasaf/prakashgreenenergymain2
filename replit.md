@@ -125,7 +125,8 @@ DATABASE_URL=(PostgreSQL URL - for future use)
 ```
 
 ## Changelog
-- June 20, 2025. Initial setup
+- June 21, 2025: Implemented comprehensive enhanced attendance overtime system with early login detection, auto-checkout functionality (2-hour buffer), overtime management with approval workflows, and real-time monitoring capabilities
+- June 20, 2025: Initial setup
 
 ## User Preferences
 

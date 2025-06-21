@@ -19,6 +19,8 @@ import {
 import { apiRequest } from "@/lib/queryClient";
 import { EnterpriseAttendanceCheckIn } from "@/components/attendance/enterprise-attendance-check-in";
 import { SmartAttendanceCheckOut } from "@/components/attendance/smart-attendance-check-out";
+import { EnhancedAttendanceCheckIn } from "@/components/attendance/enhanced-attendance-check-in";
+import { EnhancedAttendanceCheckOut } from "@/components/attendance/enhanced-attendance-check-out";
 
 export default function Attendance() {
   const { user } = useAuthContext();
@@ -658,20 +660,20 @@ export default function Attendance() {
         </TabsContent>
       </Tabs>
 
-      {/* Check-in Modal */}
-      <EnterpriseAttendanceCheckIn
+      {/* Enhanced Check-in Modal */}
+      <EnhancedAttendanceCheckIn
         isOpen={showCheckInModal}
         onClose={() => setShowCheckInModal(false)}
         onSuccess={refreshAttendance}
-        officeLocations={officeLocations}
+        departmentTiming={departmentTiming}
       />
 
-      {/* Check-out Modal */}
-      <SmartAttendanceCheckOut
+      {/* Enhanced Check-out Modal */}
+      <EnhancedAttendanceCheckOut
         isOpen={showCheckOutModal}
         onClose={() => setShowCheckOutModal(false)}
         onSuccess={refreshAttendance}
-        currentAttendance={todayAttendance}
+        todayAttendance={todayAttendance}
         departmentTiming={departmentTiming}
       />
     </div>

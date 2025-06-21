@@ -230,23 +230,29 @@ export interface Attendance {
   isEarlyCheckIn?: boolean;
   earlyCheckInReason?: string;
   earlyCheckInImageUrl?: string;
+  earlyCheckInMinutes?: number;
   isEarlyCheckOut?: boolean;
   earlyCheckOutReason?: string;
+  earlyCheckOutMinutes?: number;
   
-  // Overtime management
+  // Enhanced overtime management with user control
   overtimeEnabled?: boolean;
   overtimeStartTime?: Date;
   overtimeApprovalStatus?: "pending" | "approved" | "rejected";
+  overtimeRequestedByUser?: boolean; // User explicitly requested OT
   
-  // Auto checkout functionality
+  // Advanced auto checkout functionality with 2-hour buffer
   autoCheckOutEnabled?: boolean;
-  autoCheckOutTime?: Date;
+  autoCheckOutTime?: Date; // Initially 2 hours after dept checkout time
+  finalAutoCheckOutTime?: Date; // 11:55 PM when OT is enabled
   isAutoCheckedOut?: boolean;
   autoCheckOutReason?: string;
   
-  // Working hours calculation
+  // Enhanced working hours calculation
   regularWorkingHours?: number;
   actualOvertimeHours?: number;
+  calculatedWorkingHours?: number; // Total hours worked
+  eligibleOvertimeHours?: number; // OT hours that count for payment
   
   // Timing compliance
   expectedCheckInTime?: Date;
