@@ -108,7 +108,13 @@ export function OvertimeManagement({ attendanceRecord, onOvertimeRequested }: Ov
       technical: '18:00',
       housekeeping: '17:00'
     };
-    return timings[department as keyof typeof timings] || '18:00';
+    const time24 = timings[department as keyof typeof timings] || '18:00';
+    
+    // Convert 24-hour format to 12-hour format
+    const [hour, minute] = time24.split(':').map(Number);
+    const date = new Date();
+    date.setHours(hour, minute);
+    return format(date, 'h:mm a');
   };
 
   const canRequestOvertime = () => {
@@ -180,7 +186,7 @@ export function OvertimeManagement({ attendanceRecord, onOvertimeRequested }: Ov
           <div className="space-y-2">
             <div className="text-sm font-medium text-gray-600">Check-in Time</div>
             <div className="text-lg font-semibold">
-              {attendance?.checkInTime ? format(new Date(attendance.checkInTime), 'HH:mm') : 'Not checked in'}
+              {attendance?.checkInTime ? format(new Date(attendance.checkInTime), 'h:mm a') : 'Not checked in'}
             </div>
           </div>
           <div className="space-y-2">
@@ -213,7 +219,7 @@ export function OvertimeManagement({ attendanceRecord, onOvertimeRequested }: Ov
                 <div className="space-y-1">
                   <div className="text-sm font-medium text-gray-600">OT Start Time</div>
                   <div className="text-base font-semibold">
-                    {overtimeStartTime ? format(new Date(overtimeStartTime), 'HH:mm') : '-'}
+                    {overtimeStartTime ? format(new Date(overtimeStartTime), 'h:mm a') : '-'}
                   </div>
                 </div>
                 <div className="space-y-1">

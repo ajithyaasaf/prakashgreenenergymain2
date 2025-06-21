@@ -48,7 +48,7 @@ export function AutoCheckoutStatus({ attendanceRecord, departmentCheckoutTime = 
         description: "You requested overtime. System will auto-checkout at 11:55 PM if you forget to checkout manually.",
         variant: "orange" as const,
         icon: Timer,
-        timeInfo: `Emergency auto-checkout: ${format(emergencyCheckoutTime, 'HH:mm')}`
+        timeInfo: `Emergency auto-checkout: ${format(emergencyCheckoutTime, 'h:mm a')}`
       };
     }
     
@@ -59,7 +59,7 @@ export function AutoCheckoutStatus({ attendanceRecord, departmentCheckoutTime = 
         description: `System will automatically checkout in ${hoursUntilAutoCheckout}h ${minutesUntilAutoCheckout % 60}m if you don't checkout manually.`,
         variant: "yellow" as const,
         icon: Clock,
-        timeInfo: `Auto-checkout at: ${format(autoCheckoutTime, 'HH:mm')}`
+        timeInfo: `Auto-checkout at: ${format(autoCheckoutTime, 'h:mm a')}`
       };
     }
     
@@ -70,7 +70,7 @@ export function AutoCheckoutStatus({ attendanceRecord, departmentCheckoutTime = 
         description: `Auto-checkout will be scheduled after ${departmentCheckoutTime} if you don't checkout on time.`,
         variant: "green" as const,
         icon: CheckCircle,
-        timeInfo: `Department checkout: ${departmentCheckoutTime}`
+        timeInfo: `Department checkout: ${format(deptCheckoutTime, 'h:mm a')}`
       };
     }
     
@@ -148,7 +148,7 @@ export function AutoCheckoutStatus({ attendanceRecord, departmentCheckoutTime = 
           <div className="space-y-1">
             <div className="text-sm font-medium text-gray-600">Check-in Time</div>
             <div className="text-base font-semibold">
-              {format(checkInTime, 'HH:mm')}
+              {format(checkInTime, 'h:mm a')}
             </div>
           </div>
           <div className="space-y-1">
@@ -163,7 +163,7 @@ export function AutoCheckoutStatus({ attendanceRecord, departmentCheckoutTime = 
         <div className="space-y-2">
           <h4 className="text-sm font-medium text-gray-700">Auto-Checkout Rules:</h4>
           <ul className="text-xs text-gray-600 space-y-1">
-            <li>• System waits 2 hours after department checkout time ({departmentCheckoutTime})</li>
+            <li>• System waits 2 hours after department checkout time ({format(deptCheckoutTime, 'h:mm a')})</li>
             <li>• Working hours calculated until department checkout time only</li>
             <li>• Overtime requests cancel the 2-hour auto-checkout timer</li>
             <li>• Emergency auto-checkout occurs at 11:55 PM for forgotten checkouts</li>
