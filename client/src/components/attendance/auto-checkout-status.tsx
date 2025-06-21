@@ -67,7 +67,7 @@ export function AutoCheckoutStatus({ attendanceRecord, departmentCheckoutTime = 
       return {
         status: "normal_hours",
         message: "Normal working hours",
-        description: `Auto-checkout will be scheduled after ${departmentCheckoutTime} if you don't checkout on time.`,
+        description: `Auto-checkout will be scheduled after ${format(deptCheckoutTime, 'h:mm a')} if you don't checkout on time.`,
         variant: "green" as const,
         icon: CheckCircle,
         timeInfo: `Department checkout: ${format(deptCheckoutTime, 'h:mm a')}`
