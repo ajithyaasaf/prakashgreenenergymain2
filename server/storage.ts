@@ -2035,6 +2035,32 @@ export class FirestoreStorage implements IStorage {
     return this.getAttendanceByUserAndDate(userId, targetDate);
   }
 
+  async getActiveAttendancesForDate(date: Date): Promise<Attendance[]> {
+    const dateStr = date.toISOString().split('T')[0];
+    
+    const attendanceRef = this.db.collection("attendance");
+    const snapshot = await attendanceRef
+      .where("dateString", "==", dateStr)
+      .where("checkOutTime", "==", null)
+      .get();
+    
+    return snapshot.docs.map(doc => {
+      const data = doc.data() || {};
+      return {
+        id: doc.id,
+        ...data,
+        date: data.date?.toDate() || new Date(),
+        checkInTime: data.checkInTime?.toDate() || null,
+        checkOutTime: data.checkOutTime?.toDate() || null,
+        overtimeRequestedAt: data.overtimeRequestedAt?.toDate() || null,
+        overtimeStartTime: data.overtimeStartTime?.toDate() || null,
+        overtimeEndTime: data.overtimeEndTime?.toDate() || null,
+        autoCheckoutTime: data.autoCheckoutTime?.toDate() || null,
+        lastActivityTime: data.lastActivityTime?.toDate() || null,
+      } as Attendance;
+    });
+  }
+
   async listAttendanceBetweenDates(
     startDate: Date,
     endDate: Date,
