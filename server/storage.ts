@@ -225,44 +225,6 @@ export interface Attendance {
   status: string;
   overtimeHours?: number;
   otReason?: string;
-  
-  // Enhanced features for early login and auto checkout
-  isEarlyCheckIn?: boolean;
-  earlyCheckInReason?: string;
-  earlyCheckInImageUrl?: string;
-  earlyCheckInMinutes?: number;
-  isEarlyCheckOut?: boolean;
-  earlyCheckOutReason?: string;
-  earlyCheckOutMinutes?: number;
-  
-  // Enhanced overtime management with user control
-  overtimeEnabled?: boolean;
-  overtimeStartTime?: Date;
-  overtimeApprovalStatus?: "pending" | "approved" | "rejected";
-  overtimeRequestedByUser?: boolean; // User explicitly requested OT
-  
-  // Advanced auto checkout functionality with 2-hour buffer
-  autoCheckOutEnabled?: boolean;
-  autoCheckOutTime?: Date; // Initially 2 hours after dept checkout time
-  finalAutoCheckOutTime?: Date; // 11:55 PM when OT is enabled
-  isAutoCheckedOut?: boolean;
-  autoCheckOutReason?: string;
-  
-  // Enhanced working hours calculation
-  regularWorkingHours?: number;
-  actualOvertimeHours?: number;
-  calculatedWorkingHours?: number; // Total hours worked
-  eligibleOvertimeHours?: number; // OT hours that count for payment
-  
-  // Timing compliance
-  expectedCheckInTime?: Date;
-  expectedCheckOutTime?: Date;
-  isLateCheckIn?: boolean;
-  lateCheckInMinutes?: number;
-  
-  // Audit trail
-  lastModifiedAt?: Date;
-  lastModifiedBy?: string;
 }
 
 export interface Leave {
@@ -1925,9 +1887,6 @@ export class FirestoreStorage implements IStorage {
       date: updatedData.date?.toDate() || new Date(),
       checkInTime: updatedData.checkInTime?.toDate() || null,
       checkOutTime: updatedData.checkOutTime?.toDate() || null,
-      // Handle new smart attendance fields
-      isAutoCheckout: updatedData.isAutoCheckout || false,
-      earlyCheckInReason: updatedData.earlyCheckInReason || undefined,
     } as Attendance;
   }
 
@@ -1955,9 +1914,6 @@ export class FirestoreStorage implements IStorage {
       date: data.date?.toDate() || new Date(),
       checkInTime: data.checkInTime?.toDate() || null,
       checkOutTime: data.checkOutTime?.toDate() || null,
-      // Handle new smart attendance fields
-      isAutoCheckout: data.isAutoCheckout || false,
-      earlyCheckInReason: data.earlyCheckInReason || undefined,
     } as Attendance;
   }
 
@@ -2071,9 +2027,6 @@ export class FirestoreStorage implements IStorage {
       date: data.date?.toDate() || new Date(),
       checkInTime: data.checkInTime?.toDate() || null,
       checkOutTime: data.checkOutTime?.toDate() || null,
-      // Handle new smart attendance fields
-      isAutoCheckout: data.isAutoCheckout || false,
-      earlyCheckInReason: data.earlyCheckInReason || undefined,
     } as Attendance;
   }
 

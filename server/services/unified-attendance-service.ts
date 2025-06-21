@@ -16,7 +16,6 @@ export interface AttendanceCheckInRequest {
   reason?: string;
   customerName?: string;
   imageUrl?: string;
-  earlyCheckInReason?: string;
   deviceInfo?: {
     type: 'mobile' | 'tablet' | 'desktop';
     userAgent?: string;
@@ -185,11 +184,7 @@ export class UnifiedAttendanceService {
         
         // Optional fields
         ...(request.customerName && { customerName: request.customerName }),
-        ...(cloudinaryImageUrl && { checkInImageUrl: cloudinaryImageUrl }),
-        ...(request.earlyCheckInReason && { earlyCheckInReason: request.earlyCheckInReason }),
-        
-        // Smart attendance features
-        isAutoCheckout: false
+        ...(cloudinaryImageUrl && { checkInImageUrl: cloudinaryImageUrl })
       };
 
       const newAttendance = await storage.createAttendance(attendanceData);

@@ -138,44 +138,6 @@ export const insertAttendanceSchema = z.object({
   remarks: z.string().optional(),
   isWithinOfficeRadius: z.boolean().default(false),
   distanceFromOffice: z.number().optional(),
-  
-  // Enhanced features for early login and auto checkout
-  isEarlyCheckIn: z.boolean().default(false),
-  earlyCheckInReason: z.string().optional(),
-  earlyCheckInImageUrl: z.string().optional(),
-  earlyCheckInMinutes: z.number().default(0),
-  isEarlyCheckOut: z.boolean().default(false),
-  earlyCheckOutReason: z.string().optional(),
-  earlyCheckOutMinutes: z.number().default(0),
-  
-  // Enhanced overtime management with user control
-  overtimeEnabled: z.boolean().default(false),
-  overtimeStartTime: z.date().optional(),
-  overtimeApprovalStatus: z.enum(["pending", "approved", "rejected"]).optional(),
-  overtimeRequestedByUser: z.boolean().default(false), // User explicitly requested OT
-  
-  // Advanced auto checkout functionality with 2-hour buffer
-  autoCheckOutEnabled: z.boolean().default(true),
-  autoCheckOutTime: z.date().optional(), // Initially 2 hours after dept checkout time
-  finalAutoCheckOutTime: z.date().optional(), // 11:55 PM when OT is enabled
-  isAutoCheckedOut: z.boolean().default(false),
-  autoCheckOutReason: z.string().optional(),
-  
-  // Enhanced working hours calculation
-  regularWorkingHours: z.number().min(0).default(0),
-  actualOvertimeHours: z.number().min(0).default(0),
-  calculatedWorkingHours: z.number().min(0).default(0), // Total hours worked
-  eligibleOvertimeHours: z.number().min(0).default(0), // OT hours that count for payment
-  
-  // Timing compliance
-  expectedCheckInTime: z.date().optional(),
-  expectedCheckOutTime: z.date().optional(),
-  isLateCheckIn: z.boolean().default(false),
-  lateCheckInMinutes: z.number().min(0).default(0),
-  
-  // Audit trail
-  lastModifiedAt: z.date().optional(),
-  lastModifiedBy: z.string().optional()
 });
 
 export const insertOfficeLocationSchema = z.object({

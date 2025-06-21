@@ -18,9 +18,7 @@ import {
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { EnterpriseAttendanceCheckIn } from "@/components/attendance/enterprise-attendance-check-in";
-import { SmartAttendanceCheckOut } from "@/components/attendance/smart-attendance-check-out";
-import { EnhancedAttendanceCheckIn } from "@/components/attendance/enhanced-attendance-check-in";
-import { EnhancedAttendanceCheckOut } from "@/components/attendance/enhanced-attendance-check-out";
+import { AttendanceCheckOut } from "@/components/attendance/attendance-check-out";
 
 export default function Attendance() {
   const { user } = useAuthContext();
@@ -660,20 +658,20 @@ export default function Attendance() {
         </TabsContent>
       </Tabs>
 
-      {/* Enhanced Check-in Modal */}
-      <EnhancedAttendanceCheckIn
+      {/* Check-in Modal */}
+      <EnterpriseAttendanceCheckIn
         isOpen={showCheckInModal}
         onClose={() => setShowCheckInModal(false)}
         onSuccess={refreshAttendance}
-        departmentTiming={departmentTiming}
+        officeLocations={officeLocations}
       />
 
-      {/* Enhanced Check-out Modal */}
-      <EnhancedAttendanceCheckOut
+      {/* Check-out Modal */}
+      <AttendanceCheckOut
         isOpen={showCheckOutModal}
         onClose={() => setShowCheckOutModal(false)}
         onSuccess={refreshAttendance}
-        todayAttendance={todayAttendance}
+        currentAttendance={todayAttendance}
         departmentTiming={departmentTiming}
       />
     </div>
