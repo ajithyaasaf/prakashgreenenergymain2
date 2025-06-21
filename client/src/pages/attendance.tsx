@@ -19,6 +19,8 @@ import {
 import { apiRequest } from "@/lib/queryClient";
 import { EnterpriseAttendanceCheckIn } from "@/components/attendance/enterprise-attendance-check-in";
 import { AttendanceCheckOut } from "@/components/attendance/attendance-check-out";
+import { OvertimeManagement } from "@/components/attendance/overtime-management";
+import { EnhancedCheckout } from "@/components/attendance/enhanced-checkout";
 
 export default function Attendance() {
   const { user } = useAuthContext();
@@ -32,6 +34,7 @@ export default function Attendance() {
   // Check-in/out modal states
   const [showCheckInModal, setShowCheckInModal] = useState(false);
   const [showCheckOutModal, setShowCheckOutModal] = useState(false);
+  const [showEnhancedCheckOutModal, setShowEnhancedCheckOutModal] = useState(false);
 
   // Fetch current user's attendance records
   const { data: attendanceRecords = [], isLoading, refetch } = useQuery({
@@ -275,7 +278,7 @@ export default function Attendance() {
               )}
               {canCheckOut && (
                 <Button 
-                  onClick={() => setShowCheckOutModal(true)} 
+                  onClick={() => setShowEnhancedCheckOutModal(true)} 
                   className="bg-red-600 hover:bg-red-700 flex-1 h-12"
                   size="lg"
                 >
@@ -331,6 +334,14 @@ export default function Attendance() {
             )}
           </CardContent>
         </Card>
+      )}
+
+      {/* Overtime Management Section */}
+      {todayAttendance && (
+        <OvertimeManagement 
+          attendanceRecord={todayAttendance}
+          onOvertimeRequested={refreshAttendance}
+        />
       )}
 
       {/* Weekly Summary Section */}
@@ -673,6 +684,14 @@ export default function Attendance() {
         onSuccess={refreshAttendance}
         currentAttendance={todayAttendance}
         departmentTiming={departmentTiming}
+      />
+
+      {/* Enhanced Check-out Modal */}
+      <EnhancedCheckout
+        isOpen={showEnhancedCheckOutModal}
+        onClose={() => setShowEnhancedCheckOutModal(false)}
+        onSuccess={refreshAttendance}
+        attendanceRecord={todayAttendance}
       />
     </div>
   );

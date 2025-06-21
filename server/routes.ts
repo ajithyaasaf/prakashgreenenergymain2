@@ -1179,6 +1179,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Request overtime endpoint
+  app.post("/api/attendance/request-overtime", verifyAuth, async (req, res) => {
+    try {
+      const userId = req.user.uid;
+      
+      const result = await UnifiedAttendanceService.requestOvertime(userId);
+      
+      if (result.success) {
+        res.json(result);
+      } else {
+        res.status(400).json(result);
+      }
+    } catch (error) {
+      console.error('Error requesting overtime:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Failed to request overtime due to system error' 
+      });
+    }
+  });
+
+  // Enhanced check-out endpoint with early checkout detection
+  app.post("/api/attendance/enhanced-check-out", verifyAuth, async (req, res) => {
+    try {
+      const { latitude, longitude, imageUrl, reason, otReason, earlyCheckoutReason } = req.body;
+      const userId = req.user.uid;
+
+      const checkoutRequest = {
+        userId,
+        latitude,
+        longitude,
+        reason,
+        otReason,
+        earlyCheckoutReason,
+        imageUrl
+      };
+
+      const result = await UnifiedAttendanceService.processEnhancedCheckOut(checkoutRequest);
+
+      if (result.success) {
+        res.json(result);
+      } else {
+        res.status(400).json(result);
+      }
+    } catch (error) {
+      console.error('Error processing enhanced check-out:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to process check-out due to system error',
+        workingHours: 0,
+        overtimeHours: 0,
+        totalHours: 0
+      });
+    }
+  });
+
   app.post("/api/attendance/check-out", verifyAuth, async (req, res) => {
     try {
       console.log('CHECKOUT DEBUG: Request body:', JSON.stringify(req.body, null, 2));
