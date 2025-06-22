@@ -6,7 +6,6 @@
 import { storage } from '../storage';
 import { EnterpriseLocationService, LocationRequest, LocationValidationResult } from './enterprise-location-service';
 import { CloudinaryService } from './cloudinary-service';
-import { AutoCheckoutService } from './auto-checkout-service';
 
 export interface AttendanceCheckInRequest {
   userId: string;
@@ -159,7 +158,7 @@ export class UnifiedAttendanceService {
         }
       }
       
-      // Create attendance record with early login tracking
+      // Create attendance record
       const attendanceData = {
         userId: request.userId,
         date: today,
@@ -171,38 +170,10 @@ export class UnifiedAttendanceService {
         status: (timingInfo.isLate ? 'late' : 'present') as 'late' | 'present',
         isLate: timingInfo.isLate,
         lateMinutes: timingInfo.lateMinutes,
-        
-        // Early login fields
-        isEarlyLogin: timingInfo.isEarlyLogin,
-        earlyLoginMinutes: timingInfo.earlyLoginMinutes,
-        ...(timingInfo.isEarlyLogin && request.reason && { earlyLoginReason: request.reason }),
-        ...(timingInfo.isEarlyLogin && cloudinaryImageUrl && { earlyLoginImageUrl: cloudinaryImageUrl }),
-        
-        // Early checkout fields (defaults)
-        isEarlyCheckout: false,
-        earlyCheckoutMinutes: 0,
-        
-        // Overtime fields (defaults)
-        overtimeRequested: false,
-        overtimeRequestedAt: undefined,
-        overtimeStartTime: undefined,
-        overtimeEndTime: undefined,
-        
-        // Auto checkout fields (defaults)
-        isAutoCheckout: false,
-        autoCheckoutTime: undefined,
-        autoCheckoutReason: undefined,
-        
-        // System fields
-        checkoutType: undefined,
-        
         workingHours: 0,
         breakHours: 0,
         isWithinOfficeRadius: locationValidation.isValid && request.attendanceType === 'office',
         remarks: this.generateRemarks(request, locationValidation),
-        
-        // System tracking
-        lastActivityTime: new Date(),
         
         // Enhanced metadata for enterprise tracking
         locationAccuracy: request.accuracy,
@@ -217,10 +188,6 @@ export class UnifiedAttendanceService {
       };
 
       const newAttendance = await storage.createAttendance(attendanceData);
-
-      // Schedule auto-checkout (2 hours after department checkout time)
-      const departmentTiming = this.getDepartmentTiming(user?.department);
-      AutoCheckoutService.scheduleAutoCheckout(request.userId, newAttendance.id, departmentTiming.checkOutTime);
 
       // Log location validation for security and analytics
       await EnterpriseLocationService.logLocationValidation(
@@ -418,13 +385,11 @@ export class UnifiedAttendanceService {
   }
 
   /**
-   * Calculate timing information for check-in including early login detection
+   * Calculate timing information for check-in
    */
   private static calculateTimingInfo(user: any): {
     isLate: boolean;
     lateMinutes: number;
-    isEarlyLogin: boolean;
-    earlyLoginMinutes: number;
     expectedCheckInTime: string;
   } {
     const now = new Date();
@@ -441,15 +406,10 @@ export class UnifiedAttendanceService {
 
     const isLate = now > expectedCheckInTime;
     const lateMinutes = isLate ? Math.floor((now.getTime() - expectedCheckInTime.getTime()) / (1000 * 60)) : 0;
-    
-    const isEarlyLogin = now < expectedCheckInTime;
-    const earlyLoginMinutes = isEarlyLogin ? Math.floor((expectedCheckInTime.getTime() - now.getTime()) / (1000 * 60)) : 0;
 
     return {
       isLate,
       lateMinutes,
-      isEarlyLogin,
-      earlyLoginMinutes,
       expectedCheckInTime: departmentTiming.checkInTime
     };
   }
@@ -497,246 +457,24 @@ export class UnifiedAttendanceService {
   }
 
   /**
-   * Request overtime for current attendance
-   */
-  static async requestOvertime(userId: string): Promise<{ success: boolean; message: string }> {
-    try {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const attendance = await storage.getAttendanceByUserAndDate(userId, today);
-
-      if (!attendance) {
-        return {
-          success: false,
-          message: 'No check-in record found for today'
-        };
-      }
-
-      if (attendance.checkOutTime) {
-        return {
-          success: false,
-          message: 'You have already checked out for today'
-        };
-      }
-
-      if ((attendance as any).overtimeRequested) {
-        return {
-          success: false,
-          message: 'Overtime already requested for today'
-        };
-      }
-
-      // Get user and department timing
-      const user = await storage.getUser(userId);
-      const departmentTiming = this.getDepartmentTiming(user?.department as string || 'operations');
-      const [checkOutHour, checkOutMinute] = departmentTiming.checkOutTime.split(':').map(Number);
-      
-      const expectedCheckOutTime = new Date(
-        today.getFullYear(),
-        today.getMonth(),
-        today.getDate(),
-        checkOutHour,
-        checkOutMinute
-      );
-
-      const now = new Date();
-      
-      // Check if it's after official checkout time
-      if (now < expectedCheckOutTime) {
-        return {
-          success: false,
-          message: `Overtime can only be requested after ${departmentTiming.checkOutTime}`
-        };
-      }
-
-      // Update attendance record with overtime request
-      await storage.updateAttendance(attendance.id, {
-        overtimeRequested: true,
-        overtimeRequestedAt: now,
-        overtimeStartTime: expectedCheckOutTime,
-        lastActivityTime: now
-      });
-
-      // Cancel auto-checkout since overtime is requested
-      AutoCheckoutService.cancelAutoCheckoutForOvertime(userId);
-
-      // Log activity
-      await storage.createActivityLog({
-        type: 'attendance',
-        title: 'Overtime Requested',
-        description: `${user?.displayName} requested overtime starting from ${departmentTiming.checkOutTime}`,
-        entityId: attendance.id,
-        entityType: 'attendance',
-        userId: userId
-      });
-
-      return {
-        success: true,
-        message: 'Overtime request submitted successfully. Auto-checkout has been disabled.'
-      };
-
-    } catch (error) {
-      console.error('Error requesting overtime:', error);
-      return {
-        success: false,
-        message: 'Failed to request overtime due to system error'
-      };
-    }
-  }
-
-  /**
-   * Enhanced checkout with early checkout detection
-   */
-  static async processEnhancedCheckOut(request: AttendanceCheckOutRequest & { 
-    isEarlyCheckout?: boolean; 
-    earlyCheckoutReason?: string; 
-  }): Promise<AttendanceCheckOutResponse> {
-    try {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const attendance = await storage.getAttendanceByUserAndDate(request.userId, today);
-
-      if (!attendance) {
-        return {
-          success: false,
-          message: 'No check-in record found for today',
-          workingHours: 0,
-          overtimeHours: 0,
-          totalHours: 0
-        };
-      }
-
-      if (attendance.checkOutTime) {
-        return {
-          success: false,
-          message: 'You have already checked out for today',
-          workingHours: 0,
-          overtimeHours: 0,
-          totalHours: 0
-        };
-      }
-
-      const user = await storage.getUser(request.userId);
-      const departmentTiming = this.getDepartmentTiming((user?.department as string) || 'operations');
-      const [checkOutHour, checkOutMinute] = departmentTiming.checkOutTime.split(':').map(Number);
-      
-      const expectedCheckOutTime = new Date(
-        today.getFullYear(),
-        today.getMonth(),
-        today.getDate(),
-        checkOutHour,
-        checkOutMinute
-      );
-
-      const now = new Date();
-      const checkInTime = attendance.checkInTime ? new Date(attendance.checkInTime) : new Date();
-
-      // Calculate working hours
-      const workingMinutes = Math.floor((now.getTime() - checkInTime.getTime()) / (1000 * 60));
-      const workingHours = workingMinutes / 60;
-
-      // Calculate overtime
-      let overtimeHours = 0;
-      if ((attendance as any).overtimeRequested && now > expectedCheckOutTime) {
-        const overtimeMinutes = Math.floor((now.getTime() - expectedCheckOutTime.getTime()) / (1000 * 60));
-        overtimeHours = Math.max(0, overtimeMinutes / 60);
-      }
-
-      // Detect early checkout
-      const isEarlyCheckout = now < expectedCheckOutTime && !(attendance as any).overtimeRequested;
-      const earlyCheckoutMinutes = isEarlyCheckout ? 
-        Math.floor((expectedCheckOutTime.getTime() - now.getTime()) / (1000 * 60)) : 0;
-
-      // Update attendance record
-      const updateData: any = {
-        checkOutTime: now,
-        checkOutLatitude: request.latitude?.toString(),
-        checkOutLongitude: request.longitude?.toString(),
-        workingHours,
-        overtimeHours,
-        otReason: request.otReason || '',
-        remarks: request.reason || '',
-        isEarlyCheckout,
-        earlyCheckoutMinutes,
-        earlyCheckoutReason: request.earlyCheckoutReason || '',
-        checkoutType: 'manual' as const,
-        lastActivityTime: now
-      };
-
-      if ((attendance as any).overtimeRequested) {
-        updateData.overtimeEndTime = now;
-      }
-
-      await storage.updateAttendance(attendance.id, updateData);
-
-      // Log activity
-      const activityDescription = `${user?.displayName} checked out after ${workingHours.toFixed(1)} hours${
-        overtimeHours > 0 ? ` (${overtimeHours.toFixed(1)}h overtime)` : ''
-      }${isEarlyCheckout ? ` (${earlyCheckoutMinutes} minutes early)` : ''}`;
-
-      await storage.createActivityLog({
-        type: 'attendance',
-        title: 'Check-out',
-        description: activityDescription,
-        entityId: attendance.id,
-        entityType: 'attendance',
-        userId: request.userId
-      });
-
-      return {
-        success: true,
-        message: `Check-out successful. Total working time: ${workingHours.toFixed(1)} hours${
-          overtimeHours > 0 ? ` (${overtimeHours.toFixed(1)}h overtime)` : ''
-        }${isEarlyCheckout ? ` (Early checkout detected)` : ''}`,
-        workingHours: Number(workingHours.toFixed(2)),
-        overtimeHours: Number(overtimeHours.toFixed(2)),
-        totalHours: Number(workingHours.toFixed(2))
-      };
-
-    } catch (error) {
-      console.error('Error processing enhanced check-out:', error);
-      return {
-        success: false,
-        message: 'Failed to process check-out due to system error',
-        workingHours: 0,
-        overtimeHours: 0,
-        totalHours: 0
-      };
-    }
-  }
-
-  /**
    * Generate comprehensive attendance metrics for analytics
    */
   static async generateAttendanceMetrics(userId: string, dateRange?: { start: Date; end: Date }) {
     try {
-      const attendanceRecord = await storage.getAttendance(userId);
-      if (!attendanceRecord) {
-        return {
-          totalDays: 0,
-          totalWorkingHours: 0,
-          totalOvertimeHours: 0,
-          lateArrivals: 0,
-          averageHoursPerDay: 0,
-          overtimeRate: 0
-        };
-      }
-
-      // For single record, convert to array for processing
-      const attendanceRecords = [attendanceRecord];
+      const attendanceRecords = await storage.getAttendance(userId);
       
       // Filter by date range if provided
       const filteredRecords = dateRange 
-        ? attendanceRecords.filter((record: any) => {
+        ? attendanceRecords.filter(record => {
             const checkInDate = new Date(record.checkInTime);
             return checkInDate >= dateRange.start && checkInDate <= dateRange.end;
           })
         : attendanceRecords;
 
       const totalDays = filteredRecords.length;
-      const totalWorkingHours = filteredRecords.reduce((sum: any, record: any) => sum + (record.workingHours || 0), 0);
-      const totalOvertimeHours = filteredRecords.reduce((sum: any, record: any) => sum + (record.overtimeHours || 0), 0);
-      const lateArrivals = filteredRecords.filter((record: any) => record.isLate).length;
+      const totalWorkingHours = filteredRecords.reduce((sum, record) => sum + (record.workingHours || 0), 0);
+      const totalOvertimeHours = filteredRecords.reduce((sum, record) => sum + (record.overtimeHours || 0), 0);
+      const lateArrivals = filteredRecords.filter(record => record.isLate).length;
       
       return {
         totalDays,

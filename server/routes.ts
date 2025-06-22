@@ -2,7 +2,6 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
-import { AutoCheckoutService } from "./services/auto-checkout-service";
 import { 
   insertAttendanceSchema, 
   insertOfficeLocationSchema, 
@@ -1176,62 +1175,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({
         message: "Internal server error during photo upload",
         error: error instanceof Error ? error.message : 'Unknown error'
-      });
-    }
-  });
-
-  // Request overtime endpoint
-  app.post("/api/attendance/request-overtime", verifyAuth, async (req, res) => {
-    try {
-      const userId = req.user.uid;
-      
-      const result = await UnifiedAttendanceService.requestOvertime(userId);
-      
-      if (result.success) {
-        res.json(result);
-      } else {
-        res.status(400).json(result);
-      }
-    } catch (error) {
-      console.error('Error requesting overtime:', error);
-      res.status(500).json({ 
-        success: false, 
-        message: 'Failed to request overtime due to system error' 
-      });
-    }
-  });
-
-  // Enhanced check-out endpoint with early checkout detection
-  app.post("/api/attendance/enhanced-check-out", verifyAuth, async (req, res) => {
-    try {
-      const { latitude, longitude, imageUrl, reason, otReason, earlyCheckoutReason } = req.body;
-      const userId = req.user.uid;
-
-      const checkoutRequest = {
-        userId,
-        latitude,
-        longitude,
-        reason,
-        otReason,
-        earlyCheckoutReason,
-        imageUrl
-      };
-
-      const result = await UnifiedAttendanceService.processEnhancedCheckOut(checkoutRequest);
-
-      if (result.success) {
-        res.json(result);
-      } else {
-        res.status(400).json(result);
-      }
-    } catch (error) {
-      console.error('Error processing enhanced check-out:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to process check-out due to system error',
-        workingHours: 0,
-        overtimeHours: 0,
-        totalHours: 0
       });
     }
   });
@@ -4301,10 +4244,5 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   const httpServer = createServer(app);
-  
-  // Initialize auto-checkout service after server setup
-  AutoCheckoutService.initialize();
-  console.log("Auto-checkout service initialized");
-  
   return httpServer;
 }

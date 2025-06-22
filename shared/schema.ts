@@ -138,33 +138,6 @@ export const insertAttendanceSchema = z.object({
   remarks: z.string().optional(),
   isWithinOfficeRadius: z.boolean().default(false),
   distanceFromOffice: z.number().optional(),
-  
-  // Early login fields
-  isEarlyLogin: z.boolean().default(false),
-  earlyLoginMinutes: z.number().optional(),
-  earlyLoginReason: z.string().optional(),
-  earlyLoginImageUrl: z.string().optional(),
-  
-  // Early checkout fields
-  isEarlyCheckout: z.boolean().default(false),
-  earlyCheckoutMinutes: z.number().optional(),
-  earlyCheckoutReason: z.string().optional(),
-  
-  // Overtime management fields
-  overtimeRequested: z.boolean().default(false),
-  overtimeRequestedAt: z.date().optional(),
-  overtimeStartTime: z.date().optional(),
-  overtimeEndTime: z.date().optional(),
-  
-  // Auto checkout fields
-  isAutoCheckout: z.boolean().default(false),
-  autoCheckoutTime: z.date().optional(),
-  autoCheckoutReason: z.string().optional(),
-  effectiveCheckOutTime: z.date().optional(), // Department checkout time for auto-checkout calculations
-  
-  // System fields for tracking
-  lastActivityTime: z.date().optional(),
-  checkoutType: z.enum(["manual", "auto", "overtime_auto"]).optional(),
 });
 
 export const insertOfficeLocationSchema = z.object({
@@ -190,26 +163,6 @@ export const insertDepartmentTimingSchema = z.object({
   flexibleCheckInEnd: z.string().optional(),   // e.g., "10:00"
   breakDurationMinutes: z.number().min(0).default(60), // Lunch break duration
   weeklyOffDays: z.array(z.number().min(0).max(6)).default([0]), // 0=Sunday, 1=Monday, etc.
-  
-  // Auto-checkout system settings
-  autoCheckoutDelayHours: z.number().min(0).max(12).default(2), // Hours to wait before auto checkout
-  autoCheckoutEnabled: z.boolean().default(true),
-  midnightAutoCheckoutTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/).default("23:55"), // Final auto checkout time
-  
-  // Early login settings
-  earlyLoginAllowed: z.boolean().default(true),
-  earlyLoginRequiresReason: z.boolean().default(true),
-  earlyLoginRequiresImage: z.boolean().default(true),
-  
-  // Early checkout settings  
-  earlyCheckoutDetectionEnabled: z.boolean().default(true),
-  earlyCheckoutRequiresReason: z.boolean().default(true),
-  
-  // Overtime settings
-  overtimeEnabled: z.boolean().default(true),
-  overtimeRequiresConfirmation: z.boolean().default(true),
-  overtimeDisablesAutoCheckout: z.boolean().default(true),
-  
   isActive: z.boolean().default(true),
   createdBy: z.string(),
   updatedBy: z.string().optional(),
