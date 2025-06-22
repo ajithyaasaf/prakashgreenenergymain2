@@ -1,5 +1,6 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { formatDate, formatTime, cn } from "@/lib/utils";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +40,7 @@ interface EnhancedAttendanceHistoryProps {
   isLoading: boolean;
   userRole?: string;
   showAllUsers?: boolean;
+  onRefresh?: () => void;
 }
 
 type SortField = 'date' | 'checkInTime' | 'workingHours' | 'status' | 'userName';
@@ -50,8 +52,10 @@ export function EnhancedAttendanceHistory({
   attendanceRecords, 
   isLoading, 
   userRole = 'employee',
-  showAllUsers = false 
+  showAllUsers = false,
+  onRefresh
 }: EnhancedAttendanceHistoryProps) {
+  const queryClient = useQueryClient();
   // State management
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -61,6 +65,38 @@ export function EnhancedAttendanceHistory({
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [currentPage, setCurrentPage] = useState(1);
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
+
+  // Auto-refresh and keyboard shortcuts
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        switch (e.key) {
+          case 'r':
+            e.preventDefault();
+            onRefresh?.();
+            break;
+          case 'f':
+            e.preventDefault();
+            document.getElementById('attendance-search')?.focus();
+            break;
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyPress);
+    return () => document.removeEventListener('keydown', handleKeyPress);
+  }, [onRefresh]);
+
+  // Auto-refresh every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (onRefresh && !isLoading) {
+        queryClient.invalidateQueries({ queryKey: ["/api/attendance"] });
+      }
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [onRefresh, isLoading, queryClient]);
 
   // Get status badge styling
   const getStatusBadge = (status: string) => {
@@ -100,10 +136,10 @@ export function EnhancedAttendanceHistory({
     let filtered = attendanceRecords.filter(record => {
       // Search filter
       const searchMatch = searchQuery === "" || 
-        record.userName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        record.userEmail.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        record.userDepartment.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        formatDate(record.checkInTime).toLowerCase().includes(searchQuery.toLowerCase());
+        (record.userName && record.userName.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (record.userEmail && record.userEmail.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (record.userDepartment && record.userDepartment.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (record.checkInTime && formatDate(record.checkInTime).toLowerCase().includes(searchQuery.toLowerCase()));
 
       // Status filter
       const statusMatch = statusFilter === "all" || record.status === statusFilter;
@@ -112,7 +148,7 @@ export function EnhancedAttendanceHistory({
       const typeMatch = typeFilter === "all" || record.attendanceType === typeFilter;
 
       // Date range filter
-      const recordDate = new Date(record.checkInTime);
+      const recordDate = record.checkInTime ? new Date(record.checkInTime) : new Date();
       const dateMatch = (!dateRange.from || recordDate >= dateRange.from) &&
                        (!dateRange.to || recordDate <= dateRange.to);
 
@@ -125,8 +161,8 @@ export function EnhancedAttendanceHistory({
 
       switch (sortField) {
         case 'date':
-          aValue = new Date(a.checkInTime);
-          bValue = new Date(b.checkInTime);
+          aValue = a.checkInTime ? new Date(a.checkInTime) : new Date(0);
+          bValue = b.checkInTime ? new Date(b.checkInTime) : new Date(0);
           break;
         case 'checkInTime':
           aValue = a.checkInTime ? new Date(a.checkInTime).getTime() : 0;
@@ -137,12 +173,12 @@ export function EnhancedAttendanceHistory({
           bValue = b.workingHours || 0;
           break;
         case 'status':
-          aValue = a.status;
-          bValue = b.status;
+          aValue = a.status || '';
+          bValue = b.status || '';
           break;
         case 'userName':
-          aValue = a.userName.toLowerCase();
-          bValue = b.userName.toLowerCase();
+          aValue = (a.userName || '').toLowerCase();
+          bValue = (b.userName || '').toLowerCase();
           break;
         default:
           return 0;
@@ -189,27 +225,45 @@ export function EnhancedAttendanceHistory({
 
   // Export functionality
   const handleExport = (format: 'csv' | 'excel') => {
+    if (filteredAndSortedRecords.length === 0) {
+      return;
+    }
+
     const headers = ['Date', 'Employee', 'Department', 'Check In', 'Check Out', 'Hours', 'Overtime', 'Status', 'Type', 'Location'];
     const csvData = filteredAndSortedRecords.map(record => [
-      formatDate(record.checkInTime),
-      record.userName,
-      record.userDepartment,
+      record.checkInTime ? formatDate(record.checkInTime) : '-',
+      record.userName || 'Unknown',
+      record.userDepartment || 'N/A',
       record.checkInTime ? formatTime(record.checkInTime) : '-',
-      record.checkOutTime ? formatTime(record.checkOutTime) : '-',
-      record.workingHours?.toFixed(1) || '-',
-      record.overtimeHours?.toFixed(1) || '-',
-      record.status,
-      record.attendanceType,
-      record.location || 'Office'
+      record.checkOutTime ? formatTime(record.checkOutTime) : 'Pending',
+      record.workingHours ? record.workingHours.toFixed(1) : '-',
+      record.overtimeHours ? record.overtimeHours.toFixed(1) : '0',
+      record.status || 'unknown',
+      record.attendanceType || 'office',
+      record.isWithinOfficeRadius ? 'Office' : 
+       (record.distanceFromOffice ? `${Math.round(record.distanceFromOffice)}m away` : 'Unknown')
     ]);
 
-    const csvContent = [headers, ...csvData].map(row => row.join(',')).join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv' });
+    // Escape CSV fields that contain commas
+    const escapeCsvField = (field: string) => {
+      if (field.includes(',') || field.includes('"') || field.includes('\n')) {
+        return `"${field.replace(/"/g, '""')}"`;
+      }
+      return field;
+    };
+
+    const csvContent = [headers, ...csvData]
+      .map(row => row.map(escapeCsvField).join(','))
+      .join('\n');
+      
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = `attendance-history-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
 
@@ -219,24 +273,24 @@ export function EnhancedAttendanceHistory({
       <CardContent className="p-4">
         <div className="flex justify-between items-start mb-3">
           <div>
-            <div className="font-semibold text-sm">{record.userName}</div>
-            <div className="text-xs text-muted-foreground">{record.userEmail}</div>
-            <div className="text-xs text-muted-foreground">{record.userDepartment}</div>
+            <div className="font-semibold text-sm">{record.userName || 'Unknown User'}</div>
+            <div className="text-xs text-muted-foreground">{record.userEmail || 'No email'}</div>
+            <div className="text-xs text-muted-foreground">{record.userDepartment || 'No department'}</div>
           </div>
           <div className="flex flex-col gap-1 items-end">
-            {getStatusBadge(record.status)}
-            {getTypeBadge(record.attendanceType)}
+            {getStatusBadge(record.status || 'unknown')}
+            {getTypeBadge(record.attendanceType || 'office')}
           </div>
         </div>
         
         <div className="grid grid-cols-2 gap-3 text-sm">
           <div className="flex items-center gap-2">
             <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-            <span>{formatDate(record.checkInTime)}</span>
+            <span>{record.checkInTime ? formatDate(record.checkInTime) : 'No date'}</span>
           </div>
           <div className="flex items-center gap-2">
             <Clock className="h-4 w-4 text-green-600" />
-            <span>{record.checkInTime ? formatTime(record.checkInTime) : '-'}</span>
+            <span>{record.checkInTime ? formatTime(record.checkInTime) : 'Not checked in'}</span>
           </div>
           <div className="flex items-center gap-2">
             <Timer className="h-4 w-4 text-red-600" />
@@ -244,7 +298,7 @@ export function EnhancedAttendanceHistory({
           </div>
           <div className="flex items-center gap-2">
             <TrendingUp className="h-4 w-4 text-blue-600" />
-            <span>{record.workingHours ? `${record.workingHours.toFixed(1)}h` : '-'}</span>
+            <span>{record.workingHours ? `${record.workingHours.toFixed(1)}h` : '0h'}</span>
           </div>
         </div>
         
@@ -384,7 +438,8 @@ export function EnhancedAttendanceHistory({
             <div className="relative flex-1">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by name, email, department, or date..."
+                id="attendance-search"
+                placeholder="Search by name, email, department, or date... (Ctrl+F)"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9"
@@ -585,9 +640,11 @@ export function EnhancedAttendanceHistory({
                             )}
                             <TableCell>
                               <div className="flex flex-col">
-                                <span className="font-medium text-sm">{formatDate(record.checkInTime)}</span>
+                                <span className="font-medium text-sm">
+                                  {record.checkInTime ? formatDate(record.checkInTime) : 'No date'}
+                                </span>
                                 <span className="text-xs text-muted-foreground">
-                                  {new Date(record.checkInTime).toLocaleDateString('en-US', { weekday: 'short' })}
+                                  {record.checkInTime ? new Date(record.checkInTime).toLocaleDateString('en-US', { weekday: 'short' }) : '-'}
                                 </span>
                               </div>
                             </TableCell>
@@ -595,7 +652,7 @@ export function EnhancedAttendanceHistory({
                               <div className="flex items-center gap-2">
                                 <Clock className="h-4 w-4 text-green-600" />
                                 <span className="font-mono text-sm">
-                                  {record.checkInTime ? formatTime(record.checkInTime) : '-'}
+                                  {record.checkInTime ? formatTime(record.checkInTime) : 'Not checked in'}
                                 </span>
                               </div>
                             </TableCell>
@@ -611,7 +668,7 @@ export function EnhancedAttendanceHistory({
                             </TableCell>
                             <TableCell>
                               <div className="flex items-center gap-2">
-                                {record.workingHours ? (
+                                {record.workingHours && record.workingHours > 0 ? (
                                   <>
                                     <span className="font-semibold text-sm">{record.workingHours.toFixed(1)}h</span>
                                     {record.overtimeHours && record.overtimeHours > 0 && (
@@ -622,15 +679,15 @@ export function EnhancedAttendanceHistory({
                                     )}
                                   </>
                                 ) : (
-                                  <span className="text-muted-foreground">-</span>
+                                  <span className="text-muted-foreground">0h</span>
                                 )}
                               </div>
                             </TableCell>
                             <TableCell>
-                              {getTypeBadge(record.attendanceType)}
+                              {getTypeBadge(record.attendanceType || 'office')}
                             </TableCell>
                             <TableCell>
-                              {getStatusBadge(record.status)}
+                              {getStatusBadge(record.status || 'unknown')}
                             </TableCell>
                             <TableCell>
                               <div className="flex items-center gap-1 text-sm text-muted-foreground">

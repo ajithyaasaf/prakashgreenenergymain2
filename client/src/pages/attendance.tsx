@@ -364,6 +364,7 @@ export default function Attendance() {
         isLoading={isLoading}
         userRole={user?.role}
         showAllUsers={false}
+        onRefresh={refreshAttendance}
       />
 
       {/* Check-in Modal */}
