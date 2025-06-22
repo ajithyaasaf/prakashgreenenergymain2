@@ -4,21 +4,16 @@ import { useAuthContext } from "@/contexts/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { formatDate, formatTime, formatTimeString } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { 
-  CalendarIcon, Search, Loader2, UserCheck, Clock, 
-  MapPin, Timer, Users, TrendingUp, Activity, RefreshCw, Zap
+  UserCheck, Clock, Timer, TrendingUp, Activity, RefreshCw, Zap
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { EnterpriseAttendanceCheckIn } from "@/components/attendance/enterprise-attendance-check-in";
 import { AttendanceCheckOut } from "@/components/attendance/attendance-check-out";
+import { EnhancedAttendanceHistory } from "@/components/attendance/enhanced-attendance-history";
 
 export default function Attendance() {
   const { user } = useAuthContext();
@@ -26,8 +21,6 @@ export default function Attendance() {
   const queryClient = useQueryClient();
   
   const [date, setDate] = useState<Date>(new Date());
-  const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState("today");
   
   // Check-in/out modal states
   const [showCheckInModal, setShowCheckInModal] = useState(false);
@@ -109,12 +102,11 @@ export default function Attendance() {
     refetch();
   };
 
-  // Filter attendance records based on search query
-  const filteredAttendance = attendanceRecords.filter((record: any) =>
-    record.userName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    record.userEmail?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    record.userDepartment?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Format attendance records for enhanced component
+  const formattedAttendanceRecords = attendanceRecords.map((record: any) => ({
+    ...record,
+    date: record.checkInTime ? new Date(record.checkInTime).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
+  }));
 
   // Get attendance statistics
   const getAttendanceStats = (records: any[]) => {
@@ -366,297 +358,13 @@ export default function Attendance() {
         </CardContent>
       </Card>
 
-      {/* Attendance History with Improved Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h2 className="text-xl font-semibold">Attendance History</h2>
-            <p className="text-sm text-muted-foreground">Track your daily attendance records and patterns</p>
-          </div>
-          <TabsList className="grid w-full sm:w-auto grid-cols-3">
-            <TabsTrigger value="today">Today</TabsTrigger>
-            <TabsTrigger value="week">This Week</TabsTrigger>
-            <TabsTrigger value="month">This Month</TabsTrigger>
-          </TabsList>
-        </div>
-
-        <TabsContent value="today" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <CardTitle className="text-lg">Today's Details</CardTitle>
-                <div className="flex items-center gap-2">
-                  <div className="relative">
-                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search records..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-8 w-48"
-                    />
-                  </div>
-                </div>
-              </div>
-            </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin" />
-            </div>
-          ) : filteredAttendance.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              No attendance records found for the selected date
-            </div>
-          ) : (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Employee</TableHead>
-                    <TableHead>Department</TableHead>
-                    <TableHead>Check In</TableHead>
-                    <TableHead>Check Out</TableHead>
-                    <TableHead>Hours</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Location</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredAttendance.map((record: any) => (
-                    <TableRow key={record.id}>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{record.userName}</div>
-                          <div className="text-sm text-muted-foreground">{record.userEmail}</div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{record.userDepartment || 'N/A'}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        {record.checkInTime ? formatTime(record.checkInTime) : '-'}
-                      </TableCell>
-                      <TableCell>
-                        {record.checkOutTime ? formatTime(record.checkOutTime) : '-'}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          {record.workingHours ? (
-                            <>
-                              <span>{record.workingHours.toFixed(1)}h</span>
-                              {record.overtimeHours && record.overtimeHours > 0 && (
-                                <Badge variant="secondary" className="bg-orange-100 text-orange-800">
-                                  <Zap className="h-3 w-3 mr-1" />
-                                  +{record.overtimeHours.toFixed(1)}h OT
-                                </Badge>
-                              )}
-                            </>
-                          ) : '-'}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={
-                          record.attendanceType === 'office' ? 'default' :
-                          record.attendanceType === 'remote' ? 'secondary' : 'outline'
-                        }>
-                          {record.attendanceType === 'office' ? 'Office' :
-                           record.attendanceType === 'remote' ? 'Remote' : 'Field Work'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={
-                          record.status === 'present' ? 'default' :
-                          record.status === 'late' ? 'secondary' : 'destructive'
-                        }>
-                          {record.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                          <MapPin className="h-3 w-3" />
-                          {record.isWithinOfficeRadius ? 'Office' : 
-                           record.distanceFromOffice ? `${Math.round(record.distanceFromOffice)}m away` : 'Unknown'}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="week" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">This Week's Records</CardTitle>
-              <CardDescription>
-                Showing attendance records for the current week
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-8 w-8 animate-spin" />
-                </div>
-              ) : filteredAttendance.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  No attendance records found for this week
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {filteredAttendance.slice(0, 7).map((record: any) => (
-                    <div key={record.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border">
-                      <div className="flex items-center gap-4">
-                        <div className="flex flex-col">
-                          <span className="font-medium">{formatDate(record.checkInTime)}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {new Date(record.checkInTime).toLocaleDateString('en-US', { weekday: 'short' })}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Clock className="h-4 w-4 text-green-600" />
-                          <span className="text-sm">{formatTime(record.checkInTime)}</span>
-                          {record.checkOutTime && (
-                            <>
-                              <span className="text-muted-foreground">→</span>
-                              <Timer className="h-4 w-4 text-red-600" />
-                              <span className="text-sm">{formatTime(record.checkOutTime)}</span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant={record.status === 'present' ? 'default' : record.status === 'late' ? 'secondary' : 'destructive'}>
-                          {record.status}
-                        </Badge>
-                        {record.overtimeHours && record.overtimeHours > 0 && (
-                          <Badge variant="outline" className="text-orange-600">
-                            <Zap className="h-3 w-3 mr-1" />
-                            {record.overtimeHours.toFixed(1)}h OT
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="month" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div>
-                  <CardTitle className="text-lg">Monthly Overview</CardTitle>
-                  <CardDescription>
-                    Comprehensive view of your monthly attendance
-                  </CardDescription>
-                </div>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="justify-start text-left font-normal">
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {formatDate(date)}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="end">
-                    <Calendar
-                      mode="single"
-                      selected={date}
-                      onSelect={(newDate) => newDate && setDate(newDate)}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-8 w-8 animate-spin" />
-                </div>
-              ) : filteredAttendance.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  No attendance records found for the selected month
-                </div>
-              ) : (
-                <div className="rounded-md border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Check In</TableHead>
-                        <TableHead>Check Out</TableHead>
-                        <TableHead>Hours</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Status</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredAttendance.map((record: any) => (
-                        <TableRow key={record.id}>
-                          <TableCell>
-                            <div className="flex flex-col">
-                              <span className="font-medium">{formatDate(record.checkInTime)}</span>
-                              <span className="text-xs text-muted-foreground">
-                                {new Date(record.checkInTime).toLocaleDateString('en-US', { weekday: 'short' })}
-                              </span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            {record.checkInTime ? formatTime(record.checkInTime) : '-'}
-                          </TableCell>
-                          <TableCell>
-                            {record.checkOutTime ? formatTime(record.checkOutTime) : '-'}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-1">
-                              {record.workingHours ? (
-                                <>
-                                  <span>{record.workingHours.toFixed(1)}h</span>
-                                  {record.overtimeHours && record.overtimeHours > 0 && (
-                                    <Badge variant="secondary" className="bg-orange-100 text-orange-800">
-                                      <Zap className="h-3 w-3 mr-1" />
-                                      +{record.overtimeHours.toFixed(1)}h
-                                    </Badge>
-                                  )}
-                                </>
-                              ) : '-'}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={
-                              record.attendanceType === 'office' ? 'default' :
-                              record.attendanceType === 'remote' ? 'secondary' : 'outline'
-                            }>
-                              {record.attendanceType === 'office' ? 'Office' :
-                               record.attendanceType === 'remote' ? 'Remote' : 'Field Work'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={
-                              record.status === 'present' ? 'default' :
-                              record.status === 'late' ? 'secondary' : 'destructive'
-                            }>
-                              {record.status}
-                            </Badge>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+      {/* Enhanced Attendance History */}
+      <EnhancedAttendanceHistory 
+        attendanceRecords={formattedAttendanceRecords}
+        isLoading={isLoading}
+        userRole={user?.role}
+        showAllUsers={false}
+      />
 
       {/* Check-in Modal */}
       <EnterpriseAttendanceCheckIn
