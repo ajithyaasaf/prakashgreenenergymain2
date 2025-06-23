@@ -35,6 +35,7 @@ import { EnterprisePerformanceMonitor } from "./services/performance-monitor";
 import { auth } from "./firebase";
 import { userService } from "./services/user-service";
 import { testFirebaseAdminSDK, testUserManagement } from "./test-firebase-admin";
+import { attendanceRateLimiter, generalRateLimiter, createRateLimitMiddleware } from "./utils/rate-limiter";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Enhanced middleware to verify Firebase Auth token and load user profile
@@ -66,9 +67,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           maxApprovalAmount: null
         };
         
-        // Master admin gets all permissions first
+        // Master admin gets all permissions first - Use dynamic import for consistency
         if (userProfile.role === "master_admin") {
-          req.authenticatedUser.permissions = ["system.settings", "users.view", "users.create", "users.edit", "users.delete", "customers.view", "customers.create", "customers.edit", "products.view", "products.create", "products.edit", "quotations.view", "quotations.create", "quotations.edit", "invoices.view", "invoices.create", "invoices.edit"];
+          const { systemPermissions } = await import("@shared/schema");
+          req.authenticatedUser.permissions = [...systemPermissions];
           req.authenticatedUser.canApprove = true;
           req.authenticatedUser.maxApprovalAmount = null; // Unlimited
           console.log("SERVER DEBUG: Master admin permissions assigned:", req.authenticatedUser.permissions.length);
@@ -82,10 +84,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
             req.authenticatedUser.permissions = effectivePermissions;
             console.log("SERVER DEBUG: Calculated permissions for user", userProfile.uid, "with dept:", userProfile.department, "designation:", userProfile.designation, "permissions:", effectivePermissions.length, "list:", effectivePermissions);
             
-            // Set approval capabilities based on designation
+            // Set approval capabilities based on designation - Fixed duplicate keys
             const designationLevels = {
-              "house_man": 1, "welder": 2, "technician": 3, "team_leader": 4, "cre": 5,
-              "executive": 5, "team_leader": 6, "officer": 7, "gm": 8, "ceo": 9
+              "house_man": 1, 
+              "welder": 2, 
+              "technician": 3, 
+              "cre": 4,
+              "executive": 5, 
+              "team_leader": 6, 
+              "officer": 7, 
+              "gm": 8, 
+              "ceo": 9
             };
             const level = designationLevels[userProfile.designation] || 1;
             req.authenticatedUser.canApprove = level >= 5;
@@ -1179,7 +1188,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/attendance/check-out", verifyAuth, async (req, res) => {
+  app.post("/api/attendance/check-out", createRateLimitMiddleware(attendanceRateLimiter), verifyAuth, async (req, res) => {
     try {
       console.log('CHECKOUT DEBUG: Request body:', JSON.stringify(req.body, null, 2));
       
@@ -3610,8 +3619,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add server-side today endpoint to fix timezone issues
+  app.get("/api/attendance/today", verifyAuth, async (req, res) => {
+    try {
+      const { userId } = req.query;
+      if (!userId) {
+        return res.status(400).json({ message: "User ID required" });
+      }
+
+      // Use server timezone for consistent date handling
+      const serverDate = new Date();
+      const dateString = serverDate.toISOString().split('T')[0];
+      
+      const todayAttendance = await storage.listAttendance({
+        userId: userId as string,
+        date: {
+          start: new Date(dateString + 'T00:00:00.000Z'),
+          end: new Date(dateString + 'T23:59:59.999Z')
+        }
+      });
+
+      res.json(todayAttendance.length > 0 ? todayAttendance[0] : null);
+    } catch (error) {
+      console.error("Error fetching today's attendance:", error);
+      res.status(500).json({ message: "Failed to fetch today's attendance" });
+    }
+  });
+
   // Enhanced Check-in with geolocation and field work support
-  app.post("/api/attendance/check-in", verifyAuth, async (req, res) => {
+  app.post("/api/attendance/check-in", createRateLimitMiddleware(attendanceRateLimiter), verifyAuth, async (req, res) => {
     try {
       if (!req.authenticatedUser) {
         return res.status(401).json({ message: "Authentication required" });
@@ -3630,16 +3666,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const userId = req.authenticatedUser.user.uid;
       
-      // Validation
+      // Enhanced validation with coordinate range checks
       if (!latitude || !longitude) {
         return res.status(400).json({ message: "Location coordinates are required" });
       }
+      
+      const lat = parseFloat(latitude);
+      const lng = parseFloat(longitude);
+      
+      if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+        return res.status(400).json({ message: "Invalid coordinate values. Latitude must be between -90 and 90, longitude between -180 and 180" });
+      }
 
-      // Check if user already checked in today
-      const today = new Date().toISOString().split('T')[0];
-      const existingAttendance = await storage.getUserAttendanceForDate(userId, today);
-      if (existingAttendance && existingAttendance.checkInTime) {
-        return res.status(400).json({ message: "You have already checked in today" });
+      // Use server timezone for consistent date handling to prevent timezone mismatches
+      const serverDate = new Date();
+      const dateString = serverDate.toISOString().split('T')[0];
+      
+      // Check for existing attendance with proper date range to handle timezone issues
+      const existingAttendance = await storage.listAttendance({
+        userId,
+        date: {
+          start: new Date(dateString + 'T00:00:00.000Z'),
+          end: new Date(dateString + 'T23:59:59.999Z')
+        }
+      });
+      
+      if (existingAttendance && existingAttendance.length > 0 && existingAttendance[0].checkInTime) {
+        return res.status(400).json({ 
+          message: "You have already checked in today",
+          attendance: existingAttendance[0]
+        });
       }
 
       // Get office locations for validation

@@ -61,15 +61,16 @@ export default function Attendance() {
     refetchInterval: 30000, // Real-time updates every 30 seconds
   });
 
-  // Fetch current user's attendance for today
+  // Fetch current user's attendance for today - Fixed timezone issue
   const { data: todayAttendance } = useQuery({
     queryKey: ["/api/attendance/today", user?.uid],
     queryFn: async () => {
       if (!user?.uid) return null;
-      const today = new Date().toISOString().split('T')[0];
-      const response = await apiRequest('GET', `/api/attendance?userId=${user.uid}&date=${today}`);
+      // Use server-side date calculation to prevent timezone mismatches
+      const response = await apiRequest('GET', `/api/attendance/today?userId=${user.uid}`);
       if (response.ok) {
-        return await response.json();
+        const data = await response.json();
+        return Array.isArray(data) ? data[0] : data;
       }
       return null;
     },

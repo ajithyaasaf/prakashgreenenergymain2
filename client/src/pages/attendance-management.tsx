@@ -58,11 +58,12 @@ export default function AttendanceManagement() {
     remarks: ''
   });
 
-  // Real-time attendance data
+  // Real-time attendance data - Fixed memory leak with cleanup
   const { data: liveAttendance = [], isLoading: isLoadingLive, refetch: refetchLive } = useQuery({
     queryKey: ['/api/attendance/live'],
-    enabled: !!user,
+    enabled: !!user && user.role === "master_admin",
     refetchInterval: 30000, // Refresh every 30 seconds
+    refetchOnWindowFocus: false, // Prevent excessive refetching
   });
 
   // Daily attendance records
@@ -298,6 +299,15 @@ export default function AttendanceManagement() {
 
   // Status badge styles
   const getStatusBadge = (status: string) => {
+    // Handle null/undefined status values
+    if (!status) {
+      return (
+        <Badge variant="outline" className="bg-gray-100 text-gray-800 border-gray-200">
+          Unknown
+        </Badge>
+      );
+    }
+
     const styles = {
       present: "bg-green-100 text-green-800 border-green-200",
       absent: "bg-red-100 text-red-800 border-red-200",

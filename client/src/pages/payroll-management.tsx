@@ -207,7 +207,8 @@ export default function EnhancedPayrollManagement() {
       return Array.isArray(data) ? data : [];
     },
     enabled: !!user?.uid,
-    refetchInterval: 5000 // Real-time updates every 5 seconds
+    refetchInterval: 10000, // Reduced frequency to prevent memory issues
+    refetchOnWindowFocus: false, // Prevent excessive refetching
   });
 
   const { data: salaryStructures = [], refetch: refetchSalaryStructures } = useQuery<EnhancedSalaryStructure[]>({

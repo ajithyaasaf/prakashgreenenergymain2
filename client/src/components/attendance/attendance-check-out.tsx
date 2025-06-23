@@ -24,8 +24,9 @@ interface AttendanceCheckOutProps {
   departmentTiming?: any;
 }
 
-// Default office coordinates
-const DEFAULT_OFFICE = {
+// Note: Office coordinates should come from API, not hardcoded
+// This is kept as fallback only when API fails
+const FALLBACK_OFFICE = {
   latitude: 9.966844592415782,
   longitude: 78.1338405791111,
   radius: 100
@@ -94,6 +95,26 @@ export function AttendanceCheckOut({
       window.removeEventListener('offline', handleOnlineStatus);
     };
   }, []);
+
+  // Cleanup camera stream on component unmount
+  useEffect(() => {
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        setStream(null);
+        setIsCameraActive(false);
+      }
+    };
+  }, [stream]);
+
+  // Cleanup on modal close
+  useEffect(() => {
+    if (!isOpen && stream) {
+      stream.getTracks().forEach(track => track.stop());
+      setStream(null);
+      setIsCameraActive(false);
+    }
+  }, [isOpen, stream]);
 
   useEffect(() => {
     if (isOpen) {

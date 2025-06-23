@@ -10,7 +10,7 @@ export const designations = [
   "ceo", "gm", "officer", "executive", "cre", "team_leader", "technician", "welder", "house_man"
 ] as const;
 
-// Designation hierarchy levels (higher number = more authority) - Updated to match organizational chart
+// Designation hierarchy levels (higher number = more authority) - Fixed duplicates
 export const designationLevels = {
   "ceo": 9,
   "gm": 8,
@@ -155,7 +155,18 @@ export const insertDepartmentTimingSchema = z.object({
   department: z.enum(departments),
   workingHours: z.number().min(1).max(24).default(8), // Standard working hours per day
   checkInTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Time must be in HH:MM format"), // e.g., "09:00"
-  checkOutTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Time must be in HH:MM format"), // e.g., "18:00"
+  checkOutTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Time must be in HH:MM format") // e.g., "18:00"
+    .refine((checkOut, ctx) => {
+      const checkIn = ctx.parent.checkInTime;
+      if (checkIn && checkOut) {
+        const [checkInHour, checkInMin] = checkIn.split(':').map(Number);
+        const [checkOutHour, checkOutMin] = checkOut.split(':').map(Number);
+        const checkInMinutes = checkInHour * 60 + checkInMin;
+        const checkOutMinutes = checkOutHour * 60 + checkOutMin;
+        return checkOutMinutes > checkInMinutes;
+      }
+      return true;
+    }, "Check out time must be after check in time"),
   lateThresholdMinutes: z.number().min(0).default(15), // Grace period for late arrivals
   overtimeThresholdMinutes: z.number().min(0).default(30), // Minimum minutes to qualify for OT
   isFlexibleTiming: z.boolean().default(false),
@@ -241,10 +252,26 @@ export const insertSalaryStructureSchema = z.object({
 export const insertPayrollSchema = z.object({
   userId: z.string(),
   employeeId: z.string(),
-  month: z.number().min(1).max(12),
-  year: z.number().min(2020),
-  workingDays: z.number().min(0),
-  presentDays: z.number().min(0),
+  month: z.number().min(1).max(12)
+    .refine((month, ctx) => {
+      const year = ctx.parent.year;
+      const currentDate = new Date();
+      const currentYear = currentDate.getFullYear();
+      const currentMonth = currentDate.getMonth() + 1;
+      
+      // Allow current month and past months, but not future months
+      if (year === currentYear) {
+        return month <= currentMonth;
+      }
+      return year < currentYear;
+    }, "Cannot create payroll for future months"),
+  year: z.number().min(2020).max(new Date().getFullYear() + 1), // Prevent future years beyond next year
+  workingDays: z.number().min(0).max(31),
+  presentDays: z.number().min(0)
+    .refine((presentDays, ctx) => {
+      const workingDays = ctx.parent.workingDays;
+      return presentDays <= workingDays;
+    }, "Present days cannot exceed working days"),
   absentDays: z.number().min(0),
   overtimeHours: z.number().min(0).default(0),
   leaveDays: z.number().min(0).default(0),
@@ -388,10 +415,25 @@ export const insertEnhancedSalaryStructureSchema = z.object({
 export const insertEnhancedPayrollSchema = z.object({
   userId: z.string(),
   employeeId: z.string(),
-  month: z.number().min(1).max(12),
-  year: z.number().min(2020),
+  month: z.number().min(1).max(12)
+    .refine((month, ctx) => {
+      const year = ctx.parent.year;
+      const currentDate = new Date();
+      const currentYear = currentDate.getFullYear();
+      const currentMonth = currentDate.getMonth() + 1;
+      
+      if (year === currentYear) {
+        return month <= currentMonth;
+      }
+      return year < currentYear;
+    }, "Cannot create payroll for future months"),
+  year: z.number().min(2020).max(new Date().getFullYear() + 1),
   monthDays: z.number().min(1).max(31),
-  presentDays: z.number().min(0),
+  presentDays: z.number().min(0)
+    .refine((presentDays, ctx) => {
+      const monthDays = ctx.parent.monthDays;
+      return presentDays <= monthDays;
+    }, "Present days cannot exceed month days"),
   paidLeaveDays: z.number().min(0).default(0),
   overtimeHours: z.number().min(0).default(0),
   perDaySalary: z.number().min(0),

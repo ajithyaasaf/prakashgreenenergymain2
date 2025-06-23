@@ -118,6 +118,15 @@ This is an enterprise-grade dashboard application for Prakash Greens Energy, bui
 - **Styling**: Tailwind config with custom color scheme
 - **TypeScript**: Comprehensive tsconfig with path aliases
 
+## Recent Changes
+- June 23, 2025: Fixed critical logical issues across attendance and payroll systems
+  - ✓ Corrected permission system corruption (duplicate designation levels)
+  - ✓ Fixed timezone mismatches in attendance tracking
+  - ✓ Added payroll calculation overflow prevention
+  - ✓ Implemented proper resource cleanup for camera streams
+  - ✓ Enhanced input validation and rate limiting
+  - ✓ Improved bulk operation error handling with transaction-like behavior
+
 ## Changelog
 - June 23, 2025. Initial setup
 
