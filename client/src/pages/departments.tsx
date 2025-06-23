@@ -29,6 +29,13 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -38,7 +45,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle
 } from "@/components/ui/alert-dialog";
-import { Search, PlusCircle, Pencil, Trash2, UserCog, Users, Loader2, Check, Clock } from "lucide-react";
+import { Search, PlusCircle, Pencil, Trash2, UserCog, Users, Loader2, Check, Clock, Timer, Play, Square, Coffee, Shield, Home, Building, MapPin } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -62,6 +69,7 @@ export default function Departments() {
     workingHours: 8,
     overtimeThresholdMinutes: 30,
     lateThresholdMinutes: 15,
+    breakDurationMinutes: 60,
     allowEarlyCheckOut: false,
     allowRemoteWork: true,
     allowFieldWork: true
@@ -352,6 +360,7 @@ export default function Departments() {
                                 workingHours: currentTiming?.workingHours || 8,
                                 overtimeThresholdMinutes: currentTiming?.overtimeThresholdMinutes || 30,
                                 lateThresholdMinutes: currentTiming?.lateThresholdMinutes || 15,
+                                breakDurationMinutes: currentTiming?.breakDurationMinutes || 60,
                                 allowEarlyCheckOut: currentTiming?.allowEarlyCheckOut || false,
                                 allowRemoteWork: currentTiming?.allowRemoteWork || true,
                                 allowFieldWork: currentTiming?.allowFieldWork || true
@@ -509,146 +518,307 @@ export default function Departments() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Department Timing Configuration Dialog */}
+      {/* Advanced Department Timing Configuration Dialog */}
       <Dialog open={showTimingDialog} onOpenChange={setShowTimingDialog}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Configure Attendance Timing</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5" />
+              Configure Work Schedule - {currentDepartment?.name}
+            </DialogTitle>
             <DialogDescription>
-              Set working hours and attendance policies for {currentDepartment?.name} department.
+              Set up comprehensive work timings, shifts, and attendance policies for this department.
             </DialogDescription>
           </DialogHeader>
           
-          <form className="space-y-6" onSubmit={(e) => {
+          <form className="space-y-8" onSubmit={(e) => {
             e.preventDefault();
             updateTimingMutation.mutate({
               departmentId: currentDepartment.id,
               timing: timingFormState
             });
           }}>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Check-in Time</label>
-                <Input
-                  type="time"
-                  value={timingFormState.checkInTime}
-                  onChange={(e) => setTimingFormState({
-                    ...timingFormState,
-                    checkInTime: e.target.value
-                  })}
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Check-out Time</label>
-                <Input
-                  type="time"
-                  value={timingFormState.checkOutTime}
-                  onChange={(e) => setTimingFormState({
-                    ...timingFormState,
-                    checkOutTime: e.target.value
-                  })}
-                />
-              </div>
-            </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Working Hours per Day</label>
-                <Input
-                  type="number"
-                  min="1"
-                  max="24"
-                  value={timingFormState.workingHours}
-                  onChange={(e) => setTimingFormState({
-                    ...timingFormState,
-                    workingHours: parseInt(e.target.value)
-                  })}
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Late Threshold (minutes)</label>
-                <Input
-                  type="number"
-                  min="0"
-                  max="120"
-                  value={timingFormState.lateThresholdMinutes}
-                  onChange={(e) => setTimingFormState({
-                    ...timingFormState,
-                    lateThresholdMinutes: parseInt(e.target.value)
-                  })}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Overtime Threshold (minutes after working hours)</label>
-              <Input
-                type="number"
-                min="0"
-                max="240"
-                value={timingFormState.overtimeThresholdMinutes}
-                onChange={(e) => setTimingFormState({
-                  ...timingFormState,
-                  overtimeThresholdMinutes: parseInt(e.target.value)
-                })}
-              />
-            </div>
-
+            {/* Quick Shift Templates */}
             <div className="space-y-4">
-              <h4 className="text-sm font-medium">Department Policies</h4>
-              
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <label className="text-sm font-medium">Allow Early Check-out</label>
-                  <p className="text-xs text-muted-foreground">
-                    Employees can check out before official time
-                  </p>
-                </div>
-                <Switch
-                  checked={timingFormState.allowEarlyCheckOut}
-                  onCheckedChange={(checked) => setTimingFormState({
-                    ...timingFormState,
-                    allowEarlyCheckOut: checked
-                  })}
-                />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <label className="text-sm font-medium">Allow Remote Work</label>
-                  <p className="text-xs text-muted-foreground">
-                    Employees can mark attendance from any location
-                  </p>
-                </div>
-                <Switch
-                  checked={timingFormState.allowRemoteWork}
-                  onCheckedChange={(checked) => setTimingFormState({
-                    ...timingFormState,
-                    allowRemoteWork: checked
-                  })}
-                />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <label className="text-sm font-medium">Allow Field Work</label>
-                  <p className="text-xs text-muted-foreground">
-                    Employees can check in from customer locations
-                  </p>
-                </div>
-                <Switch
-                  checked={timingFormState.allowFieldWork}
-                  onCheckedChange={(checked) => setTimingFormState({
-                    ...timingFormState,
-                    allowFieldWork: checked
-                  })}
-                />
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <Building className="h-4 w-4" />
+                Quick Shift Templates
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {[
+                  { name: "Standard Office", start: "09:00", end: "18:00", hours: 8, break: 60 },
+                  { name: "Early Shift", start: "07:00", end: "16:00", hours: 8, break: 60 },
+                  { name: "Night Shift", start: "22:00", end: "06:00", hours: 8, break: 60 },
+                  { name: "Flexible Hours", start: "09:30", end: "18:30", hours: 8, break: 60 }
+                ].map((template) => (
+                  <Card key={template.name} 
+                    className={`cursor-pointer transition-all hover:shadow-md border-2 ${
+                      timingFormState.checkInTime === template.start && 
+                      timingFormState.checkOutTime === template.end 
+                        ? "border-green-500 bg-green-50" 
+                        : "border-gray-200 hover:border-gray-300"
+                    }`}
+                    onClick={() => setTimingFormState({
+                      ...timingFormState,
+                      checkInTime: template.start,
+                      checkOutTime: template.end,
+                      workingHours: template.hours,
+                      breakDurationMinutes: template.break
+                    })}
+                  >
+                    <CardContent className="p-4 text-center">
+                      <div className="font-medium text-sm">{template.name}</div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {template.start} - {template.end}
+                      </div>
+                      <div className="text-xs text-blue-600 mt-1">
+                        {template.hours}h working
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
             </div>
 
-            <div className="flex justify-end space-x-2 pt-4">
+            {/* Visual Time Picker */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <Timer className="h-4 w-4" />
+                Work Schedule
+              </h3>
+              
+              {/* Visual Timeline */}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="flex justify-between text-xs text-gray-500 mb-2">
+                  <span>12 AM</span>
+                  <span>6 AM</span>
+                  <span>12 PM</span>
+                  <span>6 PM</span>
+                  <span>12 AM</span>
+                </div>
+                <div className="relative h-8 bg-gray-200 rounded-full overflow-hidden">
+                  {(() => {
+                    const startHour = parseInt(timingFormState.checkInTime.split(':')[0]);
+                    const startMin = parseInt(timingFormState.checkInTime.split(':')[1]);
+                    const endHour = parseInt(timingFormState.checkOutTime.split(':')[0]);
+                    const endMin = parseInt(timingFormState.checkOutTime.split(':')[1]);
+                    
+                    const startPercent = ((startHour * 60 + startMin) / (24 * 60)) * 100;
+                    let endPercent = ((endHour * 60 + endMin) / (24 * 60)) * 100;
+                    
+                    // Handle overnight shifts
+                    if (endPercent <= startPercent) {
+                      endPercent = 100;
+                    }
+                    
+                    const width = endPercent - startPercent;
+                    
+                    return (
+                      <div 
+                        className="absolute h-full bg-gradient-to-r from-green-400 to-blue-500 rounded-full"
+                        style={{
+                          left: `${startPercent}%`,
+                          width: `${width}%`
+                        }}
+                      />
+                    );
+                  })()}
+                </div>
+                <div className="flex justify-between mt-2">
+                  <div className="text-sm">
+                    <span className="font-medium text-green-600">Start: {timingFormState.checkInTime}</span>
+                  </div>
+                  <div className="text-sm">
+                    <span className="font-medium text-blue-600">End: {timingFormState.checkOutTime}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Time Inputs with Better UX */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="space-y-3">
+                  <label className="text-sm font-medium flex items-center gap-2">
+                    <Play className="h-4 w-4 text-green-600" />
+                    Check-in Time
+                  </label>
+                  <div className="relative">
+                    <Input
+                      type="time"
+                      value={timingFormState.checkInTime}
+                      onChange={(e) => setTimingFormState({
+                        ...timingFormState,
+                        checkInTime: e.target.value
+                      })}
+                      className="text-lg font-mono"
+                    />
+                  </div>
+                </div>
+                
+                <div className="space-y-3">
+                  <label className="text-sm font-medium flex items-center gap-2">
+                    <Square className="h-4 w-4 text-red-600" />
+                    Check-out Time
+                  </label>
+                  <div className="relative">
+                    <Input
+                      type="time"
+                      value={timingFormState.checkOutTime}
+                      onChange={(e) => setTimingFormState({
+                        ...timingFormState,
+                        checkOutTime: e.target.value
+                      })}
+                      className="text-lg font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <label className="text-sm font-medium flex items-center gap-2">
+                    <Coffee className="h-4 w-4 text-orange-600" />
+                    Break Duration
+                  </label>
+                  <Select
+                    value={timingFormState.breakDurationMinutes?.toString() || "60"}
+                    onValueChange={(value) => setTimingFormState({
+                      ...timingFormState,
+                      breakDurationMinutes: parseInt(value)
+                    })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="30">30 minutes</SelectItem>
+                      <SelectItem value="45">45 minutes</SelectItem>
+                      <SelectItem value="60">1 hour</SelectItem>
+                      <SelectItem value="90">1.5 hours</SelectItem>
+                      <SelectItem value="120">2 hours</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            {/* Attendance Policies */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <Shield className="h-4 w-4" />
+                Attendance Policies
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Late Arrival Grace Period</label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        min="0"
+                        max="120"
+                        value={timingFormState.lateThresholdMinutes}
+                        onChange={(e) => setTimingFormState({
+                          ...timingFormState,
+                          lateThresholdMinutes: parseInt(e.target.value) || 15
+                        })}
+                        className="w-24"
+                      />
+                      <span className="text-sm text-muted-foreground">minutes</span>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Overtime Threshold</label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        min="0"
+                        max="240"
+                        value={timingFormState.overtimeThresholdMinutes}
+                        onChange={(e) => setTimingFormState({
+                          ...timingFormState,
+                          overtimeThresholdMinutes: parseInt(e.target.value) || 30
+                        })}
+                        className="w-24"
+                      />
+                      <span className="text-sm text-muted-foreground">minutes</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <Home className="h-4 w-4 text-blue-600" />
+                        <span className="text-sm font-medium">Remote Work</span>
+                      </div>
+                      <Switch
+                        checked={timingFormState.allowRemoteWork}
+                        onCheckedChange={(checked) => setTimingFormState({
+                          ...timingFormState,
+                          allowRemoteWork: checked
+                        })}
+                      />
+                    </div>
+                    
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4 text-green-600" />
+                        <span className="text-sm font-medium">Field Work</span>
+                      </div>
+                      <Switch
+                        checked={timingFormState.allowFieldWork}
+                        onCheckedChange={(checked) => setTimingFormState({
+                          ...timingFormState,
+                          allowFieldWork: checked
+                        })}
+                      />
+                    </div>
+                    
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-orange-600" />
+                        <span className="text-sm font-medium">Early Check-out</span>
+                      </div>
+                      <Switch
+                        checked={timingFormState.allowEarlyCheckOut}
+                        onCheckedChange={(checked) => setTimingFormState({
+                          ...timingFormState,
+                          allowEarlyCheckOut: checked
+                        })}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Summary Card */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h4 className="font-medium text-blue-900 mb-2">Schedule Summary</h4>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div>
+                  <span className="text-blue-700 font-medium">Working Hours:</span>
+                  <div className="text-blue-900">{timingFormState.workingHours} hours/day</div>
+                </div>
+                <div>
+                  <span className="text-blue-700 font-medium">Break Time:</span>
+                  <div className="text-blue-900">{timingFormState.breakDurationMinutes || 60} minutes</div>
+                </div>
+                <div>
+                  <span className="text-blue-700 font-medium">Late Grace:</span>
+                  <div className="text-blue-900">{timingFormState.lateThresholdMinutes} minutes</div>
+                </div>
+                <div>
+                  <span className="text-blue-700 font-medium">OT Starts:</span>
+                  <div className="text-blue-900">+{timingFormState.overtimeThresholdMinutes} minutes</div>
+                </div>
+              </div>
+            </div>
+
+            
+            <div className="flex justify-end space-x-3 pt-4 border-t">
               <Button
                 type="button"
                 variant="outline"
@@ -656,14 +826,12 @@ export default function Departments() {
               >
                 Cancel
               </Button>
-              <Button 
+              <Button
                 type="submit"
                 disabled={updateTimingMutation.isPending}
+                className="bg-green-600 hover:bg-green-700"
               >
-                {updateTimingMutation.isPending && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                )}
-                Save Timing Configuration
+                {updateTimingMutation.isPending ? "Saving Schedule..." : "Save Schedule"}
               </Button>
             </div>
           </form>
