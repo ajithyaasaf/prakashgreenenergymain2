@@ -70,7 +70,6 @@ export const getQueryFn: <T>(options: {
     };
     
     const res = await fetch(queryKey[0] as string, {
-      method: "GET",
       credentials: "include",
       headers,
     });
