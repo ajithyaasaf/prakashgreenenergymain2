@@ -27,37 +27,50 @@ export function WorkingHoursPreview({
     const checkIn = new Date(checkInTime);
     const now = currentTime;
     
-    // Calculate current working time
-    const workingMilliseconds = now.getTime() - checkIn.getTime();
-    const workingMinutes = Math.floor(workingMilliseconds / (1000 * 60));
-    const workingHours = workingMinutes / 60;
+    // Parse department times for today
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     
-    // Parse department times
     const [departCheckInHour, departCheckInMin] = departmentTiming.checkInTime.split(':').map(Number);
     const [departCheckOutHour, departCheckOutMin] = departmentTiming.checkOutTime.split(':').map(Number);
     
-    // Create department checkout time for today
-    const departCheckOut = new Date();
+    const departCheckIn = new Date(today);
+    departCheckIn.setHours(departCheckInHour, departCheckInMin, 0, 0);
+    
+    const departCheckOut = new Date(today);
     departCheckOut.setHours(departCheckOutHour, departCheckOutMin, 0, 0);
     
-    // Calculate if currently overtime
-    const isCurrentlyOvertime = now > departCheckOut;
-    const overtimeMinutes = isCurrentlyOvertime 
-      ? Math.floor((now.getTime() - departCheckOut.getTime()) / (1000 * 60))
-      : 0;
+    // Calculate working time within department schedule
+    const workStart = new Date(Math.max(checkIn.getTime(), departCheckIn.getTime()));
+    const workEnd = new Date(Math.min(now.getTime(), departCheckOut.getTime()));
+    const regularMinutes = Math.max(0, Math.floor((workEnd.getTime() - workStart.getTime()) / (1000 * 60)));
     
-    // Calculate projected end time if they work standard hours
-    const projectedEndTime = new Date(checkIn);
-    projectedEndTime.setHours(projectedEndTime.getHours() + departmentTiming.workingHours);
+    // Calculate overtime (before start + after end)
+    let overtimeMinutes = 0;
+    
+    // Early arrival overtime
+    if (checkIn < departCheckIn) {
+      overtimeMinutes += Math.floor((departCheckIn.getTime() - checkIn.getTime()) / (1000 * 60));
+    }
+    
+    // Late departure overtime
+    if (now > departCheckOut) {
+      overtimeMinutes += Math.floor((now.getTime() - departCheckOut.getTime()) / (1000 * 60));
+    }
+    
+    const totalWorkingMinutes = regularMinutes + overtimeMinutes;
+    const isCurrentlyOvertime = overtimeMinutes > 0;
     
     return {
-      currentWorkingHours: Math.max(0, workingHours),
-      currentWorkingMinutes: Math.max(0, workingMinutes),
+      currentWorkingHours: totalWorkingMinutes / 60,
+      currentWorkingMinutes: totalWorkingMinutes,
+      currentRegularHours: regularMinutes / 60,
+      currentRegularMinutes: regularMinutes,
       isCurrentlyOvertime,
       overtimeMinutes,
       overtimeHours: overtimeMinutes / 60,
-      projectedEndTime,
-      standardEndTime: departCheckOut
+      standardEndTime: departCheckOut,
+      departmentStartTime: departCheckIn
     };
   };
 
@@ -77,21 +90,32 @@ export function WorkingHoursPreview({
           <span className="text-sm">Working Hours Preview</span>
         </div>
         
-        <div className="grid grid-cols-2 gap-3">
-          {/* Current Working Time */}
+        <div className="grid grid-cols-3 gap-3">
+          {/* Regular Hours */}
           <div className="bg-white p-3 rounded-lg border">
-            <div className="text-xs text-muted-foreground">Currently Worked</div>
+            <div className="text-xs text-muted-foreground">Regular Hours</div>
+            <div className="font-semibold text-green-600">
+              {formatDuration(preview.currentRegularHours)}
+            </div>
+            <div className="text-xs text-muted-foreground">In schedule</div>
+          </div>
+          
+          {/* Overtime Hours */}
+          <div className="bg-white p-3 rounded-lg border">
+            <div className="text-xs text-muted-foreground">Overtime Hours</div>
+            <div className={`font-semibold ${preview.isCurrentlyOvertime ? 'text-orange-600' : 'text-gray-400'}`}>
+              {formatDuration(preview.overtimeHours)}
+            </div>
+            <div className="text-xs text-muted-foreground">Outside schedule</div>
+          </div>
+          
+          {/* Total Time */}
+          <div className="bg-white p-3 rounded-lg border">
+            <div className="text-xs text-muted-foreground">Total Time</div>
             <div className="font-semibold text-blue-600">
               {formatDuration(preview.currentWorkingHours)}
             </div>
-          </div>
-          
-          {/* Standard End Time */}
-          <div className="bg-white p-3 rounded-lg border">
-            <div className="text-xs text-muted-foreground">Standard End</div>
-            <div className="font-semibold text-green-600">
-              <TimeDisplay time={preview.standardEndTime.toISOString()} format12Hour={true} />
-            </div>
+            <div className="text-xs text-muted-foreground">All time</div>
           </div>
         </div>
         
@@ -111,15 +135,22 @@ export function WorkingHoursPreview({
           </div>
         )}
         
-        {/* Helpful Information */}
-        <div className="text-xs text-muted-foreground bg-white p-2 rounded border">
+        {/* Enhanced Information */}
+        <div className="text-xs bg-white p-3 rounded border space-y-1">
+          <div className="font-medium text-gray-700">Department Schedule:</div>
+          <div className="text-muted-foreground">
+            <TimeDisplay time={preview.departmentStartTime.toISOString()} format12Hour={true} /> - {' '}
+            <TimeDisplay time={preview.standardEndTime.toISOString()} format12Hour={true} />
+            {' '}({departmentTiming.workingHours}h standard)
+          </div>
           {preview.isCurrentlyOvertime ? (
-            <span>You are currently working overtime. Consider checking out soon if your work is complete.</span>
+            <div className="text-orange-600 font-medium">
+              ⚠️ Currently working outside department schedule (overtime)
+            </div>
           ) : (
-            <span>
-              Complete your standard {departmentTiming.workingHours}h day by{' '}
-              <TimeDisplay time={preview.standardEndTime.toISOString()} format12Hour={true} />
-            </span>
+            <div className="text-green-600">
+              ✓ Working within department schedule
+            </div>
           )}
         </div>
       </CardContent>

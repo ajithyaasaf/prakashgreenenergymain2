@@ -419,42 +419,49 @@ export default function Attendance() {
 
       {/* Department Timing Settings Display */}
       {departmentTiming && (
-        <Card className="bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Clock className="h-5 w-5 text-purple-600" />
-              Department Timing Settings
-              <Badge variant="outline" className="ml-2">{user?.department?.toUpperCase()}</Badge>
-            </CardTitle>
-            <CardDescription>Your department's configured working hours and policies</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="text-center p-4 bg-white rounded-lg border">
-                <div className="text-sm text-muted-foreground mb-1">Check In Time</div>
-                <div className="text-lg font-semibold text-green-600"><TimeDisplay time={departmentTiming.checkInTime} format12Hour={true} /></div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card className="bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Clock className="h-5 w-5 text-purple-600" />
+                Department Timing Settings
+                <Badge variant="outline" className="ml-2">{user?.department?.toUpperCase()}</Badge>
+              </CardTitle>
+              <CardDescription>Your department's configured working hours and policies</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="text-center p-4 bg-white rounded-lg border">
+                  <div className="text-sm text-muted-foreground mb-1">Check In Time</div>
+                  <div className="text-lg font-semibold text-green-600"><TimeDisplay time={departmentTiming.checkInTime} format12Hour={true} /></div>
+                </div>
+                <div className="text-center p-4 bg-white rounded-lg border">
+                  <div className="text-sm text-muted-foreground mb-1">Check Out Time</div>
+                  <div className="text-lg font-semibold text-red-600"><TimeDisplay time={departmentTiming.checkOutTime} format12Hour={true} /></div>
+                </div>
+                <div className="text-center p-4 bg-white rounded-lg border">
+                  <div className="text-sm text-muted-foreground mb-1">Working Hours</div>
+                  <div className="text-lg font-semibold text-blue-600">{departmentTiming.workingHours}h</div>
+                </div>
+                <div className="text-center p-4 bg-white rounded-lg border">
+                  <div className="text-sm text-muted-foreground mb-1">Overtime Threshold</div>
+                  <div className="text-lg font-semibold text-orange-600">{departmentTiming.overtimeThresholdMinutes}m</div>
+                </div>
               </div>
-              <div className="text-center p-4 bg-white rounded-lg border">
-                <div className="text-sm text-muted-foreground mb-1">Check Out Time</div>
-                <div className="text-lg font-semibold text-red-600"><TimeDisplay time={departmentTiming.checkOutTime} format12Hour={true} /></div>
-              </div>
-              <div className="text-center p-4 bg-white rounded-lg border">
-                <div className="text-sm text-muted-foreground mb-1">Working Hours</div>
-                <div className="text-lg font-semibold text-blue-600">{departmentTiming.workingHours}h</div>
-              </div>
-              <div className="text-center p-4 bg-white rounded-lg border">
-                <div className="text-sm text-muted-foreground mb-1">Overtime Threshold</div>
-                <div className="text-lg font-semibold text-orange-600">{departmentTiming.overtimeThresholdMinutes}m</div>
-              </div>
-            </div>
-            {departmentTiming.isFlexibleTiming && (
-              <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                <div className="text-sm text-blue-700 font-medium">Flexible Timing Enabled</div>
-                <div className="text-xs text-blue-600">Your department allows flexible working hours</div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              {departmentTiming.isFlexibleTiming && (
+                <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  <div className="text-sm text-blue-700 font-medium">Flexible Timing Enabled</div>
+                  <div className="text-xs text-blue-600">Your department allows flexible working hours</div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+          
+          {/* Overtime Explanation */}
+          <OvertimeExplanationCard 
+            departmentTiming={departmentTiming}
+          />
+        </div>
       )}
 
       {/* Weekly Summary Section */}

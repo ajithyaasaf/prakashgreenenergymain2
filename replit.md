@@ -119,17 +119,17 @@ This is an enterprise-grade dashboard application for Prakash Greens Energy, bui
 - **TypeScript**: Comprehensive tsconfig with path aliases
 
 ## Recent Changes
-- June 24, 2025: Fixed critical UX logical issues in attendance system
-  - ✓ Resolved confusing check-in/out button states with clear attendance state logic
-  - ✓ Enhanced attendance status display with 5 distinct states (not_started, checked_in, completed, no_timing, unknown)
-  - ✓ Added real-time location status indicator with accuracy feedback
-  - ✓ Created working hours preview component for check-out with overtime detection
-  - ✓ Improved button labels from "Check In/Out" to "Start/End Work Day" for clarity
-  - ✓ Added comprehensive attendance state feedback with visual indicators
-  - ✓ Fixed midnight boundary confusion with clear day indication
-  - ✓ Enhanced check-in modal with location validation and time context
-  - ✓ Implemented real-time working hours calculation and overtime alerts
-  - ✓ Added user-friendly error messages and actionable recommendations
+- June 24, 2025: Fixed critical overtime calculation logic with time-based approach
+  - ✓ Fixed major overtime bug - now properly calculates based on department schedule vs work time
+  - ✓ Implemented correct logic: Overtime = work outside department schedule (before start OR after end)
+  - ✓ Enhanced working hours preview with separate regular/overtime breakdown
+  - ✓ Added comprehensive overtime explanation card with examples
+  - ✓ Fixed frontend overtime display to show accurate calculations
+  - ✓ Updated check-out component with proper time-based overtime detection
+  - ✓ Added detailed logging for overtime calculation debugging
+  - ✓ Example: Dept 12:46-12:50, Employee 12:00-13:00 = 4min regular + 56min overtime
+  - ✓ Created visual breakdown of regular hours vs overtime hours
+  - ✓ Enhanced time calculation service with proper schedule overlap logic
 - June 24, 2025: Implemented Google-level Enterprise Time Service with complete standardization
   - ✓ Created centralized EnterpriseTimeService for department-based time management
   - ✓ Standardized all time operations to 12-hour format throughout application
