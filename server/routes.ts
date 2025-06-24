@@ -3631,15 +3631,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const serverDate = new Date();
       const dateString = serverDate.toISOString().split('T')[0];
       
-      const todayAttendance = await storage.listAttendance({
-        userId: userId as string,
-        date: {
-          start: new Date(dateString + 'T00:00:00.000Z'),
-          end: new Date(dateString + 'T23:59:59.999Z')
-        }
-      });
+      // Get today's attendance using the correct method
+      const todayAttendance = await storage.getUserAttendanceForDate(userId as string, dateString);
 
-      res.json(todayAttendance.length > 0 ? todayAttendance[0] : null);
+      res.json(todayAttendance || null);
     } catch (error) {
       console.error("Error fetching today's attendance:", error);
       res.status(500).json({ message: "Failed to fetch today's attendance" });

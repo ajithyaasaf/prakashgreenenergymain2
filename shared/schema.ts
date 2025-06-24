@@ -167,8 +167,8 @@ export const insertDepartmentTimingSchema = z.object({
       }
       return true;
     }, "Check out time must be after check in time"),
-  lateThresholdMinutes: z.number().min(0).default(15), // Grace period for late arrivals
-  overtimeThresholdMinutes: z.number().min(0).default(30), // Minimum minutes to qualify for OT
+  lateThresholdMinutes: z.number().min(0).default(15), // Grace period for late arrivals (flexible input)
+  overtimeThresholdMinutes: z.number().min(0).default(30), // Minimum minutes to qualify for OT (flexible input)
   isFlexibleTiming: z.boolean().default(false),
   flexibleCheckInStart: z.string().optional(), // e.g., "08:00"
   flexibleCheckInEnd: z.string().optional(),   // e.g., "10:00"

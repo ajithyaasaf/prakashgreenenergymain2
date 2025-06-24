@@ -70,7 +70,6 @@ export default function Departments() {
     workingHours: 8,
     overtimeThresholdMinutes: 30,
     lateThresholdMinutes: 15,
-    breakDurationMinutes: 60,
     allowEarlyCheckOut: false,
     allowRemoteWork: true,
     allowFieldWork: true
@@ -361,7 +360,6 @@ export default function Departments() {
                                 workingHours: currentTiming?.workingHours || 8,
                                 overtimeThresholdMinutes: currentTiming?.overtimeThresholdMinutes || 30,
                                 lateThresholdMinutes: currentTiming?.lateThresholdMinutes || 15,
-                                breakDurationMinutes: currentTiming?.breakDurationMinutes || 60,
                                 allowEarlyCheckOut: currentTiming?.allowEarlyCheckOut || false,
                                 allowRemoteWork: currentTiming?.allowRemoteWork || true,
                                 allowFieldWork: currentTiming?.allowFieldWork || true
@@ -548,10 +546,10 @@ export default function Departments() {
               </h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {[
-                  { name: "Standard Office", start: "09:00", end: "18:00", hours: 8, break: 60, display: "9:00 AM - 6:00 PM" },
-                  { name: "Early Shift", start: "07:00", end: "16:00", hours: 8, break: 60, display: "7:00 AM - 4:00 PM" },
-                  { name: "Night Shift", start: "22:00", end: "06:00", hours: 8, break: 60, display: "10:00 PM - 6:00 AM" },
-                  { name: "Flexible Hours", start: "09:30", end: "18:30", hours: 8, break: 60, display: "9:30 AM - 6:30 PM" }
+                  { name: "Standard Office", start: "09:00", end: "18:00", hours: 8, display: "9:00 AM - 6:00 PM" },
+                  { name: "Early Shift", start: "07:00", end: "16:00", hours: 8, display: "7:00 AM - 4:00 PM" },
+                  { name: "Night Shift", start: "22:00", end: "06:00", hours: 8, display: "10:00 PM - 6:00 AM" },
+                  { name: "Flexible Hours", start: "09:30", end: "18:30", hours: 8, display: "9:30 AM - 6:30 PM" }
                 ].map((template) => (
                   <Card key={template.name} 
                     className={`cursor-pointer transition-all hover:shadow-md border-2 ${
@@ -564,8 +562,7 @@ export default function Departments() {
                       ...timingFormState,
                       checkInTime: template.start,
                       checkOutTime: template.end,
-                      workingHours: template.hours,
-                      breakDurationMinutes: template.break
+                      workingHours: template.hours
                     })}
                   >
                     <CardContent className="p-4 text-center">
@@ -637,7 +634,7 @@ export default function Departments() {
               </div>
 
               {/* Time Inputs with Better UX */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-3">
                   <label className="text-sm font-medium flex items-center gap-2">
                     <Play className="h-4 w-4 text-green-600" />
@@ -671,31 +668,6 @@ export default function Departments() {
                     />
                   </div>
                 </div>
-
-                <div className="space-y-3">
-                  <label className="text-sm font-medium flex items-center gap-2">
-                    <Coffee className="h-4 w-4 text-orange-600" />
-                    Break Duration
-                  </label>
-                  <Select
-                    value={timingFormState.breakDurationMinutes?.toString() || "60"}
-                    onValueChange={(value) => setTimingFormState({
-                      ...timingFormState,
-                      breakDurationMinutes: parseInt(value)
-                    })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="30">30 minutes</SelectItem>
-                      <SelectItem value="45">45 minutes</SelectItem>
-                      <SelectItem value="60">1 hour</SelectItem>
-                      <SelectItem value="90">1.5 hours</SelectItem>
-                      <SelectItem value="120">2 hours</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
               </div>
             </div>
 
@@ -714,13 +686,13 @@ export default function Departments() {
                       <Input
                         type="number"
                         min="0"
-                        max="120"
                         value={timingFormState.lateThresholdMinutes}
                         onChange={(e) => setTimingFormState({
                           ...timingFormState,
                           lateThresholdMinutes: parseInt(e.target.value) || 15
                         })}
-                        className="w-24"
+                        className="w-32"
+                        placeholder="Enter minutes"
                       />
                       <span className="text-sm text-muted-foreground">minutes</span>
                     </div>
@@ -732,13 +704,13 @@ export default function Departments() {
                       <Input
                         type="number"
                         min="0"
-                        max="240"
                         value={timingFormState.overtimeThresholdMinutes}
                         onChange={(e) => setTimingFormState({
                           ...timingFormState,
                           overtimeThresholdMinutes: parseInt(e.target.value) || 30
                         })}
-                        className="w-24"
+                        className="w-32"
+                        placeholder="Enter minutes"
                       />
                       <span className="text-sm text-muted-foreground">minutes</span>
                     </div>
@@ -796,14 +768,10 @@ export default function Departments() {
             {/* Summary Card */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <h4 className="font-medium text-blue-900 mb-2">Schedule Summary</h4>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                 <div>
                   <span className="text-blue-700 font-medium">Working Hours:</span>
                   <div className="text-blue-900">{timingFormState.workingHours} hours/day</div>
-                </div>
-                <div>
-                  <span className="text-blue-700 font-medium">Break Time:</span>
-                  <div className="text-blue-900">{timingFormState.breakDurationMinutes || 60} minutes</div>
                 </div>
                 <div>
                   <span className="text-blue-700 font-medium">Late Grace:</span>
