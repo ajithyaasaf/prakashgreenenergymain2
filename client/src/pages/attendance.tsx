@@ -104,6 +104,7 @@ export default function Attendance() {
     enabled: !!user?.department,
     staleTime: 0, // Always fetch fresh data
     cacheTime: 0, // Don't cache timing data
+    refetchInterval: 30000, // Refetch every 30 seconds to stay updated
   });
 
   // Refresh attendance data
@@ -116,10 +117,19 @@ export default function Attendance() {
 
   // Additional refresh function for timing specifically
   const refreshTiming = () => {
-    queryClient.invalidateQueries({ queryKey: ["/api/attendance"] });
-    queryClient.invalidateQueries({ queryKey: ["/api/attendance/today"] });
-    refetch();
+    queryClient.invalidateQueries({ queryKey: ["/api/departments/timing"] });
+    refetchTiming();
   };
+
+  // Listen for window focus to refresh timing data
+  useEffect(() => {
+    const handleFocus = () => {
+      refetchTiming();
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [refetchTiming]);
 
   // Filter attendance records based on search query
   const filteredAttendance = attendanceRecords.filter((record: any) =>

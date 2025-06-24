@@ -119,13 +119,16 @@ This is an enterprise-grade dashboard application for Prakash Greens Energy, bui
 - **TypeScript**: Comprehensive tsconfig with path aliases
 
 ## Recent Changes
-- June 24, 2025: Fixed department timing cache invalidation issue
+- June 24, 2025: Fixed department timing cache invalidation issue with dynamic UI updates
   - ✓ Fixed real-time timing updates not reflecting immediately in attendance page
   - ✓ Added proper Enterprise Time Service cache invalidation on timing updates
   - ✓ Updated frontend query cache management for immediate timing changes
   - ✓ Department timing changes now reflect instantly across all components
   - ✓ Enhanced timing flexibility for monthly schedule adjustments
   - ✓ Improved user experience with immediate feedback on timing changes
+  - ✓ Added dynamic UI updates with auto-refresh every 30 seconds for timing data
+  - ✓ Enhanced TimingDisplay component with visual feedback and last updated timestamps
+  - ✓ Added comprehensive cache invalidation and query refetching on timing updates
 - June 24, 2025: Implemented Google-level Enterprise Time Service with complete standardization
   - ✓ Created centralized EnterpriseTimeService for department-based time management
   - ✓ Standardized all time operations to 12-hour format throughout application

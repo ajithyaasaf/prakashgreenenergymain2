@@ -231,10 +231,34 @@ export default function Departments() {
         }
       });
       
-      // Also invalidate specific department timing query
+      // Also invalidate specific department timing query for all departments
       queryClient.invalidateQueries({ 
-        queryKey: ["/api/departments/timing", variables.departmentId]
+        queryKey: ["/api/departments/timing"]
       });
+      
+      // Force refetch all timing-related queries immediately
+      queryClient.refetchQueries({ 
+        predicate: (query) => {
+          const queryKey = query.queryKey[0];
+          if (typeof queryKey === 'string') {
+            return queryKey.includes('/api/departments/timing');
+          }
+          return false;
+        }
+      });
+
+      // Additional forced refresh with delay to ensure cache clearing
+      setTimeout(() => {
+        queryClient.refetchQueries({ 
+          predicate: (query) => {
+            const queryKey = query.queryKey[0];
+            if (typeof queryKey === 'string') {
+              return queryKey.includes('/api/departments/timing');
+            }
+            return false;
+          }
+        });
+      }, 1000);
       
       toast({
         title: "Attendance timing updated",

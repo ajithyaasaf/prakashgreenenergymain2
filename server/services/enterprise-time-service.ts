@@ -140,7 +140,7 @@ export class EnterpriseTimeService {
    */
   static invalidateTimingCache(department?: string): void {
     if (department) {
-      const cacheKey = department.toLowerCase();
+      const cacheKey = `dept_timing_${department.toLowerCase()}`;
       this.timingCache.delete(cacheKey);
       this.cacheExpiry.delete(cacheKey);
       console.log(`Invalidated timing cache for department: ${department}`);
@@ -150,6 +150,13 @@ export class EnterpriseTimeService {
       this.cacheExpiry.clear();
       console.log('Invalidated all timing cache');
     }
+  }
+
+  /**
+   * Clear timing cache for a specific department (alias for invalidateTimingCache)
+   */
+  static clearDepartmentCache(department: string): void {
+    this.invalidateTimingCache(department);
   }
 
   /**
