@@ -119,6 +119,14 @@ This is an enterprise-grade dashboard application for Prakash Greens Energy, bui
 - **TypeScript**: Comprehensive tsconfig with path aliases
 
 ## Recent Changes
+- June 24, 2025: Implemented Google-level Enterprise Time Service
+  - ✓ Created centralized EnterpriseTimeService for department-based time management
+  - ✓ Standardized all time operations to 12-hour format throughout application
+  - ✓ Implemented real-time overtime calculation based on department schedules
+  - ✓ Added intelligent caching for department timings with 5-minute expiry
+  - ✓ Created reusable TimeDisplay and TimeInput components
+  - ✓ Enhanced attendance service with precise OT calculation (work after dept. checkout = OT)
+  - ✓ Integrated bulk timing updates with cache invalidation
 - June 23, 2025: Fixed critical logical issues across attendance and payroll systems
   - ✓ Corrected permission system corruption (duplicate designation levels)
   - ✓ Fixed timezone mismatches in attendance tracking
@@ -134,3 +142,5 @@ This is an enterprise-grade dashboard application for Prakash Greens Energy, bui
 
 Preferred communication style: Simple, everyday language.
 Time format preference: 12-hour format (AM/PM) throughout the application.
+Business logic preference: Google-level enterprise approach with department-based time management.
+Overtime calculation: Simple rule - any work beyond department checkout time is considered overtime.

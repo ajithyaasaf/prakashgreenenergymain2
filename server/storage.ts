@@ -648,6 +648,11 @@ export interface IStorage {
   createAttendancePolicy(data: z.infer<typeof insertAttendancePolicySchema>): Promise<AttendancePolicy>;
   updateAttendancePolicy(id: string, data: Partial<z.infer<typeof insertAttendancePolicySchema>>): Promise<AttendancePolicy>;
   listAttendancePolicies(): Promise<AttendancePolicy[]>;
+
+  // Department Timing Management
+  getDepartmentTiming(department: string): Promise<any | undefined>;
+  updateDepartmentTiming(department: string, data: any): Promise<any>;
+  listDepartmentTimings(): Promise<any[]>;
   
   // Payroll Calculation Utilities
   calculatePayroll(userId: string, month: number, year: number): Promise<z.infer<typeof insertPayrollSchema>>;
@@ -2959,6 +2964,56 @@ export class FirestoreStorage implements IStorage {
         createdAt: data.createdAt?.toDate() || new Date(),
         updatedAt: data.updatedAt?.toDate() || new Date(),
       } as AttendancePolicy;
+    });
+  }
+
+  // Department Timing Management
+  async getDepartmentTiming(department: string): Promise<any | undefined> {
+    const doc = await this.db.collection('departmentTimings').doc(department).get();
+    if (!doc.exists) return undefined;
+    
+    const data = doc.data()!;
+    return {
+      id: doc.id,
+      ...data,
+      createdAt: data.createdAt?.toDate() || new Date(),
+      updatedAt: data.updatedAt?.toDate() || new Date(),
+    };
+  }
+
+  async updateDepartmentTiming(department: string, data: any): Promise<any> {
+    const doc = this.db.collection('departmentTimings').doc(department);
+    const updateData = {
+      ...data,
+      department,
+      updatedAt: new Date(),
+    };
+    
+    await doc.set(updateData, { merge: true });
+    
+    const updated = await doc.get();
+    const updatedData = updated.data()!;
+    return {
+      id: updated.id,
+      ...updatedData,
+      createdAt: updatedData.createdAt?.toDate() || new Date(),
+      updatedAt: updatedData.updatedAt?.toDate() || new Date(),
+    };
+  }
+
+  async listDepartmentTimings(): Promise<any[]> {
+    const querySnapshot = await this.db.collection('departmentTimings')
+      .orderBy('department', 'asc')
+      .get();
+    
+    return querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: data.createdAt?.toDate() || new Date(),
+        updatedAt: data.updatedAt?.toDate() || new Date(),
+      };
     });
   }
 

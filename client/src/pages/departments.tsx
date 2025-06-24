@@ -2,7 +2,9 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuthContext } from "@/contexts/auth-context";
 import { formatDate, formatTimeString } from "@/lib/utils";
-import { TimeInput } from "@/components/ui/time-input";
+import { TimeInput } from "@/components/time/time-input";
+import { TimeDisplay, formatTimeFor12Hour } from "@/components/time/time-display";
+import { TimingDialog } from "@/components/departments/timing-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { apiRequest } from "@/lib/queryClient";
@@ -65,8 +67,8 @@ export default function Departments() {
     description: ""
   });
   const [timingFormState, setTimingFormState] = useState({
-    checkInTime: "09:30",
-    checkOutTime: "18:30",
+    checkInTime: "9:00 AM",
+    checkOutTime: "6:00 PM",
     workingHours: 8,
     overtimeThresholdMinutes: 30,
     lateThresholdMinutes: 15,
@@ -338,7 +340,9 @@ export default function Departments() {
                       <TableCell>
                         {timing ? (
                           <div className="text-sm">
-                            <div>{formatTimeString(timing.checkInTime)} - {formatTimeString(timing.checkOutTime)}</div>
+                            <div>
+                              <TimeDisplay time={timing.checkInTime} format12Hour={true} /> - <TimeDisplay time={timing.checkOutTime} format12Hour={true} />
+                            </div>
                             <div className="text-muted-foreground">{timing.workingHours}h working</div>
                           </div>
                         ) : (
@@ -353,17 +357,6 @@ export default function Departments() {
                             className="h-8 w-8 p-0"
                             onClick={() => {
                               setCurrentDepartment(department);
-                              const currentTiming = departmentTimings?.[department.id];
-                              setTimingFormState({
-                                checkInTime: currentTiming?.checkInTime || "09:30",
-                                checkOutTime: currentTiming?.checkOutTime || "18:30",
-                                workingHours: currentTiming?.workingHours || 8,
-                                overtimeThresholdMinutes: currentTiming?.overtimeThresholdMinutes || 30,
-                                lateThresholdMinutes: currentTiming?.lateThresholdMinutes || 15,
-                                allowEarlyCheckOut: currentTiming?.allowEarlyCheckOut || false,
-                                allowRemoteWork: currentTiming?.allowRemoteWork || true,
-                                allowFieldWork: currentTiming?.allowFieldWork || true
-                              });
                               setShowTimingDialog(true);
                             }}
                             title="Configure Attendance Timing"

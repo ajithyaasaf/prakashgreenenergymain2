@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuthContext } from "@/contexts/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { formatDate, formatTime, formatTimeString } from "@/lib/utils";
+import { TimeDisplay, formatTimeFor12Hour } from "@/components/time/time-display";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
@@ -178,7 +179,7 @@ export default function Attendance() {
               </CardTitle>
               {departmentTiming && (
                 <div className="text-xs text-muted-foreground">
-                  Office: {formatTimeString(departmentTiming.checkInTime)} - {formatTimeString(departmentTiming.checkOutTime)}
+                  Office: <TimeDisplay time={departmentTiming.checkInTime} format12Hour={true} /> - <TimeDisplay time={departmentTiming.checkOutTime} format12Hour={true} />
                 </div>
               )}
             </div>
@@ -193,7 +194,7 @@ export default function Attendance() {
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Check In</p>
-                    <p className="font-semibold">{formatTime(todayAttendance.checkInTime)}</p>
+                    <p className="font-semibold"><TimeDisplay time={todayAttendance.checkInTime} format12Hour={true} /></p>
                     <p className="text-xs text-muted-foreground">{todayAttendance.attendanceType || 'Office'}</p>
                   </div>
                 </div>
@@ -205,7 +206,7 @@ export default function Attendance() {
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">Check Out</p>
-                      <p className="font-semibold">{formatTime(todayAttendance.checkOutTime)}</p>
+                      <p className="font-semibold"><TimeDisplay time={todayAttendance.checkOutTime} format12Hour={true} /></p>
                       <p className="text-xs text-muted-foreground">
                         {(() => {
                           const checkIn = new Date(todayAttendance.checkInTime);
@@ -309,11 +310,11 @@ export default function Attendance() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="text-center p-4 bg-white rounded-lg border">
                 <div className="text-sm text-muted-foreground mb-1">Check In Time</div>
-                <div className="text-lg font-semibold text-green-600">{formatTimeString(departmentTiming.checkInTime)}</div>
+                <div className="text-lg font-semibold text-green-600"><TimeDisplay time={departmentTiming.checkInTime} format12Hour={true} /></div>
               </div>
               <div className="text-center p-4 bg-white rounded-lg border">
                 <div className="text-sm text-muted-foreground mb-1">Check Out Time</div>
-                <div className="text-lg font-semibold text-red-600">{formatTimeString(departmentTiming.checkOutTime)}</div>
+                <div className="text-lg font-semibold text-red-600"><TimeDisplay time={departmentTiming.checkOutTime} format12Hour={true} /></div>
               </div>
               <div className="text-center p-4 bg-white rounded-lg border">
                 <div className="text-sm text-muted-foreground mb-1">Working Hours</div>

@@ -3992,6 +3992,116 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===================== Department Timing Routes with Enterprise Time Service =====================
+
+  // Get all department timings
+  app.get("/api/departments/timings", verifyAuth, async (req, res) => {
+    try {
+      const { EnterpriseTimeService } = await import("./services/enterprise-time-service");
+      const timings = await EnterpriseTimeService.getAllDepartmentTimings();
+      
+      // Convert to object format for frontend compatibility
+      const timingsObject = timings.reduce((acc, timing) => {
+        acc[timing.department] = timing;
+        return acc;
+      }, {} as Record<string, any>);
+      
+      res.json(timingsObject);
+    } catch (error) {
+      console.error("Error fetching department timings:", error);
+      res.status(500).json({ message: "Failed to fetch department timings" });
+    }
+  });
+
+  // Get specific department timing
+  app.get("/api/departments/:department/timing", verifyAuth, async (req, res) => {
+    try {
+      const { department } = req.params;
+      const { EnterpriseTimeService } = await import("./services/enterprise-time-service");
+      const timing = await EnterpriseTimeService.getDepartmentTiming(department);
+      
+      res.json(timing);
+    } catch (error) {
+      console.error(`Error fetching timing for department ${req.params.department}:`, error);
+      res.status(500).json({ message: "Failed to fetch department timing" });
+    }
+  });
+
+  // Update specific department timing
+  app.post("/api/departments/:department/timing", verifyAuth, async (req, res) => {
+    try {
+      const { department } = req.params;
+      const user = await storage.getUser(req.user.uid);
+      
+      if (!user || user.role !== "master_admin") {
+        return res.status(403).json({ message: "Access denied - Master Admin only" });
+      }
+
+      const { EnterpriseTimeService } = await import("./services/enterprise-time-service");
+      
+      // Update single department timing
+      await EnterpriseTimeService.updateDepartmentTimings([{
+        department,
+        ...req.body
+      }]);
+      
+      const updatedTiming = await EnterpriseTimeService.getDepartmentTiming(department);
+      res.json(updatedTiming);
+    } catch (error) {
+      console.error(`Error updating timing for department ${req.params.department}:`, error);
+      res.status(500).json({ message: "Failed to update department timing" });
+    }
+  });
+
+  // Bulk update department timings
+  app.post("/api/departments/timings/bulk", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      
+      if (!user || user.role !== "master_admin") {
+        return res.status(403).json({ message: "Access denied - Master Admin only" });
+      }
+
+      const { timings } = req.body;
+      const { EnterpriseTimeService } = await import("./services/enterprise-time-service");
+      
+      await EnterpriseTimeService.updateDepartmentTimings(timings);
+      
+      res.json({ 
+        message: `Successfully updated timings for ${timings.length} departments`,
+        updatedCount: timings.length
+      });
+    } catch (error) {
+      console.error("Error bulk updating department timings:", error);
+      res.status(500).json({ message: "Failed to bulk update department timings" });
+    }
+  });
+
+  // Check if current time is business hours for department
+  app.get("/api/departments/:department/business-hours", verifyAuth, async (req, res) => {
+    try {
+      const { department } = req.params;
+      const { EnterpriseTimeService } = await import("./services/enterprise-time-service");
+      
+      const isBusinessHours = await EnterpriseTimeService.isBusinessHours(department);
+      const nextBusinessDay = await EnterpriseTimeService.getNextBusinessDay(department);
+      
+      res.json({
+        department,
+        isBusinessHours,
+        nextBusinessDay: nextBusinessDay.toISOString(),
+        currentTime: new Date().toLocaleString('en-US', {
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true
+        })
+      });
+    } catch (error) {
+      console.error(`Error checking business hours for department ${req.params.department}:`, error);
+      res.status(500).json({ message: "Failed to check business hours" });
+    }
+  });
+
   // ===================== Enhanced Payroll Management API Routes =====================
 
   // Payroll Field Configuration Routes

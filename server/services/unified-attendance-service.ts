@@ -136,8 +136,8 @@ export class UnifiedAttendanceService {
         };
       }
 
-      // Calculate timing information
-      const timingInfo = this.calculateTimingInfo(user);
+      // Calculate timing information using Enterprise Time Service
+      const timingInfo = await this.calculateTimingInfo(user, new Date());
       
       // Handle photo upload to Cloudinary if provided
       let cloudinaryImageUrl = request.imageUrl;
@@ -276,17 +276,20 @@ export class UnifiedAttendanceService {
 
       // Get user for department timing
       const user = await storage.getUser(request.userId);
-      const departmentTiming = this.getDepartmentTiming(user?.department || undefined);
-
-      // Calculate working hours and overtime
+      const { EnterpriseTimeService } = await import('./enterprise-time-service');
+      
+      // Calculate comprehensive time metrics using Enterprise Time Service
       const checkOutTime = new Date();
       const checkInTime = attendance.checkInTime ? new Date(attendance.checkInTime) : new Date();
-      const workingMinutes = Math.floor((checkOutTime.getTime() - checkInTime.getTime()) / (1000 * 60));
-      const workingHours = workingMinutes / 60;
-
-      // Calculate expected working hours (default 8 hours)
-      const expectedHours = 8;
-      const overtimeHours = Math.max(0, workingHours - expectedHours);
+      
+      const timeMetrics = await EnterpriseTimeService.calculateTimeMetrics(
+        request.userId,
+        user?.department || 'operations',
+        checkInTime,
+        checkOutTime
+      );
+      
+      const { workingHours, overtimeHours } = timeMetrics;
 
       // Update attendance record
       const updatedAttendance = await storage.updateAttendance(attendance.id, {
@@ -385,33 +388,58 @@ export class UnifiedAttendanceService {
   }
 
   /**
-   * Calculate timing information for check-in
+   * Calculate timing information for check-in using Enterprise Time Service
    */
-  private static calculateTimingInfo(user: any): {
+  private static async calculateTimingInfo(user: any, checkInTime: Date = new Date()): Promise<{
     isLate: boolean;
     lateMinutes: number;
     expectedCheckInTime: string;
-  } {
-    const now = new Date();
-    const departmentTiming = this.getDepartmentTiming(user?.department);
-    const [checkInHour, checkInMinute] = departmentTiming.checkInTime.split(':').map(Number);
+  }> {
+    const { EnterpriseTimeService } = await import('./enterprise-time-service');
     
-    const expectedCheckInTime = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate(),
-      checkInHour,
-      checkInMinute
-    );
-
-    const isLate = now > expectedCheckInTime;
-    const lateMinutes = isLate ? Math.floor((now.getTime() - expectedCheckInTime.getTime()) / (1000 * 60)) : 0;
+    const department = user?.department || 'operations';
+    const timing = await EnterpriseTimeService.getDepartmentTiming(department);
+    
+    // Parse expected check-in time for today
+    const today = new Date(checkInTime);
+    const expectedTime = this.parseTime12ToDate(timing.checkInTime, today);
+    
+    const isLate = checkInTime > expectedTime;
+    const lateMinutes = isLate ? 
+      Math.floor((checkInTime.getTime() - expectedTime.getTime()) / (1000 * 60)) : 0;
 
     return {
       isLate,
       lateMinutes,
-      expectedCheckInTime: departmentTiming.checkInTime
+      expectedCheckInTime: timing.checkInTime
     };
+  }
+
+  /**
+   * Parse 12-hour time string to Date object
+   */
+  private static parseTime12ToDate(timeStr: string, baseDate: Date): Date {
+    const timeRegex = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i;
+    const match = timeStr.match(timeRegex);
+    
+    if (!match) {
+      console.error('Invalid time format:', timeStr);
+      return baseDate;
+    }
+
+    let [, hourStr, minuteStr, period] = match;
+    let hours = parseInt(hourStr);
+    const minutes = parseInt(minuteStr);
+
+    if (period.toUpperCase() === 'PM' && hours !== 12) {
+      hours += 12;
+    } else if (period.toUpperCase() === 'AM' && hours === 12) {
+      hours = 0;
+    }
+
+    const date = new Date(baseDate);
+    date.setHours(hours, minutes, 0, 0);
+    return date;
   }
 
   /**
