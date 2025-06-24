@@ -72,9 +72,16 @@ export function AttendanceCheckOut({
     const currentTime = new Date();
     const workingMinutes = Math.floor((currentTime.getTime() - checkInTime.getTime()) / (1000 * 60));
     
-    // Use dynamic department timing values
+    // Use dynamic department timing values with enhanced logging
     const standardWorkingMinutes = (departmentTiming.workingHours || 8) * 60;
     const overtimeThreshold = departmentTiming.overtimeThresholdMinutes || 0;
+    
+    console.log('FRONTEND OT CALCULATION:', {
+      departmentWorkingHours: departmentTiming.workingHours,
+      standardWorkingMinutes,
+      configuredOvertimeThreshold: departmentTiming.overtimeThresholdMinutes,
+      effectiveOvertimeThreshold: overtimeThreshold
+    });
     
     const potentialOvertimeMinutes = workingMinutes - standardWorkingMinutes;
     const hasOvertime = potentialOvertimeMinutes >= overtimeThreshold;
@@ -87,15 +94,21 @@ export function AttendanceCheckOut({
       hasOvertime
     });
     
-    return {
+    const result = {
       hasOvertime,
       overtimeHours: Math.max(0, Math.floor(potentialOvertimeMinutes / 60)),
       overtimeMinutes: Math.max(0, potentialOvertimeMinutes % 60),
       totalWorkingHours: Math.floor(workingMinutes / 60),
       totalWorkingMinutes: workingMinutes % 60,
       departmentWorkingHours: departmentTiming.workingHours,
-      departmentOvertimeThreshold: departmentTiming.overtimeThresholdMinutes
+      departmentOvertimeThreshold: departmentTiming.overtimeThresholdMinutes,
+      thresholdMinutes: overtimeThreshold,
+      workingMinutesTotal: workingMinutes,
+      standardMinutes: standardWorkingMinutes
     };
+    
+    console.log('FRONTEND OT RESULT:', result);
+    return result;
   };
 
   const overtimeInfo = calculateOvertimeInfo();

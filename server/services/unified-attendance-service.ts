@@ -177,7 +177,7 @@ export class UnifiedAttendanceService {
       const locationValidation = await EnterpriseLocationService.validateOfficeLocation(locationRequest);
 
       // Apply business rules based on attendance type
-      const businessValidation = this.validateBusinessRules(request, locationValidation);
+      const businessValidation = await this.validateBusinessRules(request, locationValidation);
       if (!businessValidation.isValid) {
         return {
           success: false,
@@ -384,13 +384,64 @@ export class UnifiedAttendanceService {
   }
 
   /**
-   * Validate business rules for attendance check-in
+   * Validate business rules for attendance check-in with work policy enforcement
    */
-  private static validateBusinessRules(
+  private static async validateBusinessRules(
     request: AttendanceCheckInRequest,
     locationValidation: LocationValidationResult
-  ): { isValid: boolean; message: string; recommendations: string[] } {
+  ): Promise<{ isValid: boolean; message: string; recommendations: string[] }> {
     const recommendations: string[] = [];
+
+    // Get user and department timing for policy validation
+    const user = await storage.getUser(request.userId);
+    const { EnterpriseTimeService } = await import('./enterprise-time-service');
+    const departmentTiming = await EnterpriseTimeService.getDepartmentTiming(user?.department || 'operations');
+
+    // Remote work policy validation
+    if (request.attendanceType === 'remote') {
+      if (!departmentTiming.allowRemoteWork) {
+        return {
+          isValid: false,
+          message: `Remote work is not allowed for ${user?.department || 'your'} department`,
+          recommendations: ['Please check in from office location', 'Contact your supervisor for remote work approval']
+        };
+      }
+      
+      if (!request.reason || request.reason.trim().length < 10) {
+        return {
+          isValid: false,
+          message: 'Remote work requires a detailed reason (minimum 10 characters)',
+          recommendations: ['Provide a clear reason for working remotely', 'Include work location and expected tasks']
+        };
+      }
+    }
+
+    // Field work policy validation
+    if (request.attendanceType === 'field_work') {
+      if (!departmentTiming.allowFieldWork) {
+        return {
+          isValid: false,
+          message: `Field work is not allowed for ${user?.department || 'your'} department`,
+          recommendations: ['Please check in from office location', 'Contact your supervisor for field work approval']
+        };
+      }
+      
+      if (!request.customerName || request.customerName.trim().length < 3) {
+        return {
+          isValid: false,
+          message: 'Field work requires a valid customer name (minimum 3 characters)',
+          recommendations: ['Provide the customer or site name', 'Include project or visit details in reason']
+        };
+      }
+      
+      if (!request.imageUrl) {
+        return {
+          isValid: false,
+          message: 'Field work requires a photo to be captured',
+          recommendations: ['Take a photo at the field location', 'Ensure photo shows your current location']
+        };
+      }
+    }
 
     // Office attendance validation
     if (request.attendanceType === 'office') {

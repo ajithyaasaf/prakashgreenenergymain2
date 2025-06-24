@@ -1323,19 +1323,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const overtimeMinutes = overtimeHours * 60;
       const hasOvertimeThreshold = overtimeMinutes >= overtimeThresholdMinutes;
       
+      console.log('OVERTIME THRESHOLD CHECK:', {
+        overtimeMinutes,
+        overtimeThresholdMinutes,
+        hasOvertimeThreshold,
+        departmentTiming: departmentTiming ? 'loaded' : 'default'
+      });
+      
       // Check if overtime requires approval and photo
       if (hasOvertimeThreshold) {
         if (!otReason) {
           return res.status(400).json({
-            message: "Overtime requires a reason to be provided",
+            message: `Overtime exceeds ${overtimeThresholdMinutes} minute threshold. Please provide a reason.`,
             overtimeHours: Math.round(overtimeHours * 100) / 100,
+            overtimeMinutes: Math.round(overtimeMinutes),
+            threshold: overtimeThresholdMinutes,
             requiresOTReason: true
           });
         }
         if (!imageUrl) {
           return res.status(400).json({
-            message: "Overtime requires a photo to be captured",
+            message: `Overtime exceeds ${overtimeThresholdMinutes} minute threshold. Photo verification required.`,
             overtimeHours: Math.round(overtimeHours * 100) / 100,
+            overtimeMinutes: Math.round(overtimeMinutes),
+            threshold: overtimeThresholdMinutes,
             requiresPhoto: true
           });
         }
@@ -1351,22 +1362,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         earlyCheckout,
         earlyMinutes,
         reason: reason || "no reason provided",
-        departmentTiming: departmentTiming ? 'loaded' : 'default'
+        departmentTiming: departmentTiming ? 'loaded' : 'default',
+        allowEarlyCheckOut: departmentTiming?.allowEarlyCheckOut
       });
       
-      // Temporarily disabled early checkout validation for testing
-      // if (earlyCheckout && earlyMinutes > 60 && (!reason || reason.trim().length === 0)) {
-      //   const currentTimeStr = checkOutTime.toLocaleTimeString();
-      //   const expectedTimeStr = expectedCheckOutTime.toLocaleTimeString();
-      //   return res.status(400).json({
-      //     message: `Early checkout (${earlyMinutes} minutes early) requires a reason. Current: ${currentTimeStr}, Expected: ${expectedTimeStr}`,
-      //     currentTime: checkOutTime,
-      //     expectedCheckOutTime,
-      //     requiresReason: true,
-      //     isEarlyCheckout: true,
-      //     earlyMinutes
-      //   });
-      // }
+      // Early checkout policy enforcement
+      if (earlyCheckout && earlyMinutes > 30) {
+        if (!departmentTiming?.allowEarlyCheckOut) {
+          return res.status(400).json({
+            message: `Early checkout is not allowed for ${user.department || 'your'} department. Current: ${checkOutTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}, Expected: ${expectedCheckOutTimeObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`,
+            currentTime: checkOutTime,
+            expectedCheckOutTime: expectedCheckOutTimeObj,
+            requiresApproval: true,
+            isEarlyCheckout: true,
+            earlyMinutes
+          });
+        }
+        
+        if (!reason || reason.trim().length < 10) {
+          return res.status(400).json({
+            message: `Early checkout (${earlyMinutes} minutes early) requires a detailed reason (minimum 10 characters)`,
+            currentTime: checkOutTime,
+            expectedCheckOutTime: expectedCheckOutTimeObj,
+            requiresReason: true,
+            isEarlyCheckout: true,
+            earlyMinutes
+          });
+        }
+      }
 
       // Update attendance record with checkout details
       const updatedAttendance = await storage.updateAttendance(attendanceRecord.id, {

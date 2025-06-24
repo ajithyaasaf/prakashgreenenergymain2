@@ -643,9 +643,24 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
                 <SelectValue placeholder="Select attendance type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="office">Office Work</SelectItem>
-                <SelectItem value="remote">Remote Work</SelectItem>
-                <SelectItem value="field_work">Field Work</SelectItem>
+                <SelectItem value="office">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="h-4 w-4" />
+                    Office Work
+                  </div>
+                </SelectItem>
+                <SelectItem value="remote">
+                  <div className="flex items-center gap-2">
+                    <Monitor className="h-4 w-4" />
+                    Remote Work
+                  </div>
+                </SelectItem>
+                <SelectItem value="field_work">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4" />
+                    Field Work
+                  </div>
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>

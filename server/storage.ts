@@ -3311,6 +3311,9 @@ export class FirestoreStorage implements IStorage {
           isFlexibleTiming: false,
           breakDurationMinutes: 60,
           weeklyOffDays: [0],
+          allowRemoteWork: true,
+          allowFieldWork: true,
+          allowEarlyCheckOut: false,
           isActive: true
         };
       }
@@ -3330,6 +3333,9 @@ export class FirestoreStorage implements IStorage {
         flexibleCheckInEnd: data.flexibleCheckInEnd,
         breakDurationMinutes: data.breakDurationMinutes,
         weeklyOffDays: data.weeklyOffDays,
+        allowRemoteWork: data.allowRemoteWork !== undefined ? data.allowRemoteWork : true,
+        allowFieldWork: data.allowFieldWork !== undefined ? data.allowFieldWork : true,
+        allowEarlyCheckOut: data.allowEarlyCheckOut !== undefined ? data.allowEarlyCheckOut : false,
         isActive: data.isActive,
         createdAt: data.createdAt?.toDate() || new Date(),
         updatedAt: data.updatedAt?.toDate() || new Date()

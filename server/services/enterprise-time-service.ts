@@ -66,6 +66,9 @@ export class EnterpriseTimeService {
           overtimeThresholdMinutes: timing.overtimeThresholdMinutes || 0,
           isFlexibleTiming: timing.isFlexibleTiming || false,
           weekendDays: timing.weekendDays || [0, 6],
+          allowRemoteWork: timing.allowRemoteWork !== undefined ? timing.allowRemoteWork : true,
+          allowFieldWork: timing.allowFieldWork !== undefined ? timing.allowFieldWork : true,
+          allowEarlyCheckOut: timing.allowEarlyCheckOut !== undefined ? timing.allowEarlyCheckOut : false,
           isActive: timing.isActive !== false,
           lastUpdated: timing.updatedAt || new Date()
         };
@@ -170,6 +173,9 @@ export class EnterpriseTimeService {
     lateThresholdMinutes?: number;
     overtimeThresholdMinutes?: number;
     isFlexibleTiming?: boolean;
+    allowRemoteWork?: boolean;
+    allowFieldWork?: boolean;
+    allowEarlyCheckOut?: boolean;
   }>): Promise<void> {
     const updatePromises = timings.map(async (timing) => {
       // Convert 12-hour to 24-hour for database storage
@@ -187,6 +193,9 @@ export class EnterpriseTimeService {
         lateThresholdMinutes: timing.lateThresholdMinutes || 15,
         overtimeThresholdMinutes: timing.overtimeThresholdMinutes || 0,
         isFlexibleTiming: timing.isFlexibleTiming || false,
+        allowRemoteWork: timing.allowRemoteWork !== undefined ? timing.allowRemoteWork : true,
+        allowFieldWork: timing.allowFieldWork !== undefined ? timing.allowFieldWork : true,
+        allowEarlyCheckOut: timing.allowEarlyCheckOut !== undefined ? timing.allowEarlyCheckOut : false,
         updatedAt: new Date()
       };
 
@@ -306,6 +315,9 @@ export class EnterpriseTimeService {
       overtimeThresholdMinutes: 0,
       isFlexibleTiming: false,
       weekendDays: [0, 6],
+      allowRemoteWork: true,
+      allowFieldWork: true,
+      allowEarlyCheckOut: false,
       isActive: true,
       lastUpdated: new Date()
     };
