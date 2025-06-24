@@ -52,21 +52,23 @@ export function AttendanceCheckOut({
   // Network status
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
-  // Fixed overtime calculation using time-based approach (work beyond department checkout time)
+  // FIXED: Simplified overtime detection - let server handle calculations
   const calculateOvertimeInfo = () => {
     if (!currentAttendance?.checkInTime || !departmentTiming) {
-      return { hasOvertime: false, overtimeHours: 0, overtimeMinutes: 0 };
+      return { hasOvertime: false, overtimeHours: 0, overtimeMinutes: 0, requiresPhoto: false };
     }
     
     const checkInTime = new Date(currentAttendance.checkInTime);
     const currentTime = new Date();
     const workingMinutes = Math.floor((currentTime.getTime() - checkInTime.getTime()) / (1000 * 60));
     
-    // Parse department checkout time to check if current time exceeds it
+    // Parse department checkout time for basic UI display
     const checkOutTimeStr = departmentTiming.checkOutTime || "6:00 PM";
-    const timeMatch = checkOutTimeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-    let departmentCheckoutMinutes = 18 * 60; // Default 6:00 PM
+    const currentTimeMinutes = currentTime.getHours() * 60 + currentTime.getMinutes();
     
+    // Simple time parsing for UI estimation only
+    let departmentCheckoutMinutes = 18 * 60; // Default 6:00 PM
+    const timeMatch = checkOutTimeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
     if (timeMatch) {
       let [, hours, minutes, period] = timeMatch;
       let hour24 = parseInt(hours);
@@ -75,28 +77,23 @@ export function AttendanceCheckOut({
       departmentCheckoutMinutes = hour24 * 60 + parseInt(minutes);
     }
     
-    // Current time in minutes since midnight
-    const currentTimeMinutes = currentTime.getHours() * 60 + currentTime.getMinutes();
-    
-    // Overtime = any work beyond department checkout time
+    // Basic overtime estimation for UI (server will calculate exact values)
     const overtimeMinutes = Math.max(0, currentTimeMinutes - departmentCheckoutMinutes);
     const hasOvertime = overtimeMinutes > 0;
+    const overtimeThreshold = departmentTiming.overtimeThresholdMinutes || 30;
+    const requiresPhoto = overtimeMinutes >= overtimeThreshold;
     
-    const result = {
+    return {
       hasOvertime,
       overtimeHours: Math.floor(overtimeMinutes / 60),
       overtimeMinutes: overtimeMinutes % 60,
       totalWorkingHours: Math.floor(workingMinutes / 60),
       totalWorkingMinutes: workingMinutes % 60,
       departmentWorkingHours: departmentTiming.workingHours,
-      departmentOvertimeThreshold: departmentTiming.overtimeThresholdMinutes,
-      currentTimeMinutes,
-      departmentCheckoutMinutes,
-      overtimeMinutesTotal: overtimeMinutes,
+      departmentOvertimeThreshold: overtimeThreshold,
+      requiresPhoto,
       workingMinutesTotal: workingMinutes
     };
-    
-    return result;
   };
 
   const overtimeInfo = calculateOvertimeInfo();

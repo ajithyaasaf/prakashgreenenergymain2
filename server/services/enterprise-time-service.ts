@@ -141,7 +141,12 @@ export class EnterpriseTimeService {
       expectedCheckOutTime: timing.checkOutTime,
       actualCheckInTime: this.formatTo12Hour(checkInTime),
       actualCheckOutTime: checkOutTime ? this.formatTo12Hour(checkOutTime) : undefined,
-      overtimeStartTime
+      overtimeStartTime,
+      debug: {
+        checkOutTime: checkOutTime?.toISOString(),
+        expectedCheckOut: expectedCheckOut.toISOString(),
+        overtimeCalculation: `${checkOutTime?.toISOString()} > ${expectedCheckOut.toISOString()} = ${overtimeHours}h`
+      }
     };
   }
 

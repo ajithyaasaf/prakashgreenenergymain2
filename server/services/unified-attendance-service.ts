@@ -518,20 +518,31 @@ export class UnifiedAttendanceService {
   }
 
   /**
-   * Parse 12-hour time string to Date object
+   * Parse 12-hour time string to Date object - DEPRECATED: Use EnterpriseTimeService
    */
   private static parseTime12ToDate(timeStr: string, baseDate: Date): Date {
+    console.warn('DEPRECATED: Use EnterpriseTimeService.parseTimeToDate instead');
     const timeRegex = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i;
     const match = timeStr.match(timeRegex);
     
     if (!match) {
-      console.error('Invalid time format:', timeStr);
-      return baseDate;
+      console.error('UNIFIED_ATTENDANCE: Invalid time format:', timeStr);
+      // Return safe fallback
+      const fallback = new Date(baseDate);
+      fallback.setHours(18, 0, 0, 0); // 6 PM default
+      return fallback;
     }
 
     let [, hourStr, minuteStr, period] = match;
     let hours = parseInt(hourStr);
     const minutes = parseInt(minuteStr);
+
+    if (isNaN(hours) || isNaN(minutes)) {
+      console.error('UNIFIED_ATTENDANCE: Invalid time values:', timeStr);
+      const fallback = new Date(baseDate);
+      fallback.setHours(18, 0, 0, 0);
+      return fallback;
+    }
 
     if (period.toUpperCase() === 'PM' && hours !== 12) {
       hours += 12;
