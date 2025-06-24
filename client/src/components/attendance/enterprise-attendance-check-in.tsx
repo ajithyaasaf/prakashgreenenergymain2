@@ -158,6 +158,8 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
     }
   };
 
+
+
   // Enhanced location refresh
   const refreshLocation = async () => {
     setIsLocationRefreshing(true);
@@ -518,10 +520,7 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
     setIsCameraActive(false);
   };
 
-  // Form validation
-  const isFormValid = () => {
-    return validateForm().isValid;
-  };
+
 
   // Enhanced submit handler
   const handleSubmit = async () => {
