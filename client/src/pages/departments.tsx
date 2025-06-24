@@ -214,30 +214,17 @@ export default function Departments() {
     }
   });
 
-  // Update department timing mutation
+  // Enhanced department timing mutation with comprehensive cache management
   const updateTimingMutation = useMutation({
     mutationFn: (data: { departmentId: string; timing: any }) => {
+      console.log('DEPARTMENTS: Updating timing for department:', data.departmentId);
       return apiRequest(`/api/departments/${data.departmentId}/timing`, 'POST', data.timing);
     },
-    onSuccess: (_, variables) => {
-      // Invalidate all department-related queries
-      queryClient.invalidateQueries({ 
-        predicate: (query) => {
-          const queryKey = query.queryKey[0];
-          if (typeof queryKey === 'string') {
-            return queryKey.includes('/api/departments') || queryKey.includes('/api/attendance');
-          }
-          return false;
-        }
-      });
+    onSuccess: (result, variables) => {
+      console.log('DEPARTMENTS: Timing update successful for:', variables.departmentId);
       
-      // Also invalidate specific department timing query for all departments
-      queryClient.invalidateQueries({ 
-        queryKey: ["/api/departments/timing"]
-      });
-      
-      // Force refetch all timing-related queries immediately
-      queryClient.refetchQueries({ 
+      // Step 1: Remove all cached timing data to force fresh fetch
+      queryClient.removeQueries({ 
         predicate: (query) => {
           const queryKey = query.queryKey[0];
           if (typeof queryKey === 'string') {
@@ -246,10 +233,27 @@ export default function Departments() {
           return false;
         }
       });
-
-      // Additional forced refresh with delay to ensure cache clearing
-      setTimeout(() => {
-        queryClient.refetchQueries({ 
+      
+      // Step 2: Invalidate all related queries
+      queryClient.invalidateQueries({ 
+        predicate: (query) => {
+          const queryKey = query.queryKey[0];
+          if (typeof queryKey === 'string') {
+            return queryKey.includes('/api/departments') || 
+                   queryKey.includes('/api/attendance') ||
+                   queryKey.includes('/api/users');
+          }
+          return false;
+        }
+      });
+      
+      // Step 3: Signal other tabs/windows about the update
+      localStorage.setItem('department_timing_updated', Date.now().toString());
+      localStorage.removeItem('department_timing_updated'); // Trigger storage event
+      
+      // Step 4: Force immediate refetch with multiple attempts
+      const forceRefetch = async () => {
+        await queryClient.refetchQueries({ 
           predicate: (query) => {
             const queryKey = query.queryKey[0];
             if (typeof queryKey === 'string') {
@@ -258,16 +262,26 @@ export default function Departments() {
             return false;
           }
         });
-      }, 1000);
+      };
+      
+      // Immediate refetch
+      forceRefetch();
+      
+      // Additional refetches to ensure updates propagate
+      setTimeout(forceRefetch, 500);
+      setTimeout(forceRefetch, 1500);
+      
+      console.log('DEPARTMENTS: All cache invalidation and refetch completed');
       
       toast({
         title: "Attendance timing updated",
-        description: "Department attendance timing has been successfully configured. Changes will reflect immediately on the attendance page.",
+        description: `${variables.departmentId.toUpperCase()} department timing has been successfully configured. Changes are now active on the attendance page.`,
         variant: "default"
       });
       setShowTimingDialog(false);
     },
     onError: (error: any) => {
+      console.error('DEPARTMENTS: Timing update failed:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to update attendance timing",

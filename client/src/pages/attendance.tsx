@@ -90,46 +90,101 @@ export default function Attendance() {
     },
   });
 
-  // Fetch department timing for current user
+  // Fetch department timing for current user with enhanced real-time updates
   const { data: departmentTiming, refetch: refetchTiming } = useQuery({
     queryKey: ["/api/departments/timing", user?.department],
     queryFn: async () => {
       if (!user?.department) return null;
+      console.log('ATTENDANCE: Fetching department timing for', user.department);
       const response = await apiRequest(`/api/departments/${user.department}/timing`, 'GET');
       if (response.ok) {
-        return await response.json();
+        const timing = await response.json();
+        console.log('ATTENDANCE: Retrieved timing:', timing);
+        return timing;
       }
+      console.log('ATTENDANCE: Failed to fetch timing, using fallback');
       return null;
     },
     enabled: !!user?.department,
     staleTime: 0, // Always fetch fresh data
-    cacheTime: 0, // Don't cache timing data
-    refetchInterval: 30000, // Refetch every 30 seconds to stay updated
+    gcTime: 0, // Don't cache timing data (updated from cacheTime)
+    refetchInterval: 10000, // More frequent updates - every 10 seconds
+    refetchOnWindowFocus: true, // Refetch when user returns to tab
+    refetchOnMount: true, // Always refetch on component mount
   });
 
-  // Refresh attendance data
+  // Enhanced refresh functions with comprehensive invalidation
   const refreshAttendance = () => {
-    queryClient.invalidateQueries({ queryKey: ["/api/attendance"] });
-    queryClient.invalidateQueries({ queryKey: ["/api/attendance/today"] });
-    queryClient.invalidateQueries({ queryKey: ["/api/departments/timing"] });
-    refetchTiming(); // Force refetch department timing
+    console.log('ATTENDANCE: Refreshing all attendance data');
+    // Invalidate all attendance-related queries
+    queryClient.invalidateQueries({ 
+      predicate: (query) => {
+        const queryKey = query.queryKey[0];
+        if (typeof queryKey === 'string') {
+          return queryKey.includes('/api/attendance') || queryKey.includes('/api/departments/timing');
+        }
+        return false;
+      }
+    });
+    
+    // Force immediate refetch of critical data
+    refetchTiming();
+    refetch();
   };
 
-  // Additional refresh function for timing specifically
+  // Enhanced timing refresh with cache clearing
   const refreshTiming = () => {
-    queryClient.invalidateQueries({ queryKey: ["/api/departments/timing"] });
+    console.log('ATTENDANCE: Refreshing department timing');
+    // Clear all timing-related cache
+    queryClient.removeQueries({ 
+      predicate: (query) => {
+        const queryKey = query.queryKey[0];
+        if (typeof queryKey === 'string') {
+          return queryKey.includes('/api/departments/timing');
+        }
+        return false;
+      }
+    });
+    
+    // Force immediate refetch
     refetchTiming();
   };
 
-  // Listen for window focus to refresh timing data
+  // Listen for storage events (cross-tab updates) and window focus
   useEffect(() => {
     const handleFocus = () => {
-      refetchTiming();
+      console.log('ATTENDANCE: Window focused, refreshing timing');
+      refreshTiming();
+    };
+    
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'department_timing_updated') {
+        console.log('ATTENDANCE: Department timing updated in another tab');
+        refreshTiming();
+      }
     };
     
     window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
+    window.addEventListener('storage', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, [refetchTiming]);
+
+  // Add visibility change listener for better real-time updates
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('ATTENDANCE: Page became visible, refreshing timing');
+        refreshTiming();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
 
   // Filter attendance records based on search query
   const filteredAttendance = attendanceRecords.filter((record: any) =>
@@ -293,8 +348,19 @@ export default function Attendance() {
                       Your department's working hours must be configured before you can check in.
                     </div>
                     {user?.role === "master_admin" && (
-                      <div className="text-xs text-orange-500">
-                        Go to Departments → Configure Attendance Timing for {user?.department} department
+                      <div className="space-y-2">
+                        <div className="text-xs text-orange-500">
+                          Go to Departments → Configure Attendance Timing for {user?.department} department
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={refreshTiming}
+                          className="text-orange-600 border-orange-300 hover:bg-orange-50"
+                        >
+                          <RefreshCw className="h-3 w-3 mr-1" />
+                          Refresh Timing
+                        </Button>
                       </div>
                     )}
                   </div>

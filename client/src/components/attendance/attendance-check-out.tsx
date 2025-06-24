@@ -59,28 +59,42 @@ export function AttendanceCheckOut({
   // Network status
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
-  // Calculate overtime
+  // Enhanced overtime calculation using department timing rules
   const calculateOvertimeInfo = () => {
     if (!currentAttendance?.checkInTime || !departmentTiming) {
+      console.log('CHECKOUT: Missing data for overtime calculation');
       return { hasOvertime: false, overtimeHours: 0, overtimeMinutes: 0 };
     }
 
+    console.log('CHECKOUT: Calculating overtime with timing:', departmentTiming);
+    
     const checkInTime = new Date(currentAttendance.checkInTime);
     const currentTime = new Date();
     const workingMinutes = Math.floor((currentTime.getTime() - checkInTime.getTime()) / (1000 * 60));
     
+    // Use dynamic department timing values
     const standardWorkingMinutes = (departmentTiming.workingHours || 8) * 60;
-    const overtimeThreshold = departmentTiming.overtimeThresholdMinutes || 30;
+    const overtimeThreshold = departmentTiming.overtimeThresholdMinutes || 0;
     
     const potentialOvertimeMinutes = workingMinutes - standardWorkingMinutes;
     const hasOvertime = potentialOvertimeMinutes >= overtimeThreshold;
     
+    console.log('CHECKOUT: Overtime calculation:', {
+      workingMinutes,
+      standardWorkingMinutes,
+      overtimeThreshold,
+      potentialOvertimeMinutes,
+      hasOvertime
+    });
+    
     return {
       hasOvertime,
-      overtimeHours: Math.floor(potentialOvertimeMinutes / 60),
-      overtimeMinutes: potentialOvertimeMinutes % 60,
+      overtimeHours: Math.max(0, Math.floor(potentialOvertimeMinutes / 60)),
+      overtimeMinutes: Math.max(0, potentialOvertimeMinutes % 60),
       totalWorkingHours: Math.floor(workingMinutes / 60),
-      totalWorkingMinutes: workingMinutes % 60
+      totalWorkingMinutes: workingMinutes % 60,
+      departmentWorkingHours: departmentTiming.workingHours,
+      departmentOvertimeThreshold: departmentTiming.overtimeThresholdMinutes
     };
   };
 
