@@ -55,7 +55,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Load user profile from storage
       const userProfile = await storage.getUser(decodedToken.uid);
-      console.log("SERVER DEBUG: User profile loaded:", userProfile ? { uid: userProfile.uid, role: userProfile.role, department: userProfile.department, designation: userProfile.designation } : "null");
+
       
       if (userProfile) {
         // Attach enhanced user data for permission checking
@@ -73,16 +73,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           req.authenticatedUser.permissions = [...systemPermissions];
           req.authenticatedUser.canApprove = true;
           req.authenticatedUser.maxApprovalAmount = null; // Unlimited
-          console.log("SERVER DEBUG: Master admin permissions assigned:", req.authenticatedUser.permissions.length);
+
         }
         // Calculate permissions if user has department and designation
         else if (userProfile.department && userProfile.designation) {
           try {
-            console.log("SERVER DEBUG: About to calculate permissions for dept:", userProfile.department, "designation:", userProfile.designation);
+
             const { getEffectivePermissions } = await import("@shared/schema");
             const effectivePermissions = getEffectivePermissions(userProfile.department, userProfile.designation);
             req.authenticatedUser.permissions = effectivePermissions;
-            console.log("SERVER DEBUG: Calculated permissions for user", userProfile.uid, "with dept:", userProfile.department, "designation:", userProfile.designation, "permissions:", effectivePermissions.length, "list:", effectivePermissions);
+
             
             // Set approval capabilities based on designation - Fixed duplicate keys
             const designationLevels = {
@@ -105,14 +105,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         } else {
           // New employee without department/designation gets default permissions
-          console.log("SERVER DEBUG: User missing department or designation:", userProfile.uid, "dept:", userProfile.department, "designation:", userProfile.designation);
+
           try {
             const { getNewEmployeePermissions } = await import("@shared/schema");
             const defaultPermissions = getNewEmployeePermissions();
             req.authenticatedUser.permissions = defaultPermissions;
             req.authenticatedUser.canApprove = false;
             req.authenticatedUser.maxApprovalAmount = null;
-            console.log("SERVER DEBUG: Assigned default permissions for new employee:", userProfile.uid, "permissions:", defaultPermissions);
+
           } catch (error) {
             console.error("Error loading default permissions:", error);
             req.authenticatedUser.permissions = ["dashboard.view", "attendance.view_own", "leave.view_own", "leave.request"];
@@ -1190,29 +1190,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/attendance/check-out", createRateLimitMiddleware(attendanceRateLimiter), verifyAuth, async (req, res) => {
     try {
-      console.log('CHECKOUT DEBUG: Request body:', JSON.stringify(req.body, null, 2));
-      
       const { userId, latitude, longitude, imageUrl, reason, otReason } = req.body;
       
-      console.log('CHECKOUT DEBUG: Extracted data:', {
-        userId, latitude, longitude, 
-        hasImageUrl: !!imageUrl, 
-        reason, otReason,
-        reqUserUid: req.user.uid
-      });
-      
       if (!userId || userId !== req.user.uid) {
-        console.log('CHECKOUT DEBUG: Access denied - userId mismatch');
         return res.status(403).json({ message: "Access denied" });
       }
 
       const user = await storage.getUser(userId);
       if (!user) {
-        console.log('CHECKOUT DEBUG: User not found');
         return res.status(404).json({ message: "User not found" });
       }
-
-      console.log('CHECKOUT DEBUG: User found:', user.displayName, user.department);
 
       // Handle midnight boundary: look for attendance record from today OR yesterday
       // This covers cases where someone checked in late and is checking out after midnight
@@ -1227,27 +1214,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let attendanceRecord = await storage.getAttendanceByUserAndDate(userId, today);
       
       // If not found today and it's early hours (before 6 AM), check yesterday
-      // This handles night shift workers who check in late and checkout after midnight
       if (!attendanceRecord && now.getHours() < 6) {
-        console.log('CHECKOUT DEBUG: No record found for today, checking yesterday for night shift');
         attendanceRecord = await storage.getAttendanceByUserAndDate(userId, yesterday);
       }
       
       if (!attendanceRecord) {
-        console.log('CHECKOUT DEBUG: No attendance record found for today or yesterday');
         return res.status(400).json({ message: "No check-in record found for today" });
       }
-      
-      // Additional validation: ensure the record doesn't already have checkout
-      if (attendanceRecord && !attendanceRecord.checkOutTime) {
-        console.log('CHECKOUT DEBUG: Valid attendance record found for checkout');
-      }
-
-      console.log('CHECKOUT DEBUG: Attendance record found:', {
-        id: attendanceRecord.id,
-        hasCheckOut: !!attendanceRecord.checkOutTime,
-        checkInTime: attendanceRecord.checkInTime
-      });
 
       if (attendanceRecord.checkOutTime) {
         return res.status(400).json({ message: "You have already checked out today" });
@@ -1286,13 +1259,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         checkOutMinute = timeParts[1] || 0;
       }
       
-      console.log('CHECKOUT TIME PARSING:', {
-        originalTime: expectedCheckOutTime,
-        parsedHour: checkOutHour,
-        parsedMinute: checkOutMinute,
-        timeMatch: timeMatch ? 'matched' : 'fallback'
-      });
-      
       // Handle midnight boundary for expected checkout time
       const checkInTime = new Date(attendanceRecord.checkInTime || new Date());
       const checkInDate = new Date(checkInTime);
@@ -1311,12 +1277,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Validate the date object before proceeding
       if (isNaN(expectedCheckOutTimeObj.getTime())) {
-        console.error('Invalid expectedCheckOutTimeObj created:', {
-          checkOutHour,
-          checkOutMinute,
-          expectedCheckOutTime,
-          checkInDate: checkInDate.toISOString()
-        });
         // Use fallback time (6:00 PM)
         expectedCheckOutTimeObj = new Date(
           checkInDate.getFullYear(),
@@ -1349,19 +1309,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const calculatedWorkingHours = workingMilliseconds / (1000 * 60 * 60);
       const workingHours = Math.min(calculatedWorkingHours, maxWorkingHours);
       
-      // Log midnight boundary handling for debugging (with safety checks)
-      console.log('MIDNIGHT BOUNDARY DEBUG:', {
-        checkInTime: checkInTime.toISOString(),
-        checkOutTime: checkOutTime.toISOString(),
-        calculatedWorkingHours,
-        cappedWorkingHours: workingHours,
-        expectedCheckOut: isNaN(expectedCheckOutTimeObj.getTime()) ? 'INVALID_DATE' : expectedCheckOutTimeObj.toISOString(),
-        crossedMidnight: checkOutTime.getDate() !== checkInTime.getDate(),
-        parsedCheckOutHour: checkOutHour,
-        parsedCheckOutMinute: checkOutMinute,
-        originalTimeString: expectedCheckOutTime
-      });
-      
       // Use department-specific working hours
       const standardWorkingHours = departmentTiming?.workingHours || 8;
       const overtimeThresholdMinutes = departmentTiming?.overtimeThresholdMinutes || 30;
@@ -1370,13 +1317,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if overtime meets the threshold
       const overtimeMinutes = overtimeHours * 60;
       const hasOvertimeThreshold = overtimeMinutes >= overtimeThresholdMinutes;
-      
-      console.log('OVERTIME THRESHOLD CHECK:', {
-        overtimeMinutes,
-        overtimeThresholdMinutes,
-        hasOvertimeThreshold,
-        departmentTiming: departmentTiming ? 'loaded' : 'default'
-      });
       
       // Check if overtime requires approval and photo
       if (hasOvertimeThreshold) {
@@ -1403,20 +1343,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check for early checkout using department timing
       const earlyCheckout = checkOutTime < expectedCheckOutTimeObj;
       const earlyMinutes = earlyCheckout ? Math.floor((expectedCheckOutTimeObj.getTime() - checkOutTime.getTime()) / (1000 * 60)) : 0;
-      
-      console.log("CHECKOUT DEBUG:", {
-        serverTime: new Date().toISOString(),
-        currentTime: checkOutTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
-        expectedTime: expectedCheckOutTimeObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
-        earlyCheckout,
-        earlyMinutes,
-        isOvertimeCheckout: checkOutTime > expectedCheckOutTimeObj,
-        actualHour: checkOutTime.getHours(),
-        expectedHour: expectedCheckOutTimeObj.getHours(),
-        reason: reason || "no reason provided",
-        departmentTiming: departmentTiming ? 'loaded' : 'default',
-        allowEarlyCheckOut: departmentTiming?.allowEarlyCheckOut
-      });
       
       // Detect overtime scenario - any checkout after expected time is overtime, not early checkout
       const isOvertimeCheckout = checkOutTime > expectedCheckOutTimeObj;

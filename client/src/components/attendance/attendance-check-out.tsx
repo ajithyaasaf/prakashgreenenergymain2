@@ -25,13 +25,6 @@ interface AttendanceCheckOutProps {
   departmentTiming?: any;
 }
 
-// Note: Office coordinates should come from API, not hardcoded
-// This is kept as fallback only when API fails
-const FALLBACK_OFFICE = {
-  latitude: 9.966844592415782,
-  longitude: 78.1338405791111,
-  radius: 100
-};
 
 export function AttendanceCheckOut({ 
   isOpen, 
@@ -62,11 +55,8 @@ export function AttendanceCheckOut({
   // Fixed overtime calculation using time-based approach (work beyond department checkout time)
   const calculateOvertimeInfo = () => {
     if (!currentAttendance?.checkInTime || !departmentTiming) {
-      console.log('CHECKOUT: Missing data for overtime calculation');
       return { hasOvertime: false, overtimeHours: 0, overtimeMinutes: 0 };
     }
-
-    console.log('CHECKOUT: Calculating overtime with timing:', departmentTiming);
     
     const checkInTime = new Date(currentAttendance.checkInTime);
     const currentTime = new Date();
@@ -92,14 +82,6 @@ export function AttendanceCheckOut({
     const overtimeMinutes = Math.max(0, currentTimeMinutes - departmentCheckoutMinutes);
     const hasOvertime = overtimeMinutes > 0;
     
-    console.log('FRONTEND OT CALCULATION (TIME-BASED):', {
-      departmentCheckoutTime: checkOutTimeStr,
-      departmentCheckoutMinutes,
-      currentTimeMinutes,
-      overtimeMinutes,
-      hasOvertime
-    });
-    
     const result = {
       hasOvertime,
       overtimeHours: Math.floor(overtimeMinutes / 60),
@@ -114,7 +96,6 @@ export function AttendanceCheckOut({
       workingMinutesTotal: workingMinutes
     };
     
-    console.log('FRONTEND OT RESULT (FIXED):', result);
     return result;
   };
 
@@ -330,8 +311,6 @@ export function AttendanceCheckOut({
 
       // Upload photo to Cloudinary if overtime requires it
       if (overtimeInfo.hasOvertime && capturedPhoto) {
-        console.log('FRONTEND: Uploading overtime photo to Cloudinary...');
-        
         try {
           const uploadResponse = await apiRequest('/api/attendance/upload-photo', 'POST', {
             imageData: capturedPhoto,
@@ -340,16 +319,13 @@ export function AttendanceCheckOut({
           });
 
           const uploadData = await uploadResponse.json();
-          console.log('FRONTEND: Upload response data:', uploadData);
           
           if (uploadData.success) {
             photoUploadUrl = uploadData.url;
-            console.log('FRONTEND: Overtime photo uploaded successfully:', photoUploadUrl);
           } else {
             throw new Error('Photo upload failed');
           }
         } catch (uploadError) {
-          console.error('FRONTEND: Photo upload failed:', uploadError);
           toast({
             title: "Photo Upload Failed",
             description: "Unable to upload overtime verification photo. Please try again.",
@@ -369,8 +345,6 @@ export function AttendanceCheckOut({
         imageUrl: photoUploadUrl, // Use uploaded Cloudinary URL
       };
 
-      console.log('FRONTEND: Submitting check-out request with data:', checkOutData);
-
       // Get Firebase auth token
       const auth = await import('firebase/auth');
       const currentUser = auth.getAuth().currentUser;
@@ -387,17 +361,13 @@ export function AttendanceCheckOut({
         },
         body: JSON.stringify(checkOutData),
       });
-
-      console.log('FRONTEND: Check-out response status:', response.status);
       
       if (!response.ok) {
         const errorData = await response.json();
-        console.error('FRONTEND: Check-out error response:', errorData);
         throw new Error(errorData.message || 'Failed to check out');
       }
 
       const responseData = await response.json();
-      console.log('FRONTEND: Check-out success response:', responseData);
 
       toast({
         title: "Check-out Successful",
@@ -409,7 +379,6 @@ export function AttendanceCheckOut({
       onClose();
 
     } catch (error: any) {
-      console.error('FRONTEND: Check-out failed:', error);
       toast({
         title: "Check-out Failed",
         description: error.message || "Failed to record check-out",

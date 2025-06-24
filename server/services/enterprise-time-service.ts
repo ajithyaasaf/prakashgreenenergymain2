@@ -146,7 +146,7 @@ export class EnterpriseTimeService {
       const cacheKey = `dept_timing_${department.toLowerCase()}`;
       this.timingCache.delete(cacheKey);
       this.cacheExpiry.delete(cacheKey);
-      console.log(`Invalidated timing cache for department: ${department}`);
+
     } else {
       // Clear all cache
       this.timingCache.clear();
