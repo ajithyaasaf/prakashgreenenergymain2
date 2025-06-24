@@ -31,6 +31,81 @@ export class AttendanceCacheService {
       CACHE_TTL.userAttendanceToday
     );
   }
+
+  // Payroll data caching
+  static async getPayrollData(filters: any, queryFn: () => Promise<any>): Promise<any> {
+    const filterKey = JSON.stringify(filters);
+    const cacheKey = `payroll:data:${filterKey}`;
+    return performanceOptimizer.executeOptimizedQuery(
+      cacheKey,
+      queryFn,
+      300000 // 5 minutes for payroll data
+    );
+  }
+
+  // Users list caching
+  static async getUsersList(queryFn: () => Promise<any>): Promise<any> {
+    const cacheKey = `users:list:all`;
+    return performanceOptimizer.executeOptimizedQuery(
+      cacheKey,
+      queryFn,
+      600000 // 10 minutes for users list
+    );
+  }
+
+  // Customers data caching
+  static async getCustomersData(filters: any, queryFn: () => Promise<any>): Promise<any> {
+    const filterKey = JSON.stringify(filters);
+    const cacheKey = `customers:data:${filterKey}`;
+    return performanceOptimizer.executeOptimizedQuery(
+      cacheKey,
+      queryFn,
+      300000 // 5 minutes for customers
+    );
+  }
+
+  // Products data caching
+  static async getProductsData(filters: any, queryFn: () => Promise<any>): Promise<any> {
+    const filterKey = JSON.stringify(filters);
+    const cacheKey = `products:data:${filterKey}`;
+    return performanceOptimizer.executeOptimizedQuery(
+      cacheKey,
+      queryFn,
+      600000 // 10 minutes for products
+    );
+  }
+
+  // Quotations data caching
+  static async getQuotationsData(filters: any, queryFn: () => Promise<any>): Promise<any> {
+    const filterKey = JSON.stringify(filters);
+    const cacheKey = `quotations:data:${filterKey}`;
+    return performanceOptimizer.executeOptimizedQuery(
+      cacheKey,
+      queryFn,
+      120000 // 2 minutes for quotations
+    );
+  }
+
+  // Invoices data caching
+  static async getInvoicesData(filters: any, queryFn: () => Promise<any>): Promise<any> {
+    const filterKey = JSON.stringify(filters);
+    const cacheKey = `invoices:data:${filterKey}`;
+    return performanceOptimizer.executeOptimizedQuery(
+      cacheKey,
+      queryFn,
+      120000 // 2 minutes for invoices
+    );
+  }
+
+  // Activity logs caching
+  static async getActivityLogs(queryFn: () => Promise<any>): Promise<any> {
+    const cacheKey = `activity:logs:recent`;
+    return performanceOptimizer.executeOptimizedQuery(
+      cacheKey,
+      queryFn,
+      60000 // 1 minute for activity logs
+    );
+  }
   
   // Department statistics with smart caching
   static async getDepartmentStats(department: string, queryFn: () => Promise<any>): Promise<any> {
