@@ -4090,7 +4090,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         department,
         isBusinessHours,
         nextBusinessDay: nextBusinessDay.toISOString(),
-        currentTime: new Date().toLocaleString('en-US', {
+        currentTime: new Date().toLocaleTimeString('en-US', {
           hour: 'numeric',
           minute: '2-digit',
           hour12: true

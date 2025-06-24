@@ -253,7 +253,7 @@ export default function AttendanceManagement() {
       url: record.checkInImageUrl,
       employeeName: record.userName || 'Unknown Employee',
       date: formatDate(new Date(record.date)),
-      time: record.checkInTime ? formatTime(new Date(record.checkInTime)) : 'Unknown Time',
+      time: record.checkInTime ? new Date(record.checkInTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : 'Unknown Time',
       attendanceType: record.attendanceType === 'field_work' ? 'Field Work' : 
                      record.attendanceType === 'remote' ? 'Remote Work' : 'Office',
       customerName: record.customerName,
@@ -532,7 +532,7 @@ export default function AttendanceManagement() {
                             {record.userDepartment || 'N/A'}
                           </TableCell>
                           <TableCell>
-                            {record.checkInTime ? formatTime(new Date(record.checkInTime)) : '-'}
+                            {record.checkInTime ? <TimeDisplay time={record.checkInTime} format12Hour={true} /> : '-'}
                           </TableCell>
                           <TableCell className="capitalize">
                             {record.location || 'office'}

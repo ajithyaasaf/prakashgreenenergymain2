@@ -437,10 +437,10 @@ export default function Attendance() {
                         <Badge variant="outline">{record.userDepartment || 'N/A'}</Badge>
                       </TableCell>
                       <TableCell>
-                        {record.checkInTime ? formatTime(record.checkInTime) : '-'}
+                        {record.checkInTime ? <TimeDisplay time={record.checkInTime} format12Hour={true} /> : '-'}
                       </TableCell>
                       <TableCell>
-                        {record.checkOutTime ? formatTime(record.checkOutTime) : '-'}
+                        {record.checkOutTime ? <TimeDisplay time={record.checkOutTime} format12Hour={true} /> : '-'}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
@@ -521,12 +521,12 @@ export default function Attendance() {
                         </div>
                         <div className="flex items-center gap-2">
                           <Clock className="h-4 w-4 text-green-600" />
-                          <span className="text-sm">{formatTime(record.checkInTime)}</span>
+                          <span className="text-sm"><TimeDisplay time={record.checkInTime} format12Hour={true} /></span>
                           {record.checkOutTime && (
                             <>
                               <span className="text-muted-foreground">→</span>
                               <Timer className="h-4 w-4 text-red-600" />
-                              <span className="text-sm">{formatTime(record.checkOutTime)}</span>
+                              <span className="text-sm"><TimeDisplay time={record.checkOutTime} format12Hour={true} /></span>
                             </>
                           )}
                         </div>
@@ -612,10 +612,10 @@ export default function Attendance() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            {record.checkInTime ? formatTime(record.checkInTime) : '-'}
+                            {record.checkInTime ? <TimeDisplay time={record.checkInTime} format12Hour={true} /> : '-'}
                           </TableCell>
                           <TableCell>
-                            {record.checkOutTime ? formatTime(record.checkOutTime) : '-'}
+                            {record.checkOutTime ? <TimeDisplay time={record.checkOutTime} format12Hour={true} /> : '-'}
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1">

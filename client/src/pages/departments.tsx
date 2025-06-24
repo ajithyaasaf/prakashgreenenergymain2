@@ -618,10 +618,10 @@ export default function Departments() {
                 </div>
                 <div className="flex justify-between mt-2">
                   <div className="text-sm">
-                    <span className="font-medium text-green-600">Start: {formatTimeString(timingFormState.checkInTime)}</span>
+                    <span className="font-medium text-green-600">Start: <TimeDisplay time={timingFormState.checkInTime} format12Hour={true} /></span>
                   </div>
                   <div className="text-sm">
-                    <span className="font-medium text-blue-600">End: {formatTimeString(timingFormState.checkOutTime)}</span>
+                    <span className="font-medium text-blue-600">End: <TimeDisplay time={timingFormState.checkOutTime} format12Hour={true} /></span>
                   </div>
                 </div>
               </div>

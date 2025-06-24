@@ -16,8 +16,15 @@ export function formatDate(date: Date | string): string {
   });
 }
 
-// Time formatting
+/**
+ * Format time from Date object to 12-hour format (DEPRECATED)
+ * @deprecated Use TimeDisplay component with format12Hour={true} instead
+ * @param date - Date object or string
+ * @returns Time in 12-hour format (h:mm AM/PM)
+ */
 export function formatTime(date: Date | string): string {
+  console.warn('DEPRECATED: formatTime - Use TimeDisplay component instead');
+  
   if (!date) return "";
   const d = typeof date === "string" ? new Date(date) : date;
   return d.toLocaleTimeString("en-US", {

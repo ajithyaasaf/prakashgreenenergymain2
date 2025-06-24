@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from "react";
 import { User } from "firebase/auth";
 import { apiRequest } from "@/lib/queryClient";
 import { onAuthChange } from "@/lib/firebase";

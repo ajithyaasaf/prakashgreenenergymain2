@@ -439,7 +439,11 @@ export function CheckInModal({ open, onOpenChange }: CheckInModalProps) {
 
   // Get current time
   const currentTime = new Date();
-  const formattedTime = formatTime(currentTime);
+  const formattedTime = currentTime.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  });
   
   // Time restrictions
   const minCheckInTime = new Date(currentTime);

@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuthContext } from "@/contexts/auth-context";
 import { usePermissions } from "@/hooks/use-permissions";
 import { formatDate, formatTime } from "@/lib/utils";
+import { TimeDisplay } from "@/components/time/time-display";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -137,8 +138,8 @@ export function AttendanceReport() {
       Employee: record.userName || '',
       Department: record.userDepartment || '',
       Status: record.status || '',
-      'Check In': record.checkInTime ? formatTime(new Date(record.checkInTime)) : '',
-      'Check Out': record.checkOutTime ? formatTime(new Date(record.checkOutTime)) : '',
+      'Check In': record.checkInTime ? new Date(record.checkInTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '',
+      'Check Out': record.checkOutTime ? new Date(record.checkOutTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '',
       Location: record.location || '',
       'Overtime Hours': record.overtimeHours || 0,
       Remarks: record.remarks || ''
@@ -405,10 +406,10 @@ export function AttendanceReport() {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            {record.checkInTime ? formatTime(new Date(record.checkInTime)) : "-"}
+                            {record.checkInTime ? <TimeDisplay time={record.checkInTime} format12Hour={true} /> : "-"}
                           </TableCell>
                           <TableCell>
-                            {record.checkOutTime ? formatTime(new Date(record.checkOutTime)) : "-"}
+                            {record.checkOutTime ? <TimeDisplay time={record.checkOutTime} format12Hour={true} /> : "-"}
                           </TableCell>
                           <TableCell className="capitalize">
                             {record.location || "-"}

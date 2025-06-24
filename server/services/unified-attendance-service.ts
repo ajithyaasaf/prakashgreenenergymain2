@@ -528,18 +528,27 @@ export class UnifiedAttendanceService {
   }
 
   /**
-   * Get department-specific timing configuration
+   * Get department-specific timing configuration (DEPRECATED)
+   * @deprecated Use EnterpriseTimeService.getDepartmentTiming() instead
    */
   private static getDepartmentTiming(department?: string): {
     checkInTime: string;
     checkOutTime: string;
     workingHours: number;
   } {
-    // Default timing - can be made configurable per department
-    return {
-      checkInTime: '09:30',
-      checkOutTime: '18:30',
-      workingHours: 8
+    console.warn('DEPRECATED: Using legacy getDepartmentTiming - migrate to EnterpriseTimeService');
+    
+    // Legacy fallback with 12-hour format
+    const defaultTimings = {
+      'operations': { checkInTime: '9:00 AM', checkOutTime: '6:00 PM', workingHours: 8 },
+      'admin': { checkInTime: '9:30 AM', checkOutTime: '6:30 PM', workingHours: 8 },
+      'hr': { checkInTime: '9:30 AM', checkOutTime: '6:30 PM', workingHours: 8 },
+      'marketing': { checkInTime: '10:00 AM', checkOutTime: '7:00 PM', workingHours: 8 },
+      'sales': { checkInTime: '9:00 AM', checkOutTime: '6:00 PM', workingHours: 8 },
+      'technical': { checkInTime: '9:00 AM', checkOutTime: '6:00 PM', workingHours: 8 },
+      'housekeeping': { checkInTime: '8:00 AM', checkOutTime: '5:00 PM', workingHours: 8 }
     };
+
+    return defaultTimings[department as keyof typeof defaultTimings] || defaultTimings.operations;
   }
 }

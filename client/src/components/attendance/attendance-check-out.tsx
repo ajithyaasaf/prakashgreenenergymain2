@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { formatTimeString, formatTime } from "@/lib/utils";
+import { TimeDisplay } from "@/components/time/time-display";
 
 interface AttendanceCheckOutProps {
   isOpen: boolean;
@@ -382,11 +383,11 @@ export function AttendanceCheckOut({
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
                   <div>
                     <div className="text-xs text-muted-foreground">Check-in Time</div>
-                    <div className="text-sm font-semibold text-green-600">{formatTimeString(departmentTiming.checkInTime)}</div>
+                    <div className="text-sm font-semibold text-green-600"><TimeDisplay time={departmentTiming.checkInTime} format12Hour={true} /></div>
                   </div>
                   <div>
                     <div className="text-xs text-muted-foreground">Check-out Time</div>
-                    <div className="text-sm font-semibold text-red-600">{formatTimeString(departmentTiming.checkOutTime)}</div>
+                    <div className="text-sm font-semibold text-red-600"><TimeDisplay time={departmentTiming.checkOutTime} format12Hour={true} /></div>
                   </div>
                   <div>
                     <div className="text-xs text-muted-foreground">Working Hours</div>
@@ -409,14 +410,14 @@ export function AttendanceCheckOut({
                   <span className="text-sm font-medium">Check-in Time:</span>
                   <span className="text-sm">
                     {currentAttendance?.checkInTime 
-                      ? formatTime(currentAttendance.checkInTime)
+                      ? <TimeDisplay time={currentAttendance.checkInTime} format12Hour={true} />
                       : 'Not available'
                     }
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium">Current Time:</span>
-                  <span className="text-sm">{formatTime(new Date())}</span>
+                  <span className="text-sm"><TimeDisplay time={new Date()} format12Hour={true} /></span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium">Total Working Time:</span>
@@ -491,7 +492,7 @@ export function AttendanceCheckOut({
                       Early Checkout Detected
                     </p>
                     <p className="text-sm text-amber-700">
-                      You are checking out before the expected time ({formatTimeString(departmentTiming?.checkOutTime || "18:30")}). Please provide a reason below.
+                      You are checking out before the expected time (<TimeDisplay time={departmentTiming?.checkOutTime || "6:30 PM"} format12Hour={true} />). Please provide a reason below.
                     </p>
                   </div>
                 </AlertDescription>

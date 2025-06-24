@@ -5,8 +5,8 @@ import { formatTimeString } from '@/lib/utils';
 import { convert12To24Hour, convert24To12Hour } from '@/components/time/time-display';
 
 interface TimeInputProps {
-  value: string; // 24-hour format (HH:MM)
-  onChange: (value: string) => void; // Returns 24-hour format
+  value: string; // 12-hour format (h:mm AM/PM)
+  onChange: (value: string) => void; // Returns 12-hour format
   className?: string;
   placeholder?: string;
 }
@@ -16,32 +16,35 @@ export function TimeInput({ value, onChange, className, placeholder }: TimeInput
   const [minute, setMinute] = useState('00');
   const [period, setPeriod] = useState('AM');
 
-  // Parse 24-hour value to 12-hour components
+  // Parse 12-hour value to components
   useEffect(() => {
     if (value) {
-      const [h, m] = value.split(':');
-      const hour24 = parseInt(h);
-      const displayHour = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24;
-      const displayPeriod = hour24 >= 12 ? 'PM' : 'AM';
+      const timeRegex = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i;
+      const match = value.match(timeRegex);
       
-      setHour(displayHour.toString());
-      setMinute(m);
-      setPeriod(displayPeriod);
+      if (match) {
+        const [, h, m, p] = match;
+        setHour(h);
+        setMinute(m);
+        setPeriod(p.toUpperCase());
+      } else {
+        // Legacy 24-hour format fallback
+        const [h, m] = value.split(':');
+        const hour24 = parseInt(h);
+        const displayHour = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24;
+        const displayPeriod = hour24 >= 12 ? 'PM' : 'AM';
+        
+        setHour(displayHour.toString());
+        setMinute(m);
+        setPeriod(displayPeriod);
+      }
     }
   }, [value]);
 
-  // Update parent with 24-hour format when components change
+  // Update parent with 12-hour format when components change (Enterprise standard)
   const updateTime = (newHour: string, newMinute: string, newPeriod: string) => {
-    let hour24 = parseInt(newHour);
-    
-    if (newPeriod === 'AM' && hour24 === 12) {
-      hour24 = 0;
-    } else if (newPeriod === 'PM' && hour24 !== 12) {
-      hour24 += 12;
-    }
-    
-    const time24 = `${hour24.toString().padStart(2, '0')}:${newMinute}`;
-    onChange(time24);
+    const time12 = `${newHour}:${newMinute} ${newPeriod}`;
+    onChange(time12); // Return 12-hour format directly
   };
 
   const handleHourChange = (newHour: string) => {
