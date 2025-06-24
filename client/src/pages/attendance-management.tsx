@@ -5,6 +5,9 @@ import { useToast } from "@/hooks/use-toast";
 import { formatDate } from "@/lib/utils";
 import { TimeDisplay } from "@/components/time/time-display";
 import { Button } from "@/components/ui/button";
+import { UndoManager, useUndoManager } from "@/components/undo/undo-manager";
+import { useOfflineHandler, callWithOfflineHandling } from "@/utils/offline-handler";
+import { getUserFriendlyMessage } from "@/utils/user-friendly-messages";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
@@ -29,6 +32,12 @@ export default function AttendanceManagement() {
   const { user } = useAuthContext();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  
+  // Undo management
+  const { actions, addAction, executeUndo, clearActions } = useUndoManager();
+  
+  // Offline handling
+  const offlineHandler = useOfflineHandler();
   
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [searchQuery, setSearchQuery] = useState("");
@@ -135,29 +144,58 @@ export default function AttendanceManagement() {
     },
   });
 
-  // Bulk actions mutation
+  // Enhanced bulk actions mutation with undo capabilities
   const bulkActionMutation = useMutation({
     mutationFn: async ({ action, attendanceIds, data }: { 
       action: string; 
       attendanceIds: string[]; 
       data?: any 
     }) => {
-      const response = await apiRequest('/api/attendance/bulk-action', 'POST', { action, attendanceIds, data });
-      return response.json();
+      return await callWithOfflineHandling(
+        async () => {
+          const response = await apiRequest('/api/attendance/bulk-action', 'POST', { action, attendanceIds, data });
+          return response.json();
+        },
+        async () => {
+          const response = await apiRequest('/api/attendance/bulk-action', 'POST', { action, attendanceIds, data });
+          return response.json();
+        }
+      );
     },
-    onSuccess: () => {
+    onSuccess: (result, variables) => {
+      const { action, attendanceIds } = variables;
+      
+      // Add undo action for bulk operations
+      if (action === 'approve' || action === 'reject' || action === 'update_status') {
+        addAction({
+          description: `${getUserFriendlyMessage(action, 'attendance')} ${attendanceIds.length} attendance records`,
+          undoFunction: async () => {
+            await apiRequest('/api/attendance/bulk-undo', 'POST', { 
+              actionId: result.actionId,
+              attendanceIds 
+            });
+            queryClient.invalidateQueries({ queryKey: ['/api/attendance'] });
+            refetchLive();
+            refetchDaily();
+          },
+          affectedCount: attendanceIds.length,
+          category: 'attendance',
+          canUndo: true
+        });
+      }
+      
       queryClient.invalidateQueries({ queryKey: ['/api/attendance'] });
       refetchLive();
       refetchDaily();
       toast({
-        title: "Success",
-        description: "Bulk action completed successfully",
+        title: "Changes applied successfully",
+        description: `Updated ${attendanceIds.length} attendance records`,
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to perform bulk action",
+        title: "Unable to make changes",
+        description: getUserFriendlyMessage(error.message || "Failed to update attendance records", 'errors'),
         variant: "destructive",
       });
     },
@@ -904,6 +942,13 @@ export default function AttendanceManagement() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      {/* Undo Manager */}
+      <UndoManager
+        actions={actions}
+        onUndo={executeUndo}
+        onClear={clearActions}
+      />
     </div>
   );
 }

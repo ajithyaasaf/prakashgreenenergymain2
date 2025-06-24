@@ -42,21 +42,21 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
   // Get device information for smart validation
   const deviceInfo = getDeviceInfo();
 
-  // Device-aware GPS quality text
-  const getGPSQualityText = (accuracy: number): string => {
+  // User-friendly location quality text
+  const getLocationQualityText = (accuracy: number): string => {
     if (deviceInfo.type === 'mobile') {
-      // Mobile device - show actual GPS accuracy
-      if (accuracy <= 10) return "(Excellent)";
-      if (accuracy <= 50) return "(Good)";
-      if (accuracy <= 200) return "(Fair - Indoor OK)";
-      if (accuracy <= 500) return "(Indoor Signal)";
-      return "(Weak)";
+      // Mobile device - show user-friendly status
+      if (accuracy <= 10) return "(Perfect)";
+      if (accuracy <= 50) return "(Great)";
+      if (accuracy <= 200) return "(Good for indoors)";
+      if (accuracy <= 500) return "(Indoor signal)";
+      return "(Weak signal)";
     } else {
-      // Desktop/Laptop - show network positioning status
+      // Desktop/Laptop - show office network status
       const expected = DeviceDetection.getExpectedAccuracy(deviceInfo);
-      if (accuracy <= expected.typical) return "(Network Position OK)";
-      if (accuracy <= expected.max) return "(Network Position)";
-      return "(Limited Network Signal)";
+      if (accuracy <= expected.typical) return "(Office network OK)";
+      if (accuracy <= expected.max) return "(Office location)";
+      return "(Limited office signal)";
     }
   };
 
@@ -664,15 +664,15 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
                     {deviceInfo.type.charAt(0).toUpperCase() + deviceInfo.type.slice(1)}
                   </Badge>
                   <Badge variant="outline" className="text-xs">
-                    {deviceInfo.locationCapability.charAt(0).toUpperCase() + deviceInfo.locationCapability.slice(1)} GPS
+                    {deviceInfo.type === 'mobile' ? 'Phone Location' : 'Office Network'}
                   </Badge>
                 </div>
               </div>
               
               {location && (
                 <div className="text-xs text-gray-600 space-y-1">
-                  <div>{locationStatus.technical || `${deviceInfo.type === 'mobile' ? 'GPS' : 'Network'} Accuracy: ${Math.round(location.accuracy)}m ${getGPSQualityText(location.accuracy)}`}</div>
-                  <div>Coordinates: {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}</div>
+                  <div>{locationStatus.technical || `${deviceInfo.type === 'mobile' ? 'Phone location' : 'Office network'} accuracy: ${Math.round(location.accuracy)}m ${getLocationQualityText(location.accuracy)}`}</div>
+                  <div>Location: {location.latitude.toFixed(4)}, {location.longitude.toFixed(4)}</div>
                 </div>
               )}
 

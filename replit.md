@@ -119,6 +119,18 @@ This is an enterprise-grade dashboard application for Prakash Greens Energy, bui
 - **TypeScript**: Comprehensive tsconfig with path aliases
 
 ## Recent Changes
+- June 24, 2025: Implemented targeted UX improvements for better user experience
+  - ✓ Simplified technical language throughout the application
+  - ✓ Replaced "GPS Accuracy" with "Location accuracy", "Network Positioning" with "Office location"
+  - ✓ Changed technical terms like "epfEmployeeRate" to "Retirement Fund (Employee)"
+  - ✓ Updated location recommendations to be more user-friendly and actionable
+  - ✓ Added undo capabilities for bulk operations in attendance and payroll management
+  - ✓ Created comprehensive undo manager with 5-minute expiry and visual feedback
+  - ✓ Implemented graceful offline handling with retry queue and user notifications
+  - ✓ Added offline indicator showing connection status and pending sync actions
+  - ✓ Enhanced error messages to use plain language instead of technical jargon
+  - ✓ Updated page titles: "Attendance Management" → "Team Attendance", "Payroll Management" → "Employee Payroll"
+  - ✓ Added health check endpoint for reliable connectivity detection
 - June 24, 2025: Implemented comprehensive UX flow improvements addressing all critical user experience issues
   - ✓ Added upfront policy display showing allowed attendance types for user's department
   - ✓ Implemented progressive requirements disclosure - photo/reason requirements shown before user starts

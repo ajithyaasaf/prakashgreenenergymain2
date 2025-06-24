@@ -113,58 +113,58 @@ export class DeviceDetection {
     const expected = this.getExpectedAccuracy(device);
     
     if (device.type === 'mobile') {
-      // Mobile device - show actual GPS accuracy
+      // Mobile device - show user-friendly messages
       if (accuracy <= 10) {
         return {
-          message: 'Excellent GPS Signal',
+          message: 'Perfect location found',
           color: 'success',
-          technical: `GPS Accuracy: ${Math.round(accuracy)}m (Excellent)`
+          technical: `Location accuracy: ${Math.round(accuracy)}m (Excellent)`
         };
       } else if (accuracy <= 50) {
         return {
-          message: 'Good GPS Signal',
+          message: 'Location detected successfully',
           color: 'success', 
-          technical: `GPS Accuracy: ${Math.round(accuracy)}m (Good)`
+          technical: `Location accuracy: ${Math.round(accuracy)}m (Good)`
         };
       } else if (accuracy <= 200) {
         return {
-          message: 'Fair GPS Signal',
+          message: 'Location found (works fine indoors)',
           color: 'warning',
-          technical: `GPS Accuracy: ${Math.round(accuracy)}m (Fair - Indoor OK)`
+          technical: `Location accuracy: ${Math.round(accuracy)}m (Fair - Indoor OK)`
         };
       } else {
         return {
-          message: 'Poor GPS Signal',
+          message: 'Location signal is weak',
           color: 'error',
-          technical: `GPS Accuracy: ${Math.round(accuracy)}m (Poor)`
+          technical: `Location accuracy: ${Math.round(accuracy)}m (Poor)`
         };
       }
     } else {
-      // Desktop/Laptop - show network-based positioning
+      // Desktop/Laptop - show user-friendly messages
       if (accuracy <= expected.typical) {
         return {
-          message: 'Office Location Detected',
+          message: 'You are at the office',
           color: 'success',
-          technical: 'Network Positioning Active'
+          technical: 'Office network location detected'
         };
       } else if (accuracy <= expected.max) {
         return {
-          message: 'Location Verified',
+          message: 'Location confirmed',
           color: 'info',
-          technical: 'Using Network Positioning'
+          technical: 'Using office network location'
         };
       } else {
         return {
-          message: 'Location Signal Weak',
+          message: 'Having trouble finding your location',
           color: 'warning',
-          technical: 'Network Positioning Limited'
+          technical: 'Office network location limited'
         };
       }
     }
   }
   
   /**
-   * Get device-appropriate recommendations
+   * Get device-appropriate recommendations in user-friendly language
    */
   static getLocationRecommendations(accuracy: number, deviceInfo?: DeviceInfo): string[] {
     const device = deviceInfo || this.getDeviceInfo();
@@ -172,20 +172,22 @@ export class DeviceDetection {
     
     if (device.type === 'mobile') {
       if (accuracy > 100) {
-        recommendations.push('Move to an area with better sky visibility');
-        recommendations.push('Ensure location services are enabled');
-        recommendations.push('Try moving away from tall buildings');
+        recommendations.push('Try moving near a window for better signal');
+        recommendations.push('Make sure location is turned on in your phone settings');
+        recommendations.push('Step outside if you\'re in a basement or garage');
       } else if (accuracy > 50) {
-        recommendations.push('GPS signal is fair - move closer to windows if indoors');
+        recommendations.push('Location signal is okay - move closer to windows if you\'re indoors');
+      } else {
+        recommendations.push('Great! Your location is working perfectly');
       }
     } else {
       // Desktop/Laptop recommendations
       if (accuracy > 500) {
-        recommendations.push('Ensure you are connected to office WiFi');
-        recommendations.push('Check your network connection');
-        recommendations.push('Contact IT support if issues persist');
+        recommendations.push('Make sure you\'re connected to the office WiFi');
+        recommendations.push('Check your internet connection');
+        recommendations.push('Contact IT support if problems continue');
       } else {
-        recommendations.push('Network-based positioning is working normally');
+        recommendations.push('Your office location is working normally');
       }
     }
     

@@ -3,6 +3,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { UndoManager, useUndoManager } from "@/components/undo/undo-manager";
+import { useOfflineHandler, callWithOfflineHandling } from "@/utils/offline-handler";
+import { getUserFriendlyMessage, getSimplifiedFieldLabel } from "@/utils/user-friendly-messages";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -155,6 +158,12 @@ export default function EnhancedPayrollManagement() {
   const { toast } = useToast();
   const { user } = useAuthContext();
   const queryClient = useQueryClient();
+  
+  // Undo management for bulk payroll operations
+  const { actions, addAction, executeUndo, clearActions } = useUndoManager();
+  
+  // Offline handling
+  const offlineHandler = useOfflineHandler();
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedDepartment, setSelectedDepartment] = useState<string>("all");
@@ -235,13 +244,19 @@ export default function EnhancedPayrollManagement() {
     enabled: !!user?.firebaseUser
   });
 
-  // Mutations
+  // Enhanced mutations with offline handling and undo capabilities
   const updatePayrollMutation = useMutation({
     mutationFn: async (data: { id: string; [key: string]: any }) => {
-      return apiRequest(`/api/enhanced-payrolls/${data.id}`, 'PUT', data);
+      return await callWithOfflineHandling(
+        async () => apiRequest(`/api/enhanced-payrolls/${data.id}`, 'PUT', data),
+        async () => apiRequest(`/api/enhanced-payrolls/${data.id}`, 'PUT', data)
+      );
     },
-    onSuccess: () => {
-      toast({ title: "Success", description: "Payroll updated successfully!" });
+    onSuccess: (result, variables) => {
+      toast({ 
+        title: "Changes saved", 
+        description: getUserFriendlyMessage("Payroll updated successfully!", 'success')
+      });
       queryClient.invalidateQueries({ queryKey: ["/api/enhanced-payrolls"] });
       refetchPayrolls();
     },
