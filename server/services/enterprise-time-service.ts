@@ -68,7 +68,7 @@ export class EnterpriseTimeService {
           weekendDays: timing.weekendDays || [0, 6],
           allowRemoteWork: timing.allowRemoteWork !== undefined ? timing.allowRemoteWork : true,
           allowFieldWork: timing.allowFieldWork !== undefined ? timing.allowFieldWork : true,
-          allowEarlyCheckOut: timing.allowEarlyCheckOut !== undefined ? timing.allowEarlyCheckOut : false,
+          allowEarlyCheckOut: timing.allowEarlyCheckOut !== undefined ? timing.allowEarlyCheckOut : (department === 'sales'),
           isActive: timing.isActive !== false,
           lastUpdated: timing.updatedAt || new Date()
         };
@@ -196,7 +196,7 @@ export class EnterpriseTimeService {
         isFlexibleTiming: timing.isFlexibleTiming || false,
         allowRemoteWork: timing.allowRemoteWork !== undefined ? timing.allowRemoteWork : true,
         allowFieldWork: timing.allowFieldWork !== undefined ? timing.allowFieldWork : true,
-        allowEarlyCheckOut: timing.allowEarlyCheckOut !== undefined ? timing.allowEarlyCheckOut : false,
+        allowEarlyCheckOut: timing.allowEarlyCheckOut !== undefined ? timing.allowEarlyCheckOut : (department === 'sales'),
         updatedAt: new Date()
       };
 
@@ -242,16 +242,32 @@ export class EnterpriseTimeService {
    */
   private static convertTo24Hour(time12: string): string {
     try {
+      // Clean and validate input
+      if (!time12 || typeof time12 !== 'string') {
+        throw new Error(`Invalid input: ${time12}`);
+      }
+      
+      const cleanTime = time12.trim();
       const timeRegex = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i;
-      const match = time12.match(timeRegex);
+      const match = cleanTime.match(timeRegex);
       
       if (!match) {
-        throw new Error(`Invalid 12-hour time format: ${time12}`);
+        console.error('ENTERPRISE_TIME: Failed to match 12-hour format:', cleanTime);
+        throw new Error(`Invalid 12-hour time format: ${cleanTime}`);
       }
 
       let [, hourStr, minuteStr, period] = match;
       let hours = parseInt(hourStr);
       const minutes = parseInt(minuteStr);
+
+      // Validate parsed values
+      if (isNaN(hours) || isNaN(minutes)) {
+        throw new Error(`Failed to parse hours/minutes: ${hourStr}/${minuteStr}`);
+      }
+
+      if (hours < 1 || hours > 12 || minutes < 0 || minutes > 59) {
+        throw new Error(`Invalid time values: hours=${hours}, minutes=${minutes}`);
+      }
 
       if (period.toUpperCase() === 'PM' && hours !== 12) {
         hours += 12;
@@ -261,8 +277,9 @@ export class EnterpriseTimeService {
 
       return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
     } catch (error) {
-      console.error('Error converting to 24-hour format:', time12, error);
-      return time12; // Return original if conversion fails
+      console.error('ENTERPRISE_TIME: Error converting to 24-hour format:', time12, error);
+      // Return a safe fallback instead of original
+      return "09:00"; // Default to 9:00 AM
     }
   }
 
@@ -270,13 +287,43 @@ export class EnterpriseTimeService {
    * Parse time string to Date object for today
    */
   private static parseTimeToDate(timeStr: string, baseDate: Date): Date {
-    const time24 = timeStr.includes('AM') || timeStr.includes('PM') ? 
-      this.convertTo24Hour(timeStr) : timeStr;
-    
-    const [hours, minutes] = time24.split(':').map(Number);
-    const date = new Date(baseDate);
-    date.setHours(hours, minutes, 0, 0);
-    return date;
+    try {
+      // Validate and clean the time string first
+      if (!timeStr || typeof timeStr !== 'string') {
+        console.error('ENTERPRISE_TIME: Invalid timeStr provided:', timeStr);
+        throw new Error(`Invalid time string: ${timeStr}`);
+      }
+
+      const time24 = timeStr.includes('AM') || timeStr.includes('PM') ? 
+        this.convertTo24Hour(timeStr) : timeStr;
+      
+      // Validate time24 format
+      if (!time24 || !time24.includes(':')) {
+        console.error('ENTERPRISE_TIME: Invalid time24 format:', time24);
+        throw new Error(`Invalid 24-hour time format: ${time24}`);
+      }
+      
+      const timeParts = time24.split(':');
+      if (timeParts.length !== 2) {
+        throw new Error(`Invalid time format: ${time24}`);
+      }
+      
+      const hours = parseInt(timeParts[0]);
+      const minutes = parseInt(timeParts[1]);
+      
+      // Validate parsed values
+      if (isNaN(hours) || isNaN(minutes) || hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+        throw new Error(`Invalid time values: hours=${hours}, minutes=${minutes}`);
+      }
+      
+      const date = new Date(baseDate);
+      date.setHours(hours, minutes, 0, 0);
+      return date;
+    } catch (error) {
+      console.error('ENTERPRISE_TIME: Error parsing time:', timeStr, error);
+      // Return a safe fallback time (current time)
+      return new Date(baseDate);
+    }
   }
 
   /**
@@ -318,7 +365,7 @@ export class EnterpriseTimeService {
       weekendDays: [0, 6],
       allowRemoteWork: true,
       allowFieldWork: true,
-      allowEarlyCheckOut: false,
+      allowEarlyCheckOut: department === 'sales' ? true : false,
       isActive: true,
       lastUpdated: new Date()
     };

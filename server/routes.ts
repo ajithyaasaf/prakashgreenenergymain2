@@ -1291,6 +1291,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Early checkout policy enforcement (only for actual early checkouts, not overtime)
       if (!isOvertimeCheckout && earlyCheckout && earlyMinutes > 30) {
+        console.log(`CHECKOUT: Early checkout check - Department: ${user.department}, allowEarlyCheckOut: ${departmentTiming.allowEarlyCheckOut}, earlyMinutes: ${earlyMinutes}`);
+        
         if (!departmentTiming.allowEarlyCheckOut) {
           return res.status(400).json({
             message: `Early checkout is not allowed for ${user.department || 'your'} department. You worked ${workingHours.toFixed(1)} hours, expected ${standardWorkingHours} hours.`,
@@ -1394,7 +1396,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         sales: {
           checkInTime: "9:00 AM", checkOutTime: "7:00 PM", workingHours: 9,
           overtimeThresholdMinutes: 30, lateThresholdMinutes: 15,
-          allowEarlyCheckOut: false, allowRemoteWork: true, allowFieldWork: true
+          allowEarlyCheckOut: true, allowRemoteWork: true, allowFieldWork: true
         },
         technical: {
           checkInTime: "8:30 AM", checkOutTime: "5:30 PM", workingHours: 8,
@@ -1501,6 +1503,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Clear Enterprise Time Service cache for this department
       const { EnterpriseTimeService } = await import("./services/enterprise-time-service");
       EnterpriseTimeService.clearDepartmentCache(departmentId);
+      
+      // Force clear all related cache to ensure fresh data
+      EnterpriseTimeService.invalidateTimingCache(departmentId);
       
       // Log activity
       await storage.createActivityLog({
