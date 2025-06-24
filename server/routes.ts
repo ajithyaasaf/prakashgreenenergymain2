@@ -1267,8 +1267,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
         : null;
 
       // Use department-specific timing or defaults
-      const expectedCheckOutTime = departmentTiming?.checkOutTime || "18:30";
-      const [checkOutHour, checkOutMinute] = expectedCheckOutTime.split(":").map(Number);
+      const expectedCheckOutTime = departmentTiming?.checkOutTime || "6:00 PM";
+      
+      // Parse 12-hour format time string (e.g., "6:00 PM")
+      const timeMatch = expectedCheckOutTime.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+      let checkOutHour, checkOutMinute;
+      
+      if (timeMatch) {
+        let [, hours, minutes, period] = timeMatch;
+        checkOutHour = parseInt(hours);
+        checkOutMinute = parseInt(minutes);
+        
+        // Convert to 24-hour format
+        if (period.toUpperCase() === 'PM' && checkOutHour !== 12) {
+          checkOutHour += 12;
+        } else if (period.toUpperCase() === 'AM' && checkOutHour === 12) {
+          checkOutHour = 0;
+        }
+      } else {
+        // Fallback: try to parse as 24-hour format
+        const timeParts = expectedCheckOutTime.split(":").map(Number);
+        checkOutHour = timeParts[0] || 18;
+        checkOutMinute = timeParts[1] || 0;
+      }
+      
+      console.log('CHECKOUT TIME PARSING:', {
+        originalTime: expectedCheckOutTime,
+        parsedHour: checkOutHour,
+        parsedMinute: checkOutMinute,
+        timeMatch: timeMatch ? 'matched' : 'fallback'
+      });
       
       // Handle midnight boundary for expected checkout time
       const checkInTime = new Date(attendanceRecord.checkInTime || new Date());
@@ -1282,7 +1310,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         checkInDate.getDate(),
         checkOutHour,
         checkOutMinute,
+        0,
+        0
       );
+      
+      // Validate the date object before proceeding
+      if (isNaN(expectedCheckOutTimeObj.getTime())) {
+        console.error('Invalid expectedCheckOutTimeObj created:', {
+          checkOutHour,
+          checkOutMinute,
+          expectedCheckOutTime,
+          checkInDate: checkInDate.toISOString()
+        });
+        // Use fallback time (6:00 PM)
+        expectedCheckOutTimeObj = new Date(
+          checkInDate.getFullYear(),
+          checkInDate.getMonth(),
+          checkInDate.getDate(),
+          18,
+          0,
+          0,
+          0
+        );
+      }
       
       // If expected checkout is before check-in time, it means it's next day (night shift)
       if (expectedCheckOutTimeObj <= checkInTime) {
@@ -1304,14 +1354,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const calculatedWorkingHours = workingMilliseconds / (1000 * 60 * 60);
       const workingHours = Math.min(calculatedWorkingHours, maxWorkingHours);
       
-      // Log midnight boundary handling for debugging
+      // Log midnight boundary handling for debugging (with safety checks)
       console.log('MIDNIGHT BOUNDARY DEBUG:', {
         checkInTime: checkInTime.toISOString(),
         checkOutTime: checkOutTime.toISOString(),
         calculatedWorkingHours,
         cappedWorkingHours: workingHours,
-        expectedCheckOut: expectedCheckOutTimeObj.toISOString(),
-        crossedMidnight: checkOutTime.getDate() !== checkInTime.getDate()
+        expectedCheckOut: isNaN(expectedCheckOutTimeObj.getTime()) ? 'INVALID_DATE' : expectedCheckOutTimeObj.toISOString(),
+        crossedMidnight: checkOutTime.getDate() !== checkInTime.getDate(),
+        parsedCheckOutHour: checkOutHour,
+        parsedCheckOutMinute: checkOutMinute,
+        originalTimeString: expectedCheckOutTime
       });
       
       // Use department-specific working hours
