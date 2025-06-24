@@ -102,20 +102,28 @@ export function TimeDisplay({
 }
 
 function formatTime(date: Date, format12Hour: boolean, showSeconds: boolean, showDate: boolean): string {
-  let formatString = '';
+  // Convert to Indian Standard Time if needed
+  const indianTime = new Date(date);
+  
+  // Use native JavaScript formatting with Indian timezone
+  const options: Intl.DateTimeFormatOptions = {
+    timeZone: 'Asia/Kolkata',
+    hour12: format12Hour,
+    hour: 'numeric',
+    minute: '2-digit'
+  };
+  
+  if (showSeconds) {
+    options.second = '2-digit';
+  }
   
   if (showDate) {
-    formatString += 'MMM dd, yyyy ';
+    options.month = 'short';
+    options.day = 'numeric';
+    options.year = 'numeric';
   }
   
-  if (format12Hour) {
-    formatString += showSeconds ? 'h:mm:ss a' : 'h:mm a';
-  } else {
-    // Use 24-hour format internally for consistency with date-fns
-    formatString += showSeconds ? 'HH:mm:ss' : 'HH:mm';
-  }
-  
-  return format(date, formatString);
+  return indianTime.toLocaleString('en-IN', options);
 }
 
 // Utility function to format time consistently across the app

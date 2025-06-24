@@ -27,7 +27,8 @@ export function formatTime(date: Date | string): string {
   
   if (!date) return "";
   const d = typeof date === "string" ? new Date(date) : date;
-  return d.toLocaleTimeString("en-US", {
+  return d.toLocaleTimeString("en-IN", {
+    timeZone: "Asia/Kolkata",
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
@@ -168,7 +169,8 @@ export function formatTimeString(timeString: string): string {
     const date = new Date();
     date.setHours(hours, minutes, 0);
     
-    return date.toLocaleTimeString("en-US", {
+    return date.toLocaleTimeString("en-IN", {
+      timeZone: "Asia/Kolkata",
       hour: "numeric",
       minute: "2-digit",
       hour12: true,

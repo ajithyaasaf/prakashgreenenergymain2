@@ -1298,7 +1298,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Calculate working hours with proper midnight boundary handling
-      let workingMilliseconds = checkOutTime.getTime() - checkInTime.getTime();
+      let workingMilliseconds = finalCheckOutTime.getTime() - checkInTime.getTime();
       
       // If working time is negative, it means checkout happened next day
       if (workingMilliseconds < 0) {
@@ -1403,6 +1403,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         workingHours: Math.round(workingHours * 100) / 100,
         overtimeHours: Math.round(overtimeHours * 100) / 100,
         hasOvertime: hasOvertimeThreshold,
+        checkOutTime: finalCheckOutTime,
+        indiaTime: finalCheckOutTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
         departmentSettings: {
           expectedCheckOut: expectedCheckOutTime,
           standardHours: standardWorkingHours,
