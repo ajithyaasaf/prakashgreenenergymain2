@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuthContext } from "@/contexts/auth-context";
 import { formatDate, formatTimeString } from "@/lib/utils";
+import { TimeInput } from "@/components/ui/time-input";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { apiRequest } from "@/lib/queryClient";
@@ -547,10 +548,10 @@ export default function Departments() {
               </h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {[
-                  { name: "Standard Office", start: "09:00", end: "18:00", hours: 8, break: 60 },
-                  { name: "Early Shift", start: "07:00", end: "16:00", hours: 8, break: 60 },
-                  { name: "Night Shift", start: "22:00", end: "06:00", hours: 8, break: 60 },
-                  { name: "Flexible Hours", start: "09:30", end: "18:30", hours: 8, break: 60 }
+                  { name: "Standard Office", start: "09:00", end: "18:00", hours: 8, break: 60, display: "9:00 AM - 6:00 PM" },
+                  { name: "Early Shift", start: "07:00", end: "16:00", hours: 8, break: 60, display: "7:00 AM - 4:00 PM" },
+                  { name: "Night Shift", start: "22:00", end: "06:00", hours: 8, break: 60, display: "10:00 PM - 6:00 AM" },
+                  { name: "Flexible Hours", start: "09:30", end: "18:30", hours: 8, break: 60, display: "9:30 AM - 6:30 PM" }
                 ].map((template) => (
                   <Card key={template.name} 
                     className={`cursor-pointer transition-all hover:shadow-md border-2 ${
@@ -570,7 +571,7 @@ export default function Departments() {
                     <CardContent className="p-4 text-center">
                       <div className="font-medium text-sm">{template.name}</div>
                       <div className="text-xs text-muted-foreground mt-1">
-                        {template.start} - {template.end}
+                        {template.display}
                       </div>
                       <div className="text-xs text-blue-600 mt-1">
                         {template.hours}h working
@@ -595,7 +596,7 @@ export default function Departments() {
                   <span>6 AM</span>
                   <span>12 PM</span>
                   <span>6 PM</span>
-                  <span>12 AM</span>
+                  <span>11 PM</span>
                 </div>
                 <div className="relative h-8 bg-gray-200 rounded-full overflow-hidden">
                   {(() => {
@@ -627,10 +628,10 @@ export default function Departments() {
                 </div>
                 <div className="flex justify-between mt-2">
                   <div className="text-sm">
-                    <span className="font-medium text-green-600">Start: {timingFormState.checkInTime}</span>
+                    <span className="font-medium text-green-600">Start: {formatTimeString(timingFormState.checkInTime)}</span>
                   </div>
                   <div className="text-sm">
-                    <span className="font-medium text-blue-600">End: {timingFormState.checkOutTime}</span>
+                    <span className="font-medium text-blue-600">End: {formatTimeString(timingFormState.checkOutTime)}</span>
                   </div>
                 </div>
               </div>
@@ -643,14 +644,13 @@ export default function Departments() {
                     Check-in Time
                   </label>
                   <div className="relative">
-                    <Input
-                      type="time"
+                    <TimeInput
                       value={timingFormState.checkInTime}
-                      onChange={(e) => setTimingFormState({
+                      onChange={(value) => setTimingFormState({
                         ...timingFormState,
-                        checkInTime: e.target.value
+                        checkInTime: value
                       })}
-                      className="text-lg font-mono"
+                      className="text-lg"
                     />
                   </div>
                 </div>
@@ -661,14 +661,13 @@ export default function Departments() {
                     Check-out Time
                   </label>
                   <div className="relative">
-                    <Input
-                      type="time"
+                    <TimeInput
                       value={timingFormState.checkOutTime}
-                      onChange={(e) => setTimingFormState({
+                      onChange={(value) => setTimingFormState({
                         ...timingFormState,
-                        checkOutTime: e.target.value
+                        checkOutTime: value
                       })}
-                      className="text-lg font-mono"
+                      className="text-lg"
                     />
                   </div>
                 </div>

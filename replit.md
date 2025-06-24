@@ -133,3 +133,4 @@ This is an enterprise-grade dashboard application for Prakash Greens Energy, bui
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
+Time format preference: 12-hour format (AM/PM) throughout the application.
