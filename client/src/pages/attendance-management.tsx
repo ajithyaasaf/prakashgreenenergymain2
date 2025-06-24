@@ -73,11 +73,11 @@ export default function AttendanceManagement() {
     enabled: !!user,
     queryFn: async () => {
       const dateParam = selectedDate.toISOString().split('T')[0];
-      const attendanceResponse = await apiRequest('GET', `/api/attendance?date=${dateParam}`);
+      const attendanceResponse = await apiRequest(`/api/attendance?date=${dateParam}`, 'GET');
       const attendanceData = await attendanceResponse.json();
       
       // Enrich with user details
-      const usersResponse = await apiRequest('GET', '/api/users');
+      const usersResponse = await apiRequest('/api/users', 'GET');
       const users = await usersResponse.json();
       
       return attendanceData.map((record: any) => {
@@ -105,7 +105,7 @@ export default function AttendanceManagement() {
     enabled: !!user,
     queryFn: async () => {
       const dateParam = selectedDate.toISOString().split('T')[0];
-      const response = await apiRequest('GET', `/api/attendance/department-stats?date=${dateParam}`);
+      const response = await apiRequest(`/api/attendance/department-stats?date=${dateParam}`, 'GET');
       return response.json();
     },
   });
@@ -113,7 +113,7 @@ export default function AttendanceManagement() {
   // Update attendance mutation
   const updateAttendanceMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
-      const response = await apiRequest('PATCH', `/api/attendance/${id}`, data);
+      const response = await apiRequest(`/api/attendance/${id}`, 'PATCH', data);
       return response.json();
     },
     onSuccess: () => {
@@ -142,7 +142,7 @@ export default function AttendanceManagement() {
       attendanceIds: string[]; 
       data?: any 
     }) => {
-      const response = await apiRequest('POST', '/api/attendance/bulk-action', { action, attendanceIds, data });
+      const response = await apiRequest('/api/attendance/bulk-action', 'POST', { action, attendanceIds, data });
       return response.json();
     },
     onSuccess: () => {

@@ -3571,37 +3571,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Department attendance statistics
-  app.get("/api/attendance/department-stats", verifyAuth, async (req, res) => {
-    try {
-      const user = await storage.getUser(req.user.uid);
-      if (!user || user.role !== "master_admin") {
-        return res.status(403).json({ message: "Access denied - Master Admin only" });
-      }
 
-      const { date } = req.query;
-      const attendance = await storage.listAttendance({ date: date as string });
-      
-      const departmentStats = attendance.reduce((acc, record) => {
-        const dept = record.userDepartment || 'unknown';
-        if (!acc[dept]) {
-          acc[dept] = { department: dept, present: 0, absent: 0, late: 0, total: 0 };
-        }
-        
-        acc[dept].total++;
-        if (record.status === 'present') acc[dept].present++;
-        else if (record.status === 'absent') acc[dept].absent++;
-        else if (record.status === 'late') acc[dept].late++;
-        
-        return acc;
-      }, {} as Record<string, any>);
-
-      res.json(Object.values(departmentStats));
-    } catch (error) {
-      console.error("Error fetching department statistics:", error);
-      res.status(500).json({ message: "Failed to fetch department statistics" });
-    }
-  });
 
   // Attendance policies management
   app.get("/api/attendance/policies", verifyAuth, async (req, res) => {
