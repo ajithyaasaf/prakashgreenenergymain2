@@ -125,7 +125,7 @@ export default function Customers() {
   // Delete customer mutation
   const deleteMutation = useMutation({
     mutationFn: async (customerId: string) => {
-      const response = await apiRequest("DELETE", `/api/customers/${customerId}`);
+      const response = await apiRequest(`/api/customers/${customerId}`, "DELETE");
       if (!response.ok) {
         throw new Error("Failed to delete customer");
       }

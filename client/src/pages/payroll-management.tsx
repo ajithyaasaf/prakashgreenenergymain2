@@ -171,7 +171,7 @@ export default function EnhancedPayrollManagement() {
   const { data: users = [] } = useQuery({
     queryKey: ["/api/users"],
     queryFn: async () => {
-      const response = await apiRequest('GET', '/api/users');
+      const response = await apiRequest('/api/users', 'GET');
       if (!response.ok) {
         throw new Error(`Failed to fetch users: ${response.status}`);
       }
@@ -185,7 +185,7 @@ export default function EnhancedPayrollManagement() {
   const { data: fieldConfigs = [] } = useQuery<PayrollFieldConfig[]>({
     queryKey: ["/api/payroll/field-configs"],
     queryFn: async () => {
-      const response = await apiRequest('GET', '/api/payroll/field-configs');
+      const response = await apiRequest('/api/payroll/field-configs', 'GET');
       return response.json();
     },
     enabled: !!user?.firebaseUser
@@ -200,7 +200,7 @@ export default function EnhancedPayrollManagement() {
         ...(selectedDepartment && selectedDepartment !== "all" && { department: selectedDepartment })
       };
       
-      const response = await apiRequest('GET', '/api/enhanced-payrolls', queryParams);
+      const response = await apiRequest('/api/enhanced-payrolls', 'GET', undefined, queryParams);
       if (!response.ok) {
         throw new Error(`Failed to fetch payrolls: ${response.status}`);
       }
@@ -215,7 +215,7 @@ export default function EnhancedPayrollManagement() {
   const { data: salaryStructures = [], refetch: refetchSalaryStructures } = useQuery<EnhancedSalaryStructure[]>({
     queryKey: ["/api/enhanced-salary-structures"],
     queryFn: async () => {
-      const response = await apiRequest('GET', '/api/enhanced-salary-structures');
+      const response = await apiRequest('/api/enhanced-salary-structures', 'GET');
       if (!response.ok) {
         throw new Error(`Failed to fetch salary structures: ${response.status}`);
       }
@@ -229,7 +229,7 @@ export default function EnhancedPayrollManagement() {
   const { data: settings } = useQuery<EnhancedPayrollSettings>({
     queryKey: ["/api/enhanced-payroll-settings"],
     queryFn: async () => {
-      const response = await apiRequest('GET', '/api/enhanced-payroll-settings');
+      const response = await apiRequest('/api/enhanced-payroll-settings', 'GET');
       return response.json();
     },
     enabled: !!user?.firebaseUser
@@ -257,7 +257,7 @@ export default function EnhancedPayrollManagement() {
 
   const createFieldConfigMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await apiRequest("POST", "/api/payroll/field-configs", data);
+      const response = await apiRequest("/api/payroll/field-configs", "POST", data);
       return response.json();
     },
     onSuccess: () => {
@@ -269,7 +269,7 @@ export default function EnhancedPayrollManagement() {
 
   const createSalaryStructureMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await apiRequest("POST", "/api/enhanced-salary-structures", data);
+      const response = await apiRequest("/api/enhanced-salary-structures", "POST", data);
       if (!response.ok) {
         throw new Error(`Failed to create salary structure: ${response.status}`);
       }
@@ -292,7 +292,7 @@ export default function EnhancedPayrollManagement() {
 
   const bulkProcessPayrollMutation = useMutation({
     mutationFn: async (data: { month: number; year: number; userIds?: string[] }) => {
-      const response = await apiRequest("POST", "/api/enhanced-payrolls/bulk-process", data);
+      const response = await apiRequest("/api/enhanced-payrolls/bulk-process", "POST", data);
       if (!response.ok) {
         throw new Error(`Failed to process payroll: ${response.status}`);
       }
@@ -318,7 +318,7 @@ export default function EnhancedPayrollManagement() {
 
   const updateSettingsMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await apiRequest("PATCH", "/api/enhanced-payroll-settings", data);
+      const response = await apiRequest("/api/enhanced-payroll-settings", "PATCH", data);
       return response.json();
     },
     onSuccess: () => {

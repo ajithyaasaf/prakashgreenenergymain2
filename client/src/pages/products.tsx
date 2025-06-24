@@ -136,7 +136,7 @@ export default function Products() {
   // Delete product mutation
   const deleteProductMutation = useMutation({
     mutationFn: async (productId: string) => {
-      const response = await apiRequest("DELETE", `/api/products/${productId}`);
+      const response = await apiRequest(`/api/products/${productId}`, "DELETE");
       if (!response.ok) {
         throw new Error("Failed to delete product");
       }

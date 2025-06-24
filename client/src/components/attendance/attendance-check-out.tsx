@@ -285,7 +285,7 @@ export function AttendanceCheckOut({
         console.log('FRONTEND: Uploading overtime photo to Cloudinary...');
         
         try {
-          const uploadResponse = await apiRequest('POST', '/api/attendance/upload-photo', {
+          const uploadResponse = await apiRequest('/api/attendance/upload-photo', 'POST', {
             imageData: capturedPhoto,
             userId: user?.uid,
             attendanceType: 'overtime_checkout'

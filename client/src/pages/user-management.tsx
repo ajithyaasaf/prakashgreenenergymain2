@@ -85,7 +85,7 @@ export default function UserManagement() {
   } = useQuery({
     queryKey: ["users"],
     queryFn: async () => {
-      const res = await apiRequest("GET", "/api/users");
+      const res = await apiRequest("/api/users", "GET");
       return res.json();
     },
     enabled: user?.role === "master_admin" || user?.role === "admin",
@@ -95,7 +95,7 @@ export default function UserManagement() {
   const { data: departments = [] } = useQuery({
     queryKey: ["departments"],
     queryFn: async () => {
-      const res = await apiRequest("GET", "/api/departments");
+      const res = await apiRequest("/api/departments", "GET");
       return res.json();
     },
   });
@@ -103,7 +103,7 @@ export default function UserManagement() {
   // Update user mutation
   const updateUserMutation = useMutation({
     mutationFn: async (userData: any) => {
-      const response = await apiRequest("PATCH", `/api/users/${userData.id}`, {
+      const response = await apiRequest(`/api/users/${userData.id}`, "PATCH", {
         ...userData,
         userId: user?.id,
       });
@@ -252,7 +252,7 @@ export default function UserManagement() {
   const { data: designations = [] } = useQuery({
     queryKey: ["designations"],
     queryFn: async () => {
-      const res = await apiRequest("GET", "/api/designations");
+      const res = await apiRequest("/api/designations", "GET");
       return res.json();
     },
   });

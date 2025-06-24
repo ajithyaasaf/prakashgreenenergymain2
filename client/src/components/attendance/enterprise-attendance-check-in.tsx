@@ -156,7 +156,7 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
         console.log('FRONTEND: Uploading photo to Cloudinary...');
         
         try {
-          const uploadResponse = await apiRequest('POST', '/api/attendance/upload-photo', {
+          const uploadResponse = await apiRequest('/api/attendance/upload-photo', 'POST', {
             imageData: capturedPhoto,
             userId: user.uid,
             attendanceType: attendanceType
@@ -212,7 +212,7 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
         hasPhoto: !!photoUploadUrl
       });
 
-      const response = await apiRequest('POST', '/api/attendance/check-in', requestData);
+      const response = await apiRequest('/api/attendance/check-in', 'POST', requestData);
 
       if (!response.ok) {
         const errorData = await response.json();
