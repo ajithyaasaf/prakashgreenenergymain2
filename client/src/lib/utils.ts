@@ -27,6 +27,21 @@ export function formatTime(date: Date | string): string {
   });
 }
 
+// Enhanced time formatting for 12-hour consistency
+export function formatTime12Hour(time: string | Date): string {
+  if (!time) return "";
+  
+  const date = typeof time === 'string' ? new Date(time) : time;
+  
+  if (isNaN(date.getTime())) return "";
+  
+  return date.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  });
+}
+
 // Currency formatting for Indian Rupees
 export function formatCurrency(amount: number): string {
   // Convert paise/cents to rupees
@@ -125,17 +140,27 @@ export function truncateText(text: string, maxLength: number): string {
 export function formatTimeString(timeString: string): string {
   if (!timeString) return "";
   
-  // Handle both HH:MM and HH:MM:SS formats
-  const [hours, minutes] = timeString.split(':').map(Number);
-  
-  if (isNaN(hours) || isNaN(minutes)) return timeString;
-  
-  const date = new Date();
-  date.setHours(hours, minutes, 0);
-  
-  return date.toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
+  try {
+    // If it's already in 12-hour format, return as is
+    if (timeString.includes("AM") || timeString.includes("PM")) {
+      return timeString;
+    }
+    
+    // Handle both HH:MM and HH:MM:SS formats
+    const [hours, minutes] = timeString.split(':').map(Number);
+    
+    if (isNaN(hours) || isNaN(minutes)) return timeString;
+    
+    const date = new Date();
+    date.setHours(hours, minutes, 0);
+    
+    return date.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+  } catch (error) {
+    console.error('Error formatting time string:', error);
+    return timeString;
+  }
 }

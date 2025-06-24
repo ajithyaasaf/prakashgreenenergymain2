@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuthContext } from "@/contexts/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { formatDate, formatTime } from "@/lib/utils";
+import { TimeDisplay, formatTimeFor12Hour } from "@/components/time/time-display";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -620,10 +621,10 @@ export default function AttendanceManagement() {
                             {record.userDepartment || 'N/A'}
                           </TableCell>
                           <TableCell>
-                            {record.checkInTime ? formatTime(new Date(record.checkInTime)) : '-'}
+                            {record.checkInTime ? <TimeDisplay time={record.checkInTime} format12Hour={true} /> : '-'}
                           </TableCell>
                           <TableCell>
-                            {record.checkOutTime ? formatTime(new Date(record.checkOutTime)) : '-'}
+                            {record.checkOutTime ? <TimeDisplay time={record.checkOutTime} format12Hour={true} /> : '-'}
                           </TableCell>
                           <TableCell>
                             {record.workingHours ? `${record.workingHours.toFixed(1)}h` : '-'}

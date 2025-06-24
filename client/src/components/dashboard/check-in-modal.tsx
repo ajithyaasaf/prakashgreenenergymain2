@@ -16,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertCircle, Loader2, Camera, MapPin, Clock } from "lucide-react";
 import { formatTime } from "@/lib/utils";
+import { TimeDisplay } from "@/components/time/time-display";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 interface CheckInModalProps {

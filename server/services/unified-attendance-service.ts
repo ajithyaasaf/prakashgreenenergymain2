@@ -485,7 +485,7 @@ export class UnifiedAttendanceService {
   }
 
   /**
-   * Generate comprehensive attendance metrics for analytics
+   * Generate comprehensive attendance metrics for analytics with Enterprise Time Service
    */
   static async generateAttendanceMetrics(userId: string, dateRange?: { start: Date; end: Date }) {
     try {

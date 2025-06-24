@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { useAuthContext } from "@/contexts/auth-context";
+import { TimeDisplay } from "@/components/time/time-display";
 import { 
   Calculator, 
   Settings, 

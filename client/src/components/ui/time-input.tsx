@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Input } from './input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './select';
-import { formatTimeString, convertTo24Hour } from '@/lib/utils';
+import { formatTimeString } from '@/lib/utils';
+import { convert12To24Hour, convert24To12Hour } from '@/components/time/time-display';
 
 interface TimeInputProps {
   value: string; // 24-hour format (HH:MM)
