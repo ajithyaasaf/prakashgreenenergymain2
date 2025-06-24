@@ -90,27 +90,26 @@ export default function Attendance() {
     },
   });
 
-  // Fetch department timing for current user with enhanced real-time updates
+  // Ultra-fast department timing with intelligent caching
   const { data: departmentTiming, refetch: refetchTiming } = useQuery({
     queryKey: ["/api/departments/timing", user?.department],
     queryFn: async () => {
       if (!user?.department) return null;
-      console.log('ATTENDANCE: Fetching department timing for', user.department);
+      console.log('ATTENDANCE: Fast-fetching department timing for', user.department);
       const response = await apiRequest(`/api/departments/${user.department}/timing`, 'GET');
       if (response.ok) {
         const timing = await response.json();
-        console.log('ATTENDANCE: Retrieved timing:', timing);
+        console.log('ATTENDANCE: Retrieved timing (cached):', timing);
         return timing;
       }
-      console.log('ATTENDANCE: Failed to fetch timing, using fallback');
       return null;
     },
     enabled: !!user?.department,
-    staleTime: 0, // Always fetch fresh data
-    gcTime: 0, // Don't cache timing data (updated from cacheTime)
-    refetchInterval: 10000, // More frequent updates - every 10 seconds
-    refetchOnWindowFocus: true, // Refetch when user returns to tab
-    refetchOnMount: true, // Always refetch on component mount
+    staleTime: 30000, // Smart caching - 30 seconds
+    gcTime: 60000, // Garbage collect after 1 minute
+    refetchInterval: 30000, // Reduced frequency - every 30 seconds
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
   });
 
   // Enhanced refresh functions with comprehensive invalidation

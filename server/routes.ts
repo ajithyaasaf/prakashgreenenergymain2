@@ -4006,23 +4006,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get specific department timing with enhanced logging
+  // Get specific department timing with ultra-fast caching
   app.get("/api/departments/:department/timing", verifyAuth, async (req, res) => {
     try {
       const { department } = req.params;
       const { user } = req.authenticatedUser;
       
-      console.log(`BACKEND: Fetching timing for department ${department} (requested by ${user.role})`);
+      console.log(`BACKEND: Fast-fetching timing for department ${department}`);
       
       // Users can view their own department timing or master_admin can view all
       if (user.role !== "master_admin" && user.department !== department) {
         return res.status(403).json({ message: "Access denied" });
       }
       
-      const { EnterpriseTimeService } = await import("./services/enterprise-time-service");
-      const timing = await EnterpriseTimeService.getDepartmentTiming(department);
+      const { AttendanceCacheService } = await import("./services/attendance-cache-service");
       
-      console.log(`BACKEND: Retrieved timing for ${department}:`, timing);
+      const timing = await AttendanceCacheService.getDepartmentTiming(department, async () => {
+        const { EnterpriseTimeService } = await import("./services/enterprise-time-service");
+        return await EnterpriseTimeService.getDepartmentTiming(department);
+      });
       
       res.json(timing);
     } catch (error) {
@@ -4060,9 +4062,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Clear cache for this specific department and all cache
       console.log(`BACKEND: Clearing cache for department ${department}`);
       EnterpriseTimeService.clearDepartmentCache(department);
-      
-      // Also clear all department cache to ensure consistency
       EnterpriseTimeService.invalidateTimingCache();
+      
+      // Clear performance optimizer cache
+      const { AttendanceCacheService } = await import("./services/attendance-cache-service");
+      AttendanceCacheService.invalidateDepartmentCache(department);
+      AttendanceCacheService.invalidateAttendanceCache();
       
       // Get fresh data from database (not cache)
       const updatedTiming = await EnterpriseTimeService.getDepartmentTiming(department);
@@ -4177,7 +4182,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add cache refresh endpoint for department timings
+  // Performance analytics endpoint
+  app.get("/api/performance/stats", verifyAuth, async (req, res) => {
+    try {
+      const { user } = req.authenticatedUser;
+      
+      if (user.role !== "master_admin") {
+        return res.status(403).json({ message: "Access denied - Master Admin only" });
+      }
+      
+      const { AttendanceCacheService } = await import("./services/attendance-cache-service");
+      const stats = AttendanceCacheService.getCacheStats();
+      
+      res.json({
+        ...stats,
+        timestamp: new Date().toISOString(),
+        message: "Performance analytics retrieved successfully"
+      });
+    } catch (error) {
+      console.error("Error getting performance stats:", error);
+      res.status(500).json({ message: "Failed to get performance stats" });
+    }
+  });
+
+  // Enhanced cache refresh endpoint
   app.post("/api/departments/timings/refresh-cache", verifyAuth, async (req, res) => {
     try {
       const { user } = req.authenticatedUser;
@@ -4189,23 +4217,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('BACKEND: Manual cache refresh requested by master admin');
       
       const { EnterpriseTimeService } = await import("./services/enterprise-time-service");
+      const { AttendanceCacheService } = await import("./services/attendance-cache-service");
+      
+      // Clear all caches
       EnterpriseTimeService.invalidateTimingCache();
+      AttendanceCacheService.invalidateAttendanceCache();
       
       // Get fresh data for all departments
       const timings = await EnterpriseTimeService.getAllDepartmentTimings();
       
-      console.log('BACKEND: Cache refreshed, retrieved timings for departments:', 
+      console.log('BACKEND: All caches refreshed, retrieved timings for departments:', 
         timings.map(t => t.department));
       
       res.json({
         success: true,
-        message: "Department timing cache refreshed successfully",
+        message: "All caches refreshed successfully",
         refreshedDepartments: timings.map(t => t.department),
+        performanceStats: AttendanceCacheService.getCacheStats(),
         timestamp: new Date().toISOString()
       });
     } catch (error) {
-      console.error("Error refreshing department timing cache:", error);
-      res.status(500).json({ message: "Failed to refresh department timing cache" });
+      console.error("Error refreshing caches:", error);
+      res.status(500).json({ message: "Failed to refresh caches" });
     }
   });
 
