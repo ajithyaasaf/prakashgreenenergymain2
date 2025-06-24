@@ -4027,8 +4027,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update specific department timing
+  // Update specific department timing (POST)
   app.post("/api/departments/:department/timing", verifyAuth, async (req, res) => {
+    try {
+      const { department } = req.params;
+      const user = await storage.getUser(req.user.uid);
+      
+      if (!user || user.role !== "master_admin") {
+        return res.status(403).json({ message: "Access denied - Master Admin only" });
+      }
+
+      const { EnterpriseTimeService } = await import("./services/enterprise-time-service");
+      
+      // Update single department timing
+      await EnterpriseTimeService.updateDepartmentTimings([{
+        department,
+        ...req.body
+      }]);
+      
+      const updatedTiming = await EnterpriseTimeService.getDepartmentTiming(department);
+      res.json(updatedTiming);
+    } catch (error) {
+      console.error(`Error updating timing for department ${req.params.department}:`, error);
+      res.status(500).json({ message: "Failed to update department timing" });
+    }
+  });
+
+  // Update specific department timing (PUT)
+  app.put("/api/departments/:department/timing", verifyAuth, async (req, res) => {
     try {
       const { department } = req.params;
       const user = await storage.getUser(req.user.uid);
