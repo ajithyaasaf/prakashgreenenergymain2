@@ -115,13 +115,20 @@ export class EnterpriseTimeService {
     if (checkOutTime) {
       // Calculate total working time
       const totalMinutes = Math.floor((checkOutTime.getTime() - checkInTime.getTime()) / (1000 * 60));
-      workingHours = totalMinutes / 60;
+      workingHours = Math.max(0, totalMinutes / 60); // Ensure non-negative
 
-      // Google-level OT calculation: Any work beyond scheduled checkout time
+      // FIXED: Proper OT calculation - only if checkout is after expected checkout time
+      console.log(`ENTERPRISE_TIME: Calculating OT - checkOut: ${checkOutTime.toISOString()}, expectedCheckOut: ${expectedCheckOut.toISOString()}`);
+      
+      // Only calculate overtime if checking out after expected time
       if (checkOutTime > expectedCheckOut) {
         const overtimeMinutes = Math.floor((checkOutTime.getTime() - expectedCheckOut.getTime()) / (1000 * 60));
-        overtimeHours = overtimeMinutes / 60;
+        overtimeHours = Math.max(0, overtimeMinutes / 60);
         overtimeStartTime = this.formatTo12Hour(expectedCheckOut);
+        console.log(`ENTERPRISE_TIME: OT detected - ${overtimeMinutes} minutes = ${overtimeHours} hours`);
+      } else {
+        overtimeHours = 0;
+        console.log(`ENTERPRISE_TIME: No OT - checkout before expected time`);
       }
     }
 
@@ -321,8 +328,16 @@ export class EnterpriseTimeService {
       return date;
     } catch (error) {
       console.error('ENTERPRISE_TIME: Error parsing time:', timeStr, error);
-      // Return a safe fallback time (current time)
-      return new Date(baseDate);
+      // FIXED: Return reasonable business hours as fallback
+      const fallbackDate = new Date(baseDate);
+      // Default to sales department timing: 9 AM - 7 PM
+      if (timeStr && (timeStr.toLowerCase().includes('out') || timeStr.includes('19:') || timeStr.includes('7:'))) {
+        fallbackDate.setHours(19, 0, 0, 0); // 7:00 PM default checkout
+      } else {
+        fallbackDate.setHours(9, 0, 0, 0); // 9:00 AM default checkin
+      }
+      console.log(`ENTERPRISE_TIME: Using fallback time for corrupted data: ${fallbackDate.toISOString()}`);
+      return fallbackDate;
     }
   }
 

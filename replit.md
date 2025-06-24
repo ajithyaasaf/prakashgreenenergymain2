@@ -119,6 +119,14 @@ This is an enterprise-grade dashboard application for Prakash Greens Energy, bui
 - **TypeScript**: Comprehensive tsconfig with path aliases
 
 ## Recent Changes
+- June 24, 2025: FIXED CRITICAL OVERTIME CALCULATION BUG
+  - ✓ MAJOR FIX: Resolved 9-hour overtime calculation error for 8-minute work session
+  - ✓ Fixed corrupted department timing data causing "6:NaN AM" parsing errors  
+  - ✓ Enhanced time parsing with comprehensive validation and proper fallbacks
+  - ✓ Updated sales department defaults: 9:00 AM - 7:00 PM with early checkout allowed
+  - ✓ Removed duplicate overtime calculation logic causing incorrect results
+  - ✓ Added emergency cache clearing endpoint for debugging timing issues
+  - ✓ Implemented proper overtime logic: only work beyond expected checkout time = OT
 - June 24, 2025: COMPLETED HIGH PRIORITY CRITICAL FIXES
   - ✓ MEMORY LEAK PREVENTION: Added proper useEffect cleanup in attendance-management and payroll-management
   - ✓ TIMEZONE STANDARDIZATION: Routed all time operations through Enterprise Time Service in checkout routes
