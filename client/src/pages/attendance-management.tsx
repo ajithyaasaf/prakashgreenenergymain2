@@ -192,8 +192,8 @@ export default function AttendanceManagement() {
   const handleEditAttendance = (record: any) => {
     setEditingAttendance(record);
     setEditForm({
-      checkInTime: record.checkInTime ? new Date(record.checkInTime).toLocaleTimeString('en-GB', { hour12: false }).slice(0, 5) : '',
-      checkOutTime: record.checkOutTime ? new Date(record.checkOutTime).toLocaleTimeString('en-GB', { hour12: false }).slice(0, 5) : '',
+      checkInTime: record.checkInTime ? new Date(record.checkInTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '',
+      checkOutTime: record.checkOutTime ? new Date(record.checkOutTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '',
       status: record.status || 'present',
       overtimeHours: record.overtimeHours || 0,
       remarks: record.remarks || ''
@@ -215,16 +215,30 @@ export default function AttendanceManagement() {
     // Convert times to full datetime if provided
     if (editForm.checkInTime) {
       const checkInDate = new Date(editingAttendance.date);
-      const [hours, minutes] = editForm.checkInTime.split(':');
-      checkInDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-      updateData.checkInTime = checkInDate.toISOString();
+      // Parse 12-hour format properly
+      const timeMatch = editForm.checkInTime.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+      if (timeMatch) {
+        let [, hours, minutes, period] = timeMatch;
+        let hour24 = parseInt(hours);
+        if (period.toUpperCase() === 'PM' && hour24 !== 12) hour24 += 12;
+        if (period.toUpperCase() === 'AM' && hour24 === 12) hour24 = 0;
+        checkInDate.setHours(hour24, parseInt(minutes), 0, 0);
+        updateData.checkInTime = checkInDate.toISOString();
+      }
     }
 
     if (editForm.checkOutTime) {
       const checkOutDate = new Date(editingAttendance.date);
-      const [hours, minutes] = editForm.checkOutTime.split(':');
-      checkOutDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-      updateData.checkOutTime = checkOutDate.toISOString();
+      // Parse 12-hour format properly
+      const timeMatch = editForm.checkOutTime.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+      if (timeMatch) {
+        let [, hours, minutes, period] = timeMatch;
+        let hour24 = parseInt(hours);
+        if (period.toUpperCase() === 'PM' && hour24 !== 12) hour24 += 12;
+        if (period.toUpperCase() === 'AM' && hour24 === 12) hour24 = 0;
+        checkOutDate.setHours(hour24, parseInt(minutes), 0, 0);
+        updateData.checkOutTime = checkOutDate.toISOString();
+      }
     }
 
     updateAttendanceMutation.mutate({

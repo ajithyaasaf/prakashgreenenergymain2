@@ -590,10 +590,27 @@ export default function Departments() {
                 </div>
                 <div className="relative h-8 bg-gray-200 rounded-full overflow-hidden">
                   {(() => {
-                    const startHour = parseInt(timingFormState.checkInTime.split(':')[0]);
-                    const startMin = parseInt(timingFormState.checkInTime.split(':')[1]);
-                    const endHour = parseInt(timingFormState.checkOutTime.split(':')[0]);
-                    const endMin = parseInt(timingFormState.checkOutTime.split(':')[1]);
+                    // Parse 12-hour format times properly
+                    const startMatch = timingFormState.checkInTime.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+                    const endMatch = timingFormState.checkOutTime.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+                    
+                    let startHour = 9, startMin = 0, endHour = 18, endMin = 0; // Defaults
+                    
+                    if (startMatch) {
+                      let [, hours, minutes, period] = startMatch;
+                      startHour = parseInt(hours);
+                      startMin = parseInt(minutes);
+                      if (period.toUpperCase() === 'PM' && startHour !== 12) startHour += 12;
+                      if (period.toUpperCase() === 'AM' && startHour === 12) startHour = 0;
+                    }
+                    
+                    if (endMatch) {
+                      let [, hours, minutes, period] = endMatch;
+                      endHour = parseInt(hours);
+                      endMin = parseInt(minutes);
+                      if (period.toUpperCase() === 'PM' && endHour !== 12) endHour += 12;
+                      if (period.toUpperCase() === 'AM' && endHour === 12) endHour = 0;
+                    }
                     
                     const startPercent = ((startHour * 60 + startMin) / (24 * 60)) * 100;
                     let endPercent = ((endHour * 60 + endMin) / (24 * 60)) * 100;

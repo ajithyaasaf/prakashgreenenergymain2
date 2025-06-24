@@ -479,8 +479,17 @@ export function AttendanceCheckOut({
           {(() => {
             const now = new Date();
             const currentTime = now.getHours() * 60 + now.getMinutes();
-            const expectedCheckOutTime = (departmentTiming?.checkOutTime || "18:30").split(":");
-            const expectedMinutes = parseInt(expectedCheckOutTime[0]) * 60 + parseInt(expectedCheckOutTime[1]);
+            // Parse department timing properly (12-hour format)
+            const expectedTimeStr = departmentTiming?.checkOutTime || "6:30 PM";
+            const timeMatch = expectedTimeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+            let expectedMinutes = 18 * 60 + 30; // Default 6:30 PM
+            if (timeMatch) {
+              let [, hours, minutes, period] = timeMatch;
+              let hour24 = parseInt(hours);
+              if (period.toUpperCase() === 'PM' && hour24 !== 12) hour24 += 12;
+              if (period.toUpperCase() === 'AM' && hour24 === 12) hour24 = 0;
+              expectedMinutes = hour24 * 60 + parseInt(minutes);
+            }
             const isEarlyCheckout = currentTime < expectedMinutes;
             
             return isEarlyCheckout && (
@@ -505,8 +514,17 @@ export function AttendanceCheckOut({
             {(() => {
               const now = new Date();
               const currentTime = now.getHours() * 60 + now.getMinutes();
-              const expectedCheckOutTime = (departmentTiming?.checkOutTime || "18:30").split(":");
-              const expectedMinutes = parseInt(expectedCheckOutTime[0]) * 60 + parseInt(expectedCheckOutTime[1]);
+              // Parse department timing properly (12-hour format)
+              const expectedTimeStr = departmentTiming?.checkOutTime || "6:30 PM";
+              const timeMatch = expectedTimeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+              let expectedMinutes = 18 * 60 + 30; // Default 6:30 PM
+              if (timeMatch) {
+                let [, hours, minutes, period] = timeMatch;
+                let hour24 = parseInt(hours);
+                if (period.toUpperCase() === 'PM' && hour24 !== 12) hour24 += 12;
+                if (period.toUpperCase() === 'AM' && hour24 === 12) hour24 = 0;
+                expectedMinutes = hour24 * 60 + parseInt(minutes);
+              }
               const isEarlyCheckout = currentTime < expectedMinutes;
               
               return (

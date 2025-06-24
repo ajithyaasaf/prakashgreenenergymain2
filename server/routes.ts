@@ -1346,8 +1346,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const earlyMinutes = earlyCheckout ? Math.floor((expectedCheckOutTimeObj.getTime() - checkOutTime.getTime()) / (1000 * 60)) : 0;
       
       console.log("CHECKOUT DEBUG:", {
-        currentTime: checkOutTime.toLocaleTimeString(),
-        expectedTime: expectedCheckOutTimeObj.toLocaleTimeString(),
+        currentTime: checkOutTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
+        expectedTime: expectedCheckOutTimeObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
         earlyCheckout,
         earlyMinutes,
         reason: reason || "no reason provided",

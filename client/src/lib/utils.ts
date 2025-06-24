@@ -143,8 +143,15 @@ export function truncateText(text: string, maxLength: number): string {
   return text.slice(0, maxLength) + "...";
 }
 
-// Convert 24-hour time string to 12-hour format
+/**
+ * Format time string to 12-hour format (DEPRECATED)
+ * @deprecated Use TimeDisplay component with format12Hour={true} instead
+ * @param timeString - Time in HH:MM format or 12-hour format
+ * @returns Time in 12-hour format (h:mm AM/PM)
+ */
 export function formatTimeString(timeString: string): string {
+  console.warn('DEPRECATED: formatTimeString - Use TimeDisplay component instead');
+  
   if (!timeString) return "";
   
   try {

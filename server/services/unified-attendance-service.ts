@@ -215,7 +215,7 @@ export class UnifiedAttendanceService {
           isLate: timingInfo.isLate,
           lateMinutes: timingInfo.lateMinutes,
           expectedCheckInTime: timingInfo.expectedCheckInTime,
-          actualCheckInTime: new Date().toLocaleTimeString()
+          actualCheckInTime: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
         },
         recommendations: locationValidation.recommendations
       };

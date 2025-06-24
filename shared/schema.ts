@@ -154,8 +154,8 @@ export const insertDepartmentTimingSchema = z.object({
   departmentId: z.string(),
   department: z.enum(departments),
   workingHours: z.number().min(1).max(24).default(8), // Standard working hours per day
-  checkInTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Time must be in 24-hour HH:MM format"), // e.g., "09:00"
-  checkOutTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Time must be in 24-hour HH:MM format") // e.g., "18:00"
+  checkInTime: z.string().regex(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i, "Time must be in 12-hour format (h:mm AM/PM)"), // e.g., "9:00 AM"
+  checkOutTime: z.string().regex(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i, "Time must be in 12-hour format (h:mm AM/PM)") // e.g., "6:00 PM"
     .refine((checkOut, ctx) => {
       const checkIn = ctx.parent.checkInTime;
       if (checkIn && checkOut) {
