@@ -158,7 +158,59 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
     }
   };
 
+  // Real-time form validation with policy enforcement
+  const validateForm = () => {
+    const errors: string[] = [];
+    
+    if (!departmentPolicies) {
+      return { isValid: false, errors: ['Loading department policies...'] };
+    }
 
+    // Policy-based validation
+    if (attendanceType === "remote" && !departmentPolicies.allowRemoteWork) {
+      errors.push('Remote work is not allowed for your department');
+    }
+    
+    if (attendanceType === "field_work" && !departmentPolicies.allowFieldWork) {
+      errors.push('Field work is not allowed for your department');
+    }
+
+    // Progressive requirements validation
+    if (!location && attendanceType === "office") {
+      errors.push('Location access required for office check-in');
+    }
+    
+    if (attendanceType === "remote") {
+      if (!reason.trim()) {
+        errors.push('Reason required for remote work');
+      } else if (reason.trim().length < 10) {
+        errors.push('Remote work reason must be at least 10 characters');
+      }
+    }
+    
+    if (attendanceType === "field_work") {
+      if (!customerName.trim()) {
+        errors.push('Customer name required for field work');
+      } else if (customerName.trim().length < 3) {
+        errors.push('Customer name must be at least 3 characters');
+      }
+      if (!capturedPhoto) {
+        errors.push('Photo required for field work verification');
+      }
+    }
+
+    return { isValid: errors.length === 0, errors };
+  };
+
+  // Real-time validation
+  useEffect(() => {
+    const validation = validateForm();
+    setPolicyErrors(validation.errors);
+  }, [attendanceType, reason, customerName, capturedPhoto, departmentPolicies]);
+
+  const isFormValid = () => {
+    return validateForm().isValid;
+  };
 
   // Enhanced location refresh
   const refreshLocation = async () => {
