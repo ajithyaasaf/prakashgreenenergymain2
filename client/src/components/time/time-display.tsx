@@ -25,9 +25,22 @@ export function TimeDisplay({
 }: TimeDisplayProps) {
   if (!time) return <span className={className}>--</span>;
   
-  // Handle time-only strings from database (e.g., "12:46", "9:30")
+  // Handle time-only strings from database (e.g., "12:46", "9:30", "09:00", "19:00")
   if (typeof time === 'string') {
-    // Check if it's a time-only format (HH:MM or H:MM)
+    // Check if it's already in 12-hour format (with AM/PM)
+    const time12HourRegex = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i;
+    const time12Match = time.match(time12HourRegex);
+    
+    if (time12Match) {
+      // Already in 12-hour format, return as-is
+      return (
+        <span className={className}>
+          {time}
+        </span>
+      );
+    }
+    
+    // Check if it's a time-only format in 24-hour (HH:MM or H:MM)
     const timeOnlyRegex = /^(\d{1,2}):(\d{2})$/;
     const match = time.match(timeOnlyRegex);
     
