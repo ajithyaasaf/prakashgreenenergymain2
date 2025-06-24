@@ -59,7 +59,7 @@ export function AttendanceCheckOut({
   // Network status
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
-  // Enhanced overtime calculation using department timing rules
+  // Fixed overtime calculation using time-based approach (work beyond department checkout time)
   const calculateOvertimeInfo = () => {
     if (!currentAttendance?.checkInTime || !departmentTiming) {
       console.log('CHECKOUT: Missing data for overtime calculation');
@@ -72,67 +72,64 @@ export function AttendanceCheckOut({
     const currentTime = new Date();
     const workingMinutes = Math.floor((currentTime.getTime() - checkInTime.getTime()) / (1000 * 60));
     
-    // Use dynamic department timing values with enhanced logging
-    const standardWorkingMinutes = (departmentTiming.workingHours || 8) * 60;
-    const overtimeThreshold = departmentTiming.overtimeThresholdMinutes || 0;
+    // Parse department checkout time to check if current time exceeds it
+    const checkOutTimeStr = departmentTiming.checkOutTime || "6:00 PM";
+    const timeMatch = checkOutTimeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+    let departmentCheckoutMinutes = 18 * 60; // Default 6:00 PM
     
-    console.log('FRONTEND OT CALCULATION:', {
-      departmentWorkingHours: departmentTiming.workingHours,
-      standardWorkingMinutes,
-      configuredOvertimeThreshold: departmentTiming.overtimeThresholdMinutes,
-      effectiveOvertimeThreshold: overtimeThreshold
-    });
+    if (timeMatch) {
+      let [, hours, minutes, period] = timeMatch;
+      let hour24 = parseInt(hours);
+      if (period.toUpperCase() === 'PM' && hour24 !== 12) hour24 += 12;
+      if (period.toUpperCase() === 'AM' && hour24 === 12) hour24 = 0;
+      departmentCheckoutMinutes = hour24 * 60 + parseInt(minutes);
+    }
     
-    const potentialOvertimeMinutes = workingMinutes - standardWorkingMinutes;
-    const hasOvertime = potentialOvertimeMinutes >= overtimeThreshold;
+    // Current time in minutes since midnight
+    const currentTimeMinutes = currentTime.getHours() * 60 + currentTime.getMinutes();
     
-    console.log('CHECKOUT: Overtime calculation:', {
-      workingMinutes,
-      standardWorkingMinutes,
-      overtimeThreshold,
-      potentialOvertimeMinutes,
+    // Overtime = any work beyond department checkout time
+    const overtimeMinutes = Math.max(0, currentTimeMinutes - departmentCheckoutMinutes);
+    const hasOvertime = overtimeMinutes > 0;
+    
+    console.log('FRONTEND OT CALCULATION (TIME-BASED):', {
+      departmentCheckoutTime: checkOutTimeStr,
+      departmentCheckoutMinutes,
+      currentTimeMinutes,
+      overtimeMinutes,
       hasOvertime
     });
     
     const result = {
       hasOvertime,
-      overtimeHours: Math.max(0, Math.floor(potentialOvertimeMinutes / 60)),
-      overtimeMinutes: Math.max(0, potentialOvertimeMinutes % 60),
+      overtimeHours: Math.floor(overtimeMinutes / 60),
+      overtimeMinutes: overtimeMinutes % 60,
       totalWorkingHours: Math.floor(workingMinutes / 60),
       totalWorkingMinutes: workingMinutes % 60,
       departmentWorkingHours: departmentTiming.workingHours,
       departmentOvertimeThreshold: departmentTiming.overtimeThresholdMinutes,
-      thresholdMinutes: overtimeThreshold,
-      workingMinutesTotal: workingMinutes,
-      standardMinutes: standardWorkingMinutes
+      currentTimeMinutes,
+      departmentCheckoutMinutes,
+      overtimeMinutesTotal: overtimeMinutes,
+      workingMinutesTotal: workingMinutes
     };
     
-    console.log('FRONTEND OT RESULT:', result);
+    console.log('FRONTEND OT RESULT (FIXED):', result);
     return result;
   };
 
   const overtimeInfo = calculateOvertimeInfo();
   
-  // Overtime threshold warning
+  // Overtime warning for any work beyond department checkout time
   const getOvertimeWarning = () => {
-    if (!departmentTiming?.overtimeThresholdMinutes) return null;
+    if (!overtimeInfo.hasOvertime) return null;
     
-    const threshold = departmentTiming.overtimeThresholdMinutes;
-    const currentOvertimeMinutes = overtimeInfo.overtimeMinutes + (overtimeInfo.overtimeHours * 60);
+    const overtimeTotal = overtimeInfo.overtimeMinutes + (overtimeInfo.overtimeHours * 60);
     
-    if (currentOvertimeMinutes >= threshold) {
-      return {
-        type: 'exceeded',
-        message: `Overtime threshold (${threshold} min) exceeded. Photo and reason required.`
-      };
-    } else if (currentOvertimeMinutes >= threshold - 15) {
-      return {
-        type: 'approaching',
-        message: `Approaching overtime threshold (${threshold} min). Consider early checkout.`
-      };
-    }
-    
-    return null;
+    return {
+      type: 'overtime_detected',
+      message: `Working ${overtimeTotal} minutes beyond department checkout time. Photo and reason required for overtime verification.`
+    };
   };
 
   const overtimeWarning = getOvertimeWarning();
