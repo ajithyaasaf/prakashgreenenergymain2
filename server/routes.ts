@@ -1539,8 +1539,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         overtimeThresholdMinutes: parseInt(overtimeThresholdMinutes) || 30,
         lateThresholdMinutes: parseInt(lateThresholdMinutes) || 15,
         isFlexibleTiming: Boolean(isFlexibleTiming),
-        flexibleCheckInStart,
-        flexibleCheckInEnd,
+        ...(flexibleCheckInStart && { flexibleCheckInStart }),
+        ...(flexibleCheckInEnd && { flexibleCheckInEnd }),
         breakDurationMinutes: parseInt(breakDurationMinutes) || 60,
         weeklyOffDays: weeklyOffDays || [0],
         updatedBy: user.uid
@@ -4039,10 +4039,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { EnterpriseTimeService } = await import("./services/enterprise-time-service");
       
+      // Filter out undefined values before updating
+      const cleanData = Object.fromEntries(
+        Object.entries(req.body).filter(([_, value]) => value !== undefined)
+      );
+      
       // Update single department timing
       await EnterpriseTimeService.updateDepartmentTimings([{
         department,
-        ...req.body
+        ...cleanData
       }]);
       
       const updatedTiming = await EnterpriseTimeService.getDepartmentTiming(department);
@@ -4065,10 +4070,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { EnterpriseTimeService } = await import("./services/enterprise-time-service");
       
+      // Filter out undefined values before updating
+      const cleanData = Object.fromEntries(
+        Object.entries(req.body).filter(([_, value]) => value !== undefined)
+      );
+      
       // Update single department timing
       await EnterpriseTimeService.updateDepartmentTimings([{
         department,
-        ...req.body
+        ...cleanData
       }]);
       
       const updatedTiming = await EnterpriseTimeService.getDepartmentTiming(department);

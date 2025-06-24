@@ -3361,7 +3361,12 @@ export class FirestoreStorage implements IStorage {
         updatedAt: Timestamp.now()
       };
 
-      batch.set(timingRef, newTiming);
+      // Filter out undefined values to prevent Firestore errors
+      const cleanTiming = Object.fromEntries(
+        Object.entries(newTiming).filter(([_, value]) => value !== undefined)
+      );
+
+      batch.set(timingRef, cleanTiming);
       await batch.commit();
 
       return {
