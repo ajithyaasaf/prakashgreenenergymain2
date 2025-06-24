@@ -76,6 +76,15 @@ export default function AttendanceManagement() {
     refetchOnWindowFocus: false, // Prevent excessive refetching
   });
 
+  // CRITICAL FIX: Memory leak prevention with proper cleanup
+  useEffect(() => {
+    return () => {
+      // Clear all intervals and ongoing requests on unmount
+      queryClient.cancelQueries({ queryKey: ['/api/attendance/live'] });
+      queryClient.cancelQueries({ queryKey: ['/api/attendance'] });
+    };
+  }, [queryClient]);
+
   // Daily attendance records
   const { data: dailyAttendance = [], isLoading: isLoadingDaily, refetch: refetchDaily } = useQuery({
     queryKey: ['/api/attendance', { date: selectedDate.toISOString().split('T')[0] }],

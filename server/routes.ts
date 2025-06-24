@@ -1226,93 +1226,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "You have already checked out today" });
       }
 
-      // Use current UTC time for checkout - timezone conversion happens in frontend
+      // CRITICAL FIX: Use Enterprise Time Service for all time operations
+      const { EnterpriseTimeService } = await import("./services/enterprise-time-service");
       const finalCheckOutTime = new Date();
 
-      // Get department timing from database
+      // Get department timing through Enterprise Time Service for consistency
       const departmentTiming = user.department 
-        ? await storage.getDepartmentTiming(user.department)
+        ? await EnterpriseTimeService.getDepartmentTiming(user.department)
         : null;
 
-      // Use department-specific timing or defaults
-      const expectedCheckOutTime = departmentTiming?.checkOutTime || "6:00 PM";
-      
-      // Parse 12-hour format time string (e.g., "6:00 PM")
-      const timeMatch = expectedCheckOutTime.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-      let checkOutHour, checkOutMinute;
-      
-      if (timeMatch) {
-        let [, hours, minutes, period] = timeMatch;
-        checkOutHour = parseInt(hours);
-        checkOutMinute = parseInt(minutes);
-        
-        // Convert to 24-hour format
-        if (period.toUpperCase() === 'PM' && checkOutHour !== 12) {
-          checkOutHour += 12;
-        } else if (period.toUpperCase() === 'AM' && checkOutHour === 12) {
-          checkOutHour = 0;
-        }
-      } else {
-        // Fallback: try to parse as 24-hour format
-        const timeParts = expectedCheckOutTime.split(":").map(Number);
-        checkOutHour = timeParts[0] || 18;
-        checkOutMinute = timeParts[1] || 0;
+      if (!departmentTiming) {
+        return res.status(400).json({ 
+          message: "Department timing not configured. Please contact administrator." 
+        });
       }
       
-      // Handle midnight boundary for expected checkout time
+      // CRITICAL FIX: Use Enterprise Time Service for time calculations
       const checkInTime = new Date(attendanceRecord.checkInTime || new Date());
-      const checkInDate = new Date(checkInTime);
-      checkInDate.setHours(0, 0, 0, 0); // Get check-in date (midnight)
       
-      // Expected checkout should be on the same day as check-in, unless it's a night shift
-      let expectedCheckOutTimeObj = new Date(
-        checkInDate.getFullYear(),
-        checkInDate.getMonth(),
-        checkInDate.getDate(),
-        checkOutHour,
-        checkOutMinute,
-        0,
-        0
+      // Calculate comprehensive time metrics using Enterprise Time Service
+      const timeMetrics = await EnterpriseTimeService.calculateTimeMetrics(
+        userId,
+        user.department || 'operations',
+        checkInTime,
+        finalCheckOutTime
       );
       
-      // Validate the date object before proceeding
-      if (isNaN(expectedCheckOutTimeObj.getTime())) {
-        // Use fallback time (6:00 PM)
-        expectedCheckOutTimeObj = new Date(
-          checkInDate.getFullYear(),
-          checkInDate.getMonth(),
-          checkInDate.getDate(),
-          18,
-          0,
-          0,
-          0
-        );
-      }
-      
-      // If expected checkout is before check-in time, it means it's next day (night shift)
-      if (expectedCheckOutTimeObj <= checkInTime) {
-        expectedCheckOutTimeObj.setDate(expectedCheckOutTimeObj.getDate() + 1);
-      }
+      const { workingHours, overtimeHours } = timeMetrics;
 
-      // Calculate working hours with proper midnight boundary handling
-      let workingMilliseconds = finalCheckOutTime.getTime() - checkInTime.getTime();
-      
-      // If working time is negative, it means checkout happened next day
-      if (workingMilliseconds < 0) {
-        // This shouldn't happen in normal cases, but handle edge cases
-        console.warn('CHECKOUT WARNING: Negative working time detected, possible date boundary issue');
-        workingMilliseconds = Math.abs(workingMilliseconds);
-      }
-      
-      // Cap maximum working hours to prevent absurd calculations (e.g., 24+ hours)
-      const maxWorkingHours = 24; // Maximum 24 hours in a single shift
-      const calculatedWorkingHours = workingMilliseconds / (1000 * 60 * 60);
-      const workingHours = Math.min(calculatedWorkingHours, maxWorkingHours);
-      
-      // Use department-specific working hours
-      const standardWorkingHours = departmentTiming?.workingHours || 8;
-      const overtimeThresholdMinutes = departmentTiming?.overtimeThresholdMinutes || 30;
-      const overtimeHours = Math.max(0, workingHours - standardWorkingHours);
+      // Use department-specific working hours from timing
+      const standardWorkingHours = departmentTiming.workingHours || 8;
+      const overtimeThresholdMinutes = departmentTiming.overtimeThresholdMinutes || 30;
       
       // Check if overtime meets the threshold
       const overtimeMinutes = overtimeHours * 60;
@@ -1340,20 +1284,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Check for early checkout using department timing (use India time)
-      const earlyCheckout = finalCheckOutTime < expectedCheckOutTimeObj;
-      const earlyMinutes = earlyCheckout ? Math.floor((expectedCheckOutTimeObj.getTime() - finalCheckOutTime.getTime()) / (1000 * 60)) : 0;
-      
-      // Detect overtime scenario - any checkout after expected time is overtime, not early checkout
-      const isOvertimeCheckout = finalCheckOutTime > expectedCheckOutTimeObj;
+      // CRITICAL FIX: Use time metrics for early/overtime detection
+      const isOvertimeCheckout = overtimeHours > 0;
+      const earlyCheckout = !isOvertimeCheckout && workingHours < standardWorkingHours;
+      const earlyMinutes = earlyCheckout ? Math.floor((standardWorkingHours - workingHours) * 60) : 0;
       
       // Early checkout policy enforcement (only for actual early checkouts, not overtime)
       if (!isOvertimeCheckout && earlyCheckout && earlyMinutes > 30) {
-        if (!departmentTiming?.allowEarlyCheckOut) {
+        if (!departmentTiming.allowEarlyCheckOut) {
           return res.status(400).json({
-            message: `Early checkout is not allowed for ${user.department || 'your'} department. Current: ${finalCheckOutTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}, Expected: ${expectedCheckOutTimeObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`,
+            message: `Early checkout is not allowed for ${user.department || 'your'} department. You worked ${workingHours.toFixed(1)} hours, expected ${standardWorkingHours} hours.`,
             currentTime: finalCheckOutTime,
-            expectedCheckOutTime: expectedCheckOutTimeObj,
+            expectedHours: standardWorkingHours,
+            actualHours: workingHours,
             requiresApproval: true,
             isEarlyCheckout: true,
             earlyMinutes
@@ -1363,8 +1306,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!reason || reason.trim().length < 10) {
           return res.status(400).json({
             message: `Early checkout (${earlyMinutes} minutes early) requires a detailed reason (minimum 10 characters)`,
-            currentTime: finalCheckOutTime,
-            expectedCheckOutTime: expectedCheckOutTimeObj,
+            expectedHours: standardWorkingHours,
+            actualHours: workingHours,
             requiresReason: true,
             isEarlyCheckout: true,
             earlyMinutes
@@ -1402,10 +1345,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         hasOvertime: hasOvertimeThreshold,
         checkOutTime: finalCheckOutTime,
         departmentSettings: {
-          expectedCheckOut: expectedCheckOutTime,
+          expectedCheckOut: departmentTiming.checkOutTime,
           standardHours: standardWorkingHours,
           overtimeThreshold: overtimeThresholdMinutes
-        }
+        },
+        timeMetrics
       });
     } catch (error: any) {
       console.error("Error checking out:", error);

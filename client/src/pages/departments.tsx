@@ -251,25 +251,30 @@ export default function Departments() {
       localStorage.setItem('department_timing_updated', Date.now().toString());
       localStorage.removeItem('department_timing_updated'); // Trigger storage event
       
-      // Step 4: Force immediate refetch with multiple attempts
-      const forceRefetch = async () => {
-        await queryClient.refetchQueries({ 
-          predicate: (query) => {
-            const queryKey = query.queryKey[0];
-            if (typeof queryKey === 'string') {
-              return queryKey.includes('/api/departments/timing');
+      // CRITICAL FIX: Coordinated cache refresh to prevent race conditions
+      const forceRefetch = async (attempt: number = 1) => {
+        console.log(`DEPARTMENTS: Force refetch attempt ${attempt}`);
+        try {
+          await queryClient.refetchQueries({ 
+            predicate: (query) => {
+              const queryKey = query.queryKey[0];
+              if (typeof queryKey === 'string') {
+                return queryKey.includes('/api/departments/timing');
+              }
+              return false;
             }
-            return false;
+          });
+          console.log(`DEPARTMENTS: Refetch attempt ${attempt} completed`);
+        } catch (error) {
+          console.error(`DEPARTMENTS: Refetch attempt ${attempt} failed:`, error);
+          if (attempt < 3) {
+            setTimeout(() => forceRefetch(attempt + 1), 1000 * attempt);
           }
-        });
+        }
       };
       
-      // Immediate refetch
+      // Single coordinated refetch with retry logic
       forceRefetch();
-      
-      // Additional refetches to ensure updates propagate
-      setTimeout(forceRefetch, 500);
-      setTimeout(forceRefetch, 1500);
       
       console.log('DEPARTMENTS: All cache invalidation and refetch completed');
       

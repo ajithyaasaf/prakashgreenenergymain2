@@ -159,6 +159,9 @@ export default function EnhancedPayrollManagement() {
   const { user } = useAuthContext();
   const queryClient = useQueryClient();
   
+  // CRITICAL FIX: Apply memory leak prevention
+  useQueryCleanup(queryClient);
+  
   // Undo management for bulk payroll operations
   const { actions, addAction, executeUndo, clearActions } = useUndoManager();
   
@@ -217,7 +220,7 @@ export default function EnhancedPayrollManagement() {
       return Array.isArray(data) ? data : [];
     },
     enabled: !!user?.uid,
-    refetchInterval: 10000, // Reduced frequency to prevent memory issues
+    refetchInterval: 60000, // CRITICAL FIX: Increased to 1 minute to prevent memory issues
     refetchOnWindowFocus: false, // Prevent excessive refetching
   });
 
@@ -232,7 +235,7 @@ export default function EnhancedPayrollManagement() {
       return Array.isArray(data) ? data : [];
     },
     enabled: !!user?.uid,
-    refetchInterval: 5000 // Real-time updates every 5 seconds
+    refetchInterval: 60000 // CRITICAL FIX: Increased to 1 minute to prevent memory issues
   });
 
   const { data: settings } = useQuery<EnhancedPayrollSettings>({

@@ -119,6 +119,13 @@ This is an enterprise-grade dashboard application for Prakash Greens Energy, bui
 - **TypeScript**: Comprehensive tsconfig with path aliases
 
 ## Recent Changes
+- June 24, 2025: COMPLETED HIGH PRIORITY CRITICAL FIXES
+  - ✓ MEMORY LEAK PREVENTION: Added proper useEffect cleanup in attendance-management and payroll-management
+  - ✓ TIMEZONE STANDARDIZATION: Routed all time operations through Enterprise Time Service in checkout routes
+  - ✓ CACHE KEY CONSISTENCY: Fixed cache key mismatch in enterprise-time-service with consistent format
+  - ✓ REFETCH INTERVAL OPTIMIZATION: Increased payroll queries from 5-10s to 60s to prevent memory issues
+  - ✓ RACE CONDITION MITIGATION: Implemented coordinated cache refresh with retry logic in departments
+  - ✓ ENHANCED DEBUG LOGGING: Added comprehensive logging for cache operations and time calculations
 - June 24, 2025: FIXED CRITICAL DOUBLE TIMEZONE CONVERSION BUG
   - ✓ MAJOR FIX: Removed double timezone conversion causing 4:16 AM display bug
   - ✓ Server now stores proper UTC timestamps (no manual +5.5 hour conversion)
