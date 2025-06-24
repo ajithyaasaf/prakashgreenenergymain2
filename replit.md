@@ -119,17 +119,14 @@ This is an enterprise-grade dashboard application for Prakash Greens Energy, bui
 - **TypeScript**: Comprehensive tsconfig with path aliases
 
 ## Recent Changes
-- June 24, 2025: Fixed critical timezone display issue in attendance history
-  - ✓ Corrected TimeDisplay component to properly show Indian Standard Time (IST)
-  - ✓ Fixed server timezone conversion to use IST (UTC+5:30) for all checkout operations
-  - ✓ Updated all time formatting functions to use Asia/Kolkata timezone
-  - ✓ Resolved checkout time showing 4:16 AM instead of 10:49 PM in attendance history
-  - ✓ Enhanced server response to include both UTC and IST timestamps for debugging
-  - ✓ Added forced timezone conversion and tooltip display for verification
-  - ✓ Enhanced data refresh logic to clear cached timestamps
-  - ✓ Fixed existing attendance database record to show correct Indian time
-  - ✓ Updated problematic 4:16 AM record to display proper checkout time
-  - ✓ System now correctly displays Indian time in all attendance records and UI components
+- June 24, 2025: FIXED CRITICAL DOUBLE TIMEZONE CONVERSION BUG
+  - ✓ MAJOR FIX: Removed double timezone conversion causing 4:16 AM display bug
+  - ✓ Server now stores proper UTC timestamps (no manual +5.5 hour conversion)
+  - ✓ Frontend TimeDisplay handles timezone conversion to IST correctly
+  - ✓ Fixed server logic that was adding IST offset then storing as UTC
+  - ✓ Verified with comprehensive timezone conversion testing
+  - ✓ All new attendance records will show correct Indian time
+  - ✓ System architecture now follows proper UTC storage + client-side timezone display pattern
 - June 24, 2025: Completed comprehensive overtime checkout system and code optimization
   - ✓ Fixed critical overtime calculation logic - now correctly detects work beyond department checkout time  
   - ✓ Enhanced overtime checkout to require photo verification and detailed reason (like field work check-in)

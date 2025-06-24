@@ -1226,11 +1226,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "You have already checked out today" });
       }
 
-      // Use current Indian time for checkout (IST = UTC+5:30)
-      const checkOutTime = new Date();
-      // Convert to Indian Standard Time
-      const indiaTime = new Date(checkOutTime.getTime() + (5.5 * 60 * 60 * 1000));
-      const finalCheckOutTime = indiaTime;
+      // Use current UTC time for checkout - timezone conversion happens in frontend
+      const finalCheckOutTime = new Date();
 
       // Get department timing from database
       const departmentTiming = user.department 
@@ -1404,7 +1401,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         overtimeHours: Math.round(overtimeHours * 100) / 100,
         hasOvertime: hasOvertimeThreshold,
         checkOutTime: finalCheckOutTime,
-        indiaTime: finalCheckOutTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
         departmentSettings: {
           expectedCheckOut: expectedCheckOutTime,
           standardHours: standardWorkingHours,
