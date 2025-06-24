@@ -205,9 +205,18 @@ export default function Attendance() {
 
   const stats = getAttendanceStats(attendanceRecords);
 
-  // Determine if user can check in/out
-  const canCheckIn = !todayAttendance?.checkInTime && departmentTiming;
-  const canCheckOut = todayAttendance?.checkInTime && !todayAttendance?.checkOutTime;
+  // Enhanced attendance state logic with clear UX states
+  const getAttendanceState = () => {
+    if (!departmentTiming) return { state: 'no_timing', canCheckIn: false, canCheckOut: false };
+    if (!todayAttendance) return { state: 'not_started', canCheckIn: true, canCheckOut: false };
+    if (todayAttendance.checkInTime && !todayAttendance.checkOutTime) return { state: 'checked_in', canCheckIn: false, canCheckOut: true };
+    if (todayAttendance.checkInTime && todayAttendance.checkOutTime) return { state: 'completed', canCheckIn: false, canCheckOut: false };
+    return { state: 'unknown', canCheckIn: false, canCheckOut: false };
+  };
+
+  const attendanceState = getAttendanceState();
+  const canCheckIn = attendanceState.canCheckIn;
+  const canCheckOut = attendanceState.canCheckOut;
 
   return (
     <div className="space-y-6">
@@ -224,11 +233,21 @@ export default function Attendance() {
           <h1 className="text-3xl font-bold tracking-tight">My Attendance</h1>
           <div className="flex items-center gap-4 mt-2">
             <p className="text-muted-foreground">Track your daily attendance and work hours</p>
-            {todayAttendance && (
-              <Badge variant={todayAttendance.checkOutTime ? "default" : "secondary"} className="text-xs">
-                {todayAttendance.checkOutTime ? "Day Complete" : todayAttendance.checkInTime ? "Checked In" : "Not Started"}
-              </Badge>
-            )}
+            <Badge 
+              variant={
+                attendanceState.state === 'completed' ? "default" : 
+                attendanceState.state === 'checked_in' ? "secondary" : 
+                attendanceState.state === 'not_started' ? "outline" : "destructive"
+              } 
+              className="text-xs"
+            >
+              {
+                attendanceState.state === 'completed' ? "Day Complete" :
+                attendanceState.state === 'checked_in' ? "Currently Working" :
+                attendanceState.state === 'not_started' ? "Ready to Start" :
+                attendanceState.state === 'no_timing' ? "Timing Not Set" : "Unknown State"
+              }
+            </Badge>
           </div>
         </div>
         <div className="flex gap-2">
