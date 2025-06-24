@@ -125,6 +125,8 @@ This is an enterprise-grade dashboard application for Prakash Greens Energy, bui
   - ✓ Updated all time formatting functions to use Asia/Kolkata timezone
   - ✓ Resolved checkout time showing 4:16 AM instead of 10:49 PM in attendance history
   - ✓ Enhanced server response to include both UTC and IST timestamps for debugging
+  - ✓ Added forced timezone conversion and tooltip display for verification
+  - ✓ Enhanced data refresh logic to clear cached timestamps
   - ✓ System now correctly displays Indian time in all attendance records and UI components
 - June 24, 2025: Completed comprehensive overtime checkout system and code optimization
   - ✓ Fixed critical overtime calculation logic - now correctly detects work beyond department checkout time  
