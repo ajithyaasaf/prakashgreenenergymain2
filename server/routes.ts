@@ -1226,8 +1226,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "You have already checked out today" });
       }
 
-      // Use current server time for checkout
+      // Use current Indian time for checkout (IST = UTC+5:30)
       const checkOutTime = new Date();
+      // Convert to Indian Standard Time
+      const indiaTime = new Date(checkOutTime.getTime() + (5.5 * 60 * 60 * 1000));
+      const finalCheckOutTime = indiaTime;
 
       // Get department timing from database
       const departmentTiming = user.department 
@@ -1340,19 +1343,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Check for early checkout using department timing
-      const earlyCheckout = checkOutTime < expectedCheckOutTimeObj;
-      const earlyMinutes = earlyCheckout ? Math.floor((expectedCheckOutTimeObj.getTime() - checkOutTime.getTime()) / (1000 * 60)) : 0;
+      // Check for early checkout using department timing (use India time)
+      const earlyCheckout = finalCheckOutTime < expectedCheckOutTimeObj;
+      const earlyMinutes = earlyCheckout ? Math.floor((expectedCheckOutTimeObj.getTime() - finalCheckOutTime.getTime()) / (1000 * 60)) : 0;
       
       // Detect overtime scenario - any checkout after expected time is overtime, not early checkout
-      const isOvertimeCheckout = checkOutTime > expectedCheckOutTimeObj;
+      const isOvertimeCheckout = finalCheckOutTime > expectedCheckOutTimeObj;
       
       // Early checkout policy enforcement (only for actual early checkouts, not overtime)
       if (!isOvertimeCheckout && earlyCheckout && earlyMinutes > 30) {
         if (!departmentTiming?.allowEarlyCheckOut) {
           return res.status(400).json({
-            message: `Early checkout is not allowed for ${user.department || 'your'} department. Current: ${checkOutTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}, Expected: ${expectedCheckOutTimeObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`,
-            currentTime: checkOutTime,
+            message: `Early checkout is not allowed for ${user.department || 'your'} department. Current: ${finalCheckOutTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}, Expected: ${expectedCheckOutTimeObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`,
+            currentTime: finalCheckOutTime,
             expectedCheckOutTime: expectedCheckOutTimeObj,
             requiresApproval: true,
             isEarlyCheckout: true,
@@ -1363,7 +1366,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!reason || reason.trim().length < 10) {
           return res.status(400).json({
             message: `Early checkout (${earlyMinutes} minutes early) requires a detailed reason (minimum 10 characters)`,
-            currentTime: checkOutTime,
+            currentTime: finalCheckOutTime,
             expectedCheckOutTime: expectedCheckOutTimeObj,
             requiresReason: true,
             isEarlyCheckout: true,
@@ -1374,7 +1377,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Update attendance record with checkout details
       const updatedAttendance = await storage.updateAttendance(attendanceRecord.id, {
-        checkOutTime,
+        checkOutTime: finalCheckOutTime,
         checkOutLatitude: String(latitude),
         checkOutLongitude: String(longitude),
         checkOutImageUrl: imageUrl,
@@ -1388,7 +1391,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.createActivityLog({
         type: 'attendance',
         title: `Check-out ${hasOvertimeThreshold ? 'with Overtime' : ''}`,
-        description: `${user.displayName} checked out${hasOvertimeThreshold ? ` with ${Math.round(overtimeHours * 100) / 100} hours overtime` : ''}${earlyCheckout ? ' (early checkout)' : ''}`,
+        description: `${user.displayName} checked out at ${finalCheckOutTime.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' })}${hasOvertimeThreshold ? ` with ${Math.round(overtimeHours * 100) / 100} hours overtime` : ''}${earlyCheckout ? ' (early checkout)' : ''}`,
         entityId: attendanceRecord.id,
         entityType: 'attendance',
         userId: user.uid
