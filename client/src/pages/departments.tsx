@@ -219,19 +219,26 @@ export default function Departments() {
     mutationFn: (data: { departmentId: string; timing: any }) => {
       return apiRequest(`/api/departments/${data.departmentId}/timing`, 'POST', data.timing);
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
+      // Invalidate all department-related queries
       queryClient.invalidateQueries({ 
         predicate: (query) => {
           const queryKey = query.queryKey[0];
           if (typeof queryKey === 'string') {
-            return queryKey.includes('/api/departments');
+            return queryKey.includes('/api/departments') || queryKey.includes('/api/attendance');
           }
           return false;
         }
       });
+      
+      // Also invalidate specific department timing query
+      queryClient.invalidateQueries({ 
+        queryKey: ["/api/departments/timing", variables.departmentId]
+      });
+      
       toast({
         title: "Attendance timing updated",
-        description: "Department attendance timing has been successfully configured.",
+        description: "Department attendance timing has been successfully configured. Changes will reflect immediately on the attendance page.",
         variant: "default"
       });
       setShowTimingDialog(false);

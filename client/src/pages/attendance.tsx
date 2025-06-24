@@ -91,7 +91,7 @@ export default function Attendance() {
   });
 
   // Fetch department timing for current user
-  const { data: departmentTiming } = useQuery({
+  const { data: departmentTiming, refetch: refetchTiming } = useQuery({
     queryKey: ["/api/departments/timing", user?.department],
     queryFn: async () => {
       if (!user?.department) return null;
@@ -102,10 +102,20 @@ export default function Attendance() {
       return null;
     },
     enabled: !!user?.department,
+    staleTime: 0, // Always fetch fresh data
+    cacheTime: 0, // Don't cache timing data
   });
 
   // Refresh attendance data
   const refreshAttendance = () => {
+    queryClient.invalidateQueries({ queryKey: ["/api/attendance"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/attendance/today"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/departments/timing"] });
+    refetchTiming(); // Force refetch department timing
+  };
+
+  // Additional refresh function for timing specifically
+  const refreshTiming = () => {
     queryClient.invalidateQueries({ queryKey: ["/api/attendance"] });
     queryClient.invalidateQueries({ queryKey: ["/api/attendance/today"] });
     refetch();

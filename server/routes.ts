@@ -1549,6 +1549,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Save to database using storage layer
       const updatedTiming = await storage.updateDepartmentTiming(departmentId, timingData);
       
+      // Clear Enterprise Time Service cache for this department
+      const { EnterpriseTimeService } = await import("./services/enterprise-time-service");
+      EnterpriseTimeService.clearDepartmentCache(departmentId);
+      
       // Log activity
       await storage.createActivityLog({
         type: 'department_timing',
@@ -4020,6 +4024,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...cleanData
       }]);
       
+      // Ensure cache is cleared and get fresh data
+      EnterpriseTimeService.clearDepartmentCache(department);
       const updatedTiming = await EnterpriseTimeService.getDepartmentTiming(department);
       res.json(updatedTiming);
     } catch (error) {
@@ -4051,6 +4057,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...cleanData
       }]);
       
+      // Ensure cache is cleared and get fresh data
+      EnterpriseTimeService.clearDepartmentCache(department);
       const updatedTiming = await EnterpriseTimeService.getDepartmentTiming(department);
       res.json(updatedTiming);
     } catch (error) {
