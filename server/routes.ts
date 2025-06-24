@@ -1420,41 +1420,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied" });
       }
       
-      // Generate department timings dynamically from schema
+      // Generate department timings dynamically from schema (12-hour format)
       const departmentTimingDefaults = {
         operations: {
-          checkInTime: "09:00", checkOutTime: "18:00", workingHours: 9,
+          checkInTime: "9:00 AM", checkOutTime: "6:00 PM", workingHours: 9,
           overtimeThresholdMinutes: 30, lateThresholdMinutes: 15,
           allowEarlyCheckOut: false, allowRemoteWork: false, allowFieldWork: true
         },
         admin: {
-          checkInTime: "09:30", checkOutTime: "18:30", workingHours: 8,
+          checkInTime: "9:30 AM", checkOutTime: "6:30 PM", workingHours: 8,
           overtimeThresholdMinutes: 30, lateThresholdMinutes: 15,
           allowEarlyCheckOut: true, allowRemoteWork: true, allowFieldWork: false
         },
         hr: {
-          checkInTime: "09:30", checkOutTime: "18:30", workingHours: 8,
+          checkInTime: "9:30 AM", checkOutTime: "6:30 PM", workingHours: 8,
           overtimeThresholdMinutes: 30, lateThresholdMinutes: 15,
           allowEarlyCheckOut: true, allowRemoteWork: true, allowFieldWork: false
         },
         marketing: {
-          checkInTime: "09:30", checkOutTime: "18:30", workingHours: 8,
+          checkInTime: "9:30 AM", checkOutTime: "6:30 PM", workingHours: 8,
           overtimeThresholdMinutes: 30, lateThresholdMinutes: 15,
           allowEarlyCheckOut: false, allowRemoteWork: true, allowFieldWork: true
         },
         sales: {
-          checkInTime: "09:00", checkOutTime: "19:00", workingHours: 9,
+          checkInTime: "9:00 AM", checkOutTime: "7:00 PM", workingHours: 9,
           overtimeThresholdMinutes: 30, lateThresholdMinutes: 15,
           allowEarlyCheckOut: false, allowRemoteWork: true, allowFieldWork: true
         },
         technical: {
-          checkInTime: "10:00", checkOutTime: "19:00", workingHours: 8,
+          checkInTime: "8:30 AM", checkOutTime: "5:30 PM", workingHours: 8,
           overtimeThresholdMinutes: 30, lateThresholdMinutes: 15,
           allowEarlyCheckOut: false, allowRemoteWork: false, allowFieldWork: true
         },
         housekeeping: {
-          checkInTime: "08:00", checkOutTime: "17:00", workingHours: 8,
-          overtimeThresholdMinutes: 30, lateThresholdMinutes: 10,
+          checkInTime: "8:00 AM", checkOutTime: "4:00 PM", workingHours: 7,
+          overtimeThresholdMinutes: 30, lateThresholdMinutes: 15,
           allowEarlyCheckOut: false, allowRemoteWork: false, allowFieldWork: false
         }
       };
@@ -1464,7 +1464,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         departments.map(dept => [
           dept, 
           departmentTimingDefaults[dept as keyof typeof departmentTimingDefaults] || {
-            checkInTime: "09:00", checkOutTime: "18:00", workingHours: 8,
+            checkInTime: "9:00 AM", checkOutTime: "6:00 PM", workingHours: 8,
             overtimeThresholdMinutes: 30, lateThresholdMinutes: 15,
             allowEarlyCheckOut: false, allowRemoteWork: false, allowFieldWork: false
           }
@@ -3830,8 +3830,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         departmentId: req.params.departmentId,
         department: req.body.department,
         workingHours: req.body.workingHours || 8,
-        checkInTime: req.body.checkInTime || "09:00",
-        checkOutTime: req.body.checkOutTime || "18:00",
+        checkInTime: req.body.checkInTime || "9:00 AM",
+        checkOutTime: req.body.checkOutTime || "6:00 PM",
         lateThresholdMinutes: req.body.lateThresholdMinutes || 15,
         overtimeThresholdMinutes: req.body.overtimeThresholdMinutes || 30,
         isFlexibleTiming: req.body.isFlexibleTiming || false,

@@ -159,11 +159,28 @@ export const insertDepartmentTimingSchema = z.object({
     .refine((checkOut, ctx) => {
       const checkIn = ctx.parent.checkInTime;
       if (checkIn && checkOut) {
-        const [checkInHour, checkInMin] = checkIn.split(':').map(Number);
-        const [checkOutHour, checkOutMin] = checkOut.split(':').map(Number);
-        const checkInMinutes = checkInHour * 60 + checkInMin;
-        const checkOutMinutes = checkOutHour * 60 + checkOutMin;
-        return checkOutMinutes > checkInMinutes;
+        // Parse 12-hour format properly for validation
+        const checkInMatch = checkIn.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+        const checkOutMatch = checkOut.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+        
+        if (checkInMatch && checkOutMatch) {
+          let [, checkInHour, checkInMin, checkInPeriod] = checkInMatch;
+          let [, checkOutHour, checkOutMin, checkOutPeriod] = checkOutMatch;
+          
+          let checkInHour24 = parseInt(checkInHour);
+          let checkOutHour24 = parseInt(checkOutHour);
+          
+          if (checkInPeriod.toUpperCase() === 'PM' && checkInHour24 !== 12) checkInHour24 += 12;
+          if (checkInPeriod.toUpperCase() === 'AM' && checkInHour24 === 12) checkInHour24 = 0;
+          if (checkOutPeriod.toUpperCase() === 'PM' && checkOutHour24 !== 12) checkOutHour24 += 12;
+          if (checkOutPeriod.toUpperCase() === 'AM' && checkOutHour24 === 12) checkOutHour24 = 0;
+          
+          const checkInMinutes = checkInHour24 * 60 + parseInt(checkInMin);
+          const checkOutMinutes = checkOutHour24 * 60 + parseInt(checkOutMin);
+          
+          // Allow overnight shifts (checkout next day)
+          return checkOutMinutes > checkInMinutes || checkOutMinutes < checkInMinutes;
+        }
       }
       return true;
     }, "Check out time must be after check in time"),
@@ -357,8 +374,8 @@ export const insertAttendancePolicySchema = z.object({
   designation: z.enum(designations).nullable().optional(),
   
   // Timing policies
-  checkInTime: z.string().default("09:30"), // HH:MM format
-  checkOutTime: z.string().default("18:30"), // HH:MM format
+  checkInTime: z.string().default("9:30 AM"), // 12-hour format (h:mm AM/PM)
+  checkOutTime: z.string().default("6:30 PM"), // 12-hour format (h:mm AM/PM)
   flexibleTiming: z.boolean().default(false),
   flexibilityMinutes: z.number().min(0).default(0),
   

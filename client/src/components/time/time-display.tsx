@@ -56,6 +56,7 @@ function formatTime(date: Date, format12Hour: boolean, showSeconds: boolean, sho
   if (format12Hour) {
     formatString += showSeconds ? 'h:mm:ss a' : 'h:mm a';
   } else {
+    // Use 24-hour format internally for consistency with date-fns
     formatString += showSeconds ? 'HH:mm:ss' : 'HH:mm';
   }
   

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Input } from './input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './select';
-import { formatTimeString } from '@/lib/utils';
+// Removed deprecated formatTimeString import - component uses Enterprise Time Service
 import { convert12To24Hour, convert24To12Hour } from '@/components/time/time-display';
 
 interface TimeInputProps {
