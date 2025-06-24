@@ -25,8 +25,50 @@ export function TimeDisplay({
 }: TimeDisplayProps) {
   if (!time) return <span className={className}>--</span>;
   
-  const date = typeof time === 'string' ? new Date(time) : time;
+  // Handle time-only strings from database (e.g., "12:46", "9:30")
+  if (typeof time === 'string') {
+    // Check if it's a time-only format (HH:MM or H:MM)
+    const timeOnlyRegex = /^(\d{1,2}):(\d{2})$/;
+    const match = time.match(timeOnlyRegex);
+    
+    if (match) {
+      const [, hours, minutes] = match;
+      const hour24 = parseInt(hours);
+      const min = parseInt(minutes);
+      
+      // Convert to 12-hour format display
+      const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24;
+      const period = hour24 >= 12 ? 'PM' : 'AM';
+      
+      return (
+        <span className={className}>
+          {hour12}:{minutes} {period}
+        </span>
+      );
+    }
+    
+    // Try to parse as full date string
+    const date = new Date(time);
+    if (!isNaN(date.getTime())) {
+      if (relative) {
+        return (
+          <span className={className} title={formatTime(date, format12Hour, showSeconds, showDate)}>
+            {formatDistanceToNow(date, { addSuffix: true })}
+          </span>
+        );
+      }
+      return (
+        <span className={className}>
+          {formatTime(date, format12Hour, showSeconds, showDate)}
+        </span>
+      );
+    }
+    
+    return <span className={className}>Invalid time</span>;
+  }
   
+  // Handle Date objects
+  const date = time;
   if (isNaN(date.getTime())) {
     return <span className={className}>Invalid time</span>;
   }
