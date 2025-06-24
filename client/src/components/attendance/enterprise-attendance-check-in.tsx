@@ -64,6 +64,10 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
   const [customerName, setCustomerName] = useState("");
   const [reason, setReason] = useState("");
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
+  
+  // Department policies state
+  const [departmentPolicies, setDepartmentPolicies] = useState<any>(null);
+  const [policyErrors, setPolicyErrors] = useState<string[]>([]);
 
   // Location validation states
   const [locationValidation, setLocationValidation] = useState<LocationValidation | null>(null);
@@ -117,6 +121,42 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
       window.removeEventListener('offline', handleOffline);
     };
   }, []);
+
+  // Fetch department policies when dialog opens
+  useEffect(() => {
+    if (isOpen && user?.department) {
+      fetchDepartmentPolicies();
+    }
+  }, [isOpen, user?.department]);
+
+  const fetchDepartmentPolicies = async () => {
+    try {
+      const response = await apiRequest(`/api/departments/${user?.department}/timing`, 'GET');
+      if (response.ok) {
+        const policies = await response.json();
+        setDepartmentPolicies(policies);
+        
+        // Pre-select attendance type based on policies and context
+        selectBestAttendanceType(policies);
+      }
+    } catch (error) {
+      console.error('Failed to fetch department policies:', error);
+    }
+  };
+
+  const selectBestAttendanceType = (policies: any) => {
+    // Smart default selection based on location and policies
+    if (location && location.accuracy <= 100) {
+      // Good GPS accuracy suggests office location
+      setAttendanceType("office");
+    } else if (policies?.allowRemoteWork) {
+      // Poor GPS accuracy but remote work allowed
+      setAttendanceType("remote");
+    } else {
+      // Default to office
+      setAttendanceType("office");
+    }
+  };
 
   // Enhanced location refresh
   const refreshLocation = async () => {
@@ -480,14 +520,7 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
 
   // Form validation
   const isFormValid = () => {
-    if (!location) return false;
-    if (attendanceType === "field_work") {
-      return customerName.trim() !== "" && capturedPhoto !== null;
-    }
-    if (attendanceType === "remote") {
-      return reason.trim() !== "";
-    }
-    return true;
+    return validateForm().isValid;
   };
 
   // Enhanced submit handler
@@ -635,7 +668,7 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
             </Card>
           )}
 
-          {/* Attendance Type Selection */}
+          {/* Attendance Type Selection with Policy Indicators */}
           <div className="space-y-2">
             <Label htmlFor="attendance-type">Attendance Type</Label>
             <Select value={attendanceType} onValueChange={(value: any) => setAttendanceType(value)}>
@@ -644,52 +677,118 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="office">
-                  <div className="flex items-center gap-2">
-                    <Building2 className="h-4 w-4" />
-                    Office Work
+                  <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center gap-2">
+                      <Building2 className="h-4 w-4" />
+                      Office Work
+                    </div>
+                    <Badge variant="outline" className="text-xs">Always Available</Badge>
                   </div>
                 </SelectItem>
-                <SelectItem value="remote">
-                  <div className="flex items-center gap-2">
-                    <Monitor className="h-4 w-4" />
-                    Remote Work
+                <SelectItem value="remote" disabled={departmentPolicies && !departmentPolicies.allowRemoteWork}>
+                  <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center gap-2">
+                      <Monitor className="h-4 w-4" />
+                      Remote Work
+                    </div>
+                    {departmentPolicies && (
+                      <Badge 
+                        variant={departmentPolicies.allowRemoteWork ? "default" : "secondary"} 
+                        className="text-xs"
+                      >
+                        {departmentPolicies.allowRemoteWork ? "Allowed" : "Not Allowed"}
+                      </Badge>
+                    )}
                   </div>
                 </SelectItem>
-                <SelectItem value="field_work">
-                  <div className="flex items-center gap-2">
-                    <MapPin className="h-4 w-4" />
-                    Field Work
+                <SelectItem value="field_work" disabled={departmentPolicies && !departmentPolicies.allowFieldWork}>
+                  <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-4 w-4" />
+                      Field Work
+                    </div>
+                    {departmentPolicies && (
+                      <Badge 
+                        variant={departmentPolicies.allowFieldWork ? "default" : "secondary"} 
+                        className="text-xs"
+                      >
+                        {departmentPolicies.allowFieldWork ? "Allowed" : "Not Allowed"}
+                      </Badge>
+                    )}
                   </div>
                 </SelectItem>
               </SelectContent>
             </Select>
+            
+            {/* Requirements Preview */}
+            {attendanceType && (
+              <div className="text-xs text-muted-foreground p-2 bg-blue-50 rounded">
+                <div className="font-medium mb-1">Requirements for {attendanceType.replace('_', ' ')}:</div>
+                <ul className="space-y-1">
+                  {attendanceType === "office" && (
+                    <li>• Location verification within office area</li>
+                  )}
+                  {attendanceType === "remote" && (
+                    <>
+                      <li>• Detailed reason (minimum 10 characters)</li>
+                      <li>• Current work location information</li>
+                    </>
+                  )}
+                  {attendanceType === "field_work" && (
+                    <>
+                      <li>• Customer/site name</li>
+                      <li>• Photo verification at location</li>
+                      <li>• Purpose of visit</li>
+                    </>
+                  )}
+                </ul>
+              </div>
+            )}
           </div>
 
-          {/* Remote Work Reason */}
+          {/* Remote Work Reason with Real-time Validation */}
           {attendanceType === "remote" && (
             <div className="space-y-2">
               <Label htmlFor="reason">Reason for Remote Work *</Label>
               <Textarea
                 id="reason"
-                placeholder="Please provide a reason for working remotely today..."
+                placeholder="Example: Working from home office due to client meeting, focusing on project deliverables without office distractions..."
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 rows={3}
+                className={reason.trim().length > 0 && reason.trim().length < 10 ? "border-orange-300" : ""}
               />
+              <div className="flex justify-between text-xs">
+                <span className={reason.trim().length < 10 ? "text-orange-600" : "text-green-600"}>
+                  {reason.trim().length}/10 characters minimum
+                </span>
+                {reason.trim().length >= 10 && (
+                  <span className="text-green-600">✓ Valid reason provided</span>
+                )}
+              </div>
             </div>
           )}
 
-          {/* Field Work Details */}
+          {/* Field Work Details with Real-time Validation */}
           {attendanceType === "field_work" && (
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="customer-name">Customer Name *</Label>
+                <Label htmlFor="customer-name">Customer/Site Name *</Label>
                 <Input
                   id="customer-name"
-                  placeholder="Enter customer name"
+                  placeholder="e.g., ABC Corporation, Solar Installation Site, Client Office"
                   value={customerName}
                   onChange={(e) => setCustomerName(e.target.value)}
+                  className={customerName.trim().length > 0 && customerName.trim().length < 3 ? "border-orange-300" : ""}
                 />
+                <div className="flex justify-between text-xs">
+                  <span className={customerName.trim().length < 3 ? "text-orange-600" : "text-green-600"}>
+                    {customerName.trim().length}/3 characters minimum
+                  </span>
+                  {customerName.trim().length >= 3 && (
+                    <span className="text-green-600">✓ Valid name provided</span>
+                  )}
+                </div>
               </div>
 
               {/* Photo Capture for Field Work */}
@@ -775,9 +874,24 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
             </div>
           )}
 
+          {/* Real-time Validation Feedback */}
+          {policyErrors.length > 0 && (
+            <Alert>
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                <div className="space-y-1">
+                  <div className="font-medium">Please address the following:</div>
+                  {policyErrors.map((error, index) => (
+                    <div key={index} className="text-sm">• {error}</div>
+                  ))}
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+
           <Separator />
 
-          {/* Submit Button */}
+          {/* Submit Button with Context-Aware Messaging */}
           <Button
             onClick={handleSubmit}
             disabled={!isFormValid() || checkInMutation.isPending || !isOnline}
@@ -791,7 +905,7 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
             ) : (
               <>
                 <Timer className="h-4 w-4 mr-2" />
-                Check In
+                {isFormValid() ? `Check In - ${attendanceType.replace('_', ' ')}` : 'Complete Requirements Above'}
               </>
             )}
           </Button>
@@ -799,6 +913,13 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
           {!isOnline && (
             <div className="text-center text-sm text-red-600">
               Internet connection required for check-in
+            </div>
+          )}
+
+          {/* Progressive Disclosure of Next Steps */}
+          {isFormValid() && (
+            <div className="text-xs text-green-600 text-center p-2 bg-green-50 rounded">
+              Ready to check in! Your {attendanceType.replace('_', ' ')} session will begin immediately.
             </div>
           )}
         </div>

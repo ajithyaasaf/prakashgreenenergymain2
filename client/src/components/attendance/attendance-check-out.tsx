@@ -112,6 +112,30 @@ export function AttendanceCheckOut({
   };
 
   const overtimeInfo = calculateOvertimeInfo();
+  
+  // Overtime threshold warning
+  const getOvertimeWarning = () => {
+    if (!departmentTiming?.overtimeThresholdMinutes) return null;
+    
+    const threshold = departmentTiming.overtimeThresholdMinutes;
+    const currentOvertimeMinutes = overtimeInfo.overtimeMinutes + (overtimeInfo.overtimeHours * 60);
+    
+    if (currentOvertimeMinutes >= threshold) {
+      return {
+        type: 'exceeded',
+        message: `Overtime threshold (${threshold} min) exceeded. Photo and reason required.`
+      };
+    } else if (currentOvertimeMinutes >= threshold - 15) {
+      return {
+        type: 'approaching',
+        message: `Approaching overtime threshold (${threshold} min). Consider early checkout.`
+      };
+    }
+    
+    return null;
+  };
+
+  const overtimeWarning = getOvertimeWarning();
 
   useEffect(() => {
     const handleOnlineStatus = () => setIsOnline(navigator.onLine);
@@ -591,12 +615,20 @@ export function AttendanceCheckOut({
               <Label htmlFor="ot-reason">Overtime Reason *</Label>
               <Textarea
                 id="ot-reason"
+                placeholder="Example: Completing urgent client deliverable, project deadline requirements, emergency maintenance work..."
                 value={otReason}
                 onChange={(e) => setOtReason(e.target.value)}
-                placeholder="Please explain why overtime was necessary"
                 rows={3}
-                required
+                className={otReason.trim().length > 0 && otReason.trim().length < 10 ? "border-orange-300" : ""}
               />
+              <div className="flex justify-between text-xs">
+                <span className={otReason.trim().length < 10 ? "text-orange-600" : "text-green-600"}>
+                  {otReason.trim().length}/10 characters minimum
+                </span>
+                {otReason.trim().length >= 10 && (
+                  <span className="text-green-600">✓ Valid overtime reason</span>
+                )}
+              </div>
             </div>
           )}
 
@@ -695,7 +727,7 @@ export function AttendanceCheckOut({
           </Button>
           <Button 
             onClick={handleSubmit} 
-            disabled={isSubmitting || !location || !isOnline}
+            disabled={isSubmitting || !location || !isOnline || (overtimeInfo.hasOvertime && (!otReason.trim() || otReason.trim().length < 10))}
             className="bg-red-600 hover:bg-red-700"
           >
             {isSubmitting ? (
@@ -706,7 +738,9 @@ export function AttendanceCheckOut({
             ) : (
               <>
                 <CheckCircle className="h-4 w-4 mr-2" />
-                Check Out
+                {overtimeInfo.hasOvertime && (!otReason.trim() || otReason.trim().length < 10) 
+                  ? 'Complete OT Requirements' 
+                  : 'Check Out'}
               </>
             )}
           </Button>
