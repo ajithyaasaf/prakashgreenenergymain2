@@ -19,7 +19,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { cn, formatTimeString } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { 
   CalendarIcon, Search, Loader2, FileText, BarChart, UserCheck, Clock, 
   Plus, Edit, Trash2, Eye, Download, Upload, Settings, Users, 

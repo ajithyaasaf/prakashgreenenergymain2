@@ -95,8 +95,8 @@ export async function migrateOrganizationalStructure() {
 export const newDepartmentTimings = {
   operations: {
     departmentId: 'operations',
-    checkInTime: '09:00',
-    checkOutTime: '18:00',
+    checkInTime: '9:00 AM',
+    checkOutTime: '6:00 PM',
     workingHours: 9,
     overtimeThresholdMinutes: 30,
     lateThresholdMinutes: 15,
@@ -109,8 +109,8 @@ export const newDepartmentTimings = {
   },
   admin: {
     departmentId: 'admin',
-    checkInTime: '09:30',
-    checkOutTime: '18:30',
+    checkInTime: '9:30 AM',
+    checkOutTime: '6:30 PM',
     workingHours: 8,
     overtimeThresholdMinutes: 30,
     lateThresholdMinutes: 15,
@@ -121,8 +121,8 @@ export const newDepartmentTimings = {
   },
   hr: {
     departmentId: 'hr',
-    checkInTime: '09:30',
-    checkOutTime: '18:30',
+    checkInTime: '9:30 AM',
+    checkOutTime: '6:30 PM',
     workingHours: 8,
     overtimeThresholdMinutes: 30,
     lateThresholdMinutes: 15,
@@ -133,8 +133,8 @@ export const newDepartmentTimings = {
   },
   marketing: {
     departmentId: 'marketing',
-    checkInTime: '09:30',
-    checkOutTime: '18:30',
+    checkInTime: '9:30 AM',
+    checkOutTime: '6:30 PM',
     workingHours: 8,
     overtimeThresholdMinutes: 30,
     lateThresholdMinutes: 15,
@@ -145,8 +145,8 @@ export const newDepartmentTimings = {
   },
   sales: {
     departmentId: 'sales',
-    checkInTime: '09:00',
-    checkOutTime: '19:00',
+    checkInTime: '9:00 AM',
+    checkOutTime: '7:00 PM',
     workingHours: 9,
     overtimeThresholdMinutes: 30,
     lateThresholdMinutes: 15,
@@ -159,8 +159,8 @@ export const newDepartmentTimings = {
   },
   technical: {
     departmentId: 'technical',
-    checkInTime: '08:00',
-    checkOutTime: '17:00',
+    checkInTime: '8:00 AM',
+    checkOutTime: '5:00 PM',
     workingHours: 8,
     overtimeThresholdMinutes: 30,
     lateThresholdMinutes: 15,
@@ -171,8 +171,8 @@ export const newDepartmentTimings = {
   },
   housekeeping: {
     departmentId: 'housekeeping',
-    checkInTime: '07:00',
-    checkOutTime: '16:00',
+    checkInTime: '7:00 AM',
+    checkOutTime: '4:00 PM',
     workingHours: 8,
     overtimeThresholdMinutes: 30,
     lateThresholdMinutes: 15,

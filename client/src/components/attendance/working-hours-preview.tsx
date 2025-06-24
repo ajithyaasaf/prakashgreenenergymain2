@@ -27,18 +27,32 @@ export function WorkingHoursPreview({
     const checkIn = new Date(checkInTime);
     const now = currentTime;
     
-    // Parse department times for today
+    // FIXED: Proper 12-hour format parsing for department times
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    const [departCheckInHour, departCheckInMin] = departmentTiming.checkInTime.split(':').map(Number);
-    const [departCheckOutHour, departCheckOutMin] = departmentTiming.checkOutTime.split(':').map(Number);
+    // Parse 12-hour format times properly
+    const parseTime12Hour = (timeStr: string): Date => {
+      const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+      if (!timeMatch) {
+        // Fallback for corrupted data
+        const fallback = new Date(today);
+        fallback.setHours(timeStr.includes('out') ? 18 : 9, 0, 0, 0);
+        return fallback;
+      }
+      
+      let [, hours, minutes, period] = timeMatch;
+      let hour24 = parseInt(hours);
+      if (period.toUpperCase() === 'PM' && hour24 !== 12) hour24 += 12;
+      if (period.toUpperCase() === 'AM' && hour24 === 12) hour24 = 0;
+      
+      const date = new Date(today);
+      date.setHours(hour24, parseInt(minutes), 0, 0);
+      return date;
+    };
     
-    const departCheckIn = new Date(today);
-    departCheckIn.setHours(departCheckInHour, departCheckInMin, 0, 0);
-    
-    const departCheckOut = new Date(today);
-    departCheckOut.setHours(departCheckOutHour, departCheckOutMin, 0, 0);
+    const departCheckIn = parseTime12Hour(departmentTiming.checkInTime);
+    const departCheckOut = parseTime12Hour(departmentTiming.checkOutTime);
     
     // Calculate working time within department schedule
     const workStart = new Date(Math.max(checkIn.getTime(), departCheckIn.getTime()));

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuthContext } from "@/contexts/auth-context";
-import { formatDate, formatTimeString } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
 import { TimeInput } from "@/components/time/time-input";
 import { TimeDisplay, formatTimeFor12Hour } from "@/components/time/time-display";
 import { TimingDialog } from "@/components/departments/timing-dialog";
