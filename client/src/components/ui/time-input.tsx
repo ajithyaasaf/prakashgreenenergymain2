@@ -79,12 +79,15 @@ export function TimeInput({ value, onChange, className, placeholder }: TimeInput
         <SelectTrigger className="w-16">
           <SelectValue />
         </SelectTrigger>
-        <SelectContent>
-          {['00', '15', '30', '45'].map((min) => (
-            <SelectItem key={min} value={min}>
-              {min}
-            </SelectItem>
-          ))}
+        <SelectContent className="max-h-60 overflow-y-auto">
+          {Array.from({ length: 60 }, (_, i) => {
+            const min = i.toString().padStart(2, '0');
+            return (
+              <SelectItem key={min} value={min}>
+                {min}
+              </SelectItem>
+            );
+          })}
         </SelectContent>
       </Select>
       
