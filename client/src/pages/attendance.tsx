@@ -18,6 +18,7 @@ import {
   MapPin, Timer, Users, TrendingUp, Activity, RefreshCw, Zap
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { OvertimeExplanationCard } from "@/components/attendance/overtime-explanation-card";
 import { EnterpriseAttendanceCheckIn } from "@/components/attendance/enterprise-attendance-check-in";
 import { AttendanceCheckOut } from "@/components/attendance/attendance-check-out";
 
