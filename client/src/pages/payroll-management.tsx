@@ -238,9 +238,7 @@ export default function EnhancedPayrollManagement() {
   // Mutations
   const updatePayrollMutation = useMutation({
     mutationFn: async (data: { id: string; [key: string]: any }) => {
-      const response = await apiRequest('PUT', `/api/enhanced-payrolls/${data.id}`, data);
-      if (!response.ok) throw new Error('Failed to update payroll');
-      return response.json();
+      return apiRequest(`/api/enhanced-payrolls/${data.id}`, 'PUT', data);
     },
     onSuccess: () => {
       toast({ title: "Success", description: "Payroll updated successfully!" });

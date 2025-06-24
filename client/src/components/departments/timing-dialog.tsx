@@ -90,11 +90,7 @@ export function TimingDialog({ isOpen, onClose, department, currentTiming }: Tim
 
   const updateTimingMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await apiRequest('POST', `/api/departments/${department.id}/timing`, data);
-      if (!response.ok) {
-        throw new Error('Failed to update department timing');
-      }
-      return response.json();
+      return apiRequest(`/api/departments/${department.id}/timing`, 'POST', data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/departments/timings"] });
