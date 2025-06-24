@@ -119,6 +119,13 @@ This is an enterprise-grade dashboard application for Prakash Greens Energy, bui
 - **TypeScript**: Comprehensive tsconfig with path aliases
 
 ## Recent Changes
+- June 24, 2025: Fixed critical UX flaw in attendance system
+  - ✓ Added department timing validation before check-in to prevent business logic errors
+  - ✓ System now prevents attendance without proper timing configuration
+  - ✓ Added comprehensive error messages guiding users to configure department timing
+  - ✓ Frontend validation prevents check-in button when timing not configured
+  - ✓ Backend validation returns clear error messages with actionable recommendations
+  - ✓ Ensures accurate late arrival, overtime, and check-out time calculations
 - June 24, 2025: Implemented Google-level Enterprise Time Service with complete standardization
   - ✓ Created centralized EnterpriseTimeService for department-based time management
   - ✓ Standardized all time operations to 12-hour format throughout application

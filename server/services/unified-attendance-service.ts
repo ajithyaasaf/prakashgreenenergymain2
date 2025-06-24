@@ -86,6 +86,57 @@ export class UnifiedAttendanceService {
         };
       }
 
+      // CRITICAL: Validate department timing configuration before allowing check-in
+      if (!user.department) {
+        return {
+          success: false,
+          message: 'Department not assigned. Contact administrator to assign you to a department.',
+          locationValidation: {
+            isValid: false,
+            confidence: 0,
+            distance: 0,
+            detectedOffice: null,
+            validationType: 'failed',
+            message: 'Department assignment required',
+            recommendations: ['Contact your administrator to assign you to a department'],
+            metadata: {
+              accuracy: request.accuracy,
+              effectiveRadius: 0,
+              indoorDetection: false,
+              confidenceFactors: ['no_department']
+            }
+          }
+        };
+      }
+
+      // Check if department timing is configured
+      const departmentTiming = await storage.getDepartmentTiming(user.department);
+      if (!departmentTiming) {
+        return {
+          success: false,
+          message: `Department timing not configured for ${user.department} department. Please configure working hours first.`,
+          locationValidation: {
+            isValid: false,
+            confidence: 0,
+            distance: 0,
+            detectedOffice: null,
+            validationType: 'failed',
+            message: 'Department timing configuration required',
+            recommendations: [
+              'Go to Departments page → Configure Attendance Timing',
+              'Set check-in time, check-out time, and working hours',
+              'This is required to calculate late arrivals and overtime'
+            ],
+            metadata: {
+              accuracy: request.accuracy,
+              effectiveRadius: 0,
+              indoorDetection: false,
+              confidenceFactors: ['no_department_timing']
+            }
+          }
+        };
+      }
+
       // Check for duplicate check-in
       const today = new Date();
       today.setHours(0, 0, 0, 0);

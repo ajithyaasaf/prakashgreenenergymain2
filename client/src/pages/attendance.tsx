@@ -132,7 +132,7 @@ export default function Attendance() {
   const stats = getAttendanceStats(attendanceRecords);
 
   // Determine if user can check in/out
-  const canCheckIn = !todayAttendance?.checkInTime;
+  const canCheckIn = !todayAttendance?.checkInTime && departmentTiming;
   const canCheckOut = todayAttendance?.checkInTime && !todayAttendance?.checkOutTime;
 
   return (
@@ -265,30 +265,48 @@ export default function Attendance() {
 
             {/* Action Buttons */}
             <div className="flex gap-3 pt-2">
-              {canCheckIn && (
-                <Button 
-                  onClick={() => setShowCheckInModal(true)} 
-                  className="bg-green-600 hover:bg-green-700 flex-1 h-12"
-                  size="lg"
-                >
-                  <UserCheck className="h-5 w-5 mr-2" />
-                  Check In Now
-                </Button>
-              )}
-              {canCheckOut && (
-                <Button 
-                  onClick={() => setShowCheckOutModal(true)} 
-                  className="bg-red-600 hover:bg-red-700 flex-1 h-12"
-                  size="lg"
-                >
-                  <Timer className="h-5 w-5 mr-2" />
-                  Check Out
-                </Button>
-              )}
-              {!canCheckIn && !canCheckOut && todayAttendance && (
-                <Badge variant="secondary" className="py-2 px-4">
-                  Attendance Complete for Today
-                </Badge>
+              {!departmentTiming ? (
+                <div className="flex-1 text-center py-4">
+                  <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                    <div className="text-orange-700 font-medium mb-2">Department Timing Not Configured</div>
+                    <div className="text-sm text-orange-600 mb-3">
+                      Your department's working hours must be configured before you can check in.
+                    </div>
+                    {user?.role === "master_admin" && (
+                      <div className="text-xs text-orange-500">
+                        Go to Departments → Configure Attendance Timing for {user?.department} department
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {canCheckIn && (
+                    <Button 
+                      onClick={() => setShowCheckInModal(true)} 
+                      className="bg-green-600 hover:bg-green-700 flex-1 h-12"
+                      size="lg"
+                    >
+                      <UserCheck className="h-5 w-5 mr-2" />
+                      Check In Now
+                    </Button>
+                  )}
+                  {canCheckOut && (
+                    <Button 
+                      onClick={() => setShowCheckOutModal(true)} 
+                      className="bg-red-600 hover:bg-red-700 flex-1 h-12"
+                      size="lg"
+                    >
+                      <Timer className="h-5 w-5 mr-2" />
+                      Check Out
+                    </Button>
+                  )}
+                  {!canCheckIn && !canCheckOut && todayAttendance && (
+                    <Badge variant="secondary" className="py-2 px-4">
+                      Attendance Complete for Today
+                    </Badge>
+                  )}
+                </>
               )}
             </div>
           </CardContent>
