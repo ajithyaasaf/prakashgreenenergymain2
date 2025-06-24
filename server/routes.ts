@@ -1253,13 +1253,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "You have already checked out today" });
       }
 
-      const checkOutTime = new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        now.getDate(),
-        now.getHours(),
-        now.getMinutes(),
-      );
+      // Use current server time for checkout
+      const checkOutTime = new Date();
 
       // Get department timing from database
       const departmentTiming = user.department 
@@ -1410,17 +1405,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const earlyMinutes = earlyCheckout ? Math.floor((expectedCheckOutTimeObj.getTime() - checkOutTime.getTime()) / (1000 * 60)) : 0;
       
       console.log("CHECKOUT DEBUG:", {
+        serverTime: new Date().toISOString(),
         currentTime: checkOutTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
         expectedTime: expectedCheckOutTimeObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
         earlyCheckout,
         earlyMinutes,
+        isOvertimeCheckout: checkOutTime > expectedCheckOutTimeObj,
+        actualHour: checkOutTime.getHours(),
+        expectedHour: expectedCheckOutTimeObj.getHours(),
         reason: reason || "no reason provided",
         departmentTiming: departmentTiming ? 'loaded' : 'default',
         allowEarlyCheckOut: departmentTiming?.allowEarlyCheckOut
       });
       
-      // Early checkout policy enforcement
-      if (earlyCheckout && earlyMinutes > 30) {
+      // Detect overtime scenario - any checkout after expected time is overtime, not early checkout
+      const isOvertimeCheckout = checkOutTime > expectedCheckOutTimeObj;
+      
+      // Early checkout policy enforcement (only for actual early checkouts, not overtime)
+      if (!isOvertimeCheckout && earlyCheckout && earlyMinutes > 30) {
         if (!departmentTiming?.allowEarlyCheckOut) {
           return res.status(400).json({
             message: `Early checkout is not allowed for ${user.department || 'your'} department. Current: ${checkOutTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}, Expected: ${expectedCheckOutTimeObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`,
