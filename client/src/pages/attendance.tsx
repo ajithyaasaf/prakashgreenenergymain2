@@ -42,7 +42,7 @@ export default function Attendance() {
       
       // For regular employees, fetch only their own attendance data
       // For admins/master_admins, they can still see all data if needed
-      const attendanceResponse = await apiRequest('GET', `/api/attendance?userId=${user.uid}`);
+      const attendanceResponse = await apiRequest(`/api/attendance?userId=${user.uid}`, 'GET');
       
       if (!attendanceResponse.ok) {
         throw new Error('Failed to fetch attendance records');
@@ -68,7 +68,7 @@ export default function Attendance() {
     queryFn: async () => {
       if (!user?.uid) return null;
       // Use server-side date calculation to prevent timezone mismatches
-      const response = await apiRequest('GET', `/api/attendance/today?userId=${user.uid}`);
+      const response = await apiRequest(`/api/attendance/today?userId=${user.uid}`, 'GET');
       if (response.ok) {
         const data = await response.json();
         return Array.isArray(data) ? data[0] : data;
@@ -82,7 +82,7 @@ export default function Attendance() {
   const { data: officeLocations = [] } = useQuery({
     queryKey: ["/api/office-locations"],
     queryFn: async () => {
-      const response = await apiRequest('GET', '/api/office-locations');
+      const response = await apiRequest('/api/office-locations', 'GET');
       if (response.ok) {
         return await response.json();
       }
@@ -95,7 +95,7 @@ export default function Attendance() {
     queryKey: ["/api/departments/timing", user?.department],
     queryFn: async () => {
       if (!user?.department) return null;
-      const response = await apiRequest('GET', `/api/departments/${user.department}/timing`);
+      const response = await apiRequest(`/api/departments/${user.department}/timing`, 'GET');
       if (response.ok) {
         return await response.json();
       }
