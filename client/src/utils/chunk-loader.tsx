@@ -1,22 +1,42 @@
 import { lazy, Suspense, ComponentType } from 'react';
 import { Loader2 } from 'lucide-react';
 
-// Advanced loading fallback with better UX
+// Simplified loading fallback
 const ChunkLoadingFallback = ({ message = "Loading..." }: { message?: string }) => (
   <div className="flex items-center justify-center min-h-[40vh] w-full">
     <div className="flex flex-col items-center gap-3">
-      <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      <p className="text-sm text-muted-foreground animate-pulse">{message}</p>
+      <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      <p className="text-sm text-muted-foreground">{message}</p>
     </div>
   </div>
 );
 
-// Simplified chunk loading wrapper
+// Fixed chunk loading wrapper with error boundary
 export function withChunkLoading(
   importFn: () => Promise<{ default: ComponentType<any> }>,
   fallbackMessage?: string
 ) {
-  const LazyComponent = lazy(importFn);
+  const LazyComponent = lazy(() => {
+    return importFn().catch(error => {
+      console.error('Chunk loading failed:', error);
+      // Return a simple error component instead of crashing
+      return {
+        default: () => (
+          <div className="flex items-center justify-center min-h-[40vh] w-full">
+            <div className="text-center">
+              <p className="text-sm text-muted-foreground">Page temporarily unavailable</p>
+              <button 
+                onClick={() => window.location.reload()} 
+                className="mt-2 text-xs text-primary hover:underline"
+              >
+                Refresh page
+              </button>
+            </div>
+          </div>
+        )
+      };
+    });
+  });
   
   return function ChunkLoadedComponent(props: any) {
     return (
@@ -27,35 +47,29 @@ export function withChunkLoading(
   };
 }
 
-// Preload utility for critical chunks
+// Simplified preload utility - no aggressive preloading to prevent timeouts
 export function preloadChunk(importFn: () => Promise<any>) {
-  // Preload on idle or user interaction
-  if ('requestIdleCallback' in window) {
-    requestIdleCallback(() => importFn());
-  } else {
-    setTimeout(() => importFn(), 100);
+  // Only preload on user interaction to prevent timeout issues
+  try {
+    importFn().catch(() => {
+      // Silently fail preloading - it's optional
+    });
+  } catch (error) {
+    // Ignore preload errors
   }
 }
 
-// Route-based preloading for better navigation experience
+// Minimal route preloading - only essential pages
 export function preloadRouteChunks() {
-  // Preload heavy components after initial page load
+  // Minimal preloading after a delay to prevent blocking
   setTimeout(() => {
-    // Preload most commonly accessed pages
-    preloadChunk(() => import('@/pages/attendance'));
-    preloadChunk(() => import('@/pages/customers'));
-    preloadChunk(() => import('@/pages/products'));
-  }, 2000);
-  
-  // Preload admin-only pages if user has access
-  setTimeout(() => {
-    preloadChunk(() => import('@/pages/attendance-management'));
-    preloadChunk(() => import('@/pages/payroll-management'));
-    preloadChunk(() => import('@/pages/departments'));
-  }, 5000);
-  
-  // Add future large components here based on usage patterns
-  // Example: setTimeout(() => preloadChunk(() => import('@/pages/your-new-large-page')), 7000);
+    try {
+      // Only preload dashboard-adjacent pages
+      preloadChunk(() => import('@/pages/attendance'));
+    } catch (error) {
+      // Ignore preload errors
+    }
+  }, 3000);
 }
 
 // Progressive loading utility for large components

@@ -12,31 +12,27 @@ import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { AuthProvider, useAuthContext } from "@/contexts/auth-context";
 import { Loader2 } from "lucide-react";
 import { AppLoader } from "@/components/app-loader";
-import { Suspense, lazy, useEffect } from "react";
-import { withChunkLoading, preloadRouteChunks } from "@/utils/chunk-loader";
+import { Suspense, lazy } from "react";
 
-// Enhanced lazy loading with progressive chunking and preloading
-const Customers = withChunkLoading(() => import("@/pages/customers"), "Loading customer management...");
-const Products = withChunkLoading(() => import("@/pages/products"), "Loading product catalog...");
-const Quotations = withChunkLoading(() => import("@/pages/quotations"), "Loading quotation system...");
-const Invoices = withChunkLoading(() => import("@/pages/invoices"), "Loading invoice management...");
-const Attendance = withChunkLoading(() => import("@/pages/attendance"), "Loading attendance tracker...");
-const AttendanceManagement = withChunkLoading(() => import("@/pages/attendance-management"), "Loading attendance administration...");
-const PayrollManagement = withChunkLoading(() => import("@/pages/payroll-management"), "Loading payroll system...");
-const Leave = withChunkLoading(() => import("@/pages/leave"), "Loading leave management...");
-const UserManagement = withChunkLoading(() => import("@/pages/user-management"), "Loading user administration...");
-const Departments = withChunkLoading(() => import("@/pages/departments"), "Loading department management...");
-const OfficeLocations = withChunkLoading(() => import("@/pages/office-locations"), "Loading office configuration...");
+// Simple lazy loading without complex chunk management
+const Customers = lazy(() => import("@/pages/customers"));
+const Products = lazy(() => import("@/pages/products"));
+const Quotations = lazy(() => import("@/pages/quotations"));
+const Invoices = lazy(() => import("@/pages/invoices"));
+const Attendance = lazy(() => import("@/pages/attendance"));
+const AttendanceManagement = lazy(() => import("@/pages/attendance-management"));
+const PayrollManagement = lazy(() => import("@/pages/payroll-management"));
+const Leave = lazy(() => import("@/pages/leave"));
+const UserManagement = lazy(() => import("@/pages/user-management"));
+const Departments = lazy(() => import("@/pages/departments"));
+const OfficeLocations = lazy(() => import("@/pages/office-locations"));
 
-// Advanced loading fallback component
-const LazyPageLoader = () => (
+// Simple loading fallback component
+const PageLoader = () => (
   <div className="flex items-center justify-center min-h-[60vh]">
     <div className="flex flex-col items-center gap-3">
-      <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      <div className="text-center">
-        <p className="text-sm text-muted-foreground animate-pulse">Loading...</p>
-        <p className="text-xs text-muted-foreground mt-1">Optimizing performance</p>
-      </div>
+      <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      <p className="text-sm text-muted-foreground">Loading...</p>
     </div>
   </div>
 );
@@ -45,11 +41,6 @@ import { ProtectedRoute } from "@/components/auth/protected-route";
 import { RootHandler } from "@/components/auth/root-handler";
 
 function Router() {
-  // Initialize progressive route preloading for better performance
-  useEffect(() => {
-    preloadRouteChunks();
-  }, []);
-
   return (
     <Switch>
       {/* Public routes - no auth required */}
@@ -72,7 +63,9 @@ function Router() {
           requiredPermissions={["customers.view", "customers.create"]}
         >
           <DashboardLayout>
-            <Customers />
+            <Suspense fallback={<PageLoader />}>
+              <Customers />
+            </Suspense>
           </DashboardLayout>
         </ProtectedRoute>
       </Route>
@@ -83,7 +76,9 @@ function Router() {
           requiredPermissions={["products.view", "products.create"]}
         >
           <DashboardLayout>
-            <Products />
+            <Suspense fallback={<PageLoader />}>
+              <Products />
+            </Suspense>
           </DashboardLayout>
         </ProtectedRoute>
       </Route>
@@ -94,7 +89,9 @@ function Router() {
           requiredPermissions={["quotations.view", "quotations.create"]}
         >
           <DashboardLayout>
-            <Quotations />
+            <Suspense fallback={<PageLoader />}>
+              <Quotations />
+            </Suspense>
           </DashboardLayout>
         </ProtectedRoute>
       </Route>
@@ -105,7 +102,9 @@ function Router() {
           requiredPermissions={["invoices.view", "invoices.create"]}
         >
           <DashboardLayout>
-            <Invoices />
+            <Suspense fallback={<PageLoader />}>
+              <Invoices />
+            </Suspense>
           </DashboardLayout>
         </ProtectedRoute>
       </Route>
@@ -116,7 +115,9 @@ function Router() {
           requiredPermissions={["attendance.view_own", "attendance.view_team", "attendance.view_all"]}
         >
           <DashboardLayout>
-            <Attendance />
+            <Suspense fallback={<PageLoader />}>
+              <Attendance />
+            </Suspense>
           </DashboardLayout>
         </ProtectedRoute>
       </Route>
@@ -127,7 +128,9 @@ function Router() {
           requiredPermissions={["leave.view_own", "leave.view_team", "leave.view_all"]}
         >
           <DashboardLayout>
-            <Leave />
+            <Suspense fallback={<PageLoader />}>
+              <Leave />
+            </Suspense>
           </DashboardLayout>
         </ProtectedRoute>
       </Route>
@@ -138,7 +141,9 @@ function Router() {
           requiredPermissions={["users.view"]}
         >
           <DashboardLayout>
-            <UserManagement />
+            <Suspense fallback={<PageLoader />}>
+              <UserManagement />
+            </Suspense>
           </DashboardLayout>
         </ProtectedRoute>
       </Route>
@@ -150,7 +155,9 @@ function Router() {
           requiredRole="master_admin"
         >
           <DashboardLayout>
-            <Departments />
+            <Suspense fallback={<PageLoader />}>
+              <Departments />
+            </Suspense>
           </DashboardLayout>
         </ProtectedRoute>
       </Route>
@@ -162,7 +169,9 @@ function Router() {
           requiredRole="master_admin"
         >
           <DashboardLayout>
-            <OfficeLocations />
+            <Suspense fallback={<PageLoader />}>
+              <OfficeLocations />
+            </Suspense>
           </DashboardLayout>
         </ProtectedRoute>
       </Route>
@@ -173,7 +182,9 @@ function Router() {
           requiredRole="master_admin"
         >
           <DashboardLayout>
-            <AttendanceManagement />
+            <Suspense fallback={<PageLoader />}>
+              <AttendanceManagement />
+            </Suspense>
           </DashboardLayout>
         </ProtectedRoute>
       </Route>
@@ -184,7 +195,9 @@ function Router() {
           requiredRole="master_admin"
         >
           <DashboardLayout>
-            <PayrollManagement />
+            <Suspense fallback={<PageLoader />}>
+              <PayrollManagement />
+            </Suspense>
           </DashboardLayout>
         </ProtectedRoute>
       </Route>
