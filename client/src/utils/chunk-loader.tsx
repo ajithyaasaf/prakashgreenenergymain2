@@ -53,6 +53,9 @@ export function preloadRouteChunks() {
     preloadChunk(() => import('@/pages/payroll-management'));
     preloadChunk(() => import('@/pages/departments'));
   }, 5000);
+  
+  // Add future large components here based on usage patterns
+  // Example: setTimeout(() => preloadChunk(() => import('@/pages/your-new-large-page')), 7000);
 }
 
 // Progressive loading utility for large components
