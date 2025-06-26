@@ -8,26 +8,48 @@ import NotFound from "@/pages/not-found";
 import Login from "@/pages/login";
 import Register from "@/pages/register";
 import Dashboard from "@/pages/dashboard";
-import Customers from "@/pages/customers";
-import Products from "@/pages/products";
-import Quotations from "@/pages/quotations";
-import Invoices from "@/pages/invoices";
-import Attendance from "@/pages/attendance";
-import AttendanceManagement from "@/pages/attendance-management";
-import PayrollManagement from "@/pages/payroll-management";
-import Leave from "@/pages/leave";
-import UserManagement from "@/pages/user-management";
-import Departments from "@/pages/departments";
-import OfficeLocations from "@/pages/office-locations";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { AuthProvider, useAuthContext } from "@/contexts/auth-context";
 import { Loader2 } from "lucide-react";
 import { AppLoader } from "@/components/app-loader";
+import { Suspense, lazy, useEffect } from "react";
+import { withChunkLoading, preloadRouteChunks } from "@/utils/chunk-loader";
+
+// Enhanced lazy loading with progressive chunking and preloading
+const Customers = withChunkLoading(() => import("@/pages/customers"), "Loading customer management...");
+const Products = withChunkLoading(() => import("@/pages/products"), "Loading product catalog...");
+const Quotations = withChunkLoading(() => import("@/pages/quotations"), "Loading quotation system...");
+const Invoices = withChunkLoading(() => import("@/pages/invoices"), "Loading invoice management...");
+const Attendance = withChunkLoading(() => import("@/pages/attendance"), "Loading attendance tracker...");
+const AttendanceManagement = withChunkLoading(() => import("@/pages/attendance-management"), "Loading attendance administration...");
+const PayrollManagement = withChunkLoading(() => import("@/pages/payroll-management"), "Loading payroll system...");
+const Leave = withChunkLoading(() => import("@/pages/leave"), "Loading leave management...");
+const UserManagement = withChunkLoading(() => import("@/pages/user-management"), "Loading user administration...");
+const Departments = withChunkLoading(() => import("@/pages/departments"), "Loading department management...");
+const OfficeLocations = withChunkLoading(() => import("@/pages/office-locations"), "Loading office configuration...");
+
+// Advanced loading fallback component
+const LazyPageLoader = () => (
+  <div className="flex items-center justify-center min-h-[60vh]">
+    <div className="flex flex-col items-center gap-3">
+      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="text-center">
+        <p className="text-sm text-muted-foreground animate-pulse">Loading...</p>
+        <p className="text-xs text-muted-foreground mt-1">Optimizing performance</p>
+      </div>
+    </div>
+  </div>
+);
 
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { RootHandler } from "@/components/auth/root-handler";
 
 function Router() {
+  // Initialize progressive route preloading for better performance
+  useEffect(() => {
+    preloadRouteChunks();
+  }, []);
+
   return (
     <Switch>
       {/* Public routes - no auth required */}
