@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -159,8 +159,14 @@ export default function EnhancedPayrollManagement() {
   const { user } = useAuthContext();
   const queryClient = useQueryClient();
   
-  // CRITICAL FIX: Apply memory leak prevention
-  useQueryCleanup(queryClient);
+  // Memory leak prevention with proper useEffect cleanup
+  useEffect(() => {
+    return () => {
+      // Cleanup any pending queries when component unmounts
+      queryClient.cancelQueries({ queryKey: ['/api/payroll'] });
+      queryClient.cancelQueries({ queryKey: ['/api/users'] });
+    };
+  }, [queryClient]);
   
   // Undo management for bulk payroll operations
   const { actions, addAction, executeUndo, clearActions } = useUndoManager();
@@ -212,7 +218,7 @@ export default function EnhancedPayrollManagement() {
         ...(selectedDepartment && selectedDepartment !== "all" && { department: selectedDepartment })
       };
       
-      const response = await apiRequest('/api/enhanced-payrolls', 'GET', undefined, queryParams);
+      const response = await apiRequest('/api/enhanced-payrolls', 'GET', queryParams);
       if (!response.ok) {
         throw new Error(`Failed to fetch payrolls: ${response.status}`);
       }
