@@ -119,9 +119,13 @@ This is an enterprise-grade dashboard application for Prakash Greens Energy, bui
 - **TypeScript**: Comprehensive tsconfig with path aliases
 
 ## Recent Changes
-- June 26, 2025: FIXED CRITICAL OVERTIME CALCULATION CORRUPTION & NAVIGATION TIMEOUTS
-  - ✓ MAJOR FIX: Resolved corrupted "6:NaN AM" timing data causing 4.1h overtime miscalculation
+- June 26, 2025: FIXED CRITICAL PAYROLL CALCULATION BUGS & NAVIGATION TIMEOUTS
+  - ✓ MAJOR FIX: Resolved critical EPF calculation bug using pro-rated salary instead of full basic
+  - ✓ MAJOR FIX: Fixed ESI rate inconsistency (routes.ts used 0.75%, storage.ts used 1.75%)
+  - ✓ EPF now correctly calculated on full basic salary (regulatory compliant with EPFO)
+  - ✓ Standardized ESI rate at 0.75% across all calculation methods
   - ✓ Fixed runtime timeout errors during page navigation by simplifying lazy loading system
+  - ✓ Resolved corrupted "6:NaN AM" timing data causing 4.1h overtime miscalculation
   - ✓ Corrected sales department timing: 9:00 AM - 7:00 PM (was corrupted as "6:NaN AM")
   - ✓ Eliminated complex chunk loading wrapper causing signal timeouts
   - ✓ Implemented proper Suspense boundaries for all lazy-loaded routes
@@ -129,6 +133,7 @@ This is an enterprise-grade dashboard application for Prakash Greens Energy, bui
   - ✓ Verified overtime calculation: 10:53 AM - 6:36 PM = 7.72h work, 0h overtime (correct)
   - ✓ System now properly calculates OT only when checkout exceeds department schedule
   - ✓ Cleared corrupted cache and validated all timing calculations work correctly
+  - ✓ Comprehensive payroll audit shows all statutory deductions now comply with regulations
 - June 26, 2025: IMPLEMENTED COMPREHENSIVE CODE SPLITTING & BUNDLE OPTIMIZATION
   - ✓ Enhanced lazy loading with strategic component splitting for major performance gains
   - ✓ Created advanced chunk loading utilities with progressive preloading mechanisms

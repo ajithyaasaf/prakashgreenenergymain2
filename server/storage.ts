@@ -3062,8 +3062,9 @@ export class FirestoreStorage implements IStorage {
     const pfDeduction = grossSalary >= payrollSettings.pfApplicableFromSalary ? 
                        (salaryStructure.basicSalary * payrollSettings.pfRate) / 100 : 0;
     
+    // FIXED: Use correct ESI rate (0.75%) consistent with routes.ts
     const esiDeduction = grossSalary >= payrollSettings.esiApplicableFromSalary ? 0 :
-                        (grossSalary * payrollSettings.esiRate) / 100;
+                        (grossSalary * 0.75) / 100;
     
     const tdsDeduction = (grossSalary * payrollSettings.tdsRate) / 100;
     

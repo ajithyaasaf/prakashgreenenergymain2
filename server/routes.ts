@@ -4399,7 +4399,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Calculate statutory deductions
         const grossSalaryAmount = earnedBasic + earnedHRA + earnedConveyance;
-        const epfDeduction = salaryStructure.epfApplicable ? Math.min(earnedBasic * 0.12, 1800) : 0;
+        // FIXED: EPF must be calculated on full basic salary, not pro-rated earned amount
+        const epfDeduction = salaryStructure.epfApplicable ? Math.min(fixedBasic * 0.12, 1800) : 0;
         const esiDeduction = salaryStructure.esiApplicable && grossSalaryAmount <= 21000 ? grossSalaryAmount * 0.0075 : 0;
         const vptDeduction = salaryStructure.vptAmount || 0;
         
