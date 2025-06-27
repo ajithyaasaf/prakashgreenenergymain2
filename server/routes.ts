@@ -1394,7 +1394,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           allowEarlyCheckOut: false, allowRemoteWork: true, allowFieldWork: true
         },
         sales: {
-          checkInTime: "9:00 AM", checkOutTime: "7:00 PM", workingHours: 9,
+          checkInTime: "9:00 AM", checkOutTime: "6:00 PM", workingHours: 8,
           overtimeThresholdMinutes: 30, lateThresholdMinutes: 15,
           allowEarlyCheckOut: true, allowRemoteWork: true, allowFieldWork: true
         },
@@ -4496,6 +4496,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error updating payroll settings:", error);
       res.status(500).json({ message: "Failed to update payroll settings" });
+    }
+  });
+
+  // Emergency cache clearing endpoint for timing issues
+  app.post("/api/admin/clear-cache", verifyAuth, async (req, res) => {
+    try {
+      // Clear Enterprise Time Service cache
+      const { clearTimingCache } = await import("./services/enterprise-time-service");
+      clearTimingCache();
+      
+      console.log("Admin cleared timing cache");
+      res.json({ message: "Cache cleared successfully" });
+    } catch (error) {
+      console.error("Error clearing cache:", error);
+      res.status(500).json({ message: "Failed to clear cache" });
     }
   });
 

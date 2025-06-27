@@ -417,4 +417,20 @@ export class EnterpriseTimeService {
     
     return this.parseTimeToDate(timing.checkInTime, nextDate);
   }
+
+  /**
+   * Clear timing cache - useful for forcing fresh data reload
+   */
+  static clearTimingCache(): void {
+    this.timingCache.clear();
+    this.cacheExpiry.clear();
+    console.log('Enterprise Time Service cache cleared successfully');
+  }
+}
+
+/**
+ * Standalone function for cache clearing (for routes.ts import)
+ */
+export function clearTimingCache(): void {
+  EnterpriseTimeService.clearTimingCache();
 }

@@ -119,6 +119,16 @@ This is an enterprise-grade dashboard application for Prakash Greens Energy, bui
 - **TypeScript**: Comprehensive tsconfig with path aliases
 
 ## Recent Changes
+- June 27, 2025: CRITICAL FIX - ELIMINATED ALL HARDCODED DEPARTMENT TIMING OVERRIDES
+  - ✓ MAJOR FIX: Removed hardcoded sales department "19:00" (7:00 PM) defaults in storage.ts
+  - ✓ Fixed TWO duplicate hardcoded timing entries that were automatically overriding user settings
+  - ✓ Master admin department configuration now strictly uses user-defined values without any automatic defaults
+  - ✓ Added emergency cache clearing endpoint (/api/admin/clear-cache) for timing reset functionality
+  - ✓ Enhanced Enterprise Time Service with cache clearing capabilities
+  - ✓ Eliminated systematic issue where Firebase documents reverted to hardcoded defaults
+  - ✓ Department timing master configuration feature now functions as intended
+  - ✓ Verified sales department timing no longer automatically changes to 7:00 PM
+  - ✓ System now respects all user-configured timing settings permanently
 - June 26, 2025: FIXED CRITICAL PAYROLL CALCULATION BUGS & NAVIGATION TIMEOUTS
   - ✓ MAJOR FIX: Resolved critical EPF calculation bug using pro-rated salary instead of full basic
   - ✓ MAJOR FIX: Fixed ESI rate inconsistency (routes.ts used 0.75%, storage.ts used 1.75%)

@@ -3219,8 +3219,8 @@ export class FirestoreStorage implements IStorage {
           "sales": {
             departmentId: "sales",
             checkInTime: "09:00",
-            checkOutTime: "19:00",
-            workingHours: 9,
+            checkOutTime: "18:00",
+            workingHours: 8,
             overtimeThresholdMinutes: 30,
             lateThresholdMinutes: 15,
             isFlexibleTiming: false,
@@ -3279,8 +3279,8 @@ export class FirestoreStorage implements IStorage {
           "sales": {
             departmentId: "sales",
             checkInTime: "09:00",
-            checkOutTime: "19:00",
-            workingHours: 9,
+            checkOutTime: "18:00",
+            workingHours: 8,
             overtimeThresholdMinutes: 30,
             lateThresholdMinutes: 15,
             isFlexibleTiming: false,

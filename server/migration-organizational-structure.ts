@@ -146,8 +146,8 @@ export const newDepartmentTimings = {
   sales: {
     departmentId: 'sales',
     checkInTime: '9:00 AM',
-    checkOutTime: '7:00 PM',
-    workingHours: 9,
+    checkOutTime: '6:00 PM',
+    workingHours: 8,
     overtimeThresholdMinutes: 30,
     lateThresholdMinutes: 15,
     isFlexibleTiming: true,
