@@ -220,10 +220,10 @@ export default function Departments() {
       console.log('DEPARTMENTS: Updating timing for department:', data.departmentId);
       return apiRequest(`/api/departments/${data.departmentId}/timing`, 'POST', data.timing);
     },
-    onSuccess: (result, variables) => {
+    onSuccess: async (result, variables) => {
       console.log('DEPARTMENTS: Timing update successful for:', variables.departmentId);
       
-      // Step 1: Remove all cached timing data to force fresh fetch
+      // Step 1: Clear all timing cache immediately
       queryClient.removeQueries({ 
         predicate: (query) => {
           const queryKey = query.queryKey[0];
@@ -234,53 +234,38 @@ export default function Departments() {
         }
       });
       
-      // Step 2: Invalidate all related queries
+      // Step 2: Force immediate refetch of department timings with fresh data flag
+      console.log('DEPARTMENTS: Force refreshing department timings with fresh data');
+      try {
+        await queryClient.refetchQueries({ 
+          queryKey: ["/api/departments/timings"],
+          type: 'active'
+        });
+        console.log('DEPARTMENTS: Department timings refreshed successfully');
+      } catch (error) {
+        console.error('DEPARTMENTS: Failed to refresh timings:', error);
+      }
+      
+      // Step 3: Invalidate all related queries
       queryClient.invalidateQueries({ 
         predicate: (query) => {
           const queryKey = query.queryKey[0];
           if (typeof queryKey === 'string') {
             return queryKey.includes('/api/departments') || 
-                   queryKey.includes('/api/attendance') ||
-                   queryKey.includes('/api/users');
+                   queryKey.includes('/api/attendance');
           }
           return false;
         }
       });
       
-      // Step 3: Signal other tabs/windows about the update
+      // Step 4: Signal other tabs/windows about the update
       localStorage.setItem('department_timing_updated', Date.now().toString());
-      localStorage.removeItem('department_timing_updated'); // Trigger storage event
       
-      // CRITICAL FIX: Coordinated cache refresh to prevent race conditions
-      const forceRefetch = async (attempt: number = 1) => {
-        console.log(`DEPARTMENTS: Force refetch attempt ${attempt}`);
-        try {
-          await queryClient.refetchQueries({ 
-            predicate: (query) => {
-              const queryKey = query.queryKey[0];
-              if (typeof queryKey === 'string') {
-                return queryKey.includes('/api/departments/timing');
-              }
-              return false;
-            }
-          });
-          console.log(`DEPARTMENTS: Refetch attempt ${attempt} completed`);
-        } catch (error) {
-          console.error(`DEPARTMENTS: Refetch attempt ${attempt} failed:`, error);
-          if (attempt < 3) {
-            setTimeout(() => forceRefetch(attempt + 1), 1000 * attempt);
-          }
-        }
-      };
-      
-      // Single coordinated refetch with retry logic
-      forceRefetch();
-      
-      console.log('DEPARTMENTS: All cache invalidation and refetch completed');
+      console.log('DEPARTMENTS: All cache operations completed');
       
       toast({
-        title: "Attendance timing updated",
-        description: `${variables.departmentId.toUpperCase()} department timing has been successfully configured. Changes are now active on the attendance page.`,
+        title: "Department timing updated",
+        description: `${variables.departmentId.toUpperCase()} department timing has been successfully configured. The changes are now visible.`,
         variant: "default"
       });
       setShowTimingDialog(false);
@@ -296,11 +281,11 @@ export default function Departments() {
   });
 
   // Transform department strings to objects and filter by search query
-  const departmentObjects = departments?.map((dept: string) => ({
+  const departmentObjects = Array.isArray(departments) ? departments.map((dept: string) => ({
     id: dept,
     name: dept.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
     description: `${dept.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} Department`
-  })) || [];
+  })) : [];
 
   const filteredDepartments = departmentObjects.filter((department: any) => {
     if (!searchQuery) return true;
@@ -313,7 +298,7 @@ export default function Departments() {
 
   // Count employees in each department
   const getEmployeeCount = (departmentName: string) => {
-    return users?.filter((user: any) => user.department === departmentName.toLowerCase().replace(/ /g, '_')).length || 0;
+    return Array.isArray(users) ? users.filter((user: any) => user.department === departmentName.toLowerCase().replace(/ /g, '_')).length : 0;
   };
 
   return (
@@ -374,7 +359,7 @@ export default function Departments() {
                   </TableRow>
                 ) : (
                   filteredDepartments?.map((department: any) => {
-                    const timing = departmentTimings?.[department.id];
+                    const timing = departmentTimings && typeof departmentTimings === 'object' ? departmentTimings[department.id] : null;
                     return (
                     <TableRow key={department.id}>
                       <TableCell>

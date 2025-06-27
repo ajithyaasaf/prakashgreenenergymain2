@@ -135,6 +135,12 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
       const response = await apiRequest(`/api/departments/${user?.department}/timing`, 'GET');
       if (response.ok) {
         const policies = await response.json();
+        console.log('CHECK_IN: Department policies fetched:', {
+          department: user?.department,
+          allowRemoteWork: policies.allowRemoteWork,
+          allowFieldWork: policies.allowFieldWork,
+          fullPolicies: policies
+        });
         setDepartmentPolicies(policies);
         
         // Pre-select attendance type based on policies and context
@@ -167,12 +173,12 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
       return { isValid: false, errors: ['Loading department policies...'] };
     }
 
-    // Policy-based validation
-    if (attendanceType === "remote" && !departmentPolicies.allowRemoteWork) {
+    // Policy-based validation with explicit boolean checking
+    if (attendanceType === "remote" && departmentPolicies.allowRemoteWork === false) {
       errors.push('Remote work is not allowed for your department');
     }
     
-    if (attendanceType === "field_work" && !departmentPolicies.allowFieldWork) {
+    if (attendanceType === "field_work" && departmentPolicies.allowFieldWork === false) {
       errors.push('Field work is not allowed for your department');
     }
 
@@ -737,7 +743,10 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
                     <Badge variant="outline" className="text-xs">Always Available</Badge>
                   </div>
                 </SelectItem>
-                <SelectItem value="remote" disabled={departmentPolicies && !departmentPolicies.allowRemoteWork}>
+                <SelectItem 
+                  value="remote" 
+                  disabled={departmentPolicies ? departmentPolicies.allowRemoteWork === false : false}
+                >
                   <div className="flex items-center justify-between w-full">
                     <div className="flex items-center gap-2">
                       <Monitor className="h-4 w-4" />
@@ -745,15 +754,18 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
                     </div>
                     {departmentPolicies && (
                       <Badge 
-                        variant={departmentPolicies.allowRemoteWork ? "default" : "secondary"} 
+                        variant={departmentPolicies.allowRemoteWork === true ? "default" : "secondary"} 
                         className="text-xs"
                       >
-                        {departmentPolicies.allowRemoteWork ? "Allowed" : "Not Allowed"}
+                        {departmentPolicies.allowRemoteWork === true ? "Allowed" : "Not Allowed"}
                       </Badge>
                     )}
                   </div>
                 </SelectItem>
-                <SelectItem value="field_work" disabled={departmentPolicies && !departmentPolicies.allowFieldWork}>
+                <SelectItem 
+                  value="field_work" 
+                  disabled={departmentPolicies ? departmentPolicies.allowFieldWork === false : false}
+                >
                   <div className="flex items-center justify-between w-full">
                     <div className="flex items-center gap-2">
                       <MapPin className="h-4 w-4" />
@@ -761,10 +773,10 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
                     </div>
                     {departmentPolicies && (
                       <Badge 
-                        variant={departmentPolicies.allowFieldWork ? "default" : "secondary"} 
+                        variant={departmentPolicies.allowFieldWork === true ? "default" : "secondary"} 
                         className="text-xs"
                       >
-                        {departmentPolicies.allowFieldWork ? "Allowed" : "Not Allowed"}
+                        {departmentPolicies.allowFieldWork === true ? "Allowed" : "Not Allowed"}
                       </Badge>
                     )}
                   </div>
