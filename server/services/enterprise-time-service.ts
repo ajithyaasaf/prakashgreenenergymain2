@@ -62,8 +62,8 @@ export class EnterpriseTimeService {
       if (timing) {
         const departmentTiming: DepartmentTiming = {
           department: timing.department,
-          checkInTime: this.convertTo12Hour(timing.checkInTime),
-          checkOutTime: this.convertTo12Hour(timing.checkOutTime),
+          checkInTime: this.normalize12HourFormat(timing.checkInTime),
+          checkOutTime: this.normalize12HourFormat(timing.checkOutTime),
           workingHours: timing.workingHours || 8,
           lateThresholdMinutes: timing.lateThresholdMinutes || 15,
           overtimeThresholdMinutes: timing.overtimeThresholdMinutes || 0,
@@ -144,12 +144,7 @@ export class EnterpriseTimeService {
       expectedCheckOutTime: timing.checkOutTime,
       actualCheckInTime: this.formatTo12Hour(checkInTime),
       actualCheckOutTime: checkOutTime ? this.formatTo12Hour(checkOutTime) : undefined,
-      overtimeStartTime,
-      debug: {
-        checkOutTime: checkOutTime?.toISOString(),
-        expectedCheckOut: expectedCheckOut.toISOString(),
-        overtimeCalculation: `${checkOutTime?.toISOString()} > ${expectedCheckOut.toISOString()} = ${overtimeHours}h`
-      }
+      overtimeStartTime
     };
   }
 
@@ -197,17 +192,17 @@ export class EnterpriseTimeService {
       console.log(`ENTERPRISE_TIME_SERVICE: Processing timing update for ${timing.department}`);
       console.log('ENTERPRISE_TIME_SERVICE: Input timing object:', timing);
       
-      // Convert 12-hour to 24-hour for database storage
-      const checkIn24 = this.convertTo24Hour(timing.checkInTime);
-      const checkOut24 = this.convertTo24Hour(timing.checkOutTime);
+      // Normalize 12-hour format for consistent storage
+      const checkIn12 = this.normalize12HourFormat(timing.checkInTime);
+      const checkOut12 = this.normalize12HourFormat(timing.checkOutTime);
       
       // Calculate working hours automatically if not provided
-      const workingHours = timing.workingHours || this.calculateWorkingHours(checkIn24, checkOut24);
+      const workingHours = timing.workingHours || this.calculate12HourWorkingHours(checkIn12, checkOut12);
 
       const timingData = {
         department: timing.department,
-        checkInTime: checkIn24,
-        checkOutTime: checkOut24,
+        checkInTime: checkIn12,
+        checkOutTime: checkOut12,
         workingHours,
         lateThresholdMinutes: timing.lateThresholdMinutes || 15,
         overtimeThresholdMinutes: timing.overtimeThresholdMinutes || 0,
@@ -249,24 +244,14 @@ export class EnterpriseTimeService {
   }
 
   /**
-   * Convert 24-hour time to 12-hour format
+   * REMOVED: 24-hour format conversion (system now uses 12-hour format exclusively)
+   * This method is deprecated as all time data is now stored in 12-hour format
    */
-  private static convertTo12Hour(time24: string): string {
-    try {
-      const [hours, minutes] = time24.split(':').map(Number);
-      const period = hours >= 12 ? 'PM' : 'AM';
-      const displayHour = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
-      return `${displayHour}:${minutes.toString().padStart(2, '0')} ${period}`;
-    } catch (error) {
-      console.error('Error converting to 12-hour format:', time24, error);
-      return time24; // Return original if conversion fails
-    }
-  }
 
   /**
-   * Convert 12-hour time to 24-hour format
+   * Validate and normalize 12-hour time format
    */
-  private static convertTo24Hour(time12: string): string {
+  private static normalize12HourFormat(time12: string): string {
     try {
       // Clean and validate input
       if (!time12 || typeof time12 !== 'string') {
@@ -295,22 +280,17 @@ export class EnterpriseTimeService {
         throw new Error(`Invalid time values: hours=${hours}, minutes=${minutes}`);
       }
 
-      if (period.toUpperCase() === 'PM' && hours !== 12) {
-        hours += 12;
-      } else if (period.toUpperCase() === 'AM' && hours === 12) {
-        hours = 0;
-      }
-
-      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+      // Return normalized 12-hour format
+      return `${hours}:${minutes.toString().padStart(2, '0')} ${period.toUpperCase()}`;
     } catch (error) {
-      console.error('ENTERPRISE_TIME: Error converting to 24-hour format:', time12, error);
-      // Return a safe fallback instead of original
-      return "09:00"; // Default to 9:00 AM
+      console.error('ENTERPRISE_TIME: Error normalizing 12-hour format:', time12, error);
+      // Return a safe fallback
+      return "9:00 AM"; // Default to 9:00 AM
     }
   }
 
   /**
-   * Parse time string to Date object for today
+   * Parse 12-hour time string to Date object for today
    */
   private static parseTimeToDate(timeStr: string, baseDate: Date): Date {
     try {
@@ -320,38 +300,40 @@ export class EnterpriseTimeService {
         throw new Error(`Invalid time string: ${timeStr}`);
       }
 
-      const time24 = timeStr.includes('AM') || timeStr.includes('PM') ? 
-        this.convertTo24Hour(timeStr) : timeStr;
+      // Handle 12-hour format directly
+      const timeRegex = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i;
+      const match = timeStr.trim().match(timeRegex);
       
-      // Validate time24 format
-      if (!time24 || !time24.includes(':')) {
-        console.error('ENTERPRISE_TIME: Invalid time24 format:', time24);
-        throw new Error(`Invalid 24-hour time format: ${time24}`);
+      if (!match) {
+        console.error('ENTERPRISE_TIME: Invalid 12-hour format:', timeStr);
+        throw new Error(`Invalid 12-hour time format: ${timeStr}`);
       }
       
-      const timeParts = time24.split(':');
-      if (timeParts.length !== 2) {
-        throw new Error(`Invalid time format: ${time24}`);
-      }
-      
-      const hours = parseInt(timeParts[0]);
-      const minutes = parseInt(timeParts[1]);
+      let [, hourStr, minuteStr, period] = match;
+      let hours = parseInt(hourStr);
+      const minutes = parseInt(minuteStr);
       
       // Validate parsed values
-      if (isNaN(hours) || isNaN(minutes) || hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+      if (isNaN(hours) || isNaN(minutes) || hours < 1 || hours > 12 || minutes < 0 || minutes > 59) {
         throw new Error(`Invalid time values: hours=${hours}, minutes=${minutes}`);
+      }
+      
+      // Convert to 24-hour for Date object
+      if (period.toUpperCase() === 'PM' && hours !== 12) {
+        hours += 12;
+      } else if (period.toUpperCase() === 'AM' && hours === 12) {
+        hours = 0;
       }
       
       const date = new Date(baseDate);
       date.setHours(hours, minutes, 0, 0);
       return date;
     } catch (error) {
-      console.error('ENTERPRISE_TIME: Error parsing time:', timeStr, error);
-      // FIXED: Return reasonable business hours as fallback
+      console.error('ENTERPRISE_TIME: Error parsing 12-hour time:', timeStr, error);
+      // Return reasonable business hours as fallback
       const fallbackDate = new Date(baseDate);
-      // Default to sales department timing: 9 AM - 7 PM
-      if (timeStr && (timeStr.toLowerCase().includes('out') || timeStr.includes('19:') || timeStr.includes('7:'))) {
-        fallbackDate.setHours(19, 0, 0, 0); // 7:00 PM default checkout
+      if (timeStr && (timeStr.toLowerCase().includes('pm') || timeStr.includes('out'))) {
+        fallbackDate.setHours(18, 0, 0, 0); // 6:00 PM default checkout
       } else {
         fallbackDate.setHours(9, 0, 0, 0); // 9:00 AM default checkin
       }
@@ -372,16 +354,24 @@ export class EnterpriseTimeService {
   }
 
   /**
-   * Calculate working hours between two 24-hour times
+   * Calculate working hours between two 12-hour times
    */
-  private static calculateWorkingHours(checkIn24: string, checkOut24: string): number {
-    const [checkInHour, checkInMin] = checkIn24.split(':').map(Number);
-    const [checkOutHour, checkOutMin] = checkOut24.split(':').map(Number);
-    
-    const checkInMinutes = checkInHour * 60 + checkInMin;
-    const checkOutMinutes = checkOutHour * 60 + checkOutMin;
-    
-    return (checkOutMinutes - checkInMinutes) / 60;
+  private static calculate12HourWorkingHours(checkIn12: string, checkOut12: string): number {
+    try {
+      const checkInDate = this.parseTimeToDate(checkIn12, new Date());
+      const checkOutDate = this.parseTimeToDate(checkOut12, new Date());
+      
+      // Handle overnight shifts
+      if (checkOutDate < checkInDate) {
+        checkOutDate.setDate(checkOutDate.getDate() + 1);
+      }
+      
+      const diffMs = checkOutDate.getTime() - checkInDate.getTime();
+      return Math.max(0, diffMs / (1000 * 60 * 60)); // Convert to hours
+    } catch (error) {
+      console.error('Error calculating 12-hour working hours:', error);
+      return 8; // Default to 8 hours
+    }
   }
 
   /**
