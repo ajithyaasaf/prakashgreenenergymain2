@@ -1289,8 +1289,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const earlyCheckout = !isOvertimeCheckout && workingHours < standardWorkingHours;
       const earlyMinutes = earlyCheckout ? Math.floor((standardWorkingHours - workingHours) * 60) : 0;
       
-      // Early checkout policy enforcement (only for actual early checkouts, not overtime)
-      if (!isOvertimeCheckout && earlyCheckout && earlyMinutes > 30) {
+      // Early checkout policy enforcement (strict enforcement based on department timing dialog settings)
+      if (!isOvertimeCheckout && earlyCheckout) {
         console.log(`CHECKOUT: Early checkout check - Department: ${user.department}, allowEarlyCheckOut: ${departmentTiming.allowEarlyCheckOut}, earlyMinutes: ${earlyMinutes}`);
         
         if (!departmentTiming.allowEarlyCheckOut) {
@@ -1301,7 +1301,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             actualHours: workingHours,
             requiresApproval: true,
             isEarlyCheckout: true,
-            earlyMinutes
+            earlyMinutes,
+            policyEnforcement: "Department policy prohibits early checkout"
           });
         }
         
