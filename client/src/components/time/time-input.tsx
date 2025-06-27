@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Clock } from 'lucide-react';
-import { convert12To24Hour, convert24To12Hour, is12HourFormat } from './time-display';
+import { is12HourFormat } from './time-display';
 
 interface TimeInputProps {
   label?: string;
@@ -35,10 +35,12 @@ export function TimeInput({
   const [isValid, setIsValid] = useState(true);
 
   useEffect(() => {
-    // Convert 24-hour to 12-hour if needed
-    if (value && !is12HourFormat(value)) {
-      const converted = convert24To12Hour(value);
-      setInputValue(converted);
+    // System now exclusively uses 12-hour format
+    if (value && is12HourFormat(value)) {
+      setInputValue(value);
+    } else if (value) {
+      console.warn('Invalid time format received:', value);
+      setInputValue('');
     } else {
       setInputValue(value);
     }
@@ -65,9 +67,8 @@ export function TimeInput({
     setIsValid(valid);
     
     if (valid && newValue.trim()) {
-      // Convert to 24-hour for backend if needed
-      const time24 = convert12To24Hour(newValue);
-      onChange(time24);
+      // System now uses 12-hour format throughout
+      onChange(newValue);
     } else if (!newValue.trim()) {
       onChange('');
     }
@@ -76,8 +77,8 @@ export function TimeInput({
   const handleTimePreset = (presetTime: string) => {
     setInputValue(presetTime);
     setIsValid(true);
-    const time24 = convert12To24Hour(presetTime);
-    onChange(time24);
+    // System now uses 12-hour format throughout
+    onChange(presetTime);
   };
 
   const formatInput = (e: React.FocusEvent<HTMLInputElement>) => {

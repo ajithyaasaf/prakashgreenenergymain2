@@ -40,24 +40,13 @@ export function TimeDisplay({
       );
     }
     
-    // Check if it's a time-only format in 24-hour (HH:MM or H:MM)
+    // Legacy: Time without AM/PM is now deprecated, assume malformed data
     const timeOnlyRegex = /^(\d{1,2}):(\d{2})$/;
     const match = time.match(timeOnlyRegex);
     
     if (match) {
-      const [, hours, minutes] = match;
-      const hour24 = parseInt(hours);
-      const min = parseInt(minutes);
-      
-      // Convert to 12-hour format display
-      const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24;
-      const period = hour24 >= 12 ? 'PM' : 'AM';
-      
-      return (
-        <span className={className}>
-          {hour12}:{minutes} {period}
-        </span>
-      );
+      console.warn('DEPRECATED: Found time without AM/PM suffix, treating as malformed:', time);
+      return <span className={`${className} text-red-500`}>Invalid Time</span>;
     }
     
     // Try to parse as full date string
@@ -153,40 +142,5 @@ export function is12HourFormat(timeString: string): boolean {
   return /\d{1,2}:\d{2}\s*(AM|PM)/i.test(timeString);
 }
 
-// Convert 24-hour to 12-hour format
-export function convert24To12Hour(time24: string): string {
-  try {
-    const [hours, minutes] = time24.split(':').map(Number);
-    const period = hours >= 12 ? 'PM' : 'AM';
-    const displayHour = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
-    return `${displayHour}:${minutes.toString().padStart(2, '0')} ${period}`;
-  } catch (error) {
-    return time24; // Return original if conversion fails
-  }
-}
-
-// Convert 12-hour to 24-hour format (for backend compatibility)
-export function convert12To24Hour(time12: string): string {
-  try {
-    const timeRegex = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i;
-    const match = time12.match(timeRegex);
-    
-    if (!match) {
-      throw new Error(`Invalid 12-hour time format: ${time12}`);
-    }
-
-    let [, hourStr, minuteStr, period] = match;
-    let hours = parseInt(hourStr);
-    const minutes = parseInt(minuteStr);
-
-    if (period.toUpperCase() === 'PM' && hours !== 12) {
-      hours += 12;
-    } else if (period.toUpperCase() === 'AM' && hours === 12) {
-      hours = 0;
-    }
-
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-  } catch (error) {
-    return time12; // Return original if conversion fails
-  }
-}
+// DEPRECATED: 24-hour format functions removed
+// System now uses 12-hour format exclusively throughout the entire application
