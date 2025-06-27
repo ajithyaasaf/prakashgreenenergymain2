@@ -48,16 +48,21 @@ export function TimingDialog({ isOpen, onClose, department, currentTiming }: Tim
 
   useEffect(() => {
     if (currentTiming) {
+      console.log('TIMING_DIALOG: Loading current timing:', currentTiming);
       setFormData({
         checkInTime: currentTiming.checkInTime || "9:00 AM",
         checkOutTime: currentTiming.checkOutTime || "6:00 PM",
         workingHours: currentTiming.workingHours || 8,
         lateThresholdMinutes: currentTiming.lateThresholdMinutes || 15,
         overtimeThresholdMinutes: currentTiming.overtimeThresholdMinutes || 0,
-        isFlexibleTiming: currentTiming.isFlexibleTiming || false,
-        allowEarlyCheckOut: currentTiming.allowEarlyCheckOut || false,
-        allowRemoteWork: currentTiming.allowRemoteWork !== false,
-        allowFieldWork: currentTiming.allowFieldWork !== false
+        isFlexibleTiming: Boolean(currentTiming.isFlexibleTiming),
+        allowEarlyCheckOut: Boolean(currentTiming.allowEarlyCheckOut),
+        allowRemoteWork: Boolean(currentTiming.allowRemoteWork),
+        allowFieldWork: Boolean(currentTiming.allowFieldWork)
+      });
+      console.log('TIMING_DIALOG: Form data set with policies:', {
+        allowRemoteWork: Boolean(currentTiming.allowRemoteWork),
+        allowFieldWork: Boolean(currentTiming.allowFieldWork)
       });
     }
   }, [currentTiming]);

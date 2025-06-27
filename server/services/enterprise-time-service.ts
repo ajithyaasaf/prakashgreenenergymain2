@@ -15,6 +15,9 @@ export interface DepartmentTiming {
   overtimeThresholdMinutes: number;
   isFlexibleTiming: boolean;
   weekendDays: number[]; // 0=Sunday, 6=Saturday
+  allowRemoteWork: boolean; // Policy: Allow remote work attendance
+  allowFieldWork: boolean; // Policy: Allow field work attendance
+  allowEarlyCheckOut: boolean; // Policy: Allow early checkout
   isActive: boolean;
   lastUpdated: Date;
 }
@@ -206,9 +209,9 @@ export class EnterpriseTimeService {
         lateThresholdMinutes: timing.lateThresholdMinutes || 15,
         overtimeThresholdMinutes: timing.overtimeThresholdMinutes || 0,
         isFlexibleTiming: timing.isFlexibleTiming || false,
-        allowRemoteWork: timing.allowRemoteWork !== undefined ? timing.allowRemoteWork : true,
-        allowFieldWork: timing.allowFieldWork !== undefined ? timing.allowFieldWork : true,
-        allowEarlyCheckOut: timing.allowEarlyCheckOut !== undefined ? timing.allowEarlyCheckOut : (department === 'sales'),
+        allowRemoteWork: timing.allowRemoteWork !== undefined ? Boolean(timing.allowRemoteWork) : true,
+        allowFieldWork: timing.allowFieldWork !== undefined ? Boolean(timing.allowFieldWork) : true,
+        allowEarlyCheckOut: timing.allowEarlyCheckOut !== undefined ? timing.allowEarlyCheckOut : (timing.department === 'sales'),
         updatedAt: new Date()
       };
 

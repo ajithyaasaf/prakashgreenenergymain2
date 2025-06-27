@@ -223,36 +223,45 @@ export default function Departments() {
     onSuccess: async (result, variables) => {
       console.log('DEPARTMENTS: Timing update successful for:', variables.departmentId);
       
-      // Step 1: Clear all timing cache immediately
+      // Step 1: Clear all timing-related cache
       queryClient.removeQueries({ 
         predicate: (query) => {
           const queryKey = query.queryKey[0];
           if (typeof queryKey === 'string') {
-            return queryKey.includes('/api/departments/timing');
+            return queryKey.includes('/api/departments/timing') || 
+                   queryKey.includes('/api/departments/timings');
           }
           return false;
         }
       });
       
-      // Step 2: Force immediate refetch of department timings with fresh data flag
-      console.log('DEPARTMENTS: Force refreshing department timings with fresh data');
+      // Step 2: Force immediate refetch of ALL department timings 
+      console.log('DEPARTMENTS: Force refreshing ALL department timings');
       try {
         await queryClient.refetchQueries({ 
           queryKey: ["/api/departments/timings"],
           type: 'active'
         });
+        
+        // Also refetch the specific department timing
+        await queryClient.refetchQueries({ 
+          queryKey: [`/api/departments/${variables.departmentId}/timing`],
+          type: 'active'
+        });
+        
         console.log('DEPARTMENTS: Department timings refreshed successfully');
       } catch (error) {
         console.error('DEPARTMENTS: Failed to refresh timings:', error);
       }
       
-      // Step 3: Invalidate all related queries
+      // Step 3: Invalidate ALL department and attendance queries for comprehensive refresh
       queryClient.invalidateQueries({ 
         predicate: (query) => {
           const queryKey = query.queryKey[0];
           if (typeof queryKey === 'string') {
             return queryKey.includes('/api/departments') || 
-                   queryKey.includes('/api/attendance');
+                   queryKey.includes('/api/attendance') ||
+                   queryKey.includes('timing');
           }
           return false;
         }
