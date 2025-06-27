@@ -1475,8 +1475,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         flexibleCheckInStart,
         flexibleCheckInEnd,
         breakDurationMinutes,
-        weeklyOffDays
+        weeklyOffDays,
+        allowRemoteWork,
+        allowFieldWork,
+        allowEarlyCheckOut
       } = req.body;
+      
+      console.log('BACKEND: Policy values received:', {
+        allowRemoteWork,
+        allowFieldWork, 
+        allowEarlyCheckOut
+      });
       
       // Validate timing data
       if (!checkInTime || !checkOutTime || !workingHours) {
@@ -1494,8 +1503,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...(flexibleCheckInEnd && { flexibleCheckInEnd }),
         breakDurationMinutes: parseInt(breakDurationMinutes) || 60,
         weeklyOffDays: weeklyOffDays || [0],
+        allowRemoteWork: allowRemoteWork !== undefined ? Boolean(allowRemoteWork) : true,
+        allowFieldWork: allowFieldWork !== undefined ? Boolean(allowFieldWork) : true,
+        allowEarlyCheckOut: allowEarlyCheckOut !== undefined ? Boolean(allowEarlyCheckOut) : false,
         updatedBy: user.uid
       };
+      
+      console.log('BACKEND: Saving timing data with policies:', timingData);
 
       // Save to database using storage layer
       const updatedTiming = await storage.updateDepartmentTiming(departmentId, timingData);
@@ -3998,7 +4012,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       console.log(`BACKEND: Updating timing for department ${department}`);
-      console.log('BACKEND: Timing data:', req.body);
+      console.log('BACKEND: Full timing data received:', req.body);
+      
+      // Debug policy values specifically
+      console.log('BACKEND: Policy values extracted:', {
+        allowRemoteWork: req.body.allowRemoteWork,
+        allowFieldWork: req.body.allowFieldWork,
+        allowEarlyCheckOut: req.body.allowEarlyCheckOut
+      });
 
       const { EnterpriseTimeService } = await import("./services/enterprise-time-service");
       

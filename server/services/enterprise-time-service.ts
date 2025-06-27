@@ -194,6 +194,9 @@ export class EnterpriseTimeService {
     allowEarlyCheckOut?: boolean;
   }>): Promise<void> {
     const updatePromises = timings.map(async (timing) => {
+      console.log(`ENTERPRISE_TIME_SERVICE: Processing timing update for ${timing.department}`);
+      console.log('ENTERPRISE_TIME_SERVICE: Input timing object:', timing);
+      
       // Convert 12-hour to 24-hour for database storage
       const checkIn24 = this.convertTo24Hour(timing.checkInTime);
       const checkOut24 = this.convertTo24Hour(timing.checkOutTime);
@@ -209,11 +212,19 @@ export class EnterpriseTimeService {
         lateThresholdMinutes: timing.lateThresholdMinutes || 15,
         overtimeThresholdMinutes: timing.overtimeThresholdMinutes || 0,
         isFlexibleTiming: timing.isFlexibleTiming || false,
-        allowRemoteWork: timing.allowRemoteWork !== undefined ? Boolean(timing.allowRemoteWork) : true,
-        allowFieldWork: timing.allowFieldWork !== undefined ? Boolean(timing.allowFieldWork) : true,
-        allowEarlyCheckOut: timing.allowEarlyCheckOut !== undefined ? timing.allowEarlyCheckOut : (timing.department === 'sales'),
+        // Always use explicitly provided values, no defaults when updating
+        ...(timing.allowRemoteWork !== undefined && { allowRemoteWork: Boolean(timing.allowRemoteWork) }),
+        ...(timing.allowFieldWork !== undefined && { allowFieldWork: Boolean(timing.allowFieldWork) }),
+        ...(timing.allowEarlyCheckOut !== undefined && { allowEarlyCheckOut: Boolean(timing.allowEarlyCheckOut) }),
         updatedAt: new Date()
       };
+      
+      console.log('ENTERPRISE_TIME_SERVICE: Policy values being saved:', {
+        allowRemoteWork: timingData.allowRemoteWork,
+        allowFieldWork: timingData.allowFieldWork, 
+        allowEarlyCheckOut: timingData.allowEarlyCheckOut
+      });
+      console.log('ENTERPRISE_TIME_SERVICE: Final timing data for storage:', timingData);
 
       await storage.updateDepartmentTiming(timing.department, timingData);
       
