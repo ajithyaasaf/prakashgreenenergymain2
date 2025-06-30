@@ -92,6 +92,13 @@ export function Sidebar() {
       requiredPermissions: ["users.view", "users.create"]
     },
     { 
+      href: "/hr-management", 
+      label: "Employee Management", 
+      icon: <i className="ri-team-line mr-3 text-xl"></i>,
+      roles: ["master_admin", "admin"],
+      requiredPermissions: ["users.view"]
+    },
+    { 
       href: "/departments", 
       label: "Departments", 
       icon: <i className="ri-building-line mr-3 text-xl"></i>,

@@ -111,6 +111,180 @@ export const insertPermissionGroupSchema = z.object({
   maxApprovalAmount: z.number().nullable().optional()
 });
 
+// Enterprise HR Management Schemas
+
+// Employee status types for comprehensive lifecycle management
+export const employeeStatus = [
+  "active", "inactive", "probation", "notice_period", "terminated", "on_leave"
+] as const;
+
+// Employment types for contractual management
+export const employmentTypes = [
+  "full_time", "part_time", "contract", "intern", "consultant", "freelancer"
+] as const;
+
+// Marital status options
+export const maritalStatus = [
+  "single", "married", "divorced", "widowed", "separated"
+] as const;
+
+// Blood group options
+export const bloodGroups = [
+  "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "unknown"
+] as const;
+
+// Document types for employee document management
+export const documentTypes = [
+  "aadhar_card", "pan_card", "passport", "driving_license", "voter_id",
+  "resume", "offer_letter", "joining_letter", "salary_certificate",
+  "experience_certificate", "education_certificate", "photo", "other"
+] as const;
+
+// Comprehensive Employee Profile Schema
+export const insertEmployeeSchema = z.object({
+  // Basic Employee Information
+  employeeId: z.string().min(1, "Employee ID is required"),
+  systemUserId: z.string().optional(), // Links to User Management system
+  
+  // Personal Information
+  personalInfo: z.object({
+    firstName: z.string().min(1, "First name is required"),
+    lastName: z.string().min(1, "Last name is required"),
+    middleName: z.string().optional(),
+    displayName: z.string().min(2, "Display name must be at least 2 characters"),
+    dateOfBirth: z.date().optional(),
+    gender: z.enum(["male", "female", "other", "prefer_not_to_say"]).optional(),
+    maritalStatus: z.enum(maritalStatus).optional(),
+    bloodGroup: z.enum(bloodGroups).optional(),
+    nationality: z.string().optional(),
+    photoURL: z.string().url().optional(),
+  }),
+
+  // Contact Information
+  contactInfo: z.object({
+    primaryEmail: z.string().email("Valid email is required"),
+    secondaryEmail: z.string().email().optional(),
+    primaryPhone: z.string().min(10, "Valid phone number is required"),
+    secondaryPhone: z.string().optional(),
+    permanentAddress: z.object({
+      street: z.string().optional(),
+      city: z.string().optional(),
+      state: z.string().optional(),
+      pincode: z.string().optional(),
+      country: z.string().default("India"),
+    }).optional(),
+    currentAddress: z.object({
+      street: z.string().optional(),
+      city: z.string().optional(),
+      state: z.string().optional(),
+      pincode: z.string().optional(),
+      country: z.string().default("India"),
+      isSameAsPermanent: z.boolean().default(false),
+    }).optional(),
+  }),
+
+  // Employment Information
+  employmentInfo: z.object({
+    department: z.enum(departments),
+    designation: z.enum(designations),
+    employmentType: z.enum(employmentTypes).default("full_time"),
+    joinDate: z.date(),
+    confirmationDate: z.date().optional(),
+    probationPeriodMonths: z.number().min(0).max(24).default(6),
+    reportingManagerId: z.string().optional(),
+    workLocation: z.string().optional(),
+    shiftPattern: z.string().optional(),
+    weeklyOffDays: z.array(z.number()).default([0, 6]), // Sunday, Saturday
+  }),
+
+  // Payroll Information
+  payrollInfo: z.object({
+    payrollGrade: z.enum(payrollGrades).optional(),
+    basicSalary: z.number().min(0).optional(),
+    currency: z.string().default("INR"),
+    paymentMethod: z.enum(["bank_transfer", "cash", "cheque"]).default("bank_transfer"),
+    bankDetails: z.object({
+      accountNumber: z.string().optional(),
+      bankName: z.string().optional(),
+      ifscCode: z.string().optional(),
+      accountHolderName: z.string().optional(),
+    }).optional(),
+    pfNumber: z.string().optional(),
+    esiNumber: z.string().optional(),
+    panNumber: z.string().optional(),
+    aadharNumber: z.string().optional(),
+  }),
+
+  // Professional Information
+  professionalInfo: z.object({
+    totalExperienceYears: z.number().min(0).optional(),
+    relevantExperienceYears: z.number().min(0).optional(),
+    highestQualification: z.string().optional(),
+    skills: z.array(z.string()).default([]),
+    certifications: z.array(z.string()).default([]),
+    languages: z.array(z.string()).default([]),
+    previousEmployers: z.array(z.object({
+      companyName: z.string(),
+      designation: z.string(),
+      duration: z.string(),
+      reasonForLeaving: z.string().optional(),
+    })).default([]),
+  }),
+
+  // Emergency Contact Information
+  emergencyContacts: z.array(z.object({
+    name: z.string().min(1, "Emergency contact name is required"),
+    relationship: z.string().min(1, "Relationship is required"),
+    primaryPhone: z.string().min(10, "Valid phone number is required"),
+    secondaryPhone: z.string().optional(),
+    address: z.string().optional(),
+  })).default([]),
+
+  // System Information
+  status: z.enum(employeeStatus).default("active"),
+  isActive: z.boolean().default(true),
+  notes: z.string().optional(),
+  createdBy: z.string().optional(),
+  lastUpdatedBy: z.string().optional(),
+});
+
+// Employee Document Schema
+export const insertEmployeeDocumentSchema = z.object({
+  employeeId: z.string(),
+  documentType: z.enum(documentTypes),
+  documentName: z.string().min(1, "Document name is required"),
+  documentUrl: z.string().url("Valid URL is required"),
+  documentNumber: z.string().optional(), // For ID documents
+  expiryDate: z.date().optional(),
+  isVerified: z.boolean().default(false),
+  verifiedBy: z.string().optional(),
+  verifiedAt: z.date().optional(),
+  uploadedBy: z.string(),
+  notes: z.string().optional(),
+});
+
+// Employee Performance Review Schema
+export const insertPerformanceReviewSchema = z.object({
+  employeeId: z.string(),
+  reviewPeriod: z.object({
+    startDate: z.date(),
+    endDate: z.date(),
+  }),
+  reviewType: z.enum(["annual", "quarterly", "probation", "special"]).default("annual"),
+  overallRating: z.number().min(1).max(5),
+  goals: z.array(z.object({
+    title: z.string(),
+    description: z.string().optional(),
+    status: z.enum(["achieved", "partially_achieved", "not_achieved"]),
+  })).default([]),
+  strengths: z.array(z.string()).default([]),
+  improvementAreas: z.array(z.string()).default([]),
+  reviewerComments: z.string().optional(),
+  employeeComments: z.string().optional(),
+  reviewedBy: z.string(),
+  nextReviewDate: z.date().optional(),
+});
+
 export const insertAttendanceSchema = z.object({
   userId: z.string(),
   date: z.date().optional(),

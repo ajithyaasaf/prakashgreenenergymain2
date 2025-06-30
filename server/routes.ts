@@ -15,6 +15,9 @@ import {
   insertPayrollSettingsSchema,
   insertSalaryAdvanceSchema,
   insertAttendancePolicySchema,
+  insertEmployeeSchema,
+  insertEmployeeDocumentSchema,
+  insertPerformanceReviewSchema,
   departments
 } from "@shared/schema";
 // Import all the necessary schemas from storage.ts since they've been moved there
@@ -2801,6 +2804,424 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting invoice:", error);
       res.status(500).json({ message: "Failed to delete invoice" });
+    }
+  });
+
+  // ============================================
+  // ENTERPRISE HR MANAGEMENT API ROUTES
+  // ============================================
+
+  // Employee Management Routes
+  app.get("/api/employees", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      // Check if user has permission to view employees (HR module access)
+      const hasPermission = req.authenticatedUser.permissions.includes("users.view") || 
+                           req.authenticatedUser.user.role === "master_admin" ||
+                           req.authenticatedUser.user.department === "hr";
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied. HR module access required." });
+      }
+
+      // Parse filter parameters
+      const filters: any = {};
+      if (req.query.department) filters.department = req.query.department as string;
+      if (req.query.status) filters.status = req.query.status as string;
+      if (req.query.designation) filters.designation = req.query.designation as string;
+      if (req.query.search) filters.search = req.query.search as string;
+
+      const employees = await storage.listEmployees(filters);
+      
+      res.json(employees);
+    } catch (error) {
+      console.error("Error fetching employees:", error);
+      res.status(500).json({ message: "Failed to fetch employees" });
+    }
+  });
+
+  app.get("/api/employees/:id", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const hasPermission = req.authenticatedUser.permissions.includes("users.view") || 
+                           req.authenticatedUser.user.role === "master_admin" ||
+                           req.authenticatedUser.user.department === "hr";
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const employee = await storage.getEmployee(req.params.id);
+      if (!employee) {
+        return res.status(404).json({ message: "Employee not found" });
+      }
+
+      res.json(employee);
+    } catch (error) {
+      console.error("Error fetching employee:", error);
+      res.status(500).json({ message: "Failed to fetch employee" });
+    }
+  });
+
+  app.post("/api/employees", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      // Only master_admin and HR can create employees
+      const hasPermission = req.authenticatedUser.user.role === "master_admin" ||
+                           req.authenticatedUser.user.department === "hr";
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied. Only HR can create employees." });
+      }
+
+      const employeeData = insertEmployeeSchema.parse({
+        ...req.body,
+        createdBy: req.authenticatedUser.user.uid,
+        lastUpdatedBy: req.authenticatedUser.user.uid
+      });
+
+      const employee = await storage.createEmployee(employeeData);
+      
+      // Log activity
+      await storage.createActivityLog({
+        type: 'employee_created',
+        title: 'Employee Created',
+        description: `${req.authenticatedUser.user.displayName} created employee profile for ${employee.personalInfo.displayName}`,
+        entityId: employee.id,
+        entityType: 'employee',
+        userId: req.authenticatedUser.user.uid
+      });
+
+      res.status(201).json(employee);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ errors: error.errors });
+      }
+      console.error("Error creating employee:", error);
+      res.status(500).json({ message: "Failed to create employee" });
+    }
+  });
+
+  app.patch("/api/employees/:id", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const hasPermission = req.authenticatedUser.user.role === "master_admin" ||
+                           req.authenticatedUser.user.department === "hr";
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const updateData = {
+        ...req.body,
+        lastUpdatedBy: req.authenticatedUser.user.uid
+      };
+
+      const employee = await storage.updateEmployee(req.params.id, updateData);
+      
+      // Log activity
+      await storage.createActivityLog({
+        type: 'employee_updated',
+        title: 'Employee Updated',
+        description: `${req.authenticatedUser.user.displayName} updated employee profile for ${employee.personalInfo.displayName}`,
+        entityId: employee.id,
+        entityType: 'employee',
+        userId: req.authenticatedUser.user.uid
+      });
+
+      res.json(employee);
+    } catch (error) {
+      console.error("Error updating employee:", error);
+      res.status(500).json({ message: "Failed to update employee" });
+    }
+  });
+
+  app.delete("/api/employees/:id", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      // Only master_admin can delete employees
+      if (req.authenticatedUser.user.role !== "master_admin") {
+        return res.status(403).json({ message: "Access denied. Only master admin can delete employees." });
+      }
+
+      const success = await storage.deleteEmployee(req.params.id);
+      if (!success) {
+        return res.status(404).json({ message: "Employee not found" });
+      }
+
+      // Log activity
+      await storage.createActivityLog({
+        type: 'employee_deleted',
+        title: 'Employee Deleted',
+        description: `${req.authenticatedUser.user.displayName} deleted employee profile`,
+        entityId: req.params.id,
+        entityType: 'employee',
+        userId: req.authenticatedUser.user.uid
+      });
+
+      res.status(204).end();
+    } catch (error) {
+      console.error("Error deleting employee:", error);
+      res.status(500).json({ message: "Failed to delete employee" });
+    }
+  });
+
+  // Employee Document Management Routes
+  app.get("/api/employees/:employeeId/documents", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const hasPermission = req.authenticatedUser.permissions.includes("users.view") || 
+                           req.authenticatedUser.user.role === "master_admin" ||
+                           req.authenticatedUser.user.department === "hr";
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const documents = await storage.getEmployeeDocuments(req.params.employeeId);
+      res.json(documents);
+    } catch (error) {
+      console.error("Error fetching employee documents:", error);
+      res.status(500).json({ message: "Failed to fetch employee documents" });
+    }
+  });
+
+  app.post("/api/employees/:employeeId/documents", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const hasPermission = req.authenticatedUser.user.role === "master_admin" ||
+                           req.authenticatedUser.user.department === "hr";
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const documentData = insertEmployeeDocumentSchema.parse({
+        ...req.body,
+        employeeId: req.params.employeeId,
+        uploadedBy: req.authenticatedUser.user.uid
+      });
+
+      const document = await storage.createEmployeeDocument(documentData);
+      res.status(201).json(document);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ errors: error.errors });
+      }
+      console.error("Error creating employee document:", error);
+      res.status(500).json({ message: "Failed to create employee document" });
+    }
+  });
+
+  app.patch("/api/employees/:employeeId/documents/:documentId", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const hasPermission = req.authenticatedUser.user.role === "master_admin" ||
+                           req.authenticatedUser.user.department === "hr";
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const document = await storage.updateEmployeeDocument(req.params.documentId, req.body);
+      res.json(document);
+    } catch (error) {
+      console.error("Error updating employee document:", error);
+      res.status(500).json({ message: "Failed to update employee document" });
+    }
+  });
+
+  app.delete("/api/employees/:employeeId/documents/:documentId", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const hasPermission = req.authenticatedUser.user.role === "master_admin" ||
+                           req.authenticatedUser.user.department === "hr";
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const success = await storage.deleteEmployeeDocument(req.params.documentId);
+      if (!success) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      res.status(204).end();
+    } catch (error) {
+      console.error("Error deleting employee document:", error);
+      res.status(500).json({ message: "Failed to delete employee document" });
+    }
+  });
+
+  // Performance Review Management Routes
+  app.get("/api/performance-reviews", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const hasPermission = req.authenticatedUser.permissions.includes("users.view") || 
+                           req.authenticatedUser.user.role === "master_admin" ||
+                           req.authenticatedUser.user.department === "hr";
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const { employeeId, reviewerId } = req.query;
+      let reviews = [];
+
+      if (employeeId) {
+        reviews = await storage.getEmployeePerformanceReviews(employeeId as string);
+      } else if (reviewerId) {
+        reviews = await storage.getPerformanceReviewsByReviewer(reviewerId as string);
+      } else {
+        reviews = await storage.getUpcomingPerformanceReviews();
+      }
+
+      res.json(reviews);
+    } catch (error) {
+      console.error("Error fetching performance reviews:", error);
+      res.status(500).json({ message: "Failed to fetch performance reviews" });
+    }
+  });
+
+  app.post("/api/performance-reviews", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const hasPermission = req.authenticatedUser.user.role === "master_admin" ||
+                           req.authenticatedUser.user.department === "hr";
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const reviewData = insertPerformanceReviewSchema.parse({
+        ...req.body,
+        reviewedBy: req.authenticatedUser.user.uid
+      });
+
+      const review = await storage.createPerformanceReview(reviewData);
+      res.status(201).json(review);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ errors: error.errors });
+      }
+      console.error("Error creating performance review:", error);
+      res.status(500).json({ message: "Failed to create performance review" });
+    }
+  });
+
+  app.patch("/api/performance-reviews/:id", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const hasPermission = req.authenticatedUser.user.role === "master_admin" ||
+                           req.authenticatedUser.user.department === "hr";
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const review = await storage.updatePerformanceReview(req.params.id, req.body);
+      res.json(review);
+    } catch (error) {
+      console.error("Error updating performance review:", error);
+      res.status(500).json({ message: "Failed to update performance review" });
+    }
+  });
+
+  // Employee Search and Lookup Routes
+  app.get("/api/employees/search", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const hasPermission = req.authenticatedUser.permissions.includes("users.view") || 
+                           req.authenticatedUser.user.role === "master_admin" ||
+                           req.authenticatedUser.user.department === "hr";
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const { q, department, designation, status } = req.query;
+      
+      const filters: any = {};
+      if (q) filters.search = q as string;
+      if (department) filters.department = department as string;
+      if (designation) filters.designation = designation as string;
+      if (status) filters.status = status as string;
+
+      const employees = await storage.listEmployees(filters);
+      
+      // Return simplified employee data for search results
+      const searchResults = employees.map(emp => ({
+        id: emp.id,
+        employeeId: emp.employeeId,
+        displayName: emp.personalInfo.displayName,
+        email: emp.contactInfo.primaryEmail,
+        department: emp.employmentInfo.department,
+        designation: emp.employmentInfo.designation,
+        status: emp.status,
+        photoURL: emp.personalInfo.photoURL
+      }));
+
+      res.json(searchResults);
+    } catch (error) {
+      console.error("Error searching employees:", error);
+      res.status(500).json({ message: "Failed to search employees" });
+    }
+  });
+
+  app.get("/api/employees/by-system-user/:systemUserId", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const employee = await storage.getEmployeeBySystemUserId(req.params.systemUserId);
+      if (!employee) {
+        return res.status(404).json({ message: "Employee profile not found for this user" });
+      }
+
+      res.json(employee);
+    } catch (error) {
+      console.error("Error fetching employee by system user ID:", error);
+      res.status(500).json({ message: "Failed to fetch employee profile" });
     }
   });
 

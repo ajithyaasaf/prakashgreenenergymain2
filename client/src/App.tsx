@@ -24,6 +24,7 @@ const AttendanceManagement = lazy(() => import("@/pages/attendance-management"))
 const PayrollManagement = lazy(() => import("@/pages/payroll-management"));
 const Leave = lazy(() => import("@/pages/leave"));
 const UserManagement = lazy(() => import("@/pages/user-management"));
+const HRManagement = lazy(() => import("@/pages/hr-management"));
 const Departments = lazy(() => import("@/pages/departments"));
 const OfficeLocations = lazy(() => import("@/pages/office-locations"));
 
@@ -143,6 +144,21 @@ function Router() {
           <DashboardLayout>
             <Suspense fallback={<PageLoader />}>
               <UserManagement />
+            </Suspense>
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      
+      {/* HR Management - enterprise employee management */}
+      <Route path="/hr-management">
+        <ProtectedRoute 
+          requiredPermissions={["users.view"]}
+          requiredDepartments={["hr", "admin"]}
+          allowMasterAdmin={true}
+        >
+          <DashboardLayout>
+            <Suspense fallback={<PageLoader />}>
+              <HRManagement />
             </Suspense>
           </DashboardLayout>
         </ProtectedRoute>

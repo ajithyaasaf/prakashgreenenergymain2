@@ -50,6 +50,7 @@ export function MobileSidebar({ isOpen, setIsOpen }: MobileSidebarProps) {
     { href: "/attendance", label: "Attendance", icon: "ri-time-line", requiredPermissions: ["attendance.view_own", "attendance.view_team", "attendance.view_all"] },
     { href: "/leave", label: "Leave", icon: "ri-calendar-check-line", requiredPermissions: ["leave.view_own", "leave.view_team", "leave.view_all"] },
     { href: "/user-management", label: "Users", icon: "ri-user-settings-line", roles: ["master_admin", "admin"], requiredPermissions: ["users.view", "users.create"] },
+    { href: "/hr-management", label: "HR Mgmt", icon: "ri-team-line", roles: ["master_admin", "admin"], requiredPermissions: ["users.view"] },
     { href: "/departments", label: "Departments", icon: "ri-building-line", roles: ["master_admin"], requiredPermissions: ["departments.view", "departments.create"] },
     { href: "/attendance-management", label: "Attendance Mgmt", icon: "ri-shield-user-line", roles: ["master_admin"] },
     { href: "/payroll-management", label: "Payroll Mgmt", icon: "ri-money-dollar-circle-line", roles: ["master_admin"] },

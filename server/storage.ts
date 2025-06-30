@@ -21,7 +21,10 @@ import {
   insertPayrollSchema,
   insertPayrollSettingsSchema,
   insertSalaryAdvanceSchema,
-  insertAttendancePolicySchema
+  insertAttendancePolicySchema,
+  insertEmployeeSchema,
+  insertEmployeeDocumentSchema,
+  insertPerformanceReviewSchema
 } from "@shared/schema";
 
 // Define our schemas since we're not using drizzle anymore
@@ -315,6 +318,159 @@ export interface AuditLog {
   createdAt: Date;
 }
 
+// Enterprise HR Management Interfaces
+export interface Employee {
+  id: string;
+  employeeId: string;
+  systemUserId?: string; // Links to User Management system
+  
+  // Personal Information
+  personalInfo: {
+    firstName: string;
+    lastName: string;
+    middleName?: string;
+    displayName: string;
+    dateOfBirth?: Date;
+    gender?: "male" | "female" | "other" | "prefer_not_to_say";
+    maritalStatus?: "single" | "married" | "divorced" | "widowed" | "separated";
+    bloodGroup?: "A+" | "A-" | "B+" | "B-" | "AB+" | "AB-" | "O+" | "O-" | "unknown";
+    nationality?: string;
+    photoURL?: string;
+  };
+
+  // Contact Information
+  contactInfo: {
+    primaryEmail: string;
+    secondaryEmail?: string;
+    primaryPhone: string;
+    secondaryPhone?: string;
+    permanentAddress?: {
+      street?: string;
+      city?: string;
+      state?: string;
+      pincode?: string;
+      country: string;
+    };
+    currentAddress?: {
+      street?: string;
+      city?: string;
+      state?: string;
+      pincode?: string;
+      country: string;
+      isSameAsPermanent: boolean;
+    };
+  };
+
+  // Employment Information
+  employmentInfo: {
+    department: string;
+    designation: string;
+    employmentType: "full_time" | "part_time" | "contract" | "intern" | "consultant" | "freelancer";
+    joinDate: Date;
+    confirmationDate?: Date;
+    probationPeriodMonths: number;
+    reportingManagerId?: string;
+    workLocation?: string;
+    shiftPattern?: string;
+    weeklyOffDays: number[];
+  };
+
+  // Payroll Information
+  payrollInfo: {
+    payrollGrade?: string;
+    basicSalary?: number;
+    currency: string;
+    paymentMethod: "bank_transfer" | "cash" | "cheque";
+    bankDetails?: {
+      accountNumber?: string;
+      bankName?: string;
+      ifscCode?: string;
+      accountHolderName?: string;
+    };
+    pfNumber?: string;
+    esiNumber?: string;
+    panNumber?: string;
+    aadharNumber?: string;
+  };
+
+  // Professional Information
+  professionalInfo: {
+    totalExperienceYears?: number;
+    relevantExperienceYears?: number;
+    highestQualification?: string;
+    skills: string[];
+    certifications: string[];
+    languages: string[];
+    previousEmployers: Array<{
+      companyName: string;
+      designation: string;
+      duration: string;
+      reasonForLeaving?: string;
+    }>;
+  };
+
+  // Emergency Contacts
+  emergencyContacts: Array<{
+    name: string;
+    relationship: string;
+    primaryPhone: string;
+    secondaryPhone?: string;
+    address?: string;
+  }>;
+
+  // System Information
+  status: "active" | "inactive" | "probation" | "notice_period" | "terminated" | "on_leave";
+  isActive: boolean;
+  notes?: string;
+  createdBy?: string;
+  lastUpdatedBy?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface EmployeeDocument {
+  id: string;
+  employeeId: string;
+  documentType: "aadhar_card" | "pan_card" | "passport" | "driving_license" | "voter_id" | 
+               "resume" | "offer_letter" | "joining_letter" | "salary_certificate" |
+               "experience_certificate" | "education_certificate" | "photo" | "other";
+  documentName: string;
+  documentUrl: string;
+  documentNumber?: string;
+  expiryDate?: Date;
+  isVerified: boolean;
+  verifiedBy?: string;
+  verifiedAt?: Date;
+  uploadedBy: string;
+  notes?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface PerformanceReview {
+  id: string;
+  employeeId: string;
+  reviewPeriod: {
+    startDate: Date;
+    endDate: Date;
+  };
+  reviewType: "annual" | "quarterly" | "probation" | "special";
+  overallRating: number;
+  goals: Array<{
+    title: string;
+    description?: string;
+    status: "achieved" | "partially_achieved" | "not_achieved";
+  }>;
+  strengths: string[];
+  improvementAreas: string[];
+  reviewerComments?: string;
+  employeeComments?: string;
+  reviewedBy: string;
+  nextReviewDate?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 // Payroll System Interfaces
 export interface SalaryStructure {
   id: string;
@@ -587,6 +743,42 @@ export interface IStorage {
   checkUserPermission(userId: string, permission: string): Promise<boolean>;
   getUserApprovalLimits(userId: string): Promise<{ canApprove: boolean; maxAmount: number | null }>;
   
+  // Enterprise HR Management methods
+  // Employee management
+  getEmployee(id: string): Promise<Employee | undefined>;
+  getEmployeeByEmployeeId(employeeId: string): Promise<Employee | undefined>;
+  getEmployeeBySystemUserId(systemUserId: string): Promise<Employee | undefined>;
+  getEmployeesByDepartment(department: string): Promise<Employee[]>;
+  getEmployeesByDesignation(designation: string): Promise<Employee[]>;
+  getEmployeesByManager(managerId: string): Promise<Employee[]>;
+  getEmployeesByStatus(status: string): Promise<Employee[]>;
+  listEmployees(filters?: {
+    department?: string;
+    status?: string;
+    designation?: string;
+    search?: string;
+  }): Promise<Employee[]>;
+  createEmployee(data: z.infer<typeof insertEmployeeSchema>): Promise<Employee>;
+  updateEmployee(id: string, data: Partial<z.infer<typeof insertEmployeeSchema>>): Promise<Employee>;
+  deleteEmployee(id: string): Promise<boolean>;
+  
+  // Employee Document management
+  getEmployeeDocument(id: string): Promise<EmployeeDocument | undefined>;
+  getEmployeeDocuments(employeeId: string): Promise<EmployeeDocument[]>;
+  getEmployeeDocumentsByType(employeeId: string, documentType: string): Promise<EmployeeDocument[]>;
+  createEmployeeDocument(data: z.infer<typeof insertEmployeeDocumentSchema>): Promise<EmployeeDocument>;
+  updateEmployeeDocument(id: string, data: Partial<z.infer<typeof insertEmployeeDocumentSchema>>): Promise<EmployeeDocument>;
+  deleteEmployeeDocument(id: string): Promise<boolean>;
+  
+  // Performance Review management
+  getPerformanceReview(id: string): Promise<PerformanceReview | undefined>;
+  getEmployeePerformanceReviews(employeeId: string): Promise<PerformanceReview[]>;
+  getPerformanceReviewsByReviewer(reviewerId: string): Promise<PerformanceReview[]>;
+  getUpcomingPerformanceReviews(): Promise<PerformanceReview[]>;
+  createPerformanceReview(data: z.infer<typeof insertPerformanceReviewSchema>): Promise<PerformanceReview>;
+  updatePerformanceReview(id: string, data: Partial<z.infer<typeof insertPerformanceReviewSchema>>): Promise<PerformanceReview>;
+  deletePerformanceReview(id: string): Promise<boolean>;
+
   // Phase 2: Enterprise RBAC methods
   // Role management
   getRole(id: string): Promise<Role | undefined>;
@@ -3498,6 +3690,638 @@ export class FirestoreStorage implements IStorage {
     }
   }
 
+  async createEnhancedPayroll(data: any): Promise<EnhancedPayroll> {
+    try {
+      const id = this.db.collection('enhanced_payrolls').doc().id;
+      const now = new Date();
+      
+      const payrollData = {
+        ...data,
+        id,
+        createdAt: now,
+        updatedAt: now
+      };
+
+      await this.db.collection('enhanced_payrolls').doc(id).set(payrollData);
+      return payrollData as EnhancedPayroll;
+    } catch (error) {
+      console.error("Error creating enhanced payroll:", error);
+      throw error;
+    }
+  }
+
+  // Enterprise HR Management Storage Methods
+
+  // Employee management
+  async getEmployee(id: string): Promise<Employee | undefined> {
+    try {
+      const doc = await this.db.collection('employees').doc(id).get();
+      if (!doc.exists) return undefined;
+      
+      const data = doc.data()!;
+      return {
+        id: doc.id,
+        ...data,
+        employmentInfo: {
+          ...data.employmentInfo,
+          joinDate: data.employmentInfo?.joinDate?.toDate() || new Date(),
+          confirmationDate: data.employmentInfo?.confirmationDate?.toDate() || undefined,
+        },
+        personalInfo: {
+          ...data.personalInfo,
+          dateOfBirth: data.personalInfo?.dateOfBirth?.toDate() || undefined,
+        },
+        createdAt: data.createdAt?.toDate() || new Date(),
+        updatedAt: data.updatedAt?.toDate() || new Date(),
+      } as Employee;
+    } catch (error) {
+      console.error("Error getting employee:", error);
+      return undefined;
+    }
+  }
+
+  async getEmployeeByEmployeeId(employeeId: string): Promise<Employee | undefined> {
+    try {
+      const querySnapshot = await this.db.collection('employees')
+        .where('employeeId', '==', employeeId)
+        .limit(1)
+        .get();
+
+      if (querySnapshot.empty) return undefined;
+
+      const doc = querySnapshot.docs[0];
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        employmentInfo: {
+          ...data.employmentInfo,
+          joinDate: data.employmentInfo?.joinDate?.toDate() || new Date(),
+          confirmationDate: data.employmentInfo?.confirmationDate?.toDate() || undefined,
+        },
+        personalInfo: {
+          ...data.personalInfo,
+          dateOfBirth: data.personalInfo?.dateOfBirth?.toDate() || undefined,
+        },
+        createdAt: data.createdAt?.toDate() || new Date(),
+        updatedAt: data.updatedAt?.toDate() || new Date(),
+      } as Employee;
+    } catch (error) {
+      console.error("Error getting employee by employee ID:", error);
+      return undefined;
+    }
+  }
+
+  async getEmployeeBySystemUserId(systemUserId: string): Promise<Employee | undefined> {
+    try {
+      const querySnapshot = await this.db.collection('employees')
+        .where('systemUserId', '==', systemUserId)
+        .limit(1)
+        .get();
+
+      if (querySnapshot.empty) return undefined;
+
+      const doc = querySnapshot.docs[0];
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        employmentInfo: {
+          ...data.employmentInfo,
+          joinDate: data.employmentInfo?.joinDate?.toDate() || new Date(),
+          confirmationDate: data.employmentInfo?.confirmationDate?.toDate() || undefined,
+        },
+        personalInfo: {
+          ...data.personalInfo,
+          dateOfBirth: data.personalInfo?.dateOfBirth?.toDate() || undefined,
+        },
+        createdAt: data.createdAt?.toDate() || new Date(),
+        updatedAt: data.updatedAt?.toDate() || new Date(),
+      } as Employee;
+    } catch (error) {
+      console.error("Error getting employee by system user ID:", error);
+      return undefined;
+    }
+  }
+
+  async getEmployeesByDepartment(department: string): Promise<Employee[]> {
+    try {
+      const querySnapshot = await this.db.collection('employees')
+        .where('employmentInfo.department', '==', department)
+        .where('isActive', '==', true)
+        .orderBy('personalInfo.displayName')
+        .get();
+
+      return querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          employmentInfo: {
+            ...data.employmentInfo,
+            joinDate: data.employmentInfo?.joinDate?.toDate() || new Date(),
+            confirmationDate: data.employmentInfo?.confirmationDate?.toDate() || undefined,
+          },
+          personalInfo: {
+            ...data.personalInfo,
+            dateOfBirth: data.personalInfo?.dateOfBirth?.toDate() || undefined,
+          },
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date(),
+        } as Employee;
+      });
+    } catch (error) {
+      console.error("Error getting employees by department:", error);
+      return [];
+    }
+  }
+
+  async getEmployeesByDesignation(designation: string): Promise<Employee[]> {
+    try {
+      const querySnapshot = await this.db.collection('employees')
+        .where('employmentInfo.designation', '==', designation)
+        .where('isActive', '==', true)
+        .orderBy('personalInfo.displayName')
+        .get();
+
+      return querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          employmentInfo: {
+            ...data.employmentInfo,
+            joinDate: data.employmentInfo?.joinDate?.toDate() || new Date(),
+            confirmationDate: data.employmentInfo?.confirmationDate?.toDate() || undefined,
+          },
+          personalInfo: {
+            ...data.personalInfo,
+            dateOfBirth: data.personalInfo?.dateOfBirth?.toDate() || undefined,
+          },
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date(),
+        } as Employee;
+      });
+    } catch (error) {
+      console.error("Error getting employees by designation:", error);
+      return [];
+    }
+  }
+
+  async getEmployeesByManager(managerId: string): Promise<Employee[]> {
+    try {
+      const querySnapshot = await this.db.collection('employees')
+        .where('employmentInfo.reportingManagerId', '==', managerId)
+        .where('isActive', '==', true)
+        .orderBy('personalInfo.displayName')
+        .get();
+
+      return querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          employmentInfo: {
+            ...data.employmentInfo,
+            joinDate: data.employmentInfo?.joinDate?.toDate() || new Date(),
+            confirmationDate: data.employmentInfo?.confirmationDate?.toDate() || undefined,
+          },
+          personalInfo: {
+            ...data.personalInfo,
+            dateOfBirth: data.personalInfo?.dateOfBirth?.toDate() || undefined,
+          },
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date(),
+        } as Employee;
+      });
+    } catch (error) {
+      console.error("Error getting employees by manager:", error);
+      return [];
+    }
+  }
+
+  async getEmployeesByStatus(status: string): Promise<Employee[]> {
+    try {
+      const querySnapshot = await this.db.collection('employees')
+        .where('status', '==', status)
+        .orderBy('personalInfo.displayName')
+        .get();
+
+      return querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          employmentInfo: {
+            ...data.employmentInfo,
+            joinDate: data.employmentInfo?.joinDate?.toDate() || new Date(),
+            confirmationDate: data.employmentInfo?.confirmationDate?.toDate() || undefined,
+          },
+          personalInfo: {
+            ...data.personalInfo,
+            dateOfBirth: data.personalInfo?.dateOfBirth?.toDate() || undefined,
+          },
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date(),
+        } as Employee;
+      });
+    } catch (error) {
+      console.error("Error getting employees by status:", error);
+      return [];
+    }
+  }
+
+  async listEmployees(filters?: {
+    department?: string;
+    status?: string;
+    designation?: string;
+    search?: string;
+  }): Promise<Employee[]> {
+    try {
+      let query = this.db.collection('employees') as any;
+
+      // Apply filters
+      if (filters?.department) {
+        query = query.where('employmentInfo.department', '==', filters.department);
+      }
+      if (filters?.status) {
+        query = query.where('status', '==', filters.status);
+      }
+      if (filters?.designation) {
+        query = query.where('employmentInfo.designation', '==', filters.designation);
+      }
+
+      query = query.orderBy('personalInfo.displayName');
+      const querySnapshot = await query.get();
+
+      let employees = querySnapshot.docs.map((doc: any) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          employmentInfo: {
+            ...data.employmentInfo,
+            joinDate: data.employmentInfo?.joinDate?.toDate() || new Date(),
+            confirmationDate: data.employmentInfo?.confirmationDate?.toDate() || undefined,
+          },
+          personalInfo: {
+            ...data.personalInfo,
+            dateOfBirth: data.personalInfo?.dateOfBirth?.toDate() || undefined,
+          },
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date(),
+        } as Employee;
+      });
+
+      // Apply search filter client-side for better text matching
+      if (filters?.search) {
+        const searchTerm = filters.search.toLowerCase();
+        employees = employees.filter(emp => 
+          emp.personalInfo.displayName.toLowerCase().includes(searchTerm) ||
+          emp.employeeId.toLowerCase().includes(searchTerm) ||
+          emp.contactInfo.primaryEmail.toLowerCase().includes(searchTerm) ||
+          emp.employmentInfo.department.toLowerCase().includes(searchTerm) ||
+          emp.employmentInfo.designation.toLowerCase().includes(searchTerm)
+        );
+      }
+
+      return employees;
+    } catch (error) {
+      console.error("Error listing employees:", error);
+      return [];
+    }
+  }
+
+  async createEmployee(data: z.infer<typeof insertEmployeeSchema>): Promise<Employee> {
+    try {
+      const id = this.db.collection('employees').doc().id;
+      const now = new Date();
+      
+      const employeeData = {
+        ...data,
+        id,
+        createdAt: now,
+        updatedAt: now
+      };
+
+      await this.db.collection('employees').doc(id).set(employeeData);
+      return employeeData as Employee;
+    } catch (error) {
+      console.error("Error creating employee:", error);
+      throw error;
+    }
+  }
+
+  async updateEmployee(id: string, data: Partial<z.infer<typeof insertEmployeeSchema>>): Promise<Employee> {
+    try {
+      const updateData = {
+        ...data,
+        updatedAt: new Date()
+      };
+
+      await this.db.collection('employees').doc(id).update(updateData);
+      
+      // Return updated employee
+      const updated = await this.getEmployee(id);
+      if (!updated) throw new Error('Employee not found after update');
+      return updated;
+    } catch (error) {
+      console.error("Error updating employee:", error);
+      throw error;
+    }
+  }
+
+  async deleteEmployee(id: string): Promise<boolean> {
+    try {
+      // Soft delete by setting isActive to false
+      await this.db.collection('employees').doc(id).update({
+        isActive: false,
+        status: 'terminated',
+        updatedAt: new Date()
+      });
+      return true;
+    } catch (error) {
+      console.error("Error deleting employee:", error);
+      return false;
+    }
+  }
+
+  // Employee Document management
+  async getEmployeeDocument(id: string): Promise<EmployeeDocument | undefined> {
+    try {
+      const doc = await this.db.collection('employee_documents').doc(id).get();
+      if (!doc.exists) return undefined;
+      
+      const data = doc.data()!;
+      return {
+        id: doc.id,
+        ...data,
+        expiryDate: data.expiryDate?.toDate() || undefined,
+        verifiedAt: data.verifiedAt?.toDate() || undefined,
+        createdAt: data.createdAt?.toDate() || new Date(),
+        updatedAt: data.updatedAt?.toDate() || new Date(),
+      } as EmployeeDocument;
+    } catch (error) {
+      console.error("Error getting employee document:", error);
+      return undefined;
+    }
+  }
+
+  async getEmployeeDocuments(employeeId: string): Promise<EmployeeDocument[]> {
+    try {
+      const querySnapshot = await this.db.collection('employee_documents')
+        .where('employeeId', '==', employeeId)
+        .orderBy('createdAt', 'desc')
+        .get();
+
+      return querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          expiryDate: data.expiryDate?.toDate() || undefined,
+          verifiedAt: data.verifiedAt?.toDate() || undefined,
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date(),
+        } as EmployeeDocument;
+      });
+    } catch (error) {
+      console.error("Error getting employee documents:", error);
+      return [];
+    }
+  }
+
+  async getEmployeeDocumentsByType(employeeId: string, documentType: string): Promise<EmployeeDocument[]> {
+    try {
+      const querySnapshot = await this.db.collection('employee_documents')
+        .where('employeeId', '==', employeeId)
+        .where('documentType', '==', documentType)
+        .orderBy('createdAt', 'desc')
+        .get();
+
+      return querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          expiryDate: data.expiryDate?.toDate() || undefined,
+          verifiedAt: data.verifiedAt?.toDate() || undefined,
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date(),
+        } as EmployeeDocument;
+      });
+    } catch (error) {
+      console.error("Error getting employee documents by type:", error);
+      return [];
+    }
+  }
+
+  async createEmployeeDocument(data: z.infer<typeof insertEmployeeDocumentSchema>): Promise<EmployeeDocument> {
+    try {
+      const id = this.db.collection('employee_documents').doc().id;
+      const now = new Date();
+      
+      const documentData = {
+        ...data,
+        id,
+        createdAt: now,
+        updatedAt: now
+      };
+
+      await this.db.collection('employee_documents').doc(id).set(documentData);
+      return documentData as EmployeeDocument;
+    } catch (error) {
+      console.error("Error creating employee document:", error);
+      throw error;
+    }
+  }
+
+  async updateEmployeeDocument(id: string, data: Partial<z.infer<typeof insertEmployeeDocumentSchema>>): Promise<EmployeeDocument> {
+    try {
+      const updateData = {
+        ...data,
+        updatedAt: new Date()
+      };
+
+      await this.db.collection('employee_documents').doc(id).update(updateData);
+      
+      const updated = await this.getEmployeeDocument(id);
+      if (!updated) throw new Error('Employee document not found after update');
+      return updated;
+    } catch (error) {
+      console.error("Error updating employee document:", error);
+      throw error;
+    }
+  }
+
+  async deleteEmployeeDocument(id: string): Promise<boolean> {
+    try {
+      await this.db.collection('employee_documents').doc(id).delete();
+      return true;
+    } catch (error) {
+      console.error("Error deleting employee document:", error);
+      return false;
+    }
+  }
+
+  // Performance Review management
+  async getPerformanceReview(id: string): Promise<PerformanceReview | undefined> {
+    try {
+      const doc = await this.db.collection('performance_reviews').doc(id).get();
+      if (!doc.exists) return undefined;
+      
+      const data = doc.data()!;
+      return {
+        id: doc.id,
+        ...data,
+        reviewPeriod: {
+          startDate: data.reviewPeriod?.startDate?.toDate() || new Date(),
+          endDate: data.reviewPeriod?.endDate?.toDate() || new Date(),
+        },
+        nextReviewDate: data.nextReviewDate?.toDate() || undefined,
+        createdAt: data.createdAt?.toDate() || new Date(),
+        updatedAt: data.updatedAt?.toDate() || new Date(),
+      } as PerformanceReview;
+    } catch (error) {
+      console.error("Error getting performance review:", error);
+      return undefined;
+    }
+  }
+
+  async getEmployeePerformanceReviews(employeeId: string): Promise<PerformanceReview[]> {
+    try {
+      const querySnapshot = await this.db.collection('performance_reviews')
+        .where('employeeId', '==', employeeId)
+        .orderBy('reviewPeriod.endDate', 'desc')
+        .get();
+
+      return querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          reviewPeriod: {
+            startDate: data.reviewPeriod?.startDate?.toDate() || new Date(),
+            endDate: data.reviewPeriod?.endDate?.toDate() || new Date(),
+          },
+          nextReviewDate: data.nextReviewDate?.toDate() || undefined,
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date(),
+        } as PerformanceReview;
+      });
+    } catch (error) {
+      console.error("Error getting employee performance reviews:", error);
+      return [];
+    }
+  }
+
+  async getPerformanceReviewsByReviewer(reviewerId: string): Promise<PerformanceReview[]> {
+    try {
+      const querySnapshot = await this.db.collection('performance_reviews')
+        .where('reviewedBy', '==', reviewerId)
+        .orderBy('reviewPeriod.endDate', 'desc')
+        .get();
+
+      return querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          reviewPeriod: {
+            startDate: data.reviewPeriod?.startDate?.toDate() || new Date(),
+            endDate: data.reviewPeriod?.endDate?.toDate() || new Date(),
+          },
+          nextReviewDate: data.nextReviewDate?.toDate() || undefined,
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date(),
+        } as PerformanceReview;
+      });
+    } catch (error) {
+      console.error("Error getting performance reviews by reviewer:", error);
+      return [];
+    }
+  }
+
+  async getUpcomingPerformanceReviews(): Promise<PerformanceReview[]> {
+    try {
+      const now = new Date();
+      const nextMonth = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+      
+      const querySnapshot = await this.db.collection('performance_reviews')
+        .where('nextReviewDate', '>=', now)
+        .where('nextReviewDate', '<=', nextMonth)
+        .orderBy('nextReviewDate')
+        .get();
+
+      return querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          reviewPeriod: {
+            startDate: data.reviewPeriod?.startDate?.toDate() || new Date(),
+            endDate: data.reviewPeriod?.endDate?.toDate() || new Date(),
+          },
+          nextReviewDate: data.nextReviewDate?.toDate() || undefined,
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date(),
+        } as PerformanceReview;
+      });
+    } catch (error) {
+      console.error("Error getting upcoming performance reviews:", error);
+      return [];
+    }
+  }
+
+  async createPerformanceReview(data: z.infer<typeof insertPerformanceReviewSchema>): Promise<PerformanceReview> {
+    try {
+      const id = this.db.collection('performance_reviews').doc().id;
+      const now = new Date();
+      
+      const reviewData = {
+        ...data,
+        id,
+        createdAt: now,
+        updatedAt: now
+      };
+
+      await this.db.collection('performance_reviews').doc(id).set(reviewData);
+      return reviewData as PerformanceReview;
+    } catch (error) {
+      console.error("Error creating performance review:", error);
+      throw error;
+    }
+  }
+
+  async updatePerformanceReview(id: string, data: Partial<z.infer<typeof insertPerformanceReviewSchema>>): Promise<PerformanceReview> {
+    try {
+      const updateData = {
+        ...data,
+        updatedAt: new Date()
+      };
+
+      await this.db.collection('performance_reviews').doc(id).update(updateData);
+      
+      const updated = await this.getPerformanceReview(id);
+      if (!updated) throw new Error('Performance review not found after update');
+      return updated;
+    } catch (error) {
+      console.error("Error updating performance review:", error);
+      throw error;
+    }
+  }
+
+  async deletePerformanceReview(id: string): Promise<boolean> {
+    try {
+      await this.db.collection('performance_reviews').doc(id).delete();
+      return true;
+    } catch (error) {
+      console.error("Error deleting performance review:", error);
+      return false;
+    }
+  }
+
+  // Continue with existing methods
   async createEnhancedPayroll(data: any): Promise<EnhancedPayroll> {
     try {
       const id = this.db.collection('enhanced_payrolls').doc().id;
