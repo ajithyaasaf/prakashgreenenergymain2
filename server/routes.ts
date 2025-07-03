@@ -4816,16 +4816,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const fixedConveyance = salaryStructure.fixedConveyance || 0;
         const totalFixedSalary = fixedBasic + fixedHRA + fixedConveyance;
         
-        // Get actual attendance records for the specific month and year
+        // FIXED: Enhanced attendance data retrieval with comprehensive debugging
+        console.log(`PAYROLL_PROCESSING: Processing payroll for user ${userId} (${user.displayName}) - Month: ${month}, Year: ${year}`);
+        
+        // Try multiple user identifier strategies
         const allAttendanceRecords = await storage.listAttendanceByUser(userId);
-        const attendanceRecords = allAttendanceRecords.filter(record => {
+        let allAttendanceRecordsUID = [];
+        
+        // Also try with UID if userId didn't return results
+        if (allAttendanceRecords.length === 0 && user.uid !== userId) {
+          console.log(`PAYROLL_PROCESSING: No records found with userId ${userId}, trying with uid ${user.uid}`);
+          allAttendanceRecordsUID = await storage.listAttendanceByUser(user.uid);
+        }
+        
+        const combinedAttendanceRecords = [...allAttendanceRecords, ...allAttendanceRecordsUID];
+        
+        console.log(`PAYROLL_PROCESSING: Found ${combinedAttendanceRecords.length} total attendance records for user`);
+        
+        // FIXED: Proper date filtering with logging
+        const attendanceRecords = combinedAttendanceRecords.filter(record => {
           const recordDate = new Date(record.date);
-          return recordDate.getMonth() === (month - 1) && recordDate.getFullYear() === year;
+          const recordMonth = recordDate.getMonth() + 1; // Convert to 1-12 range
+          const recordYear = recordDate.getFullYear();
+          const matches = recordMonth === month && recordYear === year;
+          
+          if (matches) {
+            console.log(`PAYROLL_PROCESSING: Found matching record - Date: ${recordDate.toISOString()}, Status: ${record.status}`);
+          }
+          
+          return matches;
         });
         
-        const presentDays = attendanceRecords.filter(record => 
-          record.status === 'present' || record.status === 'late'
-        ).length;
+        console.log(`PAYROLL_PROCESSING: Filtered to ${attendanceRecords.length} records for month ${month}/${year}`);
+        
+        // FIXED: Enhanced status classification - include all working statuses
+        const validWorkingStatuses = ['present', 'late', 'overtime', 'half_day', 'early_checkout'];
+        const presentDays = attendanceRecords.filter(record => {
+          const isValidStatus = validWorkingStatuses.includes(record.status);
+          if (isValidStatus) {
+            console.log(`PAYROLL_PROCESSING: Counting as present day - Date: ${new Date(record.date).toDateString()}, Status: ${record.status}`);
+          }
+          return isValidStatus;
+        }).length;
+        
+        console.log(`PAYROLL_PROCESSING: Calculated ${presentDays} present days out of ${attendanceRecords.length} attendance records`);
         
         // Calculate month days and overtime from attendance
         const monthDays = new Date(year, month, 0).getDate(); // Actual days in month

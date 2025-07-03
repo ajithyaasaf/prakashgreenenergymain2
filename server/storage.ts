@@ -2115,21 +2115,34 @@ export class FirestoreStorage implements IStorage {
   }
 
   async listAttendanceByUser(userId: string): Promise<Attendance[]> {
-    const attendanceRef = this.db.collection("attendance");
-    const snapshot = await attendanceRef
-      .where("userId", "==", userId)
-      .get();
-    
-    return snapshot.docs.map(doc => {
-      const data = doc.data() || {};
-      return {
-        id: doc.id,
-        ...data,
-        date: data.date?.toDate() || new Date(),
-        checkInTime: data.checkInTime?.toDate() || null,
-        checkOutTime: data.checkOutTime?.toDate() || null,
-      } as Attendance;
-    });
+    try {
+      console.log(`STORAGE: Querying attendance for userId: ${userId}`);
+      const attendanceRef = this.db.collection("attendance");
+      const snapshot = await attendanceRef
+        .where("userId", "==", userId)
+        .get();
+      
+      console.log(`STORAGE: Found ${snapshot.docs.length} attendance records for userId: ${userId}`);
+      
+      const attendanceRecords = snapshot.docs.map(doc => {
+        const data = doc.data() || {};
+        const record = {
+          id: doc.id,
+          ...data,
+          date: data.date?.toDate() || new Date(),
+          checkInTime: data.checkInTime?.toDate() || null,
+          checkOutTime: data.checkOutTime?.toDate() || null,
+        } as Attendance;
+        
+        console.log(`STORAGE: Record ${doc.id} - Date: ${record.date?.toISOString()}, Status: ${record.status}, UserID: ${record.userId}`);
+        return record;
+      });
+      
+      return attendanceRecords;
+    } catch (error) {
+      console.error(`STORAGE: Error querying attendance for userId ${userId}:`, error);
+      return [];
+    }
   }
 
   async listAttendanceByDate(date: Date): Promise<Attendance[]> {
