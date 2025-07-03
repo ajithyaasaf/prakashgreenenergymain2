@@ -1404,8 +1404,17 @@ function SalaryStructuresTable({
     const fineAmount = structureAny.fineDeduction || 0;
     const creditAmount = structureAny.creditDeduction || 0;
     
-    return epfAmount + esiAmount + vptAmount + tdsAmount + loanAmount + 
+    // Debug logging to understand the calculation
+    const totalDeductions = epfAmount + esiAmount + vptAmount + tdsAmount + loanAmount + 
            advanceAmount + fineAmount + creditAmount + customDeductionsTotal;
+    
+    console.log('DEBUG calculateTotalDeductions:', {
+      epfAmount, esiAmount, vptAmount, tdsAmount, loanAmount, 
+      advanceAmount, fineAmount, creditAmount, customDeductionsTotal, totalDeductions,
+      structureId: structure.id
+    });
+    
+    return totalDeductions;
   };
 
   const filteredStructures = structures.filter(structure => {
