@@ -493,21 +493,7 @@ export function AttendanceCheckOut({
             </CardContent>
           </Card>
 
-          {/* Early Checkout Warning (informational only) */}
-          {earlyCheckoutInfo.isEarlyCheckout && (
-            <Alert className="border-amber-200 bg-amber-50">
-              <AlertTriangle className="h-4 w-4 text-amber-600" />
-              <AlertDescription>
-                <div className="space-y-1">
-                  <div className="font-medium text-amber-800">Early checkout detected</div>
-                  <div className="text-amber-700 text-sm">
-                    You are checking out {earlyCheckoutInfo.earlyMinutes} minutes early. 
-                    Please provide a reason below for this early checkout.
-                  </div>
-                </div>
-              </AlertDescription>
-            </Alert>
-          )}
+
 
           {/* Overtime Alert */}
           {overtimeInfo.hasOvertime && (
@@ -541,6 +527,39 @@ export function AttendanceCheckOut({
           )}
 
 
+          {/* Early Checkout Warning */}
+          {(() => {
+            const now = new Date();
+            const currentTime = now.getHours() * 60 + now.getMinutes();
+            // Parse department timing properly (12-hour format)
+            const expectedTimeStr = departmentTiming?.checkOutTime || "6:30 PM";
+            const timeMatch = expectedTimeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+            let expectedMinutes = 18 * 60 + 30; // Default 6:30 PM
+            if (timeMatch) {
+              let [, hours, minutes, period] = timeMatch;
+              let hour24 = parseInt(hours);
+              if (period.toUpperCase() === 'PM' && hour24 !== 12) hour24 += 12;
+              if (period.toUpperCase() === 'AM' && hour24 === 12) hour24 = 0;
+              expectedMinutes = hour24 * 60 + parseInt(minutes);
+            }
+            const isEarlyCheckout = currentTime < expectedMinutes;
+            
+            return isEarlyCheckout && (
+              <Alert className="border-amber-200 bg-amber-50">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  <div className="space-y-2">
+                    <p className="font-medium text-amber-800">
+                      Early Checkout Detected
+                    </p>
+                    <p className="text-sm text-amber-700">
+                      You are checking out before the expected time (<TimeDisplay time={departmentTiming?.checkOutTime || "6:30 PM"} format12Hour={true} />). Please provide a reason below.
+                    </p>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            );
+          })()}
 
           {/* General Reason (Required for early checkout) */}
           <div className="space-y-2">
