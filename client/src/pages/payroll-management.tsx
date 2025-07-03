@@ -2051,6 +2051,41 @@ function SalaryStructureForm({
     formData.autoCalculate
   ]);
 
+  // Update total deductions when manual deduction values change (when auto-calculation is off)
+  React.useEffect(() => {
+    if (!formData.autoCalculate) {
+      const totalDeductions = formData.epfDeduction + formData.esiDeduction + formData.vptDeduction + 
+                             formData.tdsDeduction + formData.loanDeduction + formData.advanceDeduction + 
+                             formData.fineDeduction + formData.creditDeduction;
+      
+      // Calculate total earnings for net salary
+      const totalEarnings = formData.earnedBasic + formData.earnedHRA + formData.earnedConveyance + 
+                           formData.otherEarnings + formData.overtimePay;
+      const netSalary = totalEarnings - totalDeductions;
+
+      setFormData(prev => ({
+        ...prev,
+        totalDeductions: Math.round(totalDeductions),
+        netSalary: Math.round(netSalary)
+      }));
+    }
+  }, [
+    formData.epfDeduction,
+    formData.esiDeduction,
+    formData.vptDeduction,
+    formData.tdsDeduction,
+    formData.loanDeduction,
+    formData.advanceDeduction,
+    formData.fineDeduction,
+    formData.creditDeduction,
+    formData.earnedBasic,
+    formData.earnedHRA,
+    formData.earnedConveyance,
+    formData.otherEarnings,
+    formData.overtimePay,
+    formData.autoCalculate
+  ]);
+
   const calculateSalary = () => {
     const gross = formData.fixedBasic + formData.fixedHRA + formData.fixedConveyance + formData.otherEarnings;
     const perDay = gross / formData.monthDays;
