@@ -1394,7 +1394,18 @@ function SalaryStructuresTable({
     const customDeductionsTotal = Object.values(structure.customDeductions || {}).reduce((sum, val) => sum + val, 0);
     const epfAmount = structure.epfApplicable ? (structure.fixedBasic * 0.12) : 0;
     const esiAmount = structure.esiApplicable ? (calculateGrossSalary(structure) * 0.0075) : 0;
-    return customDeductionsTotal + epfAmount + esiAmount + (structure.vptAmount || 0);
+    const vptAmount = structure.vptAmount || 0;
+    
+    // Check for individual deduction fields (stored as direct properties from form submission)
+    const structureAny = structure as any; // Type assertion to access dynamic fields
+    const tdsAmount = structureAny.tdsDeduction || 0;
+    const loanAmount = structureAny.loanDeduction || 0;
+    const advanceAmount = structureAny.advanceDeduction || 0;
+    const fineAmount = structureAny.fineDeduction || 0;
+    const creditAmount = structureAny.creditDeduction || 0;
+    
+    return epfAmount + esiAmount + vptAmount + tdsAmount + loanAmount + 
+           advanceAmount + fineAmount + creditAmount + customDeductionsTotal;
   };
 
   const filteredStructures = structures.filter(structure => {

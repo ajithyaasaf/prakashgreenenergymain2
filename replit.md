@@ -119,6 +119,16 @@ This is an enterprise-grade dashboard application for Prakash Greens Energy, bui
 - **TypeScript**: Comprehensive tsconfig with path aliases
 
 ## Recent Changes
+- July 03, 2025: FIXED SALARY STRUCTURE CALCULATION DISCREPANCIES
+  - ✓ MAJOR FIX: Fixed Total Deduction calculation bug in Salary Structure Form 
+  - ✓ Added dedicated useEffect for manual deduction tracking when auto-calculation is disabled
+  - ✓ Total Deduction now updates dynamically when EPF, ESI, or other deductions are manually entered
+  - ✓ MAJOR FIX: Corrected display calculation discrepancy - table now includes ALL deduction fields
+  - ✓ Fixed net salary mismatch between form (₹22,900) and display (₹22,712.50)
+  - ✓ Display calculation now includes TDS, Loan, Advance, Fine, and Credit deductions
+  - ✓ Both form and table calculations now use identical logic for accurate salary computation
+  - ✓ Net Salary calculation updates correctly based on manual deduction changes
+  - ✓ Maintains existing auto-calculation functionality when enabled
 - July 03, 2025: FIXED EARLY CHECKOUT POLICY ENFORCEMENT & REMOVED DUPLICATE UI WARNINGS
   - ✓ MAJOR FIX: Eliminated strict 8-hour department policy enforcement that was blocking early check-outs
   - ✓ Removed hardcoded policy violation checks from server routes (allowEarlyCheckOut enforcement)
