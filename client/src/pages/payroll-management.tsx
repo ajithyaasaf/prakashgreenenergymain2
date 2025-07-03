@@ -1393,7 +1393,8 @@ function SalaryStructuresTable({
   const calculateTotalDeductions = (structure: EnhancedSalaryStructure) => {
     const customDeductionsTotal = Object.values(structure.customDeductions || {}).reduce((sum, val) => sum + val, 0);
     const epfAmount = structure.epfApplicable ? (structure.fixedBasic * 0.12) : 0;
-    const esiAmount = structure.esiApplicable ? (calculateGrossSalary(structure) * 0.0075) : 0;
+    const grossSalary = calculateGrossSalary(structure);
+    const esiAmount = structure.esiApplicable && grossSalary <= 21000 ? (grossSalary * 0.0075) : 0;
     const vptAmount = structure.vptAmount || 0;
     
     // Check for individual deduction fields (stored as direct properties from form submission)
