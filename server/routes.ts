@@ -4808,7 +4808,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!user) continue;
         
         const salaryStructure = await storage.getEnhancedSalaryStructureByUser(userId);
-        if (!salaryStructure) continue;
+        if (!salaryStructure) {
+          console.log(`PAYROLL_PROCESSING: No salary structure found for user ${userId} (${user.displayName})`);
+          continue;
+        }
+        
+        console.log(`PAYROLL_PROCESSING: Salary structure found for ${user.displayName}:`, {
+          fixedBasic: salaryStructure.fixedBasic,
+          fixedHRA: salaryStructure.fixedHRA,
+          fixedConveyance: salaryStructure.fixedConveyance,
+          dynamicEarnings: salaryStructure.dynamicEarnings,
+          dynamicDeductions: salaryStructure.dynamicDeductions
+        });
         
         // Calculate payroll with real salary structure data
         const fixedBasic = salaryStructure.fixedBasic || 0;
@@ -4874,22 +4885,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const earnedHRA = (fixedHRA / monthDays) * presentDays;
         const earnedConveyance = (fixedConveyance / monthDays) * presentDays;
         
+        // FIXED: Calculate dynamic earnings from salary structure
+        const dynamicEarnings = salaryStructure.dynamicEarnings || {};
+        let totalDynamicEarnings = 0;
+        
+        Object.entries(dynamicEarnings).forEach(([key, value]) => {
+          if (typeof value === 'number' && value > 0) {
+            // Pro-rate dynamic earnings based on present days
+            const earnedAmount = (value / monthDays) * presentDays;
+            dynamicEarnings[key] = Math.round(earnedAmount);
+            totalDynamicEarnings += earnedAmount;
+            console.log(`PAYROLL_PROCESSING: Dynamic earning ${key}: ₹${value} -> ₹${Math.round(earnedAmount)} (pro-rated)`);
+          }
+        });
+        
+        // Calculate gross salary including dynamic earnings
+        const grossSalaryAmount = earnedBasic + earnedHRA + earnedConveyance + totalDynamicEarnings;
+        
         // Calculate statutory deductions
-        const grossSalaryAmount = earnedBasic + earnedHRA + earnedConveyance;
         // FIXED: EPF must be calculated on full basic salary, not pro-rated earned amount
         const epfDeduction = salaryStructure.epfApplicable ? Math.min(fixedBasic * 0.12, 1800) : 0;
         const esiDeduction = salaryStructure.esiApplicable && grossSalaryAmount <= 21000 ? grossSalaryAmount * 0.0075 : 0;
         const vptDeduction = salaryStructure.vptAmount || 0;
         
+        // FIXED: Calculate dynamic deductions from salary structure
+        const dynamicDeductions = salaryStructure.dynamicDeductions || {};
+        let totalDynamicDeductions = 0;
+        
+        Object.entries(dynamicDeductions).forEach(([key, value]) => {
+          if (typeof value === 'number' && value > 0) {
+            // Pro-rate dynamic deductions based on present days
+            const deductedAmount = (value / monthDays) * presentDays;
+            dynamicDeductions[key] = Math.round(deductedAmount);
+            totalDynamicDeductions += deductedAmount;
+            console.log(`PAYROLL_PROCESSING: Dynamic deduction ${key}: ₹${value} -> ₹${Math.round(deductedAmount)} (pro-rated)`);
+          }
+        });
+        
         const finalGrossAmount = grossSalaryAmount; // Initially same as gross, can be modified with BETTA
         
-        // Calculate total deductions including new manual system fields
-        const totalDeductions = epfDeduction + esiDeduction + vptDeduction;
+        // Calculate total deductions including dynamic deductions
+        const totalDeductions = epfDeduction + esiDeduction + vptDeduction + totalDynamicDeductions;
         
         // NET SALARY = FINAL GROSS + CREDIT - (EPF + VPF + ESI + TDS + FINE + SALARY ADVANCE)
         // Using same formula as manual system
         const netSalary = finalGrossAmount - totalDeductions;
         
+        console.log(`PAYROLL_PROCESSING: Final calculation for ${user.displayName}:`, {
+          fixedBasic, fixedHRA, fixedConveyance,
+          earnedBasic: Math.round(earnedBasic), 
+          earnedHRA: Math.round(earnedHRA), 
+          earnedConveyance: Math.round(earnedConveyance),
+          totalDynamicEarnings: Math.round(totalDynamicEarnings),
+          grossSalary: Math.round(grossSalaryAmount),
+          totalDeductions: Math.round(totalDeductions),
+          presentDays, monthDays
+        });
+
         const payrollData = {
           userId,
           employeeId: user.employeeId || user.uid,
@@ -4905,10 +4957,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           earnedConveyance: Math.round(earnedConveyance),
           overtimePay: 0,
           betta: 0, // BETTA allowance from manual system
-          dynamicEarnings: {},
-          grossSalary: Math.round(grossSalaryAmount), // Gross before BETTA
+          dynamicEarnings: dynamicEarnings, // FIXED: Use calculated dynamic earnings
+          grossSalary: Math.round(grossSalaryAmount), // Gross including dynamic earnings
           finalGross: Math.round(finalGrossAmount), // Final gross after BETTA (initially same as gross)
-          dynamicDeductions: {},
+          dynamicDeductions: dynamicDeductions, // FIXED: Use calculated dynamic deductions
           epfDeduction: Math.round(epfDeduction),
           esiDeduction: Math.round(esiDeduction),
           vptDeduction: Math.round(vptDeduction),

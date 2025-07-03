@@ -119,17 +119,21 @@ This is an enterprise-grade dashboard application for Prakash Greens Energy, bui
 - **TypeScript**: Comprehensive tsconfig with path aliases
 
 ## Recent Changes
-- July 03, 2025: CRITICAL PAYROLL PROCESSING FIX - RESOLVED ATTENDANCE DATA READING ISSUES
+- July 03, 2025: CRITICAL PAYROLL PROCESSING FIX - RESOLVED ATTENDANCE DATA READING ISSUES & DYNAMIC FIELDS
   - ✓ MAJOR FIX: Fixed critical user ID mismatch in payroll processing (tries both userId and uid)
   - ✓ MAJOR FIX: Corrected date filtering logic (month conversion from 0-11 to 1-12 range)
   - ✓ MAJOR FIX: Enhanced status classification to include all valid working statuses
-  - ✓ Added comprehensive debugging logging for attendance data retrieval
+  - ✓ MAJOR FIX: Fixed dynamic earnings and deductions not being calculated from salary structure
+  - ✓ MAJOR FIX: Dynamic fields now properly pro-rated based on present days (not showing ₹0.00)
+  - ✓ Added comprehensive debugging logging for attendance data retrieval and salary calculations
   - ✓ Implemented dual user identifier strategy to handle Firebase UID vs system userId
   - ✓ Enhanced attendance query with error handling and detailed logging
   - ✓ Fixed payroll calculation to properly count overtime, half_day, and early_checkout statuses
   - ✓ Added detailed step-by-step logging for payroll processing debugging
+  - ✓ Fixed Basic, HRA, Conveyance fields showing proper values from salary structure
+  - ✓ Dynamic earnings and deductions now calculated and included in payroll generation
   - ✓ System now properly reads Vishnu's attendance records for payroll calculations
-  - ✓ Verified attendance data connection between attendance system and payroll processing
+  - ✓ All dynamic fields (earnings/deductions) are now properly populated from database values
 - June 27, 2025: CRITICAL FIX - ELIMINATED ALL HARDCODED DEPARTMENT TIMING OVERRIDES
   - ✓ MAJOR FIX: Removed hardcoded sales department "19:00" (7:00 PM) defaults in storage.ts
   - ✓ Fixed TWO duplicate hardcoded timing entries that were automatically overriding user settings
