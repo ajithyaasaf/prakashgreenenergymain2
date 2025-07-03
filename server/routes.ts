@@ -1292,23 +1292,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const earlyCheckout = !isOvertimeCheckout && workingHours < standardWorkingHours;
       const earlyMinutes = earlyCheckout ? Math.floor((standardWorkingHours - workingHours) * 60) : 0;
       
-      // Early checkout policy enforcement (strict enforcement based on department timing dialog settings)
+      // Early checkout reason requirement (simplified - just ask for reason, no policy blocking)
       if (!isOvertimeCheckout && earlyCheckout) {
-        console.log(`CHECKOUT: Early checkout check - Department: ${user.department}, allowEarlyCheckOut: ${departmentTiming.allowEarlyCheckOut}, earlyMinutes: ${earlyMinutes}`);
+        console.log(`CHECKOUT: Early checkout detected - Department: ${user.department}, earlyMinutes: ${earlyMinutes}`);
         
-        if (!departmentTiming.allowEarlyCheckOut) {
-          return res.status(400).json({
-            message: `Early checkout is not allowed for ${user.department || 'your'} department. You worked ${workingHours.toFixed(1)} hours, expected ${standardWorkingHours} hours.`,
-            currentTime: finalCheckOutTime,
-            expectedHours: standardWorkingHours,
-            actualHours: workingHours,
-            requiresApproval: true,
-            isEarlyCheckout: true,
-            earlyMinutes,
-            policyEnforcement: "Department policy prohibits early checkout"
-          });
-        }
-        
+        // Only require reason for early checkout, don't block based on department policy
         if (!reason || reason.trim().length < 10) {
           return res.status(400).json({
             message: `Early checkout (${earlyMinutes} minutes early) requires a detailed reason (minimum 10 characters)`,

@@ -98,10 +98,10 @@ export function AttendanceCheckOut({
 
   const overtimeInfo = calculateOvertimeInfo();
 
-  // Calculate early checkout info with department policy awareness
+  // Calculate early checkout info (simplified - no policy enforcement)
   const calculateEarlyCheckoutInfo = () => {
     if (!currentAttendance?.checkInTime || !departmentTiming) {
-      return { isEarlyCheckout: false, earlyMinutes: 0, isPolicyViolation: false };
+      return { isEarlyCheckout: false, earlyMinutes: 0 };
     }
     
     const checkInTime = new Date(currentAttendance.checkInTime);
@@ -112,12 +112,10 @@ export function AttendanceCheckOut({
     
     const isEarlyCheckout = workingHours < expectedHours;
     const earlyMinutes = isEarlyCheckout ? Math.floor((expectedHours - workingHours) * 60) : 0;
-    const isPolicyViolation = isEarlyCheckout && !departmentTiming.allowEarlyCheckOut;
     
     return {
       isEarlyCheckout,
       earlyMinutes,
-      isPolicyViolation,
       workingHours: Number(workingHours.toFixed(1)),
       expectedHours
     };
@@ -495,35 +493,16 @@ export function AttendanceCheckOut({
             </CardContent>
           </Card>
 
-          {/* Early Checkout Policy Warning */}
-          {earlyCheckoutInfo.isPolicyViolation && (
-            <Alert className="border-red-200 bg-red-50">
-              <XCircle className="h-4 w-4 text-red-600" />
+          {/* Early Checkout Warning (informational only) */}
+          {earlyCheckoutInfo.isEarlyCheckout && (
+            <Alert className="border-amber-200 bg-amber-50">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
               <AlertDescription>
                 <div className="space-y-1">
-                  <div className="font-medium text-red-800">Early checkout not allowed</div>
-                  <div className="text-red-700 text-sm">
-                    Your department policy prohibits checking out before completing {earlyCheckoutInfo.expectedHours} hours. 
-                    You have worked {earlyCheckoutInfo.workingHours} hours ({earlyCheckoutInfo.earlyMinutes} minutes short).
-                  </div>
-                  <div className="text-red-600 text-xs mt-2">
-                    Contact your supervisor for approval or wait until your scheduled checkout time.
-                  </div>
-                </div>
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {/* Early Checkout Warning (allowed but informational) */}
-          {earlyCheckoutInfo.isEarlyCheckout && !earlyCheckoutInfo.isPolicyViolation && (
-            <Alert className="border-yellow-200 bg-yellow-50">
-              <AlertTriangle className="h-4 w-4 text-yellow-600" />
-              <AlertDescription>
-                <div className="space-y-1">
-                  <div className="font-medium text-yellow-800">Early checkout detected</div>
-                  <div className="text-yellow-700 text-sm">
+                  <div className="font-medium text-amber-800">Early checkout detected</div>
+                  <div className="text-amber-700 text-sm">
                     You are checking out {earlyCheckoutInfo.earlyMinutes} minutes early. 
-                    This is allowed by your department policy but will be recorded.
+                    Please provide a reason below for this early checkout.
                   </div>
                 </div>
               </AlertDescription>
@@ -756,7 +735,6 @@ export function AttendanceCheckOut({
               isSubmitting || 
               !location || 
               !isOnline || 
-              earlyCheckoutInfo.isPolicyViolation ||
               (overtimeInfo.hasOvertime && (!otReason.trim() || otReason.trim().length < 10))
             }
             className="bg-red-600 hover:bg-red-700"
@@ -769,11 +747,9 @@ export function AttendanceCheckOut({
             ) : (
               <>
                 <CheckCircle className="h-4 w-4 mr-2" />
-                {earlyCheckoutInfo.isPolicyViolation 
-                  ? 'Policy Violation - Cannot Check Out'
-                  : overtimeInfo.hasOvertime && (!otReason.trim() || otReason.trim().length < 10) 
-                    ? 'Complete OT Requirements' 
-                    : 'Check Out'}
+                {overtimeInfo.hasOvertime && (!otReason.trim() || otReason.trim().length < 10) 
+                  ? 'Complete OT Requirements' 
+                  : 'Check Out'}
               </>
             )}
           </Button>
