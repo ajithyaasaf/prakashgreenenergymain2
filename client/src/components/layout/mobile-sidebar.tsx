@@ -49,6 +49,7 @@ export function MobileSidebar({ isOpen, setIsOpen }: MobileSidebarProps) {
     { href: "/invoices", label: "Invoices", icon: "ri-bill-line", requiredPermissions: ["invoices.view", "invoices.create"] },
     { href: "/attendance", label: "Attendance", icon: "ri-time-line", requiredPermissions: ["attendance.view_own", "attendance.view_team", "attendance.view_all"] },
     { href: "/leave", label: "Leave", icon: "ri-calendar-check-line", requiredPermissions: ["leave.view_own", "leave.view_team", "leave.view_all"] },
+    { href: "/site-visit", label: "Site Visit", icon: "ri-map-pin-line", requiredPermissions: ["site_visit.view", "site_visit.create"] },
     { href: "/user-management", label: "Users", icon: "ri-user-settings-line", roles: ["master_admin", "admin"], requiredPermissions: ["users.view", "users.create"] },
     { href: "/hr-management", label: "HR Mgmt", icon: "ri-team-line", roles: ["master_admin", "admin"], requiredPermissions: ["users.view"] },
     { href: "/departments", label: "Departments", icon: "ri-building-line", roles: ["master_admin"], requiredPermissions: ["departments.view", "departments.create"] },

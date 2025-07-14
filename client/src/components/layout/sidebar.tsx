@@ -85,6 +85,12 @@ export function Sidebar() {
       requiredPermissions: ["leave.view_own", "leave.view_team", "leave.view_all"]
     },
     { 
+      href: "/site-visit", 
+      label: "Site Visit", 
+      icon: <i className="ri-map-pin-line mr-3 text-xl"></i>,
+      requiredPermissions: ["site_visit.view", "site_visit.create"]
+    },
+    { 
       href: "/user-management", 
       label: "User Management", 
       icon: <i className="ri-user-settings-line mr-3 text-xl"></i>,

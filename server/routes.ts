@@ -5031,6 +5031,324 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ========== SITE VISIT MANAGEMENT API ROUTES ==========
+  
+  // Permission helper for site visit access
+  const checkSiteVisitPermission = (user: any, action: string) => {
+    // Only Technical, Marketing, and Admin departments can access Site Visit
+    const allowedDepartments = ['technical', 'marketing', 'admin'];
+    
+    if (user.role === 'master_admin') return true;
+    
+    if (!user.department || !allowedDepartments.includes(user.department)) {
+      return false;
+    }
+    
+    // Check specific permissions based on action
+    const requiredPermissions = {
+      'view_own': ['site_visit.view_own', 'site_visit.view'],
+      'view_team': ['site_visit.view_team', 'site_visit.view'],
+      'view_all': ['site_visit.view_all', 'site_visit.view'],
+      'create': ['site_visit.create'],
+      'edit': ['site_visit.edit'],
+      'delete': ['site_visit.delete']
+    };
+    
+    return user.permissions?.some((permission: string) => 
+      requiredPermissions[action]?.includes(permission)
+    ) || false;
+  };
+
+  // Create new site visit (Site In)
+  app.post("/api/site-visits", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || !checkSiteVisitPermission(user, 'create')) {
+        return res.status(403).json({ 
+          message: "Access denied. Site Visit access is limited to Technical, Marketing, and Admin departments." 
+        });
+      }
+
+      const { insertSiteVisitSchema } = await import("@shared/schema");
+      const { siteVisitService } = await import("./services/site-visit-service");
+
+      // Validate input data
+      const siteVisitData = insertSiteVisitSchema.parse({
+        ...req.body,
+        userId: user.uid,
+        department: user.department,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+
+      const siteVisit = await siteVisitService.createSiteVisit(siteVisitData);
+      
+      res.status(201).json({
+        message: "Site visit created successfully",
+        siteVisit
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "Validation error",
+          errors: error.errors 
+        });
+      }
+      console.error("Error creating site visit:", error);
+      res.status(500).json({ message: "Failed to create site visit" });
+    }
+  });
+
+  // Update site visit (Site Out, progress updates)
+  app.patch("/api/site-visits/:id", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || !checkSiteVisitPermission(user, 'edit')) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const { siteVisitService } = await import("./services/site-visit-service");
+      
+      // Get existing site visit to check ownership
+      const existingSiteVisit = await siteVisitService.getSiteVisitById(req.params.id);
+      if (!existingSiteVisit) {
+        return res.status(404).json({ message: "Site visit not found" });
+      }
+
+      // Check if user can edit this site visit (own or has permission)
+      const canEdit = existingSiteVisit.userId === user.uid || 
+                     checkSiteVisitPermission(user, 'view_all') ||
+                     user.role === 'master_admin';
+      
+      if (!canEdit) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const updatedSiteVisit = await siteVisitService.updateSiteVisit(req.params.id, req.body);
+      
+      res.json({
+        message: "Site visit updated successfully",
+        siteVisit: updatedSiteVisit
+      });
+    } catch (error) {
+      console.error("Error updating site visit:", error);
+      res.status(500).json({ message: "Failed to update site visit" });
+    }
+  });
+
+  // Get site visit by ID
+  app.get("/api/site-visits/:id", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || !checkSiteVisitPermission(user, 'view_own')) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const { siteVisitService } = await import("./services/site-visit-service");
+      const siteVisit = await siteVisitService.getSiteVisitById(req.params.id);
+      
+      if (!siteVisit) {
+        return res.status(404).json({ message: "Site visit not found" });
+      }
+
+      // Check if user can view this site visit
+      const canView = siteVisit.userId === user.uid || 
+                     checkSiteVisitPermission(user, 'view_all') ||
+                     (checkSiteVisitPermission(user, 'view_team') && siteVisit.department === user.department) ||
+                     user.role === 'master_admin';
+      
+      if (!canView) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      res.json(siteVisit);
+    } catch (error) {
+      console.error("Error fetching site visit:", error);
+      res.status(500).json({ message: "Failed to fetch site visit" });
+    }
+  });
+
+  // Get site visits with filters
+  app.get("/api/site-visits", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || !checkSiteVisitPermission(user, 'view_own')) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const { siteVisitService } = await import("./services/site-visit-service");
+      
+      // Parse query parameters
+      const filters: any = {
+        limit: parseInt(req.query.limit as string) || 50
+      };
+
+      // Determine what the user can see based on permissions
+      if (user.role === 'master_admin' || checkSiteVisitPermission(user, 'view_all')) {
+        // Can see all site visits, apply any filters from query
+        if (req.query.userId) filters.userId = req.query.userId as string;
+        if (req.query.department) filters.department = req.query.department as string;
+      } else if (checkSiteVisitPermission(user, 'view_team')) {
+        // Can see team/department site visits
+        filters.department = user.department;
+      } else {
+        // Can only see own site visits
+        filters.userId = user.uid;
+      }
+
+      // Apply additional filters
+      if (req.query.status) filters.status = req.query.status as string;
+      if (req.query.visitPurpose) filters.visitPurpose = req.query.visitPurpose as string;
+      if (req.query.startDate) filters.startDate = new Date(req.query.startDate as string);
+      if (req.query.endDate) filters.endDate = new Date(req.query.endDate as string);
+
+      const siteVisits = await siteVisitService.getSiteVisitsWithFilters(filters);
+      
+      res.json({
+        data: siteVisits,
+        filters: filters,
+        count: siteVisits.length
+      });
+    } catch (error) {
+      console.error("Error fetching site visits:", error);
+      res.status(500).json({ message: "Failed to fetch site visits" });
+    }
+  });
+
+  // Get active site visits (in progress)
+  app.get("/api/site-visits/active", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || !checkSiteVisitPermission(user, 'view_own')) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const { siteVisitService } = await import("./services/site-visit-service");
+      const activeSiteVisits = await siteVisitService.getActiveSiteVisits();
+      
+      // Filter based on user permissions
+      let filteredSiteVisits = activeSiteVisits;
+      
+      if (user.role !== 'master_admin' && !checkSiteVisitPermission(user, 'view_all')) {
+        if (checkSiteVisitPermission(user, 'view_team')) {
+          filteredSiteVisits = activeSiteVisits.filter(sv => sv.department === user.department);
+        } else {
+          filteredSiteVisits = activeSiteVisits.filter(sv => sv.userId === user.uid);
+        }
+      }
+
+      res.json(filteredSiteVisits);
+    } catch (error) {
+      console.error("Error fetching active site visits:", error);
+      res.status(500).json({ message: "Failed to fetch active site visits" });
+    }
+  });
+
+  // Add photos to site visit
+  app.post("/api/site-visits/:id/photos", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || !checkSiteVisitPermission(user, 'edit')) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const { siteVisitService } = await import("./services/site-visit-service");
+      
+      // Check if user owns the site visit
+      const siteVisit = await siteVisitService.getSiteVisitById(req.params.id);
+      if (!siteVisit) {
+        return res.status(404).json({ message: "Site visit not found" });
+      }
+
+      if (siteVisit.userId !== user.uid && user.role !== 'master_admin') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const { sitePhotoSchema } = await import("@shared/schema");
+      
+      // Validate photos data
+      const photosData = z.array(sitePhotoSchema).parse(req.body.photos);
+      
+      const updatedSiteVisit = await siteVisitService.addSitePhotos(req.params.id, photosData);
+      
+      res.json({
+        message: "Photos added successfully",
+        siteVisit: updatedSiteVisit
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "Validation error",
+          errors: error.errors 
+        });
+      }
+      console.error("Error adding site photos:", error);
+      res.status(500).json({ message: "Failed to add site photos" });
+    }
+  });
+
+  // Get site visit statistics
+  app.get("/api/site-visits/stats", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || !checkSiteVisitPermission(user, 'view_own')) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const { siteVisitService } = await import("./services/site-visit-service");
+      
+      const filters: any = {};
+      
+      // Apply department filter based on permissions
+      if (user.role !== 'master_admin' && !checkSiteVisitPermission(user, 'view_all')) {
+        filters.department = user.department;
+      }
+
+      if (req.query.startDate) filters.startDate = new Date(req.query.startDate as string);
+      if (req.query.endDate) filters.endDate = new Date(req.query.endDate as string);
+
+      const stats = await siteVisitService.getSiteVisitStats(filters);
+      
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching site visit stats:", error);
+      res.status(500).json({ message: "Failed to fetch site visit statistics" });
+    }
+  });
+
+  // Delete site visit
+  app.delete("/api/site-visits/:id", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user || !checkSiteVisitPermission(user, 'delete')) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const { siteVisitService } = await import("./services/site-visit-service");
+      
+      // Check if user owns the site visit or has admin rights
+      const siteVisit = await siteVisitService.getSiteVisitById(req.params.id);
+      if (!siteVisit) {
+        return res.status(404).json({ message: "Site visit not found" });
+      }
+
+      const canDelete = siteVisit.userId === user.uid || 
+                       user.role === 'master_admin' ||
+                       (user.role === 'admin' && siteVisit.department === user.department);
+      
+      if (!canDelete) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      await siteVisitService.deleteSiteVisit(req.params.id);
+      
+      res.status(204).end();
+    } catch (error) {
+      console.error("Error deleting site visit:", error);
+      res.status(500).json({ message: "Failed to delete site visit" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

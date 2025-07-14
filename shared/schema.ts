@@ -77,7 +77,12 @@ export const systemPermissions = [
   "approve.overtime.team", "approve.overtime.department",
   
   // System Administration (Master Admin only)
-  "system.settings", "system.backup", "system.audit", "system.integrations"
+  "system.settings", "system.backup", "system.audit", "system.integrations",
+  
+  // Site Visit Management (Field Operations)
+  "site_visit.view", "site_visit.create", "site_visit.edit", "site_visit.delete",
+  "site_visit.view_own", "site_visit.view_team", "site_visit.view_all",
+  "site_visit.approve", "site_visit.reports"
 ] as const;
 
 export const insertUserEnhancedSchema = z.object({
@@ -122,6 +127,264 @@ export const employeeStatus = [
 export const employmentTypes = [
   "full_time", "part_time", "contract", "intern", "consultant", "freelancer"
 ] as const;
+
+// ====== SITE VISIT MANAGEMENT SCHEMAS ======
+
+// Site visit purpose categories
+export const siteVisitPurposes = [
+  "visit", "installation", "service", "purchase", "eb_office", "amc", "bank", "other"
+] as const;
+
+// Property types for customer classification
+export const propertyTypes = [
+  "residential", "commercial", "agri", "other"
+] as const;
+
+// Technical work types
+export const technicalWorkTypes = [
+  "installation", "wifi_configuration", "amc", "service", "electrical_fault",
+  "inverter_fault", "solar_panel_fault", "wiring_issue", "structure", 
+  "welding_work", "site_visit", "light_installation", "camera_fault",
+  "light_fault", "repair", "painting", "cleaning", "others"
+] as const;
+
+// Service types for multi-selection
+export const serviceTypes = [
+  "on_grid", "off_grid", "hybrid", "solar_panel", "camera", "water_pump", 
+  "water_heater", "lights_accessories", "others"
+] as const;
+
+// Working status
+export const workingStatus = [
+  "pending", "completed"
+] as const;
+
+// Solar product specifications
+export const solarPanelBrands = [
+  "renew", "premier", "utl_solar", "loom_solar", "kirloskar", "adani_solar", "vikram_solar"
+] as const;
+
+export const inverterMakes = [
+  "growatt", "deye", "polycab", "utl"
+] as const;
+
+export const inverterPhases = [
+  "single_phase", "three_phase"
+] as const;
+
+export const earthingTypes = [
+  "dc", "ac"
+] as const;
+
+export const panelWatts = [
+  530, 535, 550, 590
+] as const;
+
+export const inverterWatts = [
+  "3kw", "4kw", "5kw", "10kw", "15kw", "30kw"
+] as const;
+
+export const batteryBrands = [
+  "exide", "utl"
+] as const;
+
+export const waterHeaterBrands = [
+  "venus", "pressurised", "non_pressurised", "hykon"
+] as const;
+
+// Project types for marketing department
+export const marketingProjectTypes = [
+  "on_grid", "off_grid", "hybrid", "water_heater", "water_pump"
+] as const;
+
+// Admin process types
+export const bankProcessSteps = [
+  "registration", "document_verification", "site_inspection", 
+  "head_office_approval", "amount_credited"
+] as const;
+
+export const ebProcessTypes = [
+  "new_connection", "tariff_change", "name_transfer", "load_upgrade",
+  "inspection_before_net_meter", "net_meter_followup", 
+  "inspection_after_net_meter", "subsidy"
+] as const;
+
+// ====== SITE VISIT SCHEMAS ======
+
+// Location schema for GPS tracking
+export const locationSchema = z.object({
+  latitude: z.number(),
+  longitude: z.number(),
+  accuracy: z.number().optional(),
+  address: z.string().optional()
+});
+
+// Customer details schema
+export const customerDetailsSchema = z.object({
+  name: z.string().min(2, "Customer name is required"),
+  mobile: z.string().min(10, "Valid mobile number is required"),
+  address: z.string().min(5, "Address is required"),
+  ebServiceNumber: z.string().optional(),
+  propertyType: z.enum(propertyTypes),
+  location: z.string().optional()
+});
+
+// Technical site visit schema
+export const technicalSiteVisitSchema = z.object({
+  serviceTypes: z.array(z.enum(serviceTypes)),
+  workType: z.enum(technicalWorkTypes),
+  workingStatus: z.enum(workingStatus),
+  pendingRemarks: z.string().optional(),
+  teamMembers: z.array(z.string()),
+  description: z.string().optional()
+});
+
+// Solar system configuration schemas
+export const onGridConfigSchema = z.object({
+  solarPanelMake: z.enum(solarPanelBrands),
+  panelWatts: z.enum(panelWatts),
+  inverterMake: z.enum(inverterMakes),
+  inverterWatts: z.enum(inverterWatts),
+  inverterPhase: z.enum(inverterPhases),
+  lightningArrest: z.boolean().default(false),
+  earth: z.enum(earthingTypes),
+  floor: z.string().optional(),
+  panelCount: z.number().min(1),
+  structureHeight: z.number().min(0),
+  projectValue: z.number().min(0),
+  others: z.string().optional()
+});
+
+export const offGridConfigSchema = onGridConfigSchema.extend({
+  batteryBrand: z.enum(batteryBrands),
+  voltage: z.number().min(0),
+  batteryCount: z.number().min(1),
+  batteryStands: z.string().optional()
+});
+
+export const hybridConfigSchema = offGridConfigSchema;
+
+export const waterHeaterConfigSchema = z.object({
+  brand: z.enum(waterHeaterBrands),
+  litre: z.number().min(1),
+  heatingCoil: z.string().optional(),
+  projectValue: z.number().min(0),
+  others: z.string().optional()
+});
+
+export const waterPumpConfigSchema = z.object({
+  hp: z.string(),
+  drive: z.string(),
+  solarPanel: z.string().optional(),
+  structureHeight: z.number().min(0),
+  panelBrand: z.enum(solarPanelBrands),
+  panelCount: z.number().min(1),
+  projectValue: z.number().min(0),
+  others: z.string().optional()
+});
+
+// Marketing site visit schema
+export const marketingSiteVisitSchema = z.object({
+  updateRequirements: z.boolean(),
+  projectType: z.enum(marketingProjectTypes),
+  onGridConfig: onGridConfigSchema.optional(),
+  offGridConfig: offGridConfigSchema.optional(),
+  hybridConfig: hybridConfigSchema.optional(),
+  waterHeaterConfig: waterHeaterConfigSchema.optional(),
+  waterPumpConfig: waterPumpConfigSchema.optional()
+});
+
+// Admin site visit schema
+export const adminSiteVisitSchema = z.object({
+  bankProcess: z.object({
+    step: z.enum(bankProcessSteps),
+    description: z.string().optional()
+  }).optional(),
+  ebProcess: z.object({
+    type: z.enum(ebProcessTypes),
+    description: z.string().optional()
+  }).optional(),
+  purchase: z.string().optional(),
+  driving: z.string().optional(),
+  officialCashTransactions: z.string().optional(),
+  officialPersonalWork: z.string().optional(),
+  others: z.string().optional()
+});
+
+// Site photo schema
+export const sitePhotoSchema = z.object({
+  url: z.string().url(),
+  location: locationSchema,
+  timestamp: z.date(),
+  description: z.string().optional()
+});
+
+// Main site visit schema
+export const insertSiteVisitSchema = z.object({
+  userId: z.string(),
+  department: z.enum(["technical", "marketing", "admin"]),
+  visitPurpose: z.enum(siteVisitPurposes),
+  
+  // Location & Time Tracking
+  siteInTime: z.date(),
+  siteInLocation: locationSchema,
+  siteInPhotoUrl: z.string().url(),
+  siteOutTime: z.date().optional(),
+  siteOutLocation: locationSchema.optional(),
+  siteOutPhotoUrl: z.string().url().optional(),
+  
+  // Customer Information
+  customer: customerDetailsSchema,
+  
+  // Department-specific data
+  technicalData: technicalSiteVisitSchema.optional(),
+  marketingData: marketingSiteVisitSchema.optional(),
+  adminData: adminSiteVisitSchema.optional(),
+  
+  // Site Photos (1-20 photos)
+  sitePhotos: z.array(sitePhotoSchema).max(20).default([]),
+  
+  // Status and metadata
+  status: z.enum(["in_progress", "completed", "cancelled"]).default("in_progress"),
+  notes: z.string().optional(),
+  createdAt: z.date().default(() => new Date()),
+  updatedAt: z.date().default(() => new Date())
+});
+
+// Type definitions
+export type SiteVisitPurpose = typeof siteVisitPurposes[number];
+export type PropertyType = typeof propertyTypes[number];
+export type TechnicalWorkType = typeof technicalWorkTypes[number];
+export type ServiceType = typeof serviceTypes[number];
+export type WorkingStatus = typeof workingStatus[number];
+export type SolarPanelBrand = typeof solarPanelBrands[number];
+export type InverterMake = typeof inverterMakes[number];
+export type InverterPhase = typeof inverterPhases[number];
+export type EarthingType = typeof earthingTypes[number];
+export type PanelWatt = typeof panelWatts[number];
+export type InverterWatt = typeof inverterWatts[number];
+export type BatteryBrand = typeof batteryBrands[number];
+export type WaterHeaterBrand = typeof waterHeaterBrands[number];
+export type MarketingProjectType = typeof marketingProjectTypes[number];
+export type BankProcessStep = typeof bankProcessSteps[number];
+export type EBProcessType = typeof ebProcessTypes[number];
+
+export type Location = z.infer<typeof locationSchema>;
+export type CustomerDetails = z.infer<typeof customerDetailsSchema>;
+export type TechnicalSiteVisit = z.infer<typeof technicalSiteVisitSchema>;
+export type OnGridConfig = z.infer<typeof onGridConfigSchema>;
+export type OffGridConfig = z.infer<typeof offGridConfigSchema>;
+export type HybridConfig = z.infer<typeof hybridConfigSchema>;
+export type WaterHeaterConfig = z.infer<typeof waterHeaterConfigSchema>;
+export type WaterPumpConfig = z.infer<typeof waterPumpConfigSchema>;
+export type MarketingSiteVisit = z.infer<typeof marketingSiteVisitSchema>;
+export type AdminSiteVisit = z.infer<typeof adminSiteVisitSchema>;
+export type SitePhoto = z.infer<typeof sitePhotoSchema>;
+export type InsertSiteVisit = z.infer<typeof insertSiteVisitSchema>;
+
+export interface SiteVisit extends InsertSiteVisit {
+  id: string;
+}
 
 // Marital status options
 export const maritalStatus = [

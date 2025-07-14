@@ -27,6 +27,7 @@ const UserManagement = lazy(() => import("@/pages/user-management"));
 const HRManagement = lazy(() => import("@/pages/hr-management"));
 const Departments = lazy(() => import("@/pages/departments"));
 const OfficeLocations = lazy(() => import("@/pages/office-locations"));
+const SiteVisit = lazy(() => import("@/pages/site-visit"));
 
 // Simple loading fallback component
 const PageLoader = () => (
@@ -131,6 +132,21 @@ function Router() {
           <DashboardLayout>
             <Suspense fallback={<PageLoader />}>
               <Leave />
+            </Suspense>
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      
+      {/* Site Visit Management - Technical, Marketing, Admin departments only */}
+      <Route path="/site-visit">
+        <ProtectedRoute 
+          requiredPermissions={["site_visit.view", "site_visit.create"]}
+          requiredDepartments={["technical", "marketing", "admin"]}
+          allowMasterAdmin={true}
+        >
+          <DashboardLayout>
+            <Suspense fallback={<PageLoader />}>
+              <SiteVisit />
             </Suspense>
           </DashboardLayout>
         </ProtectedRoute>
