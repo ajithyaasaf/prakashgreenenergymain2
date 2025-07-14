@@ -26,6 +26,9 @@ import {
   Building,
   Zap
 } from "lucide-react";
+import { TechnicalSiteVisitForm } from "./technical-site-visit-form";
+import { MarketingSiteVisitForm } from "./marketing-site-visit-form";
+import { AdminSiteVisitForm } from "./admin-site-visit-form";
 
 interface SiteVisitStartModalProps {
   isOpen: boolean;
@@ -70,7 +73,10 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
       ebServiceNumber: '',
       propertyType: '',
     },
-    notes: ''
+    notes: '',
+    technicalData: null,
+    marketingData: null,
+    adminData: null
   });
 
   // Reset form when modal opens
@@ -90,7 +96,10 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
           ebServiceNumber: '',
           propertyType: '',
         },
-        notes: ''
+        notes: '',
+        technicalData: null,
+        marketingData: null,
+        adminData: null
       });
       requestLocationPermission();
     }
@@ -181,7 +190,12 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
           siteInPhotoUrl: photoUrl || 'https://via.placeholder.com/400x300?text=Site+Photo', // Fallback
           siteInTime: new Date(),
           siteInLocation: currentLocation,
-          status: 'in_progress'
+          status: 'in_progress',
+          // Include department-specific data
+          technicalSiteVisit: data.technicalData,
+          marketingSiteVisit: data.marketingData,
+          adminSiteVisit: data.adminData,
+          departmentType: userDepartment
         }),
       });
     },
@@ -221,11 +235,24 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
       return;
     }
 
+    // Validate department-specific data
+    if (!canProceedToStep4) {
+      toast({
+        title: "Department Details Required",
+        description: `Please complete the ${userDepartment} department specific details`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     createSiteVisitMutation.mutate(formData);
   };
 
   const canProceedToStep2 = locationPermission === 'granted' && formData.visitPurpose;
   const canProceedToStep3 = formData.customer.name && formData.customer.mobile && formData.customer.address && formData.customer.propertyType;
+  const canProceedToStep4 = (userDepartment === 'technical' && formData.technicalData) ||
+                           (userDepartment === 'marketing' && formData.marketingData) ||
+                           (userDepartment === 'admin' && formData.adminData);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -260,6 +287,13 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
             <div className={`flex items-center gap-2 ${step >= 3 ? 'text-primary' : 'text-muted-foreground'}`}>
               <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 3 ? 'bg-primary text-white' : 'bg-muted'}`}>
                 3
+              </div>
+              <span className="text-sm font-medium">{userDepartment.charAt(0).toUpperCase() + userDepartment.slice(1)} Details</span>
+            </div>
+            <ArrowRight className="h-4 w-4 text-muted-foreground" />
+            <div className={`flex items-center gap-2 ${step >= 4 ? 'text-primary' : 'text-muted-foreground'}`}>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 4 ? 'bg-primary text-white' : 'bg-muted'}`}>
+                4
               </div>
               <span className="text-sm font-medium">Photo & Confirm</span>
             </div>
@@ -458,15 +492,53 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
                   onClick={() => setStep(3)}
                   disabled={!canProceedToStep3}
                 >
-                  Next: Photo & Confirm
+                  Next: {userDepartment.charAt(0).toUpperCase() + userDepartment.slice(1)} Details
                   <ArrowRight className="h-4 w-4 ml-2" />
                 </Button>
               </div>
             </div>
           )}
 
-          {/* Step 3: Photo & Confirmation */}
+          {/* Step 3: Department-Specific Forms */}
           {step === 3 && (
+            <div className="space-y-4">
+              {userDepartment === 'technical' && (
+                <TechnicalSiteVisitForm 
+                  onSubmit={(data) => {
+                    setFormData(prev => ({ ...prev, technicalData: data }));
+                    setStep(4);
+                  }}
+                  onBack={() => setStep(2)}
+                  isLoading={false}
+                />
+              )}
+              
+              {userDepartment === 'marketing' && (
+                <MarketingSiteVisitForm 
+                  onSubmit={(data) => {
+                    setFormData(prev => ({ ...prev, marketingData: data }));
+                    setStep(4);
+                  }}
+                  onBack={() => setStep(2)}
+                  isLoading={false}
+                />
+              )}
+              
+              {userDepartment === 'admin' && (
+                <AdminSiteVisitForm 
+                  onSubmit={(data) => {
+                    setFormData(prev => ({ ...prev, adminData: data }));
+                    setStep(4);
+                  }}
+                  onBack={() => setStep(2)}
+                  isLoading={false}
+                />
+              )}
+            </div>
+          )}
+
+          {/* Step 4: Photo & Confirmation */}
+          {step === 4 && (
             <div className="space-y-4">
               <Card>
                 <CardHeader>
@@ -540,7 +612,7 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
               </Card>
 
               <div className="flex justify-between">
-                <Button variant="outline" onClick={() => setStep(2)}>
+                <Button variant="outline" onClick={() => setStep(3)}>
                   Back
                 </Button>
                 <Button
