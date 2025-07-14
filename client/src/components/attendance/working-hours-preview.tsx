@@ -31,16 +31,47 @@ export function WorkingHoursPreview({
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    // REMOVED: Custom time parsing - simplified calculation doesn't need department schedule times
-    // We only need the department standard working hours for calculation
+    // FIXED: Parse department schedule times for early arrival + late departure OT calculation
+    const parseTime12Hour = (timeStr: string): Date => {
+      const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+      if (!timeMatch) {
+        const fallback = new Date(today);
+        fallback.setHours(timeStr.includes('out') ? 18 : 9, 0, 0, 0);
+        return fallback;
+      }
+      
+      let [, hours, minutes, period] = timeMatch;
+      let hour24 = parseInt(hours);
+      if (period.toUpperCase() === 'PM' && hour24 !== 12) hour24 += 12;
+      if (period.toUpperCase() === 'AM' && hour24 === 12) hour24 = 0;
+      
+      const date = new Date(today);
+      date.setHours(hour24, parseInt(minutes), 0, 0);
+      return date;
+    };
     
-    // FIXED: Simplified overtime calculation - total work time minus department standard hours
-    const totalWorkingMinutes = Math.floor((now.getTime() - checkIn.getTime()) / (1000 * 60));
-    const departmentStandardMinutes = departmentTiming.workingHours * 60;
+    const departCheckIn = parseTime12Hour(departmentTiming.checkInTime);
+    const departCheckOut = parseTime12Hour(departmentTiming.checkOutTime);
     
-    // Calculate regular and overtime hours
-    const regularMinutes = Math.min(totalWorkingMinutes, departmentStandardMinutes);
-    const overtimeMinutes = Math.max(0, totalWorkingMinutes - departmentStandardMinutes);
+    // FIXED: Calculate early arrival + late departure overtime (industry standard)
+    let overtimeMinutes = 0;
+    
+    // Early arrival overtime: work before department start time
+    if (checkIn < departCheckIn) {
+      overtimeMinutes += Math.floor((departCheckIn.getTime() - checkIn.getTime()) / (1000 * 60));
+    }
+    
+    // Late departure overtime: work after department end time
+    if (now > departCheckOut) {
+      overtimeMinutes += Math.floor((now.getTime() - departCheckOut.getTime()) / (1000 * 60));
+    }
+    
+    // Calculate regular working time (within department schedule)
+    const workStart = new Date(Math.max(checkIn.getTime(), departCheckIn.getTime()));
+    const workEnd = new Date(Math.min(now.getTime(), departCheckOut.getTime()));
+    const regularMinutes = Math.max(0, Math.floor((workEnd.getTime() - workStart.getTime()) / (1000 * 60)));
+    
+    const totalWorkingMinutes = regularMinutes + overtimeMinutes;
     
     const isCurrentlyOvertime = overtimeMinutes > 0;
     
@@ -52,8 +83,8 @@ export function WorkingHoursPreview({
       isCurrentlyOvertime,
       overtimeMinutes,
       overtimeHours: overtimeMinutes / 60,
-      standardEndTime: new Date(), // Not needed for simplified calculation
-      departmentStartTime: new Date() // Not needed for simplified calculation
+      standardEndTime: departCheckOut,
+      departmentStartTime: departCheckIn
     };
   };
 
@@ -128,11 +159,11 @@ export function WorkingHoursPreview({
           </div>
           {preview.isCurrentlyOvertime ? (
             <div className="text-orange-600 font-medium">
-              ⚠️ Currently working beyond standard {departmentTiming.workingHours}h (overtime)
+              ⚠️ Currently working outside department schedule (overtime)
             </div>
           ) : (
             <div className="text-green-600">
-              ✓ Working within standard {departmentTiming.workingHours}h
+              ✓ Working within department schedule
             </div>
           )}
         </div>

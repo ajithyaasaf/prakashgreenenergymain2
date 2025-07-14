@@ -116,20 +116,38 @@ export class EnterpriseTimeService {
     let overtimeStartTime: string | undefined;
 
     if (checkOutTime) {
-      // FIXED: Unified overtime calculation - total work time minus department standard hours
-      const totalMinutes = Math.floor((checkOutTime.getTime() - checkInTime.getTime()) / (1000 * 60));
-      const departmentStandardMinutes = timing.workingHours * 60;
+      // FIXED: Early arrival + late departure overtime calculation (industry standard)
+      let overtimeMinutes = 0;
       
-      // Calculate working and overtime hours
+      // Early arrival overtime: work before department start time
+      if (checkInTime < expectedCheckIn) {
+        const earlyArrivalMinutes = Math.floor((expectedCheckIn.getTime() - checkInTime.getTime()) / (1000 * 60));
+        overtimeMinutes += earlyArrivalMinutes;
+        console.log(`ENTERPRISE_TIME: Early arrival OT - ${earlyArrivalMinutes} minutes`);
+      }
+      
+      // Late departure overtime: work after department end time
+      if (checkOutTime > expectedCheckOut) {
+        const lateDepartureMinutes = Math.floor((checkOutTime.getTime() - expectedCheckOut.getTime()) / (1000 * 60));
+        overtimeMinutes += lateDepartureMinutes;
+        console.log(`ENTERPRISE_TIME: Late departure OT - ${lateDepartureMinutes} minutes`);
+      }
+      
+      // Calculate regular working time (within department schedule)
+      const workStart = new Date(Math.max(checkInTime.getTime(), expectedCheckIn.getTime()));
+      const workEnd = new Date(Math.min(checkOutTime.getTime(), expectedCheckOut.getTime()));
+      const regularMinutes = Math.max(0, Math.floor((workEnd.getTime() - workStart.getTime()) / (1000 * 60)));
+      
+      // Total working hours and overtime hours
+      const totalMinutes = regularMinutes + overtimeMinutes;
       workingHours = Math.max(0, totalMinutes / 60);
-      const overtimeMinutes = Math.max(0, totalMinutes - departmentStandardMinutes);
       overtimeHours = Math.max(0, overtimeMinutes / 60);
       
       if (overtimeHours > 0) {
         overtimeStartTime = this.formatTo12Hour(expectedCheckOut);
-        console.log(`ENTERPRISE_TIME: OT detected - ${overtimeMinutes} minutes = ${overtimeHours} hours (total work: ${totalMinutes}min, standard: ${departmentStandardMinutes}min)`);
+        console.log(`ENTERPRISE_TIME: Total OT - ${overtimeMinutes} minutes = ${overtimeHours} hours (regular: ${regularMinutes}min, overtime: ${overtimeMinutes}min)`);
       } else {
-        console.log(`ENTERPRISE_TIME: No OT - total work within standard hours`);
+        console.log(`ENTERPRISE_TIME: No OT - work within department schedule`);
       }
     }
 

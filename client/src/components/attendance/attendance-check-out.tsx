@@ -77,11 +77,47 @@ export function AttendanceCheckOut({
       departmentCheckoutMinutes = hour24 * 60 + parseInt(minutes);
     }
     
-    // FIXED: Unified overtime calculation - total work time minus department standard hours
-    const totalWorkingMinutes = Math.floor((currentTime.getTime() - checkInTime.getTime()) / (1000 * 60));
-    const departmentStandardMinutes = departmentTiming.workingHours * 60;
-    const overtimeMinutes = Math.max(0, totalWorkingMinutes - departmentStandardMinutes);
+    // FIXED: Early arrival + late departure overtime calculation
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Parse department schedule times
+    const parseTime12Hour = (timeStr: string): Date => {
+      const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+      if (!timeMatch) {
+        const fallback = new Date(today);
+        fallback.setHours(timeStr.includes('out') ? 18 : 9, 0, 0, 0);
+        return fallback;
+      }
+      
+      let [, hours, minutes, period] = timeMatch;
+      let hour24 = parseInt(hours);
+      if (period.toUpperCase() === 'PM' && hour24 !== 12) hour24 += 12;
+      if (period.toUpperCase() === 'AM' && hour24 === 12) hour24 = 0;
+      
+      const date = new Date(today);
+      date.setHours(hour24, parseInt(minutes), 0, 0);
+      return date;
+    };
+    
+    const departCheckIn = parseTime12Hour(departmentTiming.checkInTime);
+    const departCheckOut = parseTime12Hour(departmentTiming.checkOutTime);
+    
+    // Calculate early arrival + late departure overtime
+    let overtimeMinutes = 0;
+    
+    // Early arrival overtime
+    if (checkInTime < departCheckIn) {
+      overtimeMinutes += Math.floor((departCheckIn.getTime() - checkInTime.getTime()) / (1000 * 60));
+    }
+    
+    // Late departure overtime
+    if (currentTime > departCheckOut) {
+      overtimeMinutes += Math.floor((currentTime.getTime() - departCheckOut.getTime()) / (1000 * 60));
+    }
+    
     const hasOvertime = overtimeMinutes > 0;
+    const totalWorkingMinutes = Math.floor((currentTime.getTime() - checkInTime.getTime()) / (1000 * 60));
     const overtimeThreshold = departmentTiming.overtimeThresholdMinutes || 30;
     const requiresPhoto = overtimeMinutes >= overtimeThreshold;
     
