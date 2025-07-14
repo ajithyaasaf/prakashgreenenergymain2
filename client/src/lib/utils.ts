@@ -17,23 +17,10 @@ export function formatDate(date: Date | string): string {
 }
 
 /**
- * Format time from Date object to 12-hour format (DEPRECATED)
- * @deprecated Use TimeDisplay component with format12Hour={true} instead
- * @param date - Date object or string
- * @returns Time in 12-hour format (h:mm AM/PM)
+ * Format time from Date object to 12-hour format (REMOVED)
+ * @deprecated This function has been removed. Use TimeDisplay component with format12Hour={true} instead
  */
-export function formatTime(date: Date | string): string {
-  console.warn('DEPRECATED: formatTime - Use TimeDisplay component instead');
-  
-  if (!date) return "";
-  const d = typeof date === "string" ? new Date(date) : date;
-  return d.toLocaleTimeString("en-IN", {
-    timeZone: "Asia/Kolkata",
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
-}
+// REMOVED: formatTime function - use TimeDisplay component instead
 
 // Enhanced time formatting for 12-hour consistency
 export function formatTime12Hour(time: string | Date): string {
@@ -145,38 +132,7 @@ export function truncateText(text: string, maxLength: number): string {
 }
 
 /**
- * Format time string to 12-hour format (DEPRECATED)
- * @deprecated Use TimeDisplay component with format12Hour={true} instead
- * @param timeString - Time in HH:MM format or 12-hour format
- * @returns Time in 12-hour format (h:mm AM/PM)
+ * Format time string to 12-hour format (REMOVED)
+ * @deprecated This function has been removed. Use TimeDisplay component with format12Hour={true} instead
  */
-export function formatTimeString(timeString: string): string {
-  console.warn('DEPRECATED: formatTimeString - Use TimeDisplay component instead');
-  
-  if (!timeString) return "";
-  
-  try {
-    // If it's already in 12-hour format, return as is
-    if (timeString.includes("AM") || timeString.includes("PM")) {
-      return timeString;
-    }
-    
-    // Handle both HH:MM and HH:MM:SS formats
-    const [hours, minutes] = timeString.split(':').map(Number);
-    
-    if (isNaN(hours) || isNaN(minutes)) return timeString;
-    
-    const date = new Date();
-    date.setHours(hours, minutes, 0);
-    
-    return date.toLocaleTimeString("en-IN", {
-      timeZone: "Asia/Kolkata",
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
-  } catch (error) {
-    console.error('Error formatting time string:', error);
-    return timeString;
-  }
-}
+// REMOVED: formatTimeString function - use TimeDisplay component instead

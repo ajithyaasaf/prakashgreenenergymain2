@@ -116,22 +116,20 @@ export class EnterpriseTimeService {
     let overtimeStartTime: string | undefined;
 
     if (checkOutTime) {
-      // Calculate total working time
+      // FIXED: Unified overtime calculation - total work time minus department standard hours
       const totalMinutes = Math.floor((checkOutTime.getTime() - checkInTime.getTime()) / (1000 * 60));
-      workingHours = Math.max(0, totalMinutes / 60); // Ensure non-negative
-
-      // FIXED: Proper OT calculation - only if checkout is after expected checkout time
-      console.log(`ENTERPRISE_TIME: Calculating OT - checkOut: ${checkOutTime.toISOString()}, expectedCheckOut: ${expectedCheckOut.toISOString()}`);
+      const departmentStandardMinutes = timing.workingHours * 60;
       
-      // Only calculate overtime if checking out after expected time
-      if (checkOutTime > expectedCheckOut) {
-        const overtimeMinutes = Math.floor((checkOutTime.getTime() - expectedCheckOut.getTime()) / (1000 * 60));
-        overtimeHours = Math.max(0, overtimeMinutes / 60);
+      // Calculate working and overtime hours
+      workingHours = Math.max(0, totalMinutes / 60);
+      const overtimeMinutes = Math.max(0, totalMinutes - departmentStandardMinutes);
+      overtimeHours = Math.max(0, overtimeMinutes / 60);
+      
+      if (overtimeHours > 0) {
         overtimeStartTime = this.formatTo12Hour(expectedCheckOut);
-        console.log(`ENTERPRISE_TIME: OT detected - ${overtimeMinutes} minutes = ${overtimeHours} hours`);
+        console.log(`ENTERPRISE_TIME: OT detected - ${overtimeMinutes} minutes = ${overtimeHours} hours (total work: ${totalMinutes}min, standard: ${departmentStandardMinutes}min)`);
       } else {
-        overtimeHours = 0;
-        console.log(`ENTERPRISE_TIME: No OT - checkout before expected time`);
+        console.log(`ENTERPRISE_TIME: No OT - total work within standard hours`);
       }
     }
 

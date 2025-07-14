@@ -77,8 +77,10 @@ export function AttendanceCheckOut({
       departmentCheckoutMinutes = hour24 * 60 + parseInt(minutes);
     }
     
-    // Basic overtime estimation for UI (server will calculate exact values)
-    const overtimeMinutes = Math.max(0, currentTimeMinutes - departmentCheckoutMinutes);
+    // FIXED: Unified overtime calculation - total work time minus department standard hours
+    const totalWorkingMinutes = Math.floor((currentTime.getTime() - checkInTime.getTime()) / (1000 * 60));
+    const departmentStandardMinutes = departmentTiming.workingHours * 60;
+    const overtimeMinutes = Math.max(0, totalWorkingMinutes - departmentStandardMinutes);
     const hasOvertime = overtimeMinutes > 0;
     const overtimeThreshold = departmentTiming.overtimeThresholdMinutes || 30;
     const requiresPhoto = overtimeMinutes >= overtimeThreshold;

@@ -31,48 +31,17 @@ export function WorkingHoursPreview({
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    // Parse 12-hour format times properly
-    const parseTime12Hour = (timeStr: string): Date => {
-      const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-      if (!timeMatch) {
-        // Fallback for corrupted data
-        const fallback = new Date(today);
-        fallback.setHours(timeStr.includes('out') ? 18 : 9, 0, 0, 0);
-        return fallback;
-      }
-      
-      let [, hours, minutes, period] = timeMatch;
-      let hour24 = parseInt(hours);
-      if (period.toUpperCase() === 'PM' && hour24 !== 12) hour24 += 12;
-      if (period.toUpperCase() === 'AM' && hour24 === 12) hour24 = 0;
-      
-      const date = new Date(today);
-      date.setHours(hour24, parseInt(minutes), 0, 0);
-      return date;
-    };
+    // REMOVED: Custom time parsing - simplified calculation doesn't need department schedule times
+    // We only need the department standard working hours for calculation
     
-    const departCheckIn = parseTime12Hour(departmentTiming.checkInTime);
-    const departCheckOut = parseTime12Hour(departmentTiming.checkOutTime);
+    // FIXED: Simplified overtime calculation - total work time minus department standard hours
+    const totalWorkingMinutes = Math.floor((now.getTime() - checkIn.getTime()) / (1000 * 60));
+    const departmentStandardMinutes = departmentTiming.workingHours * 60;
     
-    // Calculate working time within department schedule
-    const workStart = new Date(Math.max(checkIn.getTime(), departCheckIn.getTime()));
-    const workEnd = new Date(Math.min(now.getTime(), departCheckOut.getTime()));
-    const regularMinutes = Math.max(0, Math.floor((workEnd.getTime() - workStart.getTime()) / (1000 * 60)));
+    // Calculate regular and overtime hours
+    const regularMinutes = Math.min(totalWorkingMinutes, departmentStandardMinutes);
+    const overtimeMinutes = Math.max(0, totalWorkingMinutes - departmentStandardMinutes);
     
-    // Calculate overtime (before start + after end)
-    let overtimeMinutes = 0;
-    
-    // Early arrival overtime
-    if (checkIn < departCheckIn) {
-      overtimeMinutes += Math.floor((departCheckIn.getTime() - checkIn.getTime()) / (1000 * 60));
-    }
-    
-    // Late departure overtime
-    if (now > departCheckOut) {
-      overtimeMinutes += Math.floor((now.getTime() - departCheckOut.getTime()) / (1000 * 60));
-    }
-    
-    const totalWorkingMinutes = regularMinutes + overtimeMinutes;
     const isCurrentlyOvertime = overtimeMinutes > 0;
     
     return {
@@ -83,8 +52,8 @@ export function WorkingHoursPreview({
       isCurrentlyOvertime,
       overtimeMinutes,
       overtimeHours: overtimeMinutes / 60,
-      standardEndTime: departCheckOut,
-      departmentStartTime: departCheckIn
+      standardEndTime: new Date(), // Not needed for simplified calculation
+      departmentStartTime: new Date() // Not needed for simplified calculation
     };
   };
 
@@ -153,17 +122,17 @@ export function WorkingHoursPreview({
         <div className="text-xs bg-white p-3 rounded border space-y-1">
           <div className="font-medium text-gray-700">Department Schedule:</div>
           <div className="text-muted-foreground">
-            <TimeDisplay time={preview.departmentStartTime.toISOString()} format12Hour={true} /> - {' '}
-            <TimeDisplay time={preview.standardEndTime.toISOString()} format12Hour={true} />
+            <TimeDisplay time={departmentTiming.checkInTime} format12Hour={true} /> - {' '}
+            <TimeDisplay time={departmentTiming.checkOutTime} format12Hour={true} />
             {' '}({departmentTiming.workingHours}h standard)
           </div>
           {preview.isCurrentlyOvertime ? (
             <div className="text-orange-600 font-medium">
-              ⚠️ Currently working outside department schedule (overtime)
+              ⚠️ Currently working beyond standard {departmentTiming.workingHours}h (overtime)
             </div>
           ) : (
             <div className="text-green-600">
-              ✓ Working within department schedule
+              ✓ Working within standard {departmentTiming.workingHours}h
             </div>
           )}
         </div>
