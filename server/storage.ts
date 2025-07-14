@@ -318,6 +318,147 @@ export interface AuditLog {
   createdAt: Date;
 }
 
+// ===== SITE VISIT MANAGEMENT SYSTEM INTERFACES =====
+
+export interface SiteVisit {
+  id: string;
+  userId: string;
+  department: string;
+  visitType: "initial" | "follow_up" | "continuation" | "final";
+  status: "pending" | "in_progress" | "completed" | "cancelled";
+  startTime: Date;
+  endTime?: Date;
+  startLocation: {
+    latitude: string;
+    longitude: string;
+    address?: string;
+  };
+  endLocation?: {
+    latitude: string;
+    longitude: string;
+    address?: string;
+  };
+  startPhoto?: string;
+  endPhoto?: string;
+  photos: string[];
+  parentVisitId?: string;
+  visitNumber: number;
+  isFollowUp: boolean;
+  continuationRemarks?: string;
+  customerId?: string;
+  customerName?: string;
+  customerType?: "residential" | "commercial" | "agri" | "other";
+  workingStatus: "pending" | "completed";
+  pendingRemarks?: string;
+  description?: string;
+  teamMembers: string[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface EnhancedCustomer {
+  id: string;
+  name: string;
+  mobile: string;
+  email?: string;
+  address: string;
+  location?: string;
+  ebServiceNumber?: string;
+  customerType: "residential" | "commercial" | "agri" | "other";
+  isActive: boolean;
+  createdBy: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ProjectSpec {
+  id: string;
+  siteVisitId: string;
+  projectType: "on_grid" | "off_grid" | "hybrid" | "water_heater" | "water_pump" | "lights_accessories" | "others";
+  specifications: Record<string, any>;
+  projectValue?: number;
+  photos: string[];
+  status: "draft" | "submitted" | "approved" | "rejected";
+  remarks?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ProductCatalog {
+  id: string;
+  category: "solar_panel" | "inverter" | "battery" | "water_heater" | "accessories";
+  brand: string;
+  model: string;
+  specifications: Record<string, any>;
+  isActive: boolean;
+  createdBy: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface TechnicalVisit {
+  id: string;
+  siteVisitId: string;
+  customerDetails: {
+    name: string;
+    mobile: string;
+    address: string;
+  };
+  customerType: "residential" | "commercial" | "agri" | "other";
+  serviceType: string[];
+  workType: string;
+  workingStatus: "pending" | "completed";
+  pendingRemarks?: string;
+  teamMembers: string[];
+  description?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface MarketingVisit {
+  id: string;
+  siteVisitId: string;
+  customerDetails: {
+    name: string;
+    mobile: string;
+    ebServiceNumber?: string;
+    address: string;
+    location?: string;
+  };
+  customerRequirementsUpdate: boolean;
+  customerType: "residential" | "commercial" | "agri" | "other";
+  serviceType: string;
+  projectDetails: Record<string, any>;
+  photos: string[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface AdminVisit {
+  id: string;
+  siteVisitId: string;
+  processType: "bank_process" | "eb_process" | "other_official_work";
+  processSteps: string[];
+  currentStep?: string;
+  stepStatus: Record<string, string>;
+  documents: string[];
+  followUpDate?: Date;
+  notes?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface FormConfig {
+  id: string;
+  department: string;
+  formType: string;
+  configuration: Record<string, any>;
+  isActive: boolean;
+  createdBy: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 // Enterprise HR Management Interfaces
 export interface Employee {
   id: string;
@@ -832,6 +973,93 @@ export interface IStorage {
   getSalaryAdvance(id: string): Promise<SalaryAdvance | undefined>;
   createSalaryAdvance(data: z.infer<typeof insertSalaryAdvanceSchema>): Promise<SalaryAdvance>;
   updateSalaryAdvance(id: string, data: Partial<z.infer<typeof insertSalaryAdvanceSchema>>): Promise<SalaryAdvance>;
+  
+  // ===== SITE VISIT MANAGEMENT SYSTEM METHODS =====
+  
+  // Site Visit Management
+  getSiteVisit(id: string): Promise<SiteVisit | undefined>;
+  getSiteVisitsByUser(userId: string): Promise<SiteVisit[]>;
+  getSiteVisitsByDepartment(department: string): Promise<SiteVisit[]>;
+  getSiteVisitsByCustomer(customerId: string): Promise<SiteVisit[]>;
+  getSiteVisitsByParent(parentVisitId: string): Promise<SiteVisit[]>;
+  listSiteVisits(filters?: {
+    userId?: string;
+    department?: string;
+    status?: string;
+    startDate?: Date;
+    endDate?: Date;
+    customerId?: string;
+    visitType?: string;
+  }): Promise<SiteVisit[]>;
+  createSiteVisit(data: z.infer<typeof insertSiteVisitSchema>): Promise<SiteVisit>;
+  updateSiteVisit(id: string, data: Partial<z.infer<typeof insertSiteVisitSchema>>): Promise<SiteVisit>;
+  deleteSiteVisit(id: string): Promise<boolean>;
+  
+  // Enhanced Customer Management
+  getEnhancedCustomer(id: string): Promise<EnhancedCustomer | undefined>;
+  getEnhancedCustomerByMobile(mobile: string): Promise<EnhancedCustomer | undefined>;
+  getEnhancedCustomerByEbService(ebServiceNumber: string): Promise<EnhancedCustomer | undefined>;
+  listEnhancedCustomers(filters?: {
+    customerType?: string;
+    isActive?: boolean;
+    search?: string;
+  }): Promise<EnhancedCustomer[]>;
+  createEnhancedCustomer(data: z.infer<typeof insertCustomerSchema>): Promise<EnhancedCustomer>;
+  updateEnhancedCustomer(id: string, data: Partial<z.infer<typeof insertCustomerSchema>>): Promise<EnhancedCustomer>;
+  deleteEnhancedCustomer(id: string): Promise<boolean>;
+  
+  // Project Specifications Management
+  getProjectSpec(id: string): Promise<ProjectSpec | undefined>;
+  getProjectSpecsBySiteVisit(siteVisitId: string): Promise<ProjectSpec[]>;
+  createProjectSpec(data: z.infer<typeof insertProjectSpecSchema>): Promise<ProjectSpec>;
+  updateProjectSpec(id: string, data: Partial<z.infer<typeof insertProjectSpecSchema>>): Promise<ProjectSpec>;
+  deleteProjectSpec(id: string): Promise<boolean>;
+  
+  // Product Catalog Management
+  getProductCatalog(id: string): Promise<ProductCatalog | undefined>;
+  getProductCatalogByCategory(category: string): Promise<ProductCatalog[]>;
+  getProductCatalogByBrand(brand: string): Promise<ProductCatalog[]>;
+  listProductCatalog(filters?: {
+    category?: string;
+    brand?: string;
+    isActive?: boolean;
+  }): Promise<ProductCatalog[]>;
+  createProductCatalog(data: z.infer<typeof insertProductCatalogSchema>): Promise<ProductCatalog>;
+  updateProductCatalog(id: string, data: Partial<z.infer<typeof insertProductCatalogSchema>>): Promise<ProductCatalog>;
+  deleteProductCatalog(id: string): Promise<boolean>;
+  
+  // Technical Visit Management
+  getTechnicalVisit(id: string): Promise<TechnicalVisit | undefined>;
+  getTechnicalVisitBySiteVisit(siteVisitId: string): Promise<TechnicalVisit | undefined>;
+  createTechnicalVisit(data: z.infer<typeof insertTechnicalVisitSchema>): Promise<TechnicalVisit>;
+  updateTechnicalVisit(id: string, data: Partial<z.infer<typeof insertTechnicalVisitSchema>>): Promise<TechnicalVisit>;
+  deleteTechnicalVisit(id: string): Promise<boolean>;
+  
+  // Marketing Visit Management
+  getMarketingVisit(id: string): Promise<MarketingVisit | undefined>;
+  getMarketingVisitBySiteVisit(siteVisitId: string): Promise<MarketingVisit | undefined>;
+  createMarketingVisit(data: z.infer<typeof insertMarketingVisitSchema>): Promise<MarketingVisit>;
+  updateMarketingVisit(id: string, data: Partial<z.infer<typeof insertMarketingVisitSchema>>): Promise<MarketingVisit>;
+  deleteMarketingVisit(id: string): Promise<boolean>;
+  
+  // Admin Visit Management
+  getAdminVisit(id: string): Promise<AdminVisit | undefined>;
+  getAdminVisitBySiteVisit(siteVisitId: string): Promise<AdminVisit | undefined>;
+  createAdminVisit(data: z.infer<typeof insertAdminVisitSchema>): Promise<AdminVisit>;
+  updateAdminVisit(id: string, data: Partial<z.infer<typeof insertAdminVisitSchema>>): Promise<AdminVisit>;
+  deleteAdminVisit(id: string): Promise<boolean>;
+  
+  // Form Configuration Management
+  getFormConfig(id: string): Promise<FormConfig | undefined>;
+  getFormConfigByDepartment(department: string, formType: string): Promise<FormConfig | undefined>;
+  listFormConfigs(filters?: {
+    department?: string;
+    formType?: string;
+    isActive?: boolean;
+  }): Promise<FormConfig[]>;
+  createFormConfig(data: z.infer<typeof insertFormConfigSchema>): Promise<FormConfig>;
+  updateFormConfig(id: string, data: Partial<z.infer<typeof insertFormConfigSchema>>): Promise<FormConfig>;
+  deleteFormConfig(id: string): Promise<boolean>;
   listSalaryAdvances(filters?: { userId?: string; status?: string }): Promise<SalaryAdvance[]>;
   
   // Attendance Policies
@@ -4766,6 +4994,1125 @@ export class FirestoreStorage implements IStorage {
       return true;
     } catch (error) {
       console.error("Error deleting payroll field config:", error);
+      return false;
+    }
+  }
+
+  // ===== SITE VISIT MANAGEMENT SYSTEM IMPLEMENTATIONS =====
+
+  // Site Visit Management
+  async getSiteVisit(id: string): Promise<SiteVisit | undefined> {
+    try {
+      const doc = await this.db.collection('siteVisits').doc(id).get();
+      if (!doc.exists) return undefined;
+      
+      const data = doc.data()!;
+      return {
+        id: doc.id,
+        ...data,
+        startTime: data.startTime?.toDate() || new Date(),
+        endTime: data.endTime?.toDate() || undefined,
+        createdAt: data.createdAt?.toDate() || new Date(),
+        updatedAt: data.updatedAt?.toDate() || new Date(),
+      } as SiteVisit;
+    } catch (error) {
+      console.error("Error getting site visit:", error);
+      return undefined;
+    }
+  }
+
+  async getSiteVisitsByUser(userId: string): Promise<SiteVisit[]> {
+    try {
+      const querySnapshot = await this.db.collection('siteVisits')
+        .where('userId', '==', userId)
+        .orderBy('startTime', 'desc')
+        .get();
+
+      return querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          startTime: data.startTime?.toDate() || new Date(),
+          endTime: data.endTime?.toDate() || undefined,
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date(),
+        } as SiteVisit;
+      });
+    } catch (error) {
+      console.error("Error getting site visits by user:", error);
+      return [];
+    }
+  }
+
+  async getSiteVisitsByDepartment(department: string): Promise<SiteVisit[]> {
+    try {
+      const querySnapshot = await this.db.collection('siteVisits')
+        .where('department', '==', department)
+        .orderBy('startTime', 'desc')
+        .get();
+
+      return querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          startTime: data.startTime?.toDate() || new Date(),
+          endTime: data.endTime?.toDate() || undefined,
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date(),
+        } as SiteVisit;
+      });
+    } catch (error) {
+      console.error("Error getting site visits by department:", error);
+      return [];
+    }
+  }
+
+  async getSiteVisitsByCustomer(customerId: string): Promise<SiteVisit[]> {
+    try {
+      const querySnapshot = await this.db.collection('siteVisits')
+        .where('customerId', '==', customerId)
+        .orderBy('startTime', 'desc')
+        .get();
+
+      return querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          startTime: data.startTime?.toDate() || new Date(),
+          endTime: data.endTime?.toDate() || undefined,
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date(),
+        } as SiteVisit;
+      });
+    } catch (error) {
+      console.error("Error getting site visits by customer:", error);
+      return [];
+    }
+  }
+
+  async getSiteVisitsByParent(parentVisitId: string): Promise<SiteVisit[]> {
+    try {
+      const querySnapshot = await this.db.collection('siteVisits')
+        .where('parentVisitId', '==', parentVisitId)
+        .orderBy('startTime', 'desc')
+        .get();
+
+      return querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          startTime: data.startTime?.toDate() || new Date(),
+          endTime: data.endTime?.toDate() || undefined,
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date(),
+        } as SiteVisit;
+      });
+    } catch (error) {
+      console.error("Error getting site visits by parent:", error);
+      return [];
+    }
+  }
+
+  async listSiteVisits(filters?: {
+    userId?: string;
+    department?: string;
+    status?: string;
+    startDate?: Date;
+    endDate?: Date;
+    customerId?: string;
+    visitType?: string;
+  }): Promise<SiteVisit[]> {
+    try {
+      let query = this.db.collection('siteVisits').orderBy('startTime', 'desc');
+
+      if (filters?.userId) {
+        query = query.where('userId', '==', filters.userId);
+      }
+      if (filters?.department) {
+        query = query.where('department', '==', filters.department);
+      }
+      if (filters?.status) {
+        query = query.where('status', '==', filters.status);
+      }
+      if (filters?.customerId) {
+        query = query.where('customerId', '==', filters.customerId);
+      }
+      if (filters?.visitType) {
+        query = query.where('visitType', '==', filters.visitType);
+      }
+      if (filters?.startDate) {
+        query = query.where('startTime', '>=', Timestamp.fromDate(filters.startDate));
+      }
+      if (filters?.endDate) {
+        query = query.where('startTime', '<=', Timestamp.fromDate(filters.endDate));
+      }
+
+      const querySnapshot = await query.get();
+      return querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          startTime: data.startTime?.toDate() || new Date(),
+          endTime: data.endTime?.toDate() || undefined,
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date(),
+        } as SiteVisit;
+      });
+    } catch (error) {
+      console.error("Error listing site visits:", error);
+      return [];
+    }
+  }
+
+  async createSiteVisit(data: z.infer<typeof insertSiteVisitSchema>): Promise<SiteVisit> {
+    try {
+      const validatedData = insertSiteVisitSchema.parse(data);
+      const doc = this.db.collection('siteVisits').doc();
+      
+      const siteVisitData = {
+        ...validatedData,
+        id: doc.id,
+        startTime: Timestamp.fromDate(validatedData.startTime),
+        endTime: validatedData.endTime ? Timestamp.fromDate(validatedData.endTime) : undefined,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      };
+
+      await doc.set(siteVisitData);
+      
+      return {
+        id: doc.id,
+        ...validatedData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as SiteVisit;
+    } catch (error) {
+      console.error("Error creating site visit:", error);
+      throw error;
+    }
+  }
+
+  async updateSiteVisit(id: string, data: Partial<z.infer<typeof insertSiteVisitSchema>>): Promise<SiteVisit> {
+    try {
+      const doc = this.db.collection('siteVisits').doc(id);
+      const updateData = {
+        ...data,
+        updatedAt: Timestamp.now(),
+      };
+
+      if (data.startTime) {
+        updateData.startTime = Timestamp.fromDate(data.startTime);
+      }
+      if (data.endTime) {
+        updateData.endTime = Timestamp.fromDate(data.endTime);
+      }
+
+      await doc.update(updateData);
+      
+      const updated = await doc.get();
+      const updatedData = updated.data()!;
+      return {
+        id: updated.id,
+        ...updatedData,
+        startTime: updatedData.startTime?.toDate() || new Date(),
+        endTime: updatedData.endTime?.toDate() || undefined,
+        createdAt: updatedData.createdAt?.toDate() || new Date(),
+        updatedAt: updatedData.updatedAt?.toDate() || new Date(),
+      } as SiteVisit;
+    } catch (error) {
+      console.error("Error updating site visit:", error);
+      throw error;
+    }
+  }
+
+  async deleteSiteVisit(id: string): Promise<boolean> {
+    try {
+      await this.db.collection('siteVisits').doc(id).delete();
+      return true;
+    } catch (error) {
+      console.error("Error deleting site visit:", error);
+      return false;
+    }
+  }
+
+  // Enhanced Customer Management
+  async getEnhancedCustomer(id: string): Promise<EnhancedCustomer | undefined> {
+    try {
+      const doc = await this.db.collection('enhancedCustomers').doc(id).get();
+      if (!doc.exists) return undefined;
+      
+      const data = doc.data()!;
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: data.createdAt?.toDate() || new Date(),
+        updatedAt: data.updatedAt?.toDate() || new Date(),
+      } as EnhancedCustomer;
+    } catch (error) {
+      console.error("Error getting enhanced customer:", error);
+      return undefined;
+    }
+  }
+
+  async getEnhancedCustomerByMobile(mobile: string): Promise<EnhancedCustomer | undefined> {
+    try {
+      const querySnapshot = await this.db.collection('enhancedCustomers')
+        .where('mobile', '==', mobile)
+        .limit(1)
+        .get();
+
+      if (querySnapshot.empty) return undefined;
+
+      const doc = querySnapshot.docs[0];
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: data.createdAt?.toDate() || new Date(),
+        updatedAt: data.updatedAt?.toDate() || new Date(),
+      } as EnhancedCustomer;
+    } catch (error) {
+      console.error("Error getting enhanced customer by mobile:", error);
+      return undefined;
+    }
+  }
+
+  async getEnhancedCustomerByEbService(ebServiceNumber: string): Promise<EnhancedCustomer | undefined> {
+    try {
+      const querySnapshot = await this.db.collection('enhancedCustomers')
+        .where('ebServiceNumber', '==', ebServiceNumber)
+        .limit(1)
+        .get();
+
+      if (querySnapshot.empty) return undefined;
+
+      const doc = querySnapshot.docs[0];
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: data.createdAt?.toDate() || new Date(),
+        updatedAt: data.updatedAt?.toDate() || new Date(),
+      } as EnhancedCustomer;
+    } catch (error) {
+      console.error("Error getting enhanced customer by EB service:", error);
+      return undefined;
+    }
+  }
+
+  async listEnhancedCustomers(filters?: {
+    customerType?: string;
+    isActive?: boolean;
+    search?: string;
+  }): Promise<EnhancedCustomer[]> {
+    try {
+      let query = this.db.collection('enhancedCustomers').orderBy('createdAt', 'desc');
+
+      if (filters?.customerType) {
+        query = query.where('customerType', '==', filters.customerType);
+      }
+      if (filters?.isActive !== undefined) {
+        query = query.where('isActive', '==', filters.isActive);
+      }
+
+      const querySnapshot = await query.get();
+      let customers = querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date(),
+        } as EnhancedCustomer;
+      });
+
+      // Apply search filter client-side
+      if (filters?.search) {
+        const searchTerm = filters.search.toLowerCase();
+        customers = customers.filter(customer =>
+          customer.name.toLowerCase().includes(searchTerm) ||
+          customer.mobile.includes(searchTerm) ||
+          customer.address.toLowerCase().includes(searchTerm)
+        );
+      }
+
+      return customers;
+    } catch (error) {
+      console.error("Error listing enhanced customers:", error);
+      return [];
+    }
+  }
+
+  async createEnhancedCustomer(data: z.infer<typeof insertCustomerSchema>): Promise<EnhancedCustomer> {
+    try {
+      const validatedData = insertCustomerSchema.parse(data);
+      const doc = this.db.collection('enhancedCustomers').doc();
+      
+      const customerData = {
+        ...validatedData,
+        id: doc.id,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      };
+
+      await doc.set(customerData);
+      
+      return {
+        id: doc.id,
+        ...validatedData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as EnhancedCustomer;
+    } catch (error) {
+      console.error("Error creating enhanced customer:", error);
+      throw error;
+    }
+  }
+
+  async updateEnhancedCustomer(id: string, data: Partial<z.infer<typeof insertCustomerSchema>>): Promise<EnhancedCustomer> {
+    try {
+      const doc = this.db.collection('enhancedCustomers').doc(id);
+      const updateData = {
+        ...data,
+        updatedAt: Timestamp.now(),
+      };
+
+      await doc.update(updateData);
+      
+      const updated = await doc.get();
+      const updatedData = updated.data()!;
+      return {
+        id: updated.id,
+        ...updatedData,
+        createdAt: updatedData.createdAt?.toDate() || new Date(),
+        updatedAt: updatedData.updatedAt?.toDate() || new Date(),
+      } as EnhancedCustomer;
+    } catch (error) {
+      console.error("Error updating enhanced customer:", error);
+      throw error;
+    }
+  }
+
+  async deleteEnhancedCustomer(id: string): Promise<boolean> {
+    try {
+      await this.db.collection('enhancedCustomers').doc(id).delete();
+      return true;
+    } catch (error) {
+      console.error("Error deleting enhanced customer:", error);
+      return false;
+    }
+  }
+
+  // Project Specifications Management
+  async getProjectSpec(id: string): Promise<ProjectSpec | undefined> {
+    try {
+      const doc = await this.db.collection('projectSpecs').doc(id).get();
+      if (!doc.exists) return undefined;
+      
+      const data = doc.data()!;
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: data.createdAt?.toDate() || new Date(),
+        updatedAt: data.updatedAt?.toDate() || new Date(),
+      } as ProjectSpec;
+    } catch (error) {
+      console.error("Error getting project spec:", error);
+      return undefined;
+    }
+  }
+
+  async getProjectSpecsBySiteVisit(siteVisitId: string): Promise<ProjectSpec[]> {
+    try {
+      const querySnapshot = await this.db.collection('projectSpecs')
+        .where('siteVisitId', '==', siteVisitId)
+        .get();
+
+      return querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date(),
+        } as ProjectSpec;
+      });
+    } catch (error) {
+      console.error("Error getting project specs by site visit:", error);
+      return [];
+    }
+  }
+
+  async createProjectSpec(data: z.infer<typeof insertProjectSpecSchema>): Promise<ProjectSpec> {
+    try {
+      const validatedData = insertProjectSpecSchema.parse(data);
+      const doc = this.db.collection('projectSpecs').doc();
+      
+      const projectSpecData = {
+        ...validatedData,
+        id: doc.id,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      };
+
+      await doc.set(projectSpecData);
+      
+      return {
+        id: doc.id,
+        ...validatedData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as ProjectSpec;
+    } catch (error) {
+      console.error("Error creating project spec:", error);
+      throw error;
+    }
+  }
+
+  async updateProjectSpec(id: string, data: Partial<z.infer<typeof insertProjectSpecSchema>>): Promise<ProjectSpec> {
+    try {
+      const doc = this.db.collection('projectSpecs').doc(id);
+      const updateData = {
+        ...data,
+        updatedAt: Timestamp.now(),
+      };
+
+      await doc.update(updateData);
+      
+      const updated = await doc.get();
+      const updatedData = updated.data()!;
+      return {
+        id: updated.id,
+        ...updatedData,
+        createdAt: updatedData.createdAt?.toDate() || new Date(),
+        updatedAt: updatedData.updatedAt?.toDate() || new Date(),
+      } as ProjectSpec;
+    } catch (error) {
+      console.error("Error updating project spec:", error);
+      throw error;
+    }
+  }
+
+  async deleteProjectSpec(id: string): Promise<boolean> {
+    try {
+      await this.db.collection('projectSpecs').doc(id).delete();
+      return true;
+    } catch (error) {
+      console.error("Error deleting project spec:", error);
+      return false;
+    }
+  }
+
+  // Product Catalog Management
+  async getProductCatalog(id: string): Promise<ProductCatalog | undefined> {
+    try {
+      const doc = await this.db.collection('productCatalog').doc(id).get();
+      if (!doc.exists) return undefined;
+      
+      const data = doc.data()!;
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: data.createdAt?.toDate() || new Date(),
+        updatedAt: data.updatedAt?.toDate() || new Date(),
+      } as ProductCatalog;
+    } catch (error) {
+      console.error("Error getting product catalog:", error);
+      return undefined;
+    }
+  }
+
+  async getProductCatalogByCategory(category: string): Promise<ProductCatalog[]> {
+    try {
+      const querySnapshot = await this.db.collection('productCatalog')
+        .where('category', '==', category)
+        .where('isActive', '==', true)
+        .get();
+
+      return querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date(),
+        } as ProductCatalog;
+      });
+    } catch (error) {
+      console.error("Error getting product catalog by category:", error);
+      return [];
+    }
+  }
+
+  async getProductCatalogByBrand(brand: string): Promise<ProductCatalog[]> {
+    try {
+      const querySnapshot = await this.db.collection('productCatalog')
+        .where('brand', '==', brand)
+        .where('isActive', '==', true)
+        .get();
+
+      return querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date(),
+        } as ProductCatalog;
+      });
+    } catch (error) {
+      console.error("Error getting product catalog by brand:", error);
+      return [];
+    }
+  }
+
+  async listProductCatalog(filters?: {
+    category?: string;
+    brand?: string;
+    isActive?: boolean;
+  }): Promise<ProductCatalog[]> {
+    try {
+      let query = this.db.collection('productCatalog').orderBy('createdAt', 'desc');
+
+      if (filters?.category) {
+        query = query.where('category', '==', filters.category);
+      }
+      if (filters?.brand) {
+        query = query.where('brand', '==', filters.brand);
+      }
+      if (filters?.isActive !== undefined) {
+        query = query.where('isActive', '==', filters.isActive);
+      }
+
+      const querySnapshot = await query.get();
+      return querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date(),
+        } as ProductCatalog;
+      });
+    } catch (error) {
+      console.error("Error listing product catalog:", error);
+      return [];
+    }
+  }
+
+  async createProductCatalog(data: z.infer<typeof insertProductCatalogSchema>): Promise<ProductCatalog> {
+    try {
+      const validatedData = insertProductCatalogSchema.parse(data);
+      const doc = this.db.collection('productCatalog').doc();
+      
+      const productCatalogData = {
+        ...validatedData,
+        id: doc.id,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      };
+
+      await doc.set(productCatalogData);
+      
+      return {
+        id: doc.id,
+        ...validatedData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as ProductCatalog;
+    } catch (error) {
+      console.error("Error creating product catalog:", error);
+      throw error;
+    }
+  }
+
+  async updateProductCatalog(id: string, data: Partial<z.infer<typeof insertProductCatalogSchema>>): Promise<ProductCatalog> {
+    try {
+      const doc = this.db.collection('productCatalog').doc(id);
+      const updateData = {
+        ...data,
+        updatedAt: Timestamp.now(),
+      };
+
+      await doc.update(updateData);
+      
+      const updated = await doc.get();
+      const updatedData = updated.data()!;
+      return {
+        id: updated.id,
+        ...updatedData,
+        createdAt: updatedData.createdAt?.toDate() || new Date(),
+        updatedAt: updatedData.updatedAt?.toDate() || new Date(),
+      } as ProductCatalog;
+    } catch (error) {
+      console.error("Error updating product catalog:", error);
+      throw error;
+    }
+  }
+
+  async deleteProductCatalog(id: string): Promise<boolean> {
+    try {
+      await this.db.collection('productCatalog').doc(id).delete();
+      return true;
+    } catch (error) {
+      console.error("Error deleting product catalog:", error);
+      return false;
+    }
+  }
+
+  // Technical Visit Management
+  async getTechnicalVisit(id: string): Promise<TechnicalVisit | undefined> {
+    try {
+      const doc = await this.db.collection('technicalVisits').doc(id).get();
+      if (!doc.exists) return undefined;
+      
+      const data = doc.data()!;
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: data.createdAt?.toDate() || new Date(),
+        updatedAt: data.updatedAt?.toDate() || new Date(),
+      } as TechnicalVisit;
+    } catch (error) {
+      console.error("Error getting technical visit:", error);
+      return undefined;
+    }
+  }
+
+  async getTechnicalVisitBySiteVisit(siteVisitId: string): Promise<TechnicalVisit | undefined> {
+    try {
+      const querySnapshot = await this.db.collection('technicalVisits')
+        .where('siteVisitId', '==', siteVisitId)
+        .limit(1)
+        .get();
+
+      if (querySnapshot.empty) return undefined;
+
+      const doc = querySnapshot.docs[0];
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: data.createdAt?.toDate() || new Date(),
+        updatedAt: data.updatedAt?.toDate() || new Date(),
+      } as TechnicalVisit;
+    } catch (error) {
+      console.error("Error getting technical visit by site visit:", error);
+      return undefined;
+    }
+  }
+
+  async createTechnicalVisit(data: z.infer<typeof insertTechnicalVisitSchema>): Promise<TechnicalVisit> {
+    try {
+      const validatedData = insertTechnicalVisitSchema.parse(data);
+      const doc = this.db.collection('technicalVisits').doc();
+      
+      const technicalVisitData = {
+        ...validatedData,
+        id: doc.id,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      };
+
+      await doc.set(technicalVisitData);
+      
+      return {
+        id: doc.id,
+        ...validatedData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as TechnicalVisit;
+    } catch (error) {
+      console.error("Error creating technical visit:", error);
+      throw error;
+    }
+  }
+
+  async updateTechnicalVisit(id: string, data: Partial<z.infer<typeof insertTechnicalVisitSchema>>): Promise<TechnicalVisit> {
+    try {
+      const doc = this.db.collection('technicalVisits').doc(id);
+      const updateData = {
+        ...data,
+        updatedAt: Timestamp.now(),
+      };
+
+      await doc.update(updateData);
+      
+      const updated = await doc.get();
+      const updatedData = updated.data()!;
+      return {
+        id: updated.id,
+        ...updatedData,
+        createdAt: updatedData.createdAt?.toDate() || new Date(),
+        updatedAt: updatedData.updatedAt?.toDate() || new Date(),
+      } as TechnicalVisit;
+    } catch (error) {
+      console.error("Error updating technical visit:", error);
+      throw error;
+    }
+  }
+
+  async deleteTechnicalVisit(id: string): Promise<boolean> {
+    try {
+      await this.db.collection('technicalVisits').doc(id).delete();
+      return true;
+    } catch (error) {
+      console.error("Error deleting technical visit:", error);
+      return false;
+    }
+  }
+
+  // Marketing Visit Management
+  async getMarketingVisit(id: string): Promise<MarketingVisit | undefined> {
+    try {
+      const doc = await this.db.collection('marketingVisits').doc(id).get();
+      if (!doc.exists) return undefined;
+      
+      const data = doc.data()!;
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: data.createdAt?.toDate() || new Date(),
+        updatedAt: data.updatedAt?.toDate() || new Date(),
+      } as MarketingVisit;
+    } catch (error) {
+      console.error("Error getting marketing visit:", error);
+      return undefined;
+    }
+  }
+
+  async getMarketingVisitBySiteVisit(siteVisitId: string): Promise<MarketingVisit | undefined> {
+    try {
+      const querySnapshot = await this.db.collection('marketingVisits')
+        .where('siteVisitId', '==', siteVisitId)
+        .limit(1)
+        .get();
+
+      if (querySnapshot.empty) return undefined;
+
+      const doc = querySnapshot.docs[0];
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: data.createdAt?.toDate() || new Date(),
+        updatedAt: data.updatedAt?.toDate() || new Date(),
+      } as MarketingVisit;
+    } catch (error) {
+      console.error("Error getting marketing visit by site visit:", error);
+      return undefined;
+    }
+  }
+
+  async createMarketingVisit(data: z.infer<typeof insertMarketingVisitSchema>): Promise<MarketingVisit> {
+    try {
+      const validatedData = insertMarketingVisitSchema.parse(data);
+      const doc = this.db.collection('marketingVisits').doc();
+      
+      const marketingVisitData = {
+        ...validatedData,
+        id: doc.id,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      };
+
+      await doc.set(marketingVisitData);
+      
+      return {
+        id: doc.id,
+        ...validatedData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as MarketingVisit;
+    } catch (error) {
+      console.error("Error creating marketing visit:", error);
+      throw error;
+    }
+  }
+
+  async updateMarketingVisit(id: string, data: Partial<z.infer<typeof insertMarketingVisitSchema>>): Promise<MarketingVisit> {
+    try {
+      const doc = this.db.collection('marketingVisits').doc(id);
+      const updateData = {
+        ...data,
+        updatedAt: Timestamp.now(),
+      };
+
+      await doc.update(updateData);
+      
+      const updated = await doc.get();
+      const updatedData = updated.data()!;
+      return {
+        id: updated.id,
+        ...updatedData,
+        createdAt: updatedData.createdAt?.toDate() || new Date(),
+        updatedAt: updatedData.updatedAt?.toDate() || new Date(),
+      } as MarketingVisit;
+    } catch (error) {
+      console.error("Error updating marketing visit:", error);
+      throw error;
+    }
+  }
+
+  async deleteMarketingVisit(id: string): Promise<boolean> {
+    try {
+      await this.db.collection('marketingVisits').doc(id).delete();
+      return true;
+    } catch (error) {
+      console.error("Error deleting marketing visit:", error);
+      return false;
+    }
+  }
+
+  // Admin Visit Management
+  async getAdminVisit(id: string): Promise<AdminVisit | undefined> {
+    try {
+      const doc = await this.db.collection('adminVisits').doc(id).get();
+      if (!doc.exists) return undefined;
+      
+      const data = doc.data()!;
+      return {
+        id: doc.id,
+        ...data,
+        followUpDate: data.followUpDate?.toDate() || undefined,
+        createdAt: data.createdAt?.toDate() || new Date(),
+        updatedAt: data.updatedAt?.toDate() || new Date(),
+      } as AdminVisit;
+    } catch (error) {
+      console.error("Error getting admin visit:", error);
+      return undefined;
+    }
+  }
+
+  async getAdminVisitBySiteVisit(siteVisitId: string): Promise<AdminVisit | undefined> {
+    try {
+      const querySnapshot = await this.db.collection('adminVisits')
+        .where('siteVisitId', '==', siteVisitId)
+        .limit(1)
+        .get();
+
+      if (querySnapshot.empty) return undefined;
+
+      const doc = querySnapshot.docs[0];
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        followUpDate: data.followUpDate?.toDate() || undefined,
+        createdAt: data.createdAt?.toDate() || new Date(),
+        updatedAt: data.updatedAt?.toDate() || new Date(),
+      } as AdminVisit;
+    } catch (error) {
+      console.error("Error getting admin visit by site visit:", error);
+      return undefined;
+    }
+  }
+
+  async createAdminVisit(data: z.infer<typeof insertAdminVisitSchema>): Promise<AdminVisit> {
+    try {
+      const validatedData = insertAdminVisitSchema.parse(data);
+      const doc = this.db.collection('adminVisits').doc();
+      
+      const adminVisitData = {
+        ...validatedData,
+        id: doc.id,
+        followUpDate: validatedData.followUpDate ? Timestamp.fromDate(validatedData.followUpDate) : undefined,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      };
+
+      await doc.set(adminVisitData);
+      
+      return {
+        id: doc.id,
+        ...validatedData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as AdminVisit;
+    } catch (error) {
+      console.error("Error creating admin visit:", error);
+      throw error;
+    }
+  }
+
+  async updateAdminVisit(id: string, data: Partial<z.infer<typeof insertAdminVisitSchema>>): Promise<AdminVisit> {
+    try {
+      const doc = this.db.collection('adminVisits').doc(id);
+      const updateData = {
+        ...data,
+        updatedAt: Timestamp.now(),
+      };
+
+      if (data.followUpDate) {
+        updateData.followUpDate = Timestamp.fromDate(data.followUpDate);
+      }
+
+      await doc.update(updateData);
+      
+      const updated = await doc.get();
+      const updatedData = updated.data()!;
+      return {
+        id: updated.id,
+        ...updatedData,
+        followUpDate: updatedData.followUpDate?.toDate() || undefined,
+        createdAt: updatedData.createdAt?.toDate() || new Date(),
+        updatedAt: updatedData.updatedAt?.toDate() || new Date(),
+      } as AdminVisit;
+    } catch (error) {
+      console.error("Error updating admin visit:", error);
+      throw error;
+    }
+  }
+
+  async deleteAdminVisit(id: string): Promise<boolean> {
+    try {
+      await this.db.collection('adminVisits').doc(id).delete();
+      return true;
+    } catch (error) {
+      console.error("Error deleting admin visit:", error);
+      return false;
+    }
+  }
+
+  // Form Configuration Management
+  async getFormConfig(id: string): Promise<FormConfig | undefined> {
+    try {
+      const doc = await this.db.collection('formConfigs').doc(id).get();
+      if (!doc.exists) return undefined;
+      
+      const data = doc.data()!;
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: data.createdAt?.toDate() || new Date(),
+        updatedAt: data.updatedAt?.toDate() || new Date(),
+      } as FormConfig;
+    } catch (error) {
+      console.error("Error getting form config:", error);
+      return undefined;
+    }
+  }
+
+  async getFormConfigByDepartment(department: string, formType: string): Promise<FormConfig | undefined> {
+    try {
+      const querySnapshot = await this.db.collection('formConfigs')
+        .where('department', '==', department)
+        .where('formType', '==', formType)
+        .where('isActive', '==', true)
+        .limit(1)
+        .get();
+
+      if (querySnapshot.empty) return undefined;
+
+      const doc = querySnapshot.docs[0];
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: data.createdAt?.toDate() || new Date(),
+        updatedAt: data.updatedAt?.toDate() || new Date(),
+      } as FormConfig;
+    } catch (error) {
+      console.error("Error getting form config by department:", error);
+      return undefined;
+    }
+  }
+
+  async listFormConfigs(filters?: {
+    department?: string;
+    formType?: string;
+    isActive?: boolean;
+  }): Promise<FormConfig[]> {
+    try {
+      let query = this.db.collection('formConfigs').orderBy('createdAt', 'desc');
+
+      if (filters?.department) {
+        query = query.where('department', '==', filters.department);
+      }
+      if (filters?.formType) {
+        query = query.where('formType', '==', filters.formType);
+      }
+      if (filters?.isActive !== undefined) {
+        query = query.where('isActive', '==', filters.isActive);
+      }
+
+      const querySnapshot = await query.get();
+      return querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date(),
+        } as FormConfig;
+      });
+    } catch (error) {
+      console.error("Error listing form configs:", error);
+      return [];
+    }
+  }
+
+  async createFormConfig(data: z.infer<typeof insertFormConfigSchema>): Promise<FormConfig> {
+    try {
+      const validatedData = insertFormConfigSchema.parse(data);
+      const doc = this.db.collection('formConfigs').doc();
+      
+      const formConfigData = {
+        ...validatedData,
+        id: doc.id,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      };
+
+      await doc.set(formConfigData);
+      
+      return {
+        id: doc.id,
+        ...validatedData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as FormConfig;
+    } catch (error) {
+      console.error("Error creating form config:", error);
+      throw error;
+    }
+  }
+
+  async updateFormConfig(id: string, data: Partial<z.infer<typeof insertFormConfigSchema>>): Promise<FormConfig> {
+    try {
+      const doc = this.db.collection('formConfigs').doc(id);
+      const updateData = {
+        ...data,
+        updatedAt: Timestamp.now(),
+      };
+
+      await doc.update(updateData);
+      
+      const updated = await doc.get();
+      const updatedData = updated.data()!;
+      return {
+        id: updated.id,
+        ...updatedData,
+        createdAt: updatedData.createdAt?.toDate() || new Date(),
+        updatedAt: updatedData.updatedAt?.toDate() || new Date(),
+      } as FormConfig;
+    } catch (error) {
+      console.error("Error updating form config:", error);
+      throw error;
+    }
+  }
+
+  async deleteFormConfig(id: string): Promise<boolean> {
+    try {
+      await this.db.collection('formConfigs').doc(id).delete();
+      return true;
+    } catch (error) {
+      console.error("Error deleting form config:", error);
       return false;
     }
   }

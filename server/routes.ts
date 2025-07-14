@@ -18,7 +18,16 @@ import {
   insertEmployeeSchema,
   insertEmployeeDocumentSchema,
   insertPerformanceReviewSchema,
-  departments
+  departments,
+  // Site Visit Management System schemas
+  insertSiteVisitSchema,
+  insertCustomerSchema,
+  insertProjectSpecSchema,
+  insertProductCatalogSchema,
+  insertTechnicalVisitSchema,
+  insertMarketingVisitSchema,
+  insertAdminVisitSchema,
+  insertFormConfigSchema
 } from "@shared/schema";
 // Import all the necessary schemas from storage.ts since they've been moved there
 import { 
@@ -26,7 +35,6 @@ import {
   insertDepartmentSchema,
   insertDesignationSchema,
   insertPermissionGroupSchema,
-  insertCustomerSchema,
   insertProductSchema,
   insertQuotationSchema,
   insertInvoiceSchema,
@@ -5028,6 +5036,953 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error clearing cache:", error);
       res.status(500).json({ message: "Failed to clear cache" });
+    }
+  });
+
+  // ===== SITE VISIT MANAGEMENT SYSTEM ROUTES =====
+
+  // Site Visit Management Routes
+  app.get("/api/site-visits", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const hasPermission = req.authenticatedUser.permissions.includes("site_visits.view") || 
+                           req.authenticatedUser.user.role === "master_admin";
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const filters = {
+        userId: req.query.userId as string,
+        department: req.query.department as string,
+        status: req.query.status as string,
+        customerId: req.query.customerId as string,
+        visitType: req.query.visitType as string,
+        startDate: req.query.startDate ? new Date(req.query.startDate as string) : undefined,
+        endDate: req.query.endDate ? new Date(req.query.endDate as string) : undefined,
+      };
+
+      const siteVisits = await storage.listSiteVisits(filters);
+      res.json(siteVisits);
+    } catch (error) {
+      console.error("Error fetching site visits:", error);
+      res.status(500).json({ message: "Failed to fetch site visits" });
+    }
+  });
+
+  app.get("/api/site-visits/:id", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const hasPermission = req.authenticatedUser.permissions.includes("site_visits.view") || 
+                           req.authenticatedUser.user.role === "master_admin";
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const siteVisit = await storage.getSiteVisit(req.params.id);
+      if (!siteVisit) {
+        return res.status(404).json({ message: "Site visit not found" });
+      }
+      res.json(siteVisit);
+    } catch (error) {
+      console.error("Error fetching site visit:", error);
+      res.status(500).json({ message: "Failed to fetch site visit" });
+    }
+  });
+
+  app.post("/api/site-visits", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const hasPermission = req.authenticatedUser.permissions.includes("site_visits.create") || 
+                           req.authenticatedUser.user.role === "master_admin";
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const validatedData = insertSiteVisitSchema.parse(req.body);
+      const siteVisit = await storage.createSiteVisit(validatedData);
+      res.status(201).json(siteVisit);
+    } catch (error) {
+      console.error("Error creating site visit:", error);
+      res.status(500).json({ message: "Failed to create site visit" });
+    }
+  });
+
+  app.put("/api/site-visits/:id", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const hasPermission = req.authenticatedUser.permissions.includes("site_visits.update") || 
+                           req.authenticatedUser.user.role === "master_admin";
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const siteVisit = await storage.updateSiteVisit(req.params.id, req.body);
+      res.json(siteVisit);
+    } catch (error) {
+      console.error("Error updating site visit:", error);
+      res.status(500).json({ message: "Failed to update site visit" });
+    }
+  });
+
+  app.delete("/api/site-visits/:id", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const hasPermission = req.authenticatedUser.permissions.includes("site_visits.delete") || 
+                           req.authenticatedUser.user.role === "master_admin";
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const success = await storage.deleteSiteVisit(req.params.id);
+      if (success) {
+        res.json({ message: "Site visit deleted successfully" });
+      } else {
+        res.status(404).json({ message: "Site visit not found" });
+      }
+    } catch (error) {
+      console.error("Error deleting site visit:", error);
+      res.status(500).json({ message: "Failed to delete site visit" });
+    }
+  });
+
+  // Enhanced Customer Management Routes
+  app.get("/api/enhanced-customers", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const hasPermission = req.authenticatedUser.permissions.includes("customers.view") || 
+                           req.authenticatedUser.user.role === "master_admin";
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const filters = {
+        customerType: req.query.customerType as string,
+        isActive: req.query.isActive === 'true',
+        search: req.query.search as string,
+      };
+
+      const customers = await storage.listEnhancedCustomers(filters);
+      res.json(customers);
+    } catch (error) {
+      console.error("Error fetching enhanced customers:", error);
+      res.status(500).json({ message: "Failed to fetch enhanced customers" });
+    }
+  });
+
+  app.get("/api/enhanced-customers/:id", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const hasPermission = req.authenticatedUser.permissions.includes("customers.view") || 
+                           req.authenticatedUser.user.role === "master_admin";
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const customer = await storage.getEnhancedCustomer(req.params.id);
+      if (!customer) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+      res.json(customer);
+    } catch (error) {
+      console.error("Error fetching enhanced customer:", error);
+      res.status(500).json({ message: "Failed to fetch enhanced customer" });
+    }
+  });
+
+  app.post("/api/enhanced-customers", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const hasPermission = req.authenticatedUser.permissions.includes("customers.create") || 
+                           req.authenticatedUser.user.role === "master_admin";
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const validatedData = insertCustomerSchema.parse(req.body);
+      const customer = await storage.createEnhancedCustomer(validatedData);
+      res.status(201).json(customer);
+    } catch (error) {
+      console.error("Error creating enhanced customer:", error);
+      res.status(500).json({ message: "Failed to create enhanced customer" });
+    }
+  });
+
+  app.put("/api/enhanced-customers/:id", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const hasPermission = req.authenticatedUser.permissions.includes("customers.update") || 
+                           req.authenticatedUser.user.role === "master_admin";
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const customer = await storage.updateEnhancedCustomer(req.params.id, req.body);
+      res.json(customer);
+    } catch (error) {
+      console.error("Error updating enhanced customer:", error);
+      res.status(500).json({ message: "Failed to update enhanced customer" });
+    }
+  });
+
+  app.delete("/api/enhanced-customers/:id", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const hasPermission = req.authenticatedUser.permissions.includes("customers.delete") || 
+                           req.authenticatedUser.user.role === "master_admin";
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const success = await storage.deleteEnhancedCustomer(req.params.id);
+      if (success) {
+        res.json({ message: "Customer deleted successfully" });
+      } else {
+        res.status(404).json({ message: "Customer not found" });
+      }
+    } catch (error) {
+      console.error("Error deleting enhanced customer:", error);
+      res.status(500).json({ message: "Failed to delete enhanced customer" });
+    }
+  });
+
+  // Product Catalog Management Routes
+  app.get("/api/product-catalog", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const hasPermission = req.authenticatedUser.permissions.includes("products.view") || 
+                           req.authenticatedUser.user.role === "master_admin";
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const filters = {
+        category: req.query.category as string,
+        brand: req.query.brand as string,
+        isActive: req.query.isActive === 'true',
+      };
+
+      const products = await storage.listProductCatalog(filters);
+      res.json(products);
+    } catch (error) {
+      console.error("Error fetching product catalog:", error);
+      res.status(500).json({ message: "Failed to fetch product catalog" });
+    }
+  });
+
+  app.get("/api/product-catalog/:id", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const hasPermission = req.authenticatedUser.permissions.includes("products.view") || 
+                           req.authenticatedUser.user.role === "master_admin";
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const product = await storage.getProductCatalog(req.params.id);
+      if (!product) {
+        return res.status(404).json({ message: "Product not found" });
+      }
+      res.json(product);
+    } catch (error) {
+      console.error("Error fetching product:", error);
+      res.status(500).json({ message: "Failed to fetch product" });
+    }
+  });
+
+  app.post("/api/product-catalog", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const hasPermission = req.authenticatedUser.permissions.includes("products.create") || 
+                           req.authenticatedUser.user.role === "master_admin";
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const validatedData = insertProductCatalogSchema.parse(req.body);
+      const product = await storage.createProductCatalog(validatedData);
+      res.status(201).json(product);
+    } catch (error) {
+      console.error("Error creating product:", error);
+      res.status(500).json({ message: "Failed to create product" });
+    }
+  });
+
+  app.put("/api/product-catalog/:id", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const hasPermission = req.authenticatedUser.permissions.includes("products.update") || 
+                           req.authenticatedUser.user.role === "master_admin";
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const product = await storage.updateProductCatalog(req.params.id, req.body);
+      res.json(product);
+    } catch (error) {
+      console.error("Error updating product:", error);
+      res.status(500).json({ message: "Failed to update product" });
+    }
+  });
+
+  app.delete("/api/product-catalog/:id", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const hasPermission = req.authenticatedUser.permissions.includes("products.delete") || 
+                           req.authenticatedUser.user.role === "master_admin";
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const success = await storage.deleteProductCatalog(req.params.id);
+      if (success) {
+        res.json({ message: "Product deleted successfully" });
+      } else {
+        res.status(404).json({ message: "Product not found" });
+      }
+    } catch (error) {
+      console.error("Error deleting product:", error);
+      res.status(500).json({ message: "Failed to delete product" });
+    }
+  });
+
+  // Technical Visit Management Routes
+  app.get("/api/technical-visits", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const hasPermission = req.authenticatedUser.permissions.includes("technical_visits.view") || 
+                           req.authenticatedUser.user.role === "master_admin";
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const technicalVisits = await storage.listTechnicalVisits();
+      res.json(technicalVisits);
+    } catch (error) {
+      console.error("Error fetching technical visits:", error);
+      res.status(500).json({ message: "Failed to fetch technical visits" });
+    }
+  });
+
+  app.get("/api/technical-visits/:id", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const hasPermission = req.authenticatedUser.permissions.includes("technical_visits.view") || 
+                           req.authenticatedUser.user.role === "master_admin";
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const technicalVisit = await storage.getTechnicalVisit(req.params.id);
+      if (!technicalVisit) {
+        return res.status(404).json({ message: "Technical visit not found" });
+      }
+      res.json(technicalVisit);
+    } catch (error) {
+      console.error("Error fetching technical visit:", error);
+      res.status(500).json({ message: "Failed to fetch technical visit" });
+    }
+  });
+
+  app.post("/api/technical-visits", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const hasPermission = req.authenticatedUser.permissions.includes("technical_visits.create") || 
+                           req.authenticatedUser.user.role === "master_admin";
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const validatedData = insertTechnicalVisitSchema.parse(req.body);
+      const technicalVisit = await storage.createTechnicalVisit(validatedData);
+      res.status(201).json(technicalVisit);
+    } catch (error) {
+      console.error("Error creating technical visit:", error);
+      res.status(500).json({ message: "Failed to create technical visit" });
+    }
+  });
+
+  app.put("/api/technical-visits/:id", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const hasPermission = req.authenticatedUser.permissions.includes("technical_visits.update") || 
+                           req.authenticatedUser.user.role === "master_admin";
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const technicalVisit = await storage.updateTechnicalVisit(req.params.id, req.body);
+      res.json(technicalVisit);
+    } catch (error) {
+      console.error("Error updating technical visit:", error);
+      res.status(500).json({ message: "Failed to update technical visit" });
+    }
+  });
+
+  app.delete("/api/technical-visits/:id", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const hasPermission = req.authenticatedUser.permissions.includes("technical_visits.delete") || 
+                           req.authenticatedUser.user.role === "master_admin";
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const success = await storage.deleteTechnicalVisit(req.params.id);
+      if (success) {
+        res.json({ message: "Technical visit deleted successfully" });
+      } else {
+        res.status(404).json({ message: "Technical visit not found" });
+      }
+    } catch (error) {
+      console.error("Error deleting technical visit:", error);
+      res.status(500).json({ message: "Failed to delete technical visit" });
+    }
+  });
+
+  // Marketing Visit Management Routes
+  app.get("/api/marketing-visits", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const hasPermission = req.authenticatedUser.permissions.includes("marketing_visits.view") || 
+                           req.authenticatedUser.user.role === "master_admin";
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const marketingVisits = await storage.listMarketingVisits();
+      res.json(marketingVisits);
+    } catch (error) {
+      console.error("Error fetching marketing visits:", error);
+      res.status(500).json({ message: "Failed to fetch marketing visits" });
+    }
+  });
+
+  app.get("/api/marketing-visits/:id", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const hasPermission = req.authenticatedUser.permissions.includes("marketing_visits.view") || 
+                           req.authenticatedUser.user.role === "master_admin";
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const marketingVisit = await storage.getMarketingVisit(req.params.id);
+      if (!marketingVisit) {
+        return res.status(404).json({ message: "Marketing visit not found" });
+      }
+      res.json(marketingVisit);
+    } catch (error) {
+      console.error("Error fetching marketing visit:", error);
+      res.status(500).json({ message: "Failed to fetch marketing visit" });
+    }
+  });
+
+  app.post("/api/marketing-visits", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const hasPermission = req.authenticatedUser.permissions.includes("marketing_visits.create") || 
+                           req.authenticatedUser.user.role === "master_admin";
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const validatedData = insertMarketingVisitSchema.parse(req.body);
+      const marketingVisit = await storage.createMarketingVisit(validatedData);
+      res.status(201).json(marketingVisit);
+    } catch (error) {
+      console.error("Error creating marketing visit:", error);
+      res.status(500).json({ message: "Failed to create marketing visit" });
+    }
+  });
+
+  app.put("/api/marketing-visits/:id", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const hasPermission = req.authenticatedUser.permissions.includes("marketing_visits.update") || 
+                           req.authenticatedUser.user.role === "master_admin";
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const marketingVisit = await storage.updateMarketingVisit(req.params.id, req.body);
+      res.json(marketingVisit);
+    } catch (error) {
+      console.error("Error updating marketing visit:", error);
+      res.status(500).json({ message: "Failed to update marketing visit" });
+    }
+  });
+
+  app.delete("/api/marketing-visits/:id", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const hasPermission = req.authenticatedUser.permissions.includes("marketing_visits.delete") || 
+                           req.authenticatedUser.user.role === "master_admin";
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const success = await storage.deleteMarketingVisit(req.params.id);
+      if (success) {
+        res.json({ message: "Marketing visit deleted successfully" });
+      } else {
+        res.status(404).json({ message: "Marketing visit not found" });
+      }
+    } catch (error) {
+      console.error("Error deleting marketing visit:", error);
+      res.status(500).json({ message: "Failed to delete marketing visit" });
+    }
+  });
+
+  // Admin Visit Management Routes
+  app.get("/api/admin-visits", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const hasPermission = req.authenticatedUser.permissions.includes("admin_visits.view") || 
+                           req.authenticatedUser.user.role === "master_admin";
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const adminVisits = await storage.listAdminVisits();
+      res.json(adminVisits);
+    } catch (error) {
+      console.error("Error fetching admin visits:", error);
+      res.status(500).json({ message: "Failed to fetch admin visits" });
+    }
+  });
+
+  app.get("/api/admin-visits/:id", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const hasPermission = req.authenticatedUser.permissions.includes("admin_visits.view") || 
+                           req.authenticatedUser.user.role === "master_admin";
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const adminVisit = await storage.getAdminVisit(req.params.id);
+      if (!adminVisit) {
+        return res.status(404).json({ message: "Admin visit not found" });
+      }
+      res.json(adminVisit);
+    } catch (error) {
+      console.error("Error fetching admin visit:", error);
+      res.status(500).json({ message: "Failed to fetch admin visit" });
+    }
+  });
+
+  app.post("/api/admin-visits", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const hasPermission = req.authenticatedUser.permissions.includes("admin_visits.create") || 
+                           req.authenticatedUser.user.role === "master_admin";
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const validatedData = insertAdminVisitSchema.parse(req.body);
+      const adminVisit = await storage.createAdminVisit(validatedData);
+      res.status(201).json(adminVisit);
+    } catch (error) {
+      console.error("Error creating admin visit:", error);
+      res.status(500).json({ message: "Failed to create admin visit" });
+    }
+  });
+
+  app.put("/api/admin-visits/:id", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const hasPermission = req.authenticatedUser.permissions.includes("admin_visits.update") || 
+                           req.authenticatedUser.user.role === "master_admin";
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const adminVisit = await storage.updateAdminVisit(req.params.id, req.body);
+      res.json(adminVisit);
+    } catch (error) {
+      console.error("Error updating admin visit:", error);
+      res.status(500).json({ message: "Failed to update admin visit" });
+    }
+  });
+
+  app.delete("/api/admin-visits/:id", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const hasPermission = req.authenticatedUser.permissions.includes("admin_visits.delete") || 
+                           req.authenticatedUser.user.role === "master_admin";
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const success = await storage.deleteAdminVisit(req.params.id);
+      if (success) {
+        res.json({ message: "Admin visit deleted successfully" });
+      } else {
+        res.status(404).json({ message: "Admin visit not found" });
+      }
+    } catch (error) {
+      console.error("Error deleting admin visit:", error);
+      res.status(500).json({ message: "Failed to delete admin visit" });
+    }
+  });
+
+  // Form Configuration Management Routes
+  app.get("/api/form-configs", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const hasPermission = req.authenticatedUser.permissions.includes("form_configs.view") || 
+                           req.authenticatedUser.user.role === "master_admin";
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const filters = {
+        department: req.query.department as string,
+        formType: req.query.formType as string,
+        isActive: req.query.isActive === 'true',
+      };
+
+      const formConfigs = await storage.listFormConfigs(filters);
+      res.json(formConfigs);
+    } catch (error) {
+      console.error("Error fetching form configs:", error);
+      res.status(500).json({ message: "Failed to fetch form configs" });
+    }
+  });
+
+  app.get("/api/form-configs/:id", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const hasPermission = req.authenticatedUser.permissions.includes("form_configs.view") || 
+                           req.authenticatedUser.user.role === "master_admin";
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const formConfig = await storage.getFormConfig(req.params.id);
+      if (!formConfig) {
+        return res.status(404).json({ message: "Form config not found" });
+      }
+      res.json(formConfig);
+    } catch (error) {
+      console.error("Error fetching form config:", error);
+      res.status(500).json({ message: "Failed to fetch form config" });
+    }
+  });
+
+  app.post("/api/form-configs", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const hasPermission = req.authenticatedUser.permissions.includes("form_configs.create") || 
+                           req.authenticatedUser.user.role === "master_admin";
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const validatedData = insertFormConfigSchema.parse(req.body);
+      const formConfig = await storage.createFormConfig(validatedData);
+      res.status(201).json(formConfig);
+    } catch (error) {
+      console.error("Error creating form config:", error);
+      res.status(500).json({ message: "Failed to create form config" });
+    }
+  });
+
+  app.put("/api/form-configs/:id", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const hasPermission = req.authenticatedUser.permissions.includes("form_configs.update") || 
+                           req.authenticatedUser.user.role === "master_admin";
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const formConfig = await storage.updateFormConfig(req.params.id, req.body);
+      res.json(formConfig);
+    } catch (error) {
+      console.error("Error updating form config:", error);
+      res.status(500).json({ message: "Failed to update form config" });
+    }
+  });
+
+  app.delete("/api/form-configs/:id", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const hasPermission = req.authenticatedUser.permissions.includes("form_configs.delete") || 
+                           req.authenticatedUser.user.role === "master_admin";
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const success = await storage.deleteFormConfig(req.params.id);
+      if (success) {
+        res.json({ message: "Form config deleted successfully" });
+      } else {
+        res.status(404).json({ message: "Form config not found" });
+      }
+    } catch (error) {
+      console.error("Error deleting form config:", error);
+      res.status(500).json({ message: "Failed to delete form config" });
+    }
+  });
+
+  // Project Specification Routes
+  app.get("/api/project-specs", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const hasPermission = req.authenticatedUser.permissions.includes("project_specs.view") || 
+                           req.authenticatedUser.user.role === "master_admin";
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const siteVisitId = req.query.siteVisitId as string;
+      if (siteVisitId) {
+        const projectSpecs = await storage.getProjectSpecsBySiteVisit(siteVisitId);
+        res.json(projectSpecs);
+      } else {
+        res.json([]);
+      }
+    } catch (error) {
+      console.error("Error fetching project specs:", error);
+      res.status(500).json({ message: "Failed to fetch project specs" });
+    }
+  });
+
+  app.get("/api/project-specs/:id", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const hasPermission = req.authenticatedUser.permissions.includes("project_specs.view") || 
+                           req.authenticatedUser.user.role === "master_admin";
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const projectSpec = await storage.getProjectSpec(req.params.id);
+      if (!projectSpec) {
+        return res.status(404).json({ message: "Project spec not found" });
+      }
+      res.json(projectSpec);
+    } catch (error) {
+      console.error("Error fetching project spec:", error);
+      res.status(500).json({ message: "Failed to fetch project spec" });
+    }
+  });
+
+  app.post("/api/project-specs", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const hasPermission = req.authenticatedUser.permissions.includes("project_specs.create") || 
+                           req.authenticatedUser.user.role === "master_admin";
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const validatedData = insertProjectSpecSchema.parse(req.body);
+      const projectSpec = await storage.createProjectSpec(validatedData);
+      res.status(201).json(projectSpec);
+    } catch (error) {
+      console.error("Error creating project spec:", error);
+      res.status(500).json({ message: "Failed to create project spec" });
+    }
+  });
+
+  app.put("/api/project-specs/:id", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const hasPermission = req.authenticatedUser.permissions.includes("project_specs.update") || 
+                           req.authenticatedUser.user.role === "master_admin";
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const projectSpec = await storage.updateProjectSpec(req.params.id, req.body);
+      res.json(projectSpec);
+    } catch (error) {
+      console.error("Error updating project spec:", error);
+      res.status(500).json({ message: "Failed to update project spec" });
+    }
+  });
+
+  app.delete("/api/project-specs/:id", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const hasPermission = req.authenticatedUser.permissions.includes("project_specs.delete") || 
+                           req.authenticatedUser.user.role === "master_admin";
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const success = await storage.deleteProjectSpec(req.params.id);
+      if (success) {
+        res.json({ message: "Project spec deleted successfully" });
+      } else {
+        res.status(404).json({ message: "Project spec not found" });
+      }
+    } catch (error) {
+      console.error("Error deleting project spec:", error);
+      res.status(500).json({ message: "Failed to delete project spec" });
     }
   });
 
