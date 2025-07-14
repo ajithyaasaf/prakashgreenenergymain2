@@ -19,7 +19,7 @@ import {
   Users, 
   CheckCircle, 
   AlertTriangle,
-  Tool,
+  Wrench,
   Settings,
   Camera,
   MapPin
@@ -219,7 +219,7 @@ export function TechnicalSiteVisitForm({ onSubmit, onBack, isLoading }: Technica
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Tool className="h-5 w-5" />
+            <Wrench className="h-5 w-5" />
             Type of Work
           </CardTitle>
         </CardHeader>
