@@ -23,10 +23,12 @@ import {
   AlertCircle,
   Eye,
   Edit,
-  Trash2
+  Trash2,
+  LogOut
 } from "lucide-react";
 import { SiteVisitStartModal } from "@/components/site-visit/site-visit-start-modal";
 import { SiteVisitDetailsModal } from "@/components/site-visit/site-visit-details-modal";
+import { SiteVisitCheckoutModal } from "@/components/site-visit/site-visit-checkout-modal";
 import { formatDistanceToNow } from "date-fns";
 
 interface SiteVisit {
@@ -64,6 +66,7 @@ export default function SiteVisitPage() {
   const [isStartModalOpen, setIsStartModalOpen] = useState(false);
   const [selectedSiteVisit, setSelectedSiteVisit] = useState<SiteVisit | null>(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("my-visits");
 
   // Check if user has access to Site Visit features
@@ -126,6 +129,11 @@ export default function SiteVisitPage() {
   const handleViewDetails = (siteVisit: SiteVisit) => {
     setSelectedSiteVisit(siteVisit);
     setIsDetailsModalOpen(true);
+  };
+
+  const handleCheckoutSiteVisit = (siteVisit: SiteVisit) => {
+    setSelectedSiteVisit(siteVisit);
+    setIsCheckoutModalOpen(true);
   };
 
   if (!hasAccess) {
@@ -268,6 +276,7 @@ export default function SiteVisitPage() {
                       key={visit.id}
                       siteVisit={visit}
                       onView={() => handleViewDetails(visit)}
+                      onCheckout={() => handleCheckoutSiteVisit(visit)}
                       onDelete={() => handleDeleteSiteVisit(visit.id)}
                       showActions={true}
                     />
@@ -307,7 +316,8 @@ export default function SiteVisitPage() {
                       key={visit.id}
                       siteVisit={visit}
                       onView={() => handleViewDetails(visit)}
-                      showActions={false}
+                      onCheckout={() => handleCheckoutSiteVisit(visit)}
+                      showActions={true}
                     />
                   ))}
                 </div>
@@ -345,7 +355,8 @@ export default function SiteVisitPage() {
                       key={visit.id}
                       siteVisit={visit}
                       onView={() => handleViewDetails(visit)}
-                      showActions={false}
+                      onCheckout={() => handleCheckoutSiteVisit(visit)}
+                      showActions={true}
                     />
                   ))}
                 </div>
@@ -367,6 +378,14 @@ export default function SiteVisitPage() {
         onClose={() => setIsDetailsModalOpen(false)}
         siteVisit={selectedSiteVisit}
       />
+
+      {selectedSiteVisit && (
+        <SiteVisitCheckoutModal
+          isOpen={isCheckoutModalOpen}
+          onClose={() => setIsCheckoutModalOpen(false)}
+          siteVisit={selectedSiteVisit}
+        />
+      )}
     </div>
   );
 }
@@ -375,11 +394,12 @@ export default function SiteVisitPage() {
 interface SiteVisitCardProps {
   siteVisit: SiteVisit;
   onView: () => void;
+  onCheckout?: () => void;
   onDelete?: () => void;
   showActions: boolean;
 }
 
-function SiteVisitCard({ siteVisit, onView, onDelete, showActions }: SiteVisitCardProps) {
+function SiteVisitCard({ siteVisit, onView, onCheckout, onDelete, showActions }: SiteVisitCardProps) {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'in_progress': return 'bg-orange-100 text-orange-800';
@@ -444,7 +464,17 @@ function SiteVisitCard({ siteVisit, onView, onDelete, showActions }: SiteVisitCa
               >
                 <Eye className="h-4 w-4" />
               </Button>
-              {onDelete && (
+              {siteVisit.status === 'in_progress' && onCheckout && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={onCheckout}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  <LogOut className="h-4 w-4" />
+                </Button>
+              )}
+              {onDelete && siteVisit.status !== 'in_progress' && (
                 <Button
                   variant="outline"
                   size="sm"
