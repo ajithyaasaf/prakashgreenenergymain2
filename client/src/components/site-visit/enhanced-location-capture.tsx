@@ -58,14 +58,15 @@ export function EnhancedLocationCapture({
     }
   }, [autoDetect]);
 
-  // Notify parent when location is captured
+  // Notify parent when location is captured (only once per status change)
   useEffect(() => {
     if (locationStatus.status === 'granted' && locationStatus.location) {
       onLocationCaptured(locationStatus.location);
-    } else if (locationStatus.status === 'denied' || locationStatus.status === 'error') {
-      onLocationError?.(locationStatus.error || 'Location detection failed');
+    } else if ((locationStatus.status === 'denied' || locationStatus.status === 'error') && locationStatus.error) {
+      // Only notify on error if there's a specific error and it's a new error
+      onLocationError?.(locationStatus.error);
     }
-  }, [locationStatus, onLocationCaptured, onLocationError]);
+  }, [locationStatus.status, locationStatus.location, onLocationCaptured, onLocationError]);
 
   const handleLocationDetection = async () => {
     setIsDetecting(true);

@@ -92,8 +92,21 @@ class LocationService {
           resolve(position);
         },
         (error) => {
-          console.error('Location error:', error.message);
-          reject(new Error('Permission denied or error getting location'));
+          console.error('Location error:', error.code, error.message);
+          switch (error.code) {
+            case error.PERMISSION_DENIED:
+              reject(new Error('Please enable location permissions and try again'));
+              break;
+            case error.POSITION_UNAVAILABLE:
+              reject(new Error('Please turn on GPS and try again'));
+              break;
+            case error.TIMEOUT:
+              reject(new Error('Location request timed out. Please try again'));
+              break;
+            default:
+              reject(new Error('Please turn on GPS and enable location permissions'));
+              break;
+          }
         }
       );
     });

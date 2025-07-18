@@ -65,6 +65,7 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
   const [locationCaptured, setLocationCaptured] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [lastErrorMessage, setLastErrorMessage] = useState<string>('');
   
   const [formData, setFormData] = useState({
     visitPurpose: '',
@@ -89,6 +90,7 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
       setLocationCaptured(false);
       setSelectedPhoto(null);
       setPhotoPreview(null);
+      setLastErrorMessage(''); // Clear previous error message
       setFormData({
         visitPurpose: '',
         customer: {
@@ -112,11 +114,15 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
   };
 
   const handleLocationError = (error: string) => {
-    toast({
-      title: "Location Error",
-      description: error,
-      variant: "destructive",
-    });
+    // Prevent repeated toast messages for the same error
+    if (error !== lastErrorMessage) {
+      toast({
+        title: "Location Error",
+        description: error,
+        variant: "destructive",
+      });
+      setLastErrorMessage(error);
+    }
     setLocationCaptured(false);
   };
 
