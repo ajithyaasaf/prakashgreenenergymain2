@@ -23,6 +23,8 @@ import {
   AlertTriangle
 } from "lucide-react";
 import { format } from "date-fns";
+import { EnhancedLocationCapture } from "./enhanced-location-capture";
+import { LocationData } from "@/lib/location-service";
 
 interface SiteVisit {
   id: string;
@@ -58,45 +60,21 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
   
   const [finalRemarks, setFinalRemarks] = useState('');
   const [photos, setPhotos] = useState<PhotoUpload[]>([]);
-  const [currentLocation, setCurrentLocation] = useState<{ latitude: number; longitude: number; accuracy: number } | null>(null);
-  const [locationPermission, setLocationPermission] = useState<'pending' | 'granted' | 'denied'>('pending');
+  const [currentLocation, setCurrentLocation] = useState<LocationData | null>(null);
+  const [locationCaptured, setLocationCaptured] = useState(false);
 
-  // Get current location for checkout
-  const getCurrentLocation = () => {
-    if (!navigator.geolocation) {
-      toast({
-        title: "Location Error",
-        description: "Geolocation is not supported by this browser",
-        variant: "destructive",
-      });
-      return;
-    }
+  const handleLocationCaptured = (location: LocationData) => {
+    setCurrentLocation(location);
+    setLocationCaptured(true);
+  };
 
-    setLocationPermission('pending');
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setCurrentLocation({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-          accuracy: position.coords.accuracy
-        });
-        setLocationPermission('granted');
-      },
-      (error) => {
-        console.error("Location error:", error);
-        setLocationPermission('denied');
-        toast({
-          title: "Location Permission Denied",
-          description: "Please enable location services to complete the site visit",
-          variant: "destructive",
-        });
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0
-      }
-    );
+  const handleLocationError = (error: string) => {
+    toast({
+      title: "Location Error",
+      description: error,
+      variant: "destructive",
+    });
+    setLocationCaptured(false);
   };
 
   const handlePhotoSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -204,8 +182,12 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
   });
 
   const handleCheckout = () => {
-    if (!currentLocation) {
-      getCurrentLocation();
+    if (!locationCaptured || !currentLocation) {
+      toast({
+        title: "Location Required",
+        description: "Please allow location detection to complete the site visit",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -220,13 +202,6 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
 
     checkoutSiteVisitMutation.mutate();
   };
-
-  // Auto-get location when modal opens
-  React.useEffect(() => {
-    if (isOpen && locationPermission === 'pending') {
-      getCurrentLocation();
-    }
-  }, [isOpen, locationPermission]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -280,43 +255,15 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
             </CardContent>
           </Card>
 
-          {/* Location Status */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <MapPin className="h-5 w-5" />
-                Checkout Location
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {locationPermission === 'pending' && (
-                <div className="flex items-center gap-2 text-amber-600">
-                  <Clock className="h-4 w-4 animate-spin" />
-                  <span>Getting your location...</span>
-                </div>
-              )}
-              
-              {locationPermission === 'granted' && currentLocation && (
-                <div className="flex items-center gap-2 text-green-600">
-                  <CheckCircle className="h-4 w-4" />
-                  <span>Location captured (±{Math.round(currentLocation.accuracy)}m accuracy)</span>
-                </div>
-              )}
-              
-              {locationPermission === 'denied' && (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-red-600">
-                    <AlertTriangle className="h-4 w-4" />
-                    <span>Location permission required</span>
-                  </div>
-                  <Button onClick={getCurrentLocation} variant="outline" size="sm">
-                    <MapPin className="h-4 w-4 mr-2" />
-                    Get Location
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <EnhancedLocationCapture
+            onLocationCaptured={handleLocationCaptured}
+            onLocationError={handleLocationError}
+            title="Site Checkout Location"
+            description="We need to capture your location for site checkout"
+            autoDetect={true}
+            required={true}
+            showAddress={true}
+          />
 
           {/* Photo Upload */}
           <Card>
@@ -405,7 +352,7 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
             </Button>
             <Button
               onClick={handleCheckout}
-              disabled={checkoutSiteVisitMutation.isPending || !currentLocation || finalRemarks.trim().length < 10}
+              disabled={checkoutSiteVisitMutation.isPending || !locationCaptured || finalRemarks.trim().length < 10}
             >
               {checkoutSiteVisitMutation.isPending ? (
                 <>

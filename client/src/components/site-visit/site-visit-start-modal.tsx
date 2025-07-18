@@ -29,6 +29,8 @@ import {
 import { TechnicalSiteVisitForm } from "./technical-site-visit-form";
 import { MarketingSiteVisitForm } from "./marketing-site-visit-form";
 import { AdminSiteVisitForm } from "./admin-site-visit-form";
+import { EnhancedLocationCapture } from "./enhanced-location-capture";
+import { LocationData } from "@/lib/location-service";
 
 interface SiteVisitStartModalProps {
   isOpen: boolean;
@@ -59,8 +61,8 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
   const queryClient = useQueryClient();
   
   const [step, setStep] = useState(1);
-  const [locationPermission, setLocationPermission] = useState<'pending' | 'granted' | 'denied'>('pending');
-  const [currentLocation, setCurrentLocation] = useState<{ latitude: number; longitude: number; accuracy: number } | null>(null);
+  const [currentLocation, setCurrentLocation] = useState<LocationData | null>(null);
+  const [locationCaptured, setLocationCaptured] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   
@@ -83,8 +85,8 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
   useEffect(() => {
     if (isOpen) {
       setStep(1);
-      setLocationPermission('pending');
       setCurrentLocation(null);
+      setLocationCaptured(false);
       setSelectedPhoto(null);
       setPhotoPreview(null);
       setFormData({
@@ -101,45 +103,21 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
         marketingData: null,
         adminData: null
       });
-      requestLocationPermission();
     }
   }, [isOpen]);
 
-  const requestLocationPermission = async () => {
-    if (!navigator.geolocation) {
-      setLocationPermission('denied');
-      toast({
-        title: "Location Not Supported",
-        description: "Your device doesn't support location services",
-        variant: "destructive",
-      });
-      return;
-    }
+  const handleLocationCaptured = (location: LocationData) => {
+    setCurrentLocation(location);
+    setLocationCaptured(true);
+  };
 
-    try {
-      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 15000,
-          maximumAge: 30000
-        });
-      });
-
-      setCurrentLocation({
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
-        accuracy: position.coords.accuracy
-      });
-      setLocationPermission('granted');
-    } catch (error) {
-      console.error('Location permission denied:', error);
-      setLocationPermission('denied');
-      toast({
-        title: "Location Required",
-        description: "Location permission is required to start a site visit",
-        variant: "destructive",
-      });
-    }
+  const handleLocationError = (error: string) => {
+    toast({
+      title: "Location Error",
+      description: error,
+      variant: "destructive",
+    });
+    setLocationCaptured(false);
   };
 
   const handlePhotoCapture = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -217,10 +195,10 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
   });
 
   const handleSubmit = () => {
-    if (!currentLocation) {
+    if (!locationCaptured || !currentLocation) {
       toast({
         title: "Location Required",
-        description: "Please enable location services to start a site visit",
+        description: "Please allow location detection to start a site visit",
         variant: "destructive",
       });
       return;
@@ -248,7 +226,7 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
     createSiteVisitMutation.mutate(formData);
   };
 
-  const canProceedToStep2 = locationPermission === 'granted' && formData.visitPurpose;
+  const canProceedToStep2 = locationCaptured && formData.visitPurpose;
   const canProceedToStep3 = formData.customer.name && formData.customer.mobile && formData.customer.address && formData.customer.propertyType;
   const canProceedToStep4 = (userDepartment === 'technical' && formData.technicalData) ||
                            (userDepartment === 'marketing' && formData.marketingData) ||
@@ -329,48 +307,15 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Location Status</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center gap-3">
-                    {locationPermission === 'pending' && (
-                      <>
-                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-                        <span>Requesting location permission...</span>
-                      </>
-                    )}
-                    {locationPermission === 'granted' && (
-                      <>
-                        <CheckCircle className="h-6 w-6 text-green-600" />
-                        <div>
-                          <p className="font-medium">Location Acquired</p>
-                          <p className="text-sm text-muted-foreground">
-                            Accuracy: {currentLocation?.accuracy ? `${Math.round(currentLocation.accuracy)}m` : 'Unknown'}
-                          </p>
-                        </div>
-                      </>
-                    )}
-                    {locationPermission === 'denied' && (
-                      <>
-                        <AlertTriangle className="h-6 w-6 text-red-600" />
-                        <div>
-                          <p className="font-medium text-red-600">Location Required</p>
-                          <p className="text-sm text-muted-foreground">Please enable location services</p>
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={requestLocationPermission}
-                        >
-                          Retry
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+              <EnhancedLocationCapture
+                onLocationCaptured={handleLocationCaptured}
+                onLocationError={handleLocationError}
+                title="Site Check-In Location"
+                description="We need to detect your current location for site check-in"
+                autoDetect={true}
+                required={true}
+                showAddress={true}
+              />
 
               <div className="flex justify-end">
                 <Button
