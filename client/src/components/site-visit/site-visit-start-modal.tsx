@@ -140,21 +140,28 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
 
   const createSiteVisitMutation = useMutation({
     mutationFn: async (data: any) => {
-      // Create site visit payload
+      // For now, use a placeholder URL for photo
+      // TODO: Implement proper Cloudinary photo upload
+      const photoUrl = selectedPhoto 
+        ? `https://via.placeholder.com/300x200?text=Site+Photo+${Date.now()}`
+        : 'https://via.placeholder.com/300x200?text=No+Photo';
+
+      // Create site visit payload matching the schema
       const siteVisitPayload = {
-        ...data,
-        siteInPhotoUrl: selectedPhoto ? 'Photo captured locally' : '', // Photo handling disabled temporarily
-        siteInTime: new Date(),
+        visitPurpose: data.visitPurpose,
+        siteInTime: new Date().toISOString(),
         siteInLocation: currentLocation,
+        siteInPhotoUrl: photoUrl,
+        customer: data.customer,
         status: 'in_progress',
-        // Include department-specific data
-        technicalSiteVisit: data.technicalData,
-        marketingSiteVisit: data.marketingData,
-        adminSiteVisit: data.adminData,
-        departmentType: userDepartment
+        // Include department-specific data with correct field names
+        ...(data.technicalData && { technicalData: data.technicalData }),
+        ...(data.marketingData && { marketingData: data.marketingData }),
+        ...(data.adminData && { adminData: data.adminData }),
+        sitePhotos: [],
+        notes: data.notes || ''
       };
 
-      // Use apiRequest correctly with url, method, and data parameters
       return apiRequest('/api/site-visits', 'POST', siteVisitPayload);
     },
     onSuccess: () => {

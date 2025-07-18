@@ -5078,14 +5078,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { insertSiteVisitSchema } = await import("@shared/schema");
       const { siteVisitService } = await import("./services/site-visit-service");
 
-      // Validate input data
-      const siteVisitData = insertSiteVisitSchema.parse({
+      // Prepare and validate input data
+      const requestData = {
         ...req.body,
         userId: user.uid,
         department: user.department,
+        siteInTime: req.body.siteInTime ? new Date(req.body.siteInTime) : new Date(),
+        siteOutTime: req.body.siteOutTime ? new Date(req.body.siteOutTime) : undefined,
         createdAt: new Date(),
         updatedAt: new Date()
-      });
+      };
+
+      const siteVisitData = insertSiteVisitSchema.parse(requestData);
 
       const siteVisit = await siteVisitService.createSiteVisit(siteVisitData);
       
