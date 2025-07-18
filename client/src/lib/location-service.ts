@@ -73,7 +73,7 @@ class LocationService {
   }
 
   /**
-   * Get current position with maximum precision GPS settings
+   * Get current position using the same approach as the working example
    */
   private getCurrentPosition(): Promise<GeolocationPosition> {
     return new Promise((resolve, reject) => {
@@ -82,68 +82,67 @@ class LocationService {
         return;
       }
 
-      console.log('Starting high-accuracy GPS detection...');
-      
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          console.log('GPS Position received:', {
+          console.log('Location detected:', {
             latitude: position.coords.latitude,
             longitude: position.coords.longitude,
-            accuracy: position.coords.accuracy,
-            timestamp: new Date(position.timestamp)
+            accuracy: position.coords.accuracy
           });
           resolve(position);
         },
         (error) => {
-          console.error('GPS Error:', error.code, error.message);
-          reject(error);
-        },
-        {
-          enableHighAccuracy: true,     // Force GPS over network/wifi
-          timeout: 60000,               // Extended timeout for GPS lock
-          maximumAge: 0                 // Never use cached position
+          console.error('Location error:', error.message);
+          reject(new Error('Permission denied or error getting location'));
         }
       );
     });
   }
 
   /**
-   * Convert coordinates to human-readable address using Google Maps API
+   * Convert coordinates to address using the exact same approach as working example
    */
   private async reverseGeocode(latitude: number, longitude: number): Promise<{
     address: string;
     formattedAddress: string;
   }> {
-    if (!this.apiKey) {
-      console.error('Google Maps API key not configured');
-      throw new Error('Google Maps API key not configured');
+    try {
+      const response = await fetch(
+        `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${this.apiKey}`
+      );
+      const data = await response.json();
+      
+      if (data.status === "OK") {
+        const address = data.results[0]?.formatted_address || "Unknown location";
+        console.log('Address fetched successfully:', address);
+        
+        // Extract shorter address for display
+        const shortAddress = this.extractShortAddress(data.results[0]?.address_components || []);
+        
+        return {
+          address: shortAddress || address,
+          formattedAddress: address
+        };
+      } else {
+        throw new Error("Unable to fetch address");
+      }
+    } catch (err) {
+      console.error('Error fetching address:', err);
+      throw new Error("Error fetching address");
     }
+  }
 
-    console.log('Reverse geocoding coordinates:', latitude, longitude);
-    const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${this.apiKey}`;
-    
-    const response = await fetch(url);
-    const data = await response.json();
-
-    console.log('Geocoding response:', data.status, data.results?.length || 0);
-
-    if (data.status !== 'OK' || !data.results || data.results.length === 0) {
-      console.error('Geocoding failed:', data.status, data.error_message);
-      throw new Error(`Geocoding failed: ${data.status}`);
-    }
-
-    const result = data.results[0];
-    
-    // Extract detailed address components
-    const addressComponents = result.address_components;
+  /**
+   * Extract a short, readable address from components
+   */
+  private extractShortAddress(components: any[]): string {
+    const addressParts = [];
     let streetNumber = '';
     let streetName = '';
     let locality = '';
     let administrativeArea = '';
-    let country = '';
-    let postalCode = '';
 
-    addressComponents.forEach((component: any) => {
+    components.forEach((component: any) => {
       const types = component.types;
       if (types.includes('street_number')) {
         streetNumber = component.long_name;
@@ -153,15 +152,9 @@ class LocationService {
         locality = component.long_name;
       } else if (types.includes('administrative_area_level_1')) {
         administrativeArea = component.short_name;
-      } else if (types.includes('country')) {
-        country = component.long_name;
-      } else if (types.includes('postal_code')) {
-        postalCode = component.long_name;
       }
     });
 
-    // Build a clean, readable address
-    const addressParts = [];
     if (streetNumber && streetName) {
       addressParts.push(`${streetNumber} ${streetName}`);
     } else if (streetName) {
@@ -170,14 +163,8 @@ class LocationService {
     
     if (locality) addressParts.push(locality);
     if (administrativeArea) addressParts.push(administrativeArea);
-    if (postalCode) addressParts.push(postalCode);
 
-    const cleanAddress = addressParts.join(', ');
-
-    return {
-      address: cleanAddress || result.formatted_address,
-      formattedAddress: result.formatted_address
-    };
+    return addressParts.join(', ');
   }
 
   /**
