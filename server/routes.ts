@@ -5117,6 +5117,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       if (error instanceof z.ZodError) {
+        console.error("Site visit validation errors:", JSON.stringify(error.errors, null, 2));
         return res.status(400).json({ 
           message: "Validation error",
           errors: error.errors 

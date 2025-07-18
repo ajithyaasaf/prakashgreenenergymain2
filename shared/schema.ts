@@ -286,7 +286,7 @@ export const waterPumpConfigSchema = z.object({
 // Marketing site visit schema
 export const marketingSiteVisitSchema = z.object({
   updateRequirements: z.boolean(),
-  projectType: z.enum(marketingProjectTypes),
+  projectType: z.enum(marketingProjectTypes).optional(),
   onGridConfig: onGridConfigSchema.optional(),
   offGridConfig: offGridConfigSchema.optional(),
   hybridConfig: hybridConfigSchema.optional(),
