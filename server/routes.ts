@@ -5089,6 +5089,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         updatedAt: new Date()
       };
 
+      // Debug: Log the data being validated
+      console.log("=== SITE VISIT VALIDATION DEBUG ===");
+      console.log("Request body:", JSON.stringify(req.body, null, 2));
+      console.log("Request data after processing:", JSON.stringify(requestData, null, 2));
+      console.log("=====================================");
+
       const siteVisitData = insertSiteVisitSchema.parse(requestData);
 
       const siteVisit = await siteVisitService.createSiteVisit(siteVisitData);

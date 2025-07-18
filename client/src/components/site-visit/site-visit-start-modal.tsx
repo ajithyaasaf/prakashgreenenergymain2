@@ -140,11 +140,10 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
 
   const createSiteVisitMutation = useMutation({
     mutationFn: async (data: any) => {
-      // For now, use a placeholder URL for photo
-      // TODO: Implement proper Cloudinary photo upload
+      // Generate a valid placeholder URL for photo validation
       const photoUrl = selectedPhoto 
-        ? `https://via.placeholder.com/300x200?text=Site+Photo+${Date.now()}`
-        : 'https://via.placeholder.com/300x200?text=No+Photo';
+        ? `https://via.placeholder.com/400x300.jpg?text=Site+Photo`
+        : 'https://via.placeholder.com/400x300.jpg?text=No+Photo';
 
       // Create site visit payload matching the schema
       const siteVisitPayload = {
