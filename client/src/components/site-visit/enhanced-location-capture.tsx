@@ -139,7 +139,7 @@ export function EnhancedLocationCapture({
           <Alert>
             <Navigation className="h-4 w-4" />
             <AlertDescription>
-              Finding your precise location using GPS. Please wait while we get the most accurate reading...
+              Getting your exact GPS location. Please ensure location services are enabled and wait up to 60 seconds for precise detection...
             </AlertDescription>
           </Alert>
         )}

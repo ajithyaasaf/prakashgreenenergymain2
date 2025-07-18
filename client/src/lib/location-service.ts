@@ -77,35 +77,31 @@ class LocationService {
    */
   private getCurrentPosition(): Promise<GeolocationPosition> {
     return new Promise((resolve, reject) => {
-      // Check if GPS is available before requesting
       if (!navigator.geolocation) {
         reject(new Error('Geolocation not supported'));
         return;
       }
 
-      // First try with watchPosition for better accuracy
-      const watchId = navigator.geolocation.watchPosition(
+      console.log('Starting high-accuracy GPS detection...');
+      
+      navigator.geolocation.getCurrentPosition(
         (position) => {
-          navigator.geolocation.clearWatch(watchId);
+          console.log('GPS Position received:', {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            accuracy: position.coords.accuracy,
+            timestamp: new Date(position.timestamp)
+          });
           resolve(position);
         },
         (error) => {
-          navigator.geolocation.clearWatch(watchId);
-          // Fallback to getCurrentPosition if watchPosition fails
-          navigator.geolocation.getCurrentPosition(
-            resolve,
-            reject,
-            {
-              enableHighAccuracy: true,
-              timeout: 30000,
-              maximumAge: 0
-            }
-          );
+          console.error('GPS Error:', error.code, error.message);
+          reject(error);
         },
         {
-          enableHighAccuracy: true,    // Force GPS usage over network
-          timeout: 15000,              // Quick timeout for watch
-          maximumAge: 0                // Never use cached location
+          enableHighAccuracy: true,     // Force GPS over network/wifi
+          timeout: 60000,               // Extended timeout for GPS lock
+          maximumAge: 0                 // Never use cached position
         }
       );
     });
@@ -119,15 +115,20 @@ class LocationService {
     formattedAddress: string;
   }> {
     if (!this.apiKey) {
+      console.error('Google Maps API key not configured');
       throw new Error('Google Maps API key not configured');
     }
 
+    console.log('Reverse geocoding coordinates:', latitude, longitude);
     const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${this.apiKey}`;
     
     const response = await fetch(url);
     const data = await response.json();
 
+    console.log('Geocoding response:', data.status, data.results?.length || 0);
+
     if (data.status !== 'OK' || !data.results || data.results.length === 0) {
+      console.error('Geocoding failed:', data.status, data.error_message);
       throw new Error(`Geocoding failed: ${data.status}`);
     }
 
