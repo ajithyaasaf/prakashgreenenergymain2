@@ -5035,12 +5035,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Permission helper for site visit access
   const checkSiteVisitPermission = (user: any, action: string) => {
+    console.log('SITE VISIT PERMISSION CHECK:', {
+      userId: user.uid,
+      role: user.role,
+      department: user.department,
+      action: action
+    });
+    
+    // Master admin has full access to everything
+    if (user.role === 'master_admin') {
+      console.log('Master admin detected, granting site visit access');
+      return true;
+    }
+    
     // Only Technical, Marketing, and Admin departments can access Site Visit
     const allowedDepartments = ['technical', 'marketing', 'admin', 'administration'];
     
-    if (user.role === 'master_admin') return true;
-    
     if (!user.department || !allowedDepartments.includes(user.department.toLowerCase())) {
+      console.log('Department not allowed for site visits:', user.department);
       return false;
     }
     
@@ -5054,9 +5066,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       'delete': ['site_visit.delete']
     };
     
-    return user.permissions?.some((permission: string) => 
+    const hasPermission = user.permissions?.some((permission: string) => 
       requiredPermissions[action]?.includes(permission)
     ) || false;
+    
+    console.log('Site visit permission result:', hasPermission);
+    return hasPermission;
   };
 
   // Create new site visit (Site In)
