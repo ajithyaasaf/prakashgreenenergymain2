@@ -104,7 +104,7 @@ const projectTypeOptions = [
   { value: 'water_pump', label: 'Solar Water Pump', icon: Droplets, description: 'Solar-powered water pumping system' }
 ];
 
-export function MarketingSiteVisitForm({ onSubmit, onBack, isLoading }: MarketingSiteVisitFormProps) {
+export function MarketingSiteVisitForm({ onSubmit, onBack, isDisabled, isLoading }: MarketingSiteVisitFormProps) {
   const [formData, setFormData] = useState<MarketingFormData>({
     updateRequirements: false
   });

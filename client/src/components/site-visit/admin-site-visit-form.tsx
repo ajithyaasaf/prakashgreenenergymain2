@@ -69,7 +69,7 @@ const ebProcessOptions = [
   { value: 'subsidy', label: 'Subsidy Processing', description: 'Solar subsidy application and processing' }
 ];
 
-export function AdminSiteVisitForm({ onSubmit, onBack, isLoading }: AdminSiteVisitFormProps) {
+export function AdminSiteVisitForm({ onSubmit, onBack, isDisabled, isLoading }: AdminSiteVisitFormProps) {
   const [formData, setFormData] = useState<AdminFormData>({});
   const [activeSection, setActiveSection] = useState<string | null>(null);
 

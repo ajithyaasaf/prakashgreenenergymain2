@@ -120,7 +120,7 @@ const commonTeamMembers = [
   'Electrician'
 ];
 
-export function TechnicalSiteVisitForm({ onSubmit, onBack, isLoading }: TechnicalSiteVisitFormProps) {
+export function TechnicalSiteVisitForm({ onSubmit, onBack, isDisabled, isLoading }: TechnicalSiteVisitFormProps) {
   const [formData, setFormData] = useState<TechnicalFormData>({
     serviceTypes: [],
     workType: '',
