@@ -27,6 +27,9 @@ class LocationService {
                   import.meta.env.GOOGLE_MAPS_API_KEY || 
                   '';
     console.log('Google Maps API Key configured:', this.apiKey ? 'Yes' : 'No');
+    if (!this.apiKey) {
+      console.warn('⚠️ Google Maps API key not found - address detection will be disabled');
+    }
   }
 
   /**
@@ -42,6 +45,16 @@ class LocationService {
       };
     }
 
+    if (!this.apiKey) {
+      console.error('Google Maps API key is required for full location functionality');
+      return {
+        status: 'error',
+        location: null,
+        error: 'Location services not properly configured. Please contact system administrator.',
+        canRetry: false
+      };
+    }
+
     try {
       const position = await this.getCurrentPosition();
       
@@ -51,16 +64,25 @@ class LocationService {
         accuracy: position.coords.accuracy
       };
 
-      // Get human-readable address
-      if (this.apiKey) {
-        try {
-          const address = await this.reverseGeocode(locationData.latitude, locationData.longitude);
-          locationData.address = address.address;
-          locationData.formattedAddress = address.formattedAddress;
-        } catch (error) {
-          console.warn('Reverse geocoding failed:', error);
-          // Location detection still successful even if geocoding fails
-        }
+      // Get human-readable address - REQUIRED for site check-in
+      try {
+        const address = await this.reverseGeocode(locationData.latitude, locationData.longitude);
+        locationData.address = address.address;
+        locationData.formattedAddress = address.formattedAddress;
+        
+        console.log('✅ Location detected successfully:', {
+          coords: `${locationData.latitude.toFixed(6)}, ${locationData.longitude.toFixed(6)}`,
+          accuracy: `${Math.round(locationData.accuracy)}m`,
+          address: locationData.address
+        });
+      } catch (error) {
+        console.error('❌ Address lookup failed:', error);
+        return {
+          status: 'error',
+          location: null,
+          error: 'Unable to determine address for this location. Please try again.',
+          canRetry: true
+        };
       }
 
       return {
@@ -198,6 +220,59 @@ class LocationService {
     if (administrativeArea) addressParts.push(administrativeArea);
 
     return addressParts.join(', ');
+  }
+
+  /**
+   * Handle location detection errors with appropriate messaging
+   */
+  private handleLocationError(error: any): LocationStatus {
+    console.error('Location detection error:', error);
+    
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    if (error.code) {
+      switch (error.code) {
+        case 1: // PERMISSION_DENIED
+          return {
+            status: 'denied',
+            location: null,
+            error: isMobile 
+              ? 'Location access denied. Please enable Location Services in Settings and allow access for this app.'
+              : 'Location access denied. Please click the location icon in your browser and allow access.',
+            canRetry: true
+          };
+        case 2: // POSITION_UNAVAILABLE
+          return {
+            status: 'error',
+            location: null,
+            error: isMobile 
+              ? 'GPS unavailable. Please ensure GPS is enabled and you have a clear view of the sky.'
+              : 'Location unavailable. Please check your internet connection.',
+            canRetry: true
+          };
+        case 3: // TIMEOUT
+          return {
+            status: 'error',
+            location: null,
+            error: 'Location request timed out. Please try again.',
+            canRetry: true
+          };
+        default:
+          return {
+            status: 'error',
+            location: null,
+            error: 'Unable to detect location. Please try again.',
+            canRetry: true
+          };
+      }
+    }
+    
+    return {
+      status: 'error',
+      location: null,
+      error: error.message || 'Location detection failed. Please try again.',
+      canRetry: true
+    };
   }
 
   /**
