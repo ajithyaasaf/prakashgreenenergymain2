@@ -154,8 +154,8 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
         departmentType: userDepartment
       };
 
-      // Use apiRequest correctly - it handles method and headers internally
-      return apiRequest('/api/site-visits', siteVisitPayload);
+      // Use apiRequest correctly with url, method, and data parameters
+      return apiRequest('/api/site-visits', 'POST', siteVisitPayload);
     },
     onSuccess: () => {
       toast({
