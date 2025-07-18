@@ -145,7 +145,7 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
         ? `https://via.placeholder.com/400x300.jpg?text=Site+Photo`
         : 'https://via.placeholder.com/400x300.jpg?text=No+Photo';
 
-      // Create site visit payload matching the schema
+      // Create site visit payload matching the schema exactly
       const siteVisitPayload = {
         visitPurpose: data.visitPurpose,
         siteInTime: new Date().toISOString(),
@@ -160,6 +160,10 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
         sitePhotos: [],
         notes: data.notes || ''
       };
+
+      console.log("=== FRONTEND SITE VISIT PAYLOAD ===");
+      console.log("Payload being sent:", JSON.stringify(siteVisitPayload, null, 2));
+      console.log("================================");
 
       return apiRequest('/api/site-visits', 'POST', siteVisitPayload);
     },

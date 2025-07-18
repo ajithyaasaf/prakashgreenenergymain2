@@ -41,58 +41,70 @@ interface TechnicalFormData {
   description?: string;
 }
 
-// Service types with user-friendly labels
-const serviceTypeOptions = [
-  { value: 'on_grid', label: 'On-grid', description: 'Grid-tied solar system' },
-  { value: 'off_grid', label: 'Off-grid', description: 'Standalone solar system' },
-  { value: 'hybrid', label: 'Hybrid', description: 'Grid-tied with battery backup' },
-  { value: 'solar_panel', label: 'Solar Panel', description: 'Panel installation/maintenance' },
-  { value: 'camera', label: 'Camera', description: 'Security camera systems' },
-  { value: 'water_pump', label: 'Water Pump', description: 'Solar water pumping system' },
-  { value: 'water_heater', label: 'Water Heater', description: 'Solar water heating system' },
-  { value: 'lights_accessories', label: 'Lights & Accessories', description: 'LED lights and accessories' },
-  { value: 'others', label: 'Others', description: 'Other technical services' }
-];
+// Service types with user-friendly labels - SCHEMA COMPLIANT
+const serviceTypeOptions = serviceTypes.map(type => {
+  const labels: Record<string, { label: string; description: string }> = {
+    'on_grid': { label: 'On-grid', description: 'Grid-tied solar system' },
+    'off_grid': { label: 'Off-grid', description: 'Standalone solar system' },
+    'hybrid': { label: 'Hybrid', description: 'Grid-tied with battery backup' },
+    'solar_panel': { label: 'Solar Panel', description: 'Panel installation/maintenance' },
+    'camera': { label: 'Camera', description: 'Security camera systems' },
+    'water_pump': { label: 'Water Pump', description: 'Solar water pumping system' },
+    'water_heater': { label: 'Water Heater', description: 'Solar water heating system' },
+    'lights_accessories': { label: 'Lights & Accessories', description: 'LED lights and accessories' },
+    'others': { label: 'Others', description: 'Other technical services' }
+  };
+  return {
+    value: type,
+    label: labels[type]?.label || type.replace('_', ' ').toUpperCase(),
+    description: labels[type]?.description || `${type.replace('_', ' ')} service`
+  };
+});
 
-// Work types with categories
+// Work types with categories - SCHEMA COMPLIANT
 const workTypeOptions = [
   { 
     category: 'Installation & Setup',
-    items: [
-      { value: 'installation', label: 'Installation' },
-      { value: 'wifi_configuration', label: 'WiFi Configuration' },
-      { value: 'structure', label: 'Structure Work' },
-      { value: 'welding_work', label: 'Welding Work' }
-    ]
+    items: technicalWorkTypes.filter(type => 
+      ['installation', 'wifi_configuration', 'structure', 'welding_work'].includes(type)
+    ).map(type => ({
+      value: type,
+      label: type.replace('_', ' ').split(' ').map(word => 
+        word.charAt(0).toUpperCase() + word.slice(1)
+      ).join(' ')
+    }))
   },
   {
     category: 'Maintenance & Service',
-    items: [
-      { value: 'amc', label: 'AMC (Annual Maintenance)' },
-      { value: 'service', label: 'Service' },
-      { value: 'repair', label: 'Repair' },
-      { value: 'cleaning', label: 'Cleaning' }
-    ]
+    items: technicalWorkTypes.filter(type => 
+      ['amc', 'service', 'repair', 'cleaning'].includes(type)
+    ).map(type => ({
+      value: type,
+      label: type === 'amc' ? 'AMC (Annual Maintenance)' : 
+             type.charAt(0).toUpperCase() + type.slice(1)
+    }))
   },
   {
     category: 'Troubleshooting',
-    items: [
-      { value: 'electrical_fault', label: 'Electrical Fault' },
-      { value: 'inverter_fault', label: 'Inverter Fault' },
-      { value: 'solar_panel_fault', label: 'Solar Panel Fault' },
-      { value: 'wiring_issue', label: 'Wiring Issue' },
-      { value: 'camera_fault', label: 'Camera Fault' },
-      { value: 'light_fault', label: 'Light Fault' }
-    ]
+    items: technicalWorkTypes.filter(type => 
+      ['electrical_fault', 'inverter_fault', 'solar_panel_fault', 'wiring_issue', 'camera_fault', 'light_fault'].includes(type)
+    ).map(type => ({
+      value: type,
+      label: type.replace('_', ' ').split(' ').map(word => 
+        word.charAt(0).toUpperCase() + word.slice(1)
+      ).join(' ')
+    }))
   },
   {
     category: 'Other Services',
-    items: [
-      { value: 'site_visit', label: 'Site Visit' },
-      { value: 'light_installation', label: 'Light Installation' },
-      { value: 'painting', label: 'Painting' },
-      { value: 'others', label: 'Others' }
-    ]
+    items: technicalWorkTypes.filter(type => 
+      ['site_visit', 'light_installation', 'painting', 'others'].includes(type)
+    ).map(type => ({
+      value: type,
+      label: type.replace('_', ' ').split(' ').map(word => 
+        word.charAt(0).toUpperCase() + word.slice(1)
+      ).join(' ')
+    }))
   }
 ];
 

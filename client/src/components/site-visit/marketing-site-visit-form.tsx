@@ -29,6 +29,7 @@ import {
   solarPanelBrands,
   inverterMakes,
   inverterPhases,
+  earthingTypes,
   panelWatts,
   inverterWatts,
   batteryBrands,

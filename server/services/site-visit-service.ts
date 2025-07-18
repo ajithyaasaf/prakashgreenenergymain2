@@ -25,8 +25,8 @@ export class SiteVisitService {
    */
   async createSiteVisit(data: InsertSiteVisit): Promise<SiteVisit> {
     try {
-      // Validate the input data
-      const validatedData = insertSiteVisitSchema.parse(data);
+      // Data is already validated in the route, so we can use it directly
+      const validatedData = data;
       
       // Convert dates to Firestore timestamps
       const firestoreData = {

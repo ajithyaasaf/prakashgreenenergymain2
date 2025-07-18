@@ -5078,11 +5078,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { insertSiteVisitSchema } = await import("@shared/schema");
       const { siteVisitService } = await import("./services/site-visit-service");
 
+      // Map user department to site visit schema department
+      const departmentMapping: Record<string, string> = {
+        'admin': 'admin',
+        'administration': 'admin', 
+        'technical': 'technical',
+        'marketing': 'marketing'
+      };
+      
+      const mappedDepartment = departmentMapping[user.department.toLowerCase()] || user.department;
+      
       // Prepare and validate input data
       const requestData = {
         ...req.body,
         userId: user.uid,
-        department: user.department,
+        department: mappedDepartment,
         siteInTime: req.body.siteInTime ? new Date(req.body.siteInTime) : new Date(),
         siteOutTime: req.body.siteOutTime ? new Date(req.body.siteOutTime) : undefined,
         createdAt: new Date(),
@@ -5093,6 +5103,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("=== SITE VISIT VALIDATION DEBUG ===");
       console.log("Request body:", JSON.stringify(req.body, null, 2));
       console.log("Request data after processing:", JSON.stringify(requestData, null, 2));
+      console.log("User department:", user.department);
+      console.log("Schema department enum:", ["technical", "marketing", "admin"]);
       console.log("=====================================");
 
       const siteVisitData = insertSiteVisitSchema.parse(requestData);
