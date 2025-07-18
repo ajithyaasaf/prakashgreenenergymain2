@@ -87,26 +87,46 @@ class LocationService {
           console.log('Location detected:', {
             latitude: position.coords.latitude,
             longitude: position.coords.longitude,
-            accuracy: position.coords.accuracy
+            accuracy: position.coords.accuracy,
+            isMobile: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
           });
           resolve(position);
         },
         (error) => {
           console.error('Location error:', error.code, error.message);
+          const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+          
           switch (error.code) {
             case error.PERMISSION_DENIED:
-              reject(new Error('Please enable location permissions and try again'));
+              if (isMobile) {
+                reject(new Error('Please turn on Location Services in your device settings and allow location access'));
+              } else {
+                reject(new Error('Please enable location permissions in your browser and try again'));
+              }
               break;
             case error.POSITION_UNAVAILABLE:
-              reject(new Error('Please turn on GPS and try again'));
+              if (isMobile) {
+                reject(new Error('Please turn on GPS in your device settings'));
+              } else {
+                reject(new Error('Location unavailable. Please ensure WiFi or mobile data is enabled'));
+              }
               break;
             case error.TIMEOUT:
               reject(new Error('Location request timed out. Please try again'));
               break;
             default:
-              reject(new Error('Please turn on GPS and enable location permissions'));
+              if (isMobile) {
+                reject(new Error('Please turn on GPS and Location Services'));
+              } else {
+                reject(new Error('Please enable location services and try again'));
+              }
               break;
           }
+        },
+        {
+          enableHighAccuracy: true,  // Force GPS usage when available
+          timeout: 15000,            // 15 second timeout
+          maximumAge: 0              // Never use cached location
         }
       );
     });

@@ -140,7 +140,10 @@ export function EnhancedLocationCapture({
           <Alert>
             <Navigation className="h-4 w-4" />
             <AlertDescription>
-              Getting your exact GPS location. Please ensure location services are enabled and wait up to 60 seconds for precise detection...
+              Getting your GPS location. Mobile devices provide more accurate results due to dedicated GPS chips.
+              {/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
+                ? ' Please ensure GPS is enabled.' 
+                : ' Desktop location uses WiFi/network positioning which may be less precise.'}
             </AlertDescription>
           </Alert>
         )}
@@ -190,6 +193,14 @@ export function EnhancedLocationCapture({
                         {locationStatus.location.formattedAddress}
                       </p>
                     )}
+                    {locationStatus.location.accuracy && (
+                      <p className="text-xs text-blue-600 mt-1">
+                        Accuracy: {Math.round(locationStatus.location.accuracy)}m 
+                        {/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
+                          ? ' (GPS)' 
+                          : ' (Network)'}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -233,11 +244,21 @@ export function EnhancedLocationCapture({
             {locationStatus.status === 'denied' && (
               <div className="text-sm text-muted-foreground space-y-1">
                 <p className="font-medium">To enable location access:</p>
-                <ul className="list-disc list-inside space-y-0.5 pl-2">
-                  <li>Click the location icon in your browser's address bar</li>
-                  <li>Select "Allow" when prompted for location access</li>
-                  <li>Refresh the page and try again</li>
-                </ul>
+                {/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ? (
+                  <ul className="list-disc list-inside space-y-0.5 pl-2">
+                    <li>Go to your device Settings → Privacy → Location Services</li>
+                    <li>Turn on Location Services for your browser app</li>
+                    <li>Allow location access when prompted</li>
+                    <li>Try the "Try Again" button above</li>
+                  </ul>
+                ) : (
+                  <ul className="list-disc list-inside space-y-0.5 pl-2">
+                    <li>Click the location/lock icon in your browser's address bar</li>
+                    <li>Select "Allow" for location permissions</li>
+                    <li>Ensure WiFi or internet connection is stable</li>
+                    <li>Try the "Try Again" button above</li>
+                  </ul>
+                )}
               </div>
             )}
           </div>
