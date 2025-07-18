@@ -26,7 +26,7 @@ class LocationService {
   }
 
   /**
-   * Automatically detect user location with high accuracy
+   * Automatically detect user location with high accuracy using multiple attempts
    */
   async detectLocation(): Promise<LocationStatus> {
     if (!navigator.geolocation) {
@@ -39,11 +39,14 @@ class LocationService {
     }
 
     try {
-      const position = await this.getCurrentPosition();
+      // Try to get multiple readings for better accuracy
+      const positions = await this.getMultiplePositions();
+      const bestPosition = this.selectBestPosition(positions);
+      
       const locationData: LocationData = {
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
-        accuracy: position.coords.accuracy
+        latitude: bestPosition.coords.latitude,
+        longitude: bestPosition.coords.longitude,
+        accuracy: bestPosition.coords.accuracy
       };
 
       // Get human-readable address
@@ -68,7 +71,50 @@ class LocationService {
   }
 
   /**
-   * Get current position with optimized settings
+   * Get multiple location readings for better accuracy
+   */
+  private async getMultiplePositions(): Promise<GeolocationPosition[]> {
+    const positions: GeolocationPosition[] = [];
+    
+    try {
+      // First attempt - immediate high accuracy reading
+      const position1 = await this.getCurrentPosition();
+      positions.push(position1);
+      
+      // If accuracy is already very good (< 10m), use it immediately
+      if (position1.coords.accuracy < 10) {
+        return positions;
+      }
+      
+      // Second attempt with slight delay for better GPS lock
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      const position2 = await this.getCurrentPosition();
+      positions.push(position2);
+      
+      return positions;
+    } catch (error) {
+      // If we have at least one position, return it
+      if (positions.length > 0) {
+        return positions;
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Select the most accurate position from multiple readings
+   */
+  private selectBestPosition(positions: GeolocationPosition[]): GeolocationPosition {
+    if (positions.length === 1) {
+      return positions[0];
+    }
+    
+    // Sort by accuracy (lower is better)
+    return positions.sort((a, b) => a.coords.accuracy - b.coords.accuracy)[0];
+  }
+
+  /**
+   * Get current position with optimized settings for maximum accuracy
    */
   private getCurrentPosition(): Promise<GeolocationPosition> {
     return new Promise((resolve, reject) => {
@@ -77,8 +123,8 @@ class LocationService {
         reject,
         {
           enableHighAccuracy: true,
-          timeout: 15000,
-          maximumAge: 30000 // Allow cached location up to 30 seconds
+          timeout: 20000,
+          maximumAge: 0 // Always get fresh location for accuracy
         }
       );
     });

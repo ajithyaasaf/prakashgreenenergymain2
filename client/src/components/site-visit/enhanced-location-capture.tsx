@@ -139,7 +139,7 @@ export function EnhancedLocationCapture({
           <Alert>
             <Navigation className="h-4 w-4" />
             <AlertDescription>
-              Detecting your current location using GPS. This may take a few seconds...
+              Finding your precise location using GPS. Please wait while we get the most accurate reading...
             </AlertDescription>
           </Alert>
         )}
@@ -150,22 +150,30 @@ export function EnhancedLocationCapture({
             <Alert className="border-green-200 bg-green-50">
               <CheckCircle className="h-4 w-4 text-green-600" />
               <AlertDescription className="text-green-800">
-                Location successfully detected with {formatAccuracy(locationStatus.location.accuracy)} accuracy
+                Location successfully detected
               </AlertDescription>
             </Alert>
 
-            {/* Location details */}
-            <div className="grid grid-cols-2 gap-4 p-3 bg-gray-50 rounded-lg">
-              <div>
-                <p className="text-xs text-muted-foreground">Coordinates</p>
-                <p className="text-sm font-medium">
-                  {locationStatus.location.latitude.toFixed(6)}, {locationStatus.location.longitude.toFixed(6)}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Accuracy</p>
-                <p className="text-sm font-medium">±{Math.round(locationStatus.location.accuracy)}m</p>
-              </div>
+            {/* Refresh button for successful detection */}
+            <div className="flex justify-end">
+              <Button
+                onClick={handleLocationDetection}
+                disabled={isDetecting}
+                variant="outline"
+                size="sm"
+              >
+                {isDetecting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Refresh Location
+                  </>
+                )}
+              </Button>
             </div>
 
             {/* Address display */}
