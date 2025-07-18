@@ -22,11 +22,15 @@ class LocationService {
   private apiKey: string;
 
   constructor() {
-    this.apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
+    // Try multiple environment variable sources
+    this.apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || 
+                  import.meta.env.GOOGLE_MAPS_API_KEY || 
+                  '';
+    console.log('Google Maps API Key configured:', this.apiKey ? 'Yes' : 'No');
   }
 
   /**
-   * Automatically detect user location with high accuracy using multiple attempts
+   * Automatically detect user location with maximum precision
    */
   async detectLocation(): Promise<LocationStatus> {
     if (!navigator.geolocation) {
@@ -39,14 +43,12 @@ class LocationService {
     }
 
     try {
-      // Try to get multiple readings for better accuracy
-      const positions = await this.getMultiplePositions();
-      const bestPosition = this.selectBestPosition(positions);
+      const position = await this.getCurrentPosition();
       
       const locationData: LocationData = {
-        latitude: bestPosition.coords.latitude,
-        longitude: bestPosition.coords.longitude,
-        accuracy: bestPosition.coords.accuracy
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        accuracy: position.coords.accuracy
       };
 
       // Get human-readable address
@@ -71,60 +73,39 @@ class LocationService {
   }
 
   /**
-   * Get multiple location readings for better accuracy
-   */
-  private async getMultiplePositions(): Promise<GeolocationPosition[]> {
-    const positions: GeolocationPosition[] = [];
-    
-    try {
-      // First attempt - immediate high accuracy reading
-      const position1 = await this.getCurrentPosition();
-      positions.push(position1);
-      
-      // If accuracy is already very good (< 10m), use it immediately
-      if (position1.coords.accuracy < 10) {
-        return positions;
-      }
-      
-      // Second attempt with slight delay for better GPS lock
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      const position2 = await this.getCurrentPosition();
-      positions.push(position2);
-      
-      return positions;
-    } catch (error) {
-      // If we have at least one position, return it
-      if (positions.length > 0) {
-        return positions;
-      }
-      throw error;
-    }
-  }
-
-  /**
-   * Select the most accurate position from multiple readings
-   */
-  private selectBestPosition(positions: GeolocationPosition[]): GeolocationPosition {
-    if (positions.length === 1) {
-      return positions[0];
-    }
-    
-    // Sort by accuracy (lower is better)
-    return positions.sort((a, b) => a.coords.accuracy - b.coords.accuracy)[0];
-  }
-
-  /**
-   * Get current position with optimized settings for maximum accuracy
+   * Get current position with maximum precision GPS settings
    */
   private getCurrentPosition(): Promise<GeolocationPosition> {
     return new Promise((resolve, reject) => {
-      navigator.geolocation.getCurrentPosition(
-        resolve,
-        reject,
+      // Check if GPS is available before requesting
+      if (!navigator.geolocation) {
+        reject(new Error('Geolocation not supported'));
+        return;
+      }
+
+      // First try with watchPosition for better accuracy
+      const watchId = navigator.geolocation.watchPosition(
+        (position) => {
+          navigator.geolocation.clearWatch(watchId);
+          resolve(position);
+        },
+        (error) => {
+          navigator.geolocation.clearWatch(watchId);
+          // Fallback to getCurrentPosition if watchPosition fails
+          navigator.geolocation.getCurrentPosition(
+            resolve,
+            reject,
+            {
+              enableHighAccuracy: true,
+              timeout: 30000,
+              maximumAge: 0
+            }
+          );
+        },
         {
-          enableHighAccuracy: true,
-          timeout: 20000,
-          maximumAge: 0 // Always get fresh location for accuracy
+          enableHighAccuracy: true,    // Force GPS usage over network
+          timeout: 15000,              // Quick timeout for watch
+          maximumAge: 0                // Never use cached location
         }
       );
     });
