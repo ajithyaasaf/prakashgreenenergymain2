@@ -147,7 +147,7 @@ class LocationService {
         },
         {
           enableHighAccuracy: true,  // Force GPS usage when available
-          timeout: 15000,            // 15 second timeout
+          timeout: 20000,            // 20 second timeout for better GPS lock
           maximumAge: 0              // Never use cached location
         }
       );

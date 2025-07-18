@@ -148,6 +148,19 @@ export function EnhancedLocationCapture({
           </Alert>
         )}
 
+        {/* Accuracy explanation for high readings */}
+        {locationStatus.status === 'granted' && locationStatus.location && locationStatus.location.accuracy > 500 && (
+          <Alert className="border-amber-200 bg-amber-50">
+            <AlertTriangle className="h-4 w-4 text-amber-600" />
+            <AlertDescription className="text-amber-800 text-sm">
+              <strong>Low Accuracy Detected:</strong> Your location accuracy is {Math.round(locationStatus.location.accuracy)}m. 
+              {/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
+                ? ' For better accuracy: ensure GPS is enabled, move to an open area with clear sky view, and try refreshing location.' 
+                : ' Desktop devices use WiFi/network positioning which is less accurate than mobile GPS. Consider using a mobile device for precise site visits.'}
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Success state */}
         {locationStatus.status === 'granted' && locationStatus.location && (
           <div className="space-y-3">
@@ -196,9 +209,11 @@ export function EnhancedLocationCapture({
                     {locationStatus.location.accuracy && (
                       <p className="text-xs text-blue-600 mt-1">
                         Accuracy: {Math.round(locationStatus.location.accuracy)}m 
-                        {/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
-                          ? ' (GPS)' 
-                          : ' (Network)'}
+                        {locationStatus.location.accuracy < 50 ? ' (GPS - High Precision)' : 
+                         locationStatus.location.accuracy < 200 ? ' (GPS - Good)' : 
+                         /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
+                          ? ' (Network/WiFi - Limited)' 
+                          : ' (Network - Limited Precision)'}
                       </p>
                     )}
                   </div>
