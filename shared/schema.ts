@@ -328,7 +328,7 @@ export const insertSiteVisitSchema = z.object({
   // Location & Time Tracking
   siteInTime: z.date(),
   siteInLocation: locationSchema,
-  siteInPhotoUrl: z.string().url(),
+  siteInPhotoUrl: z.string().url().optional(),
   siteOutTime: z.date().optional(),
   siteOutLocation: locationSchema.optional(),
   siteOutPhotoUrl: z.string().url().optional(),

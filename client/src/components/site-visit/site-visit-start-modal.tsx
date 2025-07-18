@@ -142,7 +142,7 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
   const createSiteVisitMutation = useMutation({
     mutationFn: async (data: any) => {
       // Upload photo to Cloudinary if provided
-      let photoUrl = 'https://via.placeholder.com/400x300.jpg?text=No+Photo';
+      let photoUrl: string | undefined = undefined;
       
       if (selectedPhoto) {
         try {
@@ -183,7 +183,7 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
           accuracy: currentLocation.accuracy,
           address: currentLocation.formattedAddress || currentLocation.address || 'Address not available'
         },
-        siteInPhotoUrl: photoUrl,
+        ...(photoUrl && { siteInPhotoUrl: photoUrl }),
         customer: {
           ...data.customer,
           ebServiceNumber: data.customer.ebServiceNumber || '',
