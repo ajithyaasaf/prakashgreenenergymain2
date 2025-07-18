@@ -140,25 +140,22 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
 
   const createSiteVisitMutation = useMutation({
     mutationFn: async (data: any) => {
-      // Create site visit without photo upload for now
-      return apiRequest('/api/site-visits', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...data,
-          siteInPhotoUrl: selectedPhoto ? 'Photo captured locally' : '', // Photo handling disabled temporarily
-          siteInTime: new Date(),
-          siteInLocation: currentLocation,
-          status: 'in_progress',
-          // Include department-specific data
-          technicalSiteVisit: data.technicalData,
-          marketingSiteVisit: data.marketingData,
-          adminSiteVisit: data.adminData,
-          departmentType: userDepartment
-        }),
-      });
+      // Create site visit payload
+      const siteVisitPayload = {
+        ...data,
+        siteInPhotoUrl: selectedPhoto ? 'Photo captured locally' : '', // Photo handling disabled temporarily
+        siteInTime: new Date(),
+        siteInLocation: currentLocation,
+        status: 'in_progress',
+        // Include department-specific data
+        technicalSiteVisit: data.technicalData,
+        marketingSiteVisit: data.marketingData,
+        adminSiteVisit: data.adminData,
+        departmentType: userDepartment
+      };
+
+      // Use apiRequest correctly - it handles method and headers internally
+      return apiRequest('/api/site-visits', siteVisitPayload);
     },
     onSuccess: () => {
       toast({
