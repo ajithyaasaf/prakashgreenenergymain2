@@ -197,7 +197,7 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
     if (!canProceedToStep4) {
       toast({
         title: "Department Details Required",
-        description: `Please complete the ${userDepartment} department specific details`,
+        description: `Please complete the ${normalizedDepartment} department specific details`,
         variant: "destructive",
       });
       return;
@@ -206,11 +206,14 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
     createSiteVisitMutation.mutate(formData);
   };
 
+  // Map administration to admin for form logic
+  const normalizedDepartment = userDepartment.toLowerCase() === 'administration' ? 'admin' : userDepartment;
+  
   const canProceedToStep2 = locationCaptured && formData.visitPurpose;
   const canProceedToStep3 = formData.customer.name && formData.customer.mobile && formData.customer.address && formData.customer.propertyType;
-  const canProceedToStep4 = (userDepartment === 'technical' && formData.technicalData) ||
-                           (userDepartment === 'marketing' && formData.marketingData) ||
-                           (userDepartment === 'admin' && formData.adminData);
+  const canProceedToStep4 = (normalizedDepartment === 'technical' && formData.technicalData) ||
+                           (normalizedDepartment === 'marketing' && formData.marketingData) ||
+                           (normalizedDepartment === 'admin' && formData.adminData);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -427,7 +430,7 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
           {/* Step 3: Department-Specific Forms */}
           {step === 3 && (
             <div className="space-y-4">
-              {userDepartment === 'technical' && (
+              {normalizedDepartment === 'technical' && (
                 <TechnicalSiteVisitForm 
                   onSubmit={(data) => {
                     setFormData(prev => ({ ...prev, technicalData: data }));
@@ -438,7 +441,7 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
                 />
               )}
               
-              {userDepartment === 'marketing' && (
+              {normalizedDepartment === 'marketing' && (
                 <MarketingSiteVisitForm 
                   onSubmit={(data) => {
                     setFormData(prev => ({ ...prev, marketingData: data }));
@@ -449,7 +452,7 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
                 />
               )}
               
-              {userDepartment === 'admin' && (
+              {normalizedDepartment === 'admin' && (
                 <AdminSiteVisitForm 
                   onSubmit={(data) => {
                     setFormData(prev => ({ ...prev, adminData: data }));

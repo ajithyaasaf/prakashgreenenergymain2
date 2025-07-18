@@ -70,7 +70,7 @@ export default function SiteVisitPage() {
   const [activeTab, setActiveTab] = useState("my-visits");
 
   // Check if user has access to Site Visit features
-  const hasAccess = user?.department && ['technical', 'marketing', 'admin'].includes(user.department);
+  const hasAccess = user?.department && ['technical', 'marketing', 'admin', 'administration'].includes(user.department.toLowerCase());
 
   // Fetch user's site visits
   const { data: mySiteVisits, isLoading: isLoadingMy } = useQuery({
@@ -370,7 +370,7 @@ export default function SiteVisitPage() {
       <SiteVisitStartModal
         isOpen={isStartModalOpen}
         onClose={() => setIsStartModalOpen(false)}
-        userDepartment={user?.department || 'technical'}
+        userDepartment={user?.department?.toLowerCase() === 'administration' ? 'admin' : (user?.department || 'technical')}
       />
 
       <SiteVisitDetailsModal

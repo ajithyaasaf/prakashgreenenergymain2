@@ -5036,11 +5036,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Permission helper for site visit access
   const checkSiteVisitPermission = (user: any, action: string) => {
     // Only Technical, Marketing, and Admin departments can access Site Visit
-    const allowedDepartments = ['technical', 'marketing', 'admin'];
+    const allowedDepartments = ['technical', 'marketing', 'admin', 'administration'];
     
     if (user.role === 'master_admin') return true;
     
-    if (!user.department || !allowedDepartments.includes(user.department)) {
+    if (!user.department || !allowedDepartments.includes(user.department.toLowerCase())) {
       return false;
     }
     
