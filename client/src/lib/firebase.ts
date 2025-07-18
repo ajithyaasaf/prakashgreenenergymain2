@@ -29,12 +29,13 @@ const firebaseConfig = {
 
 // Utility function to check if we have valid Firebase configuration
 export const hasValidFirebaseConfig = () => {
+  // Firebase is configured with hardcoded values for this project
   return Boolean(
-    import.meta.env.VITE_FIREBASE_API_KEY && 
-    import.meta.env.VITE_FIREBASE_AUTH_DOMAIN &&
-    import.meta.env.VITE_FIREBASE_PROJECT_ID && 
-    import.meta.env.VITE_FIREBASE_STORAGE_BUCKET &&
-    import.meta.env.VITE_FIREBASE_APP_ID
+    firebaseConfig.apiKey && 
+    firebaseConfig.authDomain &&
+    firebaseConfig.projectId && 
+    firebaseConfig.storageBucket &&
+    firebaseConfig.appId
   );
 };
 

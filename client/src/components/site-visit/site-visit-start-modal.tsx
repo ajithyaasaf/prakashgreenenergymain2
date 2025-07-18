@@ -140,10 +140,37 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
 
   const createSiteVisitMutation = useMutation({
     mutationFn: async (data: any) => {
-      // Generate a valid placeholder URL for photo validation
-      const photoUrl = selectedPhoto 
-        ? `https://via.placeholder.com/400x300.jpg?text=Site+Photo`
-        : 'https://via.placeholder.com/400x300.jpg?text=No+Photo';
+      // Upload photo to Cloudinary if provided
+      let photoUrl = 'https://via.placeholder.com/400x300.jpg?text=No+Photo';
+      
+      if (selectedPhoto) {
+        try {
+          const formData = new FormData();
+          formData.append('file', selectedPhoto);
+          formData.append('upload_preset', 'attendance_photos');
+          formData.append('folder', 'site_visits');
+
+          const response = await fetch('https://api.cloudinary.com/v1_1/dpmcthtrb/image/upload', {
+            method: 'POST',
+            body: formData,
+          });
+
+          if (!response.ok) {
+            throw new Error(`Photo upload failed: ${response.statusText}`);
+          }
+
+          const result = await response.json();
+          photoUrl = result.secure_url;
+        } catch (error) {
+          console.error('Photo upload failed:', error);
+          toast({
+            title: "Photo Upload Failed",
+            description: "Could not upload photo. Please try again.",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
 
       // Create site visit payload matching the schema exactly
       const siteVisitPayload = {

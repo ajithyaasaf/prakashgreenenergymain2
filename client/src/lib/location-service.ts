@@ -28,8 +28,15 @@ class LocationService {
                   '';
     console.log('Google Maps API Key configured:', this.apiKey ? 'Yes' : 'No');
     if (!this.apiKey) {
-      console.warn('⚠️ Google Maps API key not found - address detection will be disabled');
+      console.warn('⚠️ Google Maps API key not found - using coordinate-based location');
     }
+  }
+
+  /**
+   * Check if location services are supported
+   */
+  isLocationSupported(): boolean {
+    return 'geolocation' in navigator;
   }
 
   /**
@@ -46,13 +53,8 @@ class LocationService {
     }
 
     if (!this.apiKey) {
-      console.error('Google Maps API key is required for full location functionality');
-      return {
-        status: 'error',
-        location: null,
-        error: 'Location services not properly configured. Please contact system administrator.',
-        canRetry: false
-      };
+      console.warn('Google Maps API key not configured - using basic location without address');
+      // Continue with basic location detection without address lookup
     }
 
     try {
@@ -64,25 +66,31 @@ class LocationService {
         accuracy: position.coords.accuracy
       };
 
-      // Get human-readable address - REQUIRED for site check-in
-      try {
-        const address = await this.reverseGeocode(locationData.latitude, locationData.longitude);
-        locationData.address = address.address;
-        locationData.formattedAddress = address.formattedAddress;
-        
-        console.log('✅ Location detected successfully:', {
-          coords: `${locationData.latitude.toFixed(6)}, ${locationData.longitude.toFixed(6)}`,
-          accuracy: `${Math.round(locationData.accuracy)}m`,
-          address: locationData.address
+      // Get human-readable address if API key is available
+      if (this.apiKey) {
+        try {
+          const address = await this.reverseGeocode(locationData.latitude, locationData.longitude);
+          locationData.address = address.address;
+          locationData.formattedAddress = address.formattedAddress;
+          
+          console.log('✅ Location detected successfully with address:', {
+            coords: `${locationData.latitude.toFixed(6)}, ${locationData.longitude.toFixed(6)}`,
+            accuracy: `${Math.round(locationData.accuracy)}m`,
+            address: locationData.address
+          });
+        } catch (error) {
+          console.warn('Address lookup failed, using coordinates only:', error);
+          locationData.address = `${locationData.latitude.toFixed(6)}, ${locationData.longitude.toFixed(6)}`;
+          locationData.formattedAddress = locationData.address;
+        }
+      } else {
+        // Fallback to coordinates when no API key
+        locationData.address = `${locationData.latitude.toFixed(6)}, ${locationData.longitude.toFixed(6)}`;
+        locationData.formattedAddress = locationData.address;
+        console.log('✅ Location detected (coordinates only):', {
+          coords: locationData.address,
+          accuracy: `${Math.round(locationData.accuracy)}m`
         });
-      } catch (error) {
-        console.error('❌ Address lookup failed:', error);
-        return {
-          status: 'error',
-          location: null,
-          error: 'Unable to determine address for this location. Please try again.',
-          canRetry: true
-        };
       }
 
       return {

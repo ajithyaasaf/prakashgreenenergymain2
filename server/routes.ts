@@ -5131,7 +5131,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/site-visits/:id", verifyAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.user.uid);
-      if (!user || !checkSiteVisitPermission(user, 'edit')) {
+      if (!user || !(await checkSiteVisitPermission(user, 'edit'))) {
         return res.status(403).json({ message: "Access denied" });
       }
 
@@ -5145,7 +5145,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check if user can edit this site visit (own or has permission)
       const canEdit = existingSiteVisit.userId === user.uid || 
-                     checkSiteVisitPermission(user, 'view_all') ||
+                     (await checkSiteVisitPermission(user, 'view_all')) ||
                      user.role === 'master_admin';
       
       if (!canEdit) {
@@ -5278,7 +5278,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/site-visits/:id/photos", verifyAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.user.uid);
-      if (!user || !checkSiteVisitPermission(user, 'edit')) {
+      if (!user || !(await checkSiteVisitPermission(user, 'edit'))) {
         return res.status(403).json({ message: "Access denied" });
       }
 
@@ -5330,7 +5330,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const filters: any = {};
       
       // Apply department filter based on permissions
-      if (user.role !== 'master_admin' && !checkSiteVisitPermission(user, 'view_all')) {
+      if (user.role !== 'master_admin' && !(await checkSiteVisitPermission(user, 'view_all'))) {
         filters.department = user.department;
       }
 
@@ -5350,7 +5350,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/site-visits/:id", verifyAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.user.uid);
-      if (!user || !checkSiteVisitPermission(user, 'delete')) {
+      if (!user || !(await checkSiteVisitPermission(user, 'delete'))) {
         return res.status(403).json({ message: "Access denied" });
       }
 

@@ -173,7 +173,8 @@ export function TechnicalSiteVisitForm({ onSubmit, onBack, isLoading }: Technica
   const isFormValid = formData.serviceTypes.length > 0 && 
                      formData.workType && 
                      formData.workingStatus &&
-                     (formData.workingStatus === 'completed' || formData.pendingRemarks?.trim());
+                     formData.teamMembers.length > 0 &&
+                     (formData.workingStatus === 'completed' || (formData.pendingRemarks?.trim() && formData.pendingRemarks.trim().length >= 10));
 
   return (
     <div className="space-y-6">

@@ -209,11 +209,11 @@ export function MarketingSiteVisitForm({ onSubmit, onBack, isLoading }: Marketin
 
   const isFormValid = !formData.updateRequirements || 
     (formData.projectType && 
-     ((formData.projectType === 'on_grid' && formData.onGridConfig?.solarPanelMake && formData.onGridConfig?.inverterMake) ||
-      (formData.projectType === 'off_grid' && formData.offGridConfig?.solarPanelMake && formData.offGridConfig?.inverterMake && formData.offGridConfig?.batteryBrand) ||
-      (formData.projectType === 'hybrid' && formData.hybridConfig?.solarPanelMake && formData.hybridConfig?.inverterMake && formData.hybridConfig?.batteryBrand) ||
-      (formData.projectType === 'water_heater' && formData.waterHeaterConfig?.brand) ||
-      (formData.projectType === 'water_pump' && formData.waterPumpConfig?.hp && formData.waterPumpConfig?.panelBrand)));
+     ((formData.projectType === 'on_grid' && formData.onGridConfig?.solarPanelMake && formData.onGridConfig?.inverterMake && formData.onGridConfig?.panelCount > 0) ||
+      (formData.projectType === 'off_grid' && formData.offGridConfig?.solarPanelMake && formData.offGridConfig?.inverterMake && formData.offGridConfig?.batteryBrand && formData.offGridConfig?.panelCount > 0) ||
+      (formData.projectType === 'hybrid' && formData.hybridConfig?.solarPanelMake && formData.hybridConfig?.inverterMake && formData.hybridConfig?.batteryBrand && formData.hybridConfig?.panelCount > 0) ||
+      (formData.projectType === 'water_heater' && formData.waterHeaterConfig?.brand && formData.waterHeaterConfig?.litre > 0) ||
+      (formData.projectType === 'water_pump' && formData.waterPumpConfig?.hp && formData.waterPumpConfig?.panelBrand && formData.waterPumpConfig?.panelCount > 0)));
 
   return (
     <div className="space-y-6">

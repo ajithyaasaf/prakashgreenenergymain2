@@ -117,8 +117,13 @@ export function AdminSiteVisitForm({ onSubmit, onBack, isLoading }: AdminSiteVis
   };
 
   const isFormValid = Object.keys(formData).length > 0 &&
-    (!formData.bankProcess || formData.bankProcess.step) &&
-    (!formData.ebProcess || formData.ebProcess.type);
+    (!formData.bankProcess || (formData.bankProcess.step && (!formData.bankProcess.description || formData.bankProcess.description.trim().length >= 10))) &&
+    (!formData.ebProcess || (formData.ebProcess.type && (!formData.ebProcess.description || formData.ebProcess.description.trim().length >= 10))) &&
+    (formData.bankProcess?.step || formData.ebProcess?.type || 
+     Object.entries(formData).some(([key, value]) => {
+       if (key === 'bankProcess' || key === 'ebProcess') return false;
+       return typeof value === 'string' && value.trim().length >= 10;
+     }));
 
   return (
     <div className="space-y-6">

@@ -211,24 +211,24 @@ export class SiteVisitService {
     limit?: number;
   }): Promise<SiteVisit[]> {
     try {
+      // Start with base query
       let query = this.collection.orderBy('createdAt', 'desc');
 
+      // Apply filters one by one to avoid compound index issues
+      // Priority order: userId (most selective), department, status, then dates
+      
       if (filters.userId) {
         query = query.where('userId', '==', filters.userId);
-      }
-
-      if (filters.department) {
+      } else if (filters.department) {
         query = query.where('department', '==', filters.department);
       }
 
-      if (filters.status) {
+      // Apply status filter if no other primary filter is set
+      if (filters.status && !filters.userId && !filters.department) {
         query = query.where('status', '==', filters.status);
       }
 
-      if (filters.visitPurpose) {
-        query = query.where('visitPurpose', '==', filters.visitPurpose);
-      }
-
+      // Apply date range filters
       if (filters.startDate) {
         query = query.where('siteInTime', '>=', Timestamp.fromDate(filters.startDate));
       }
@@ -238,11 +238,21 @@ export class SiteVisitService {
       }
 
       const snapshot = await query.limit(filters.limit || 100).get();
-
-      return snapshot.docs.map(doc => ({
+      let results = snapshot.docs.map(doc => ({
         id: doc.id,
         ...this.convertFirestoreToSiteVisit(doc.data())
       }));
+
+      // Apply additional filters in memory if needed
+      if (filters.status && (filters.userId || filters.department)) {
+        results = results.filter(sv => sv.status === filters.status);
+      }
+
+      if (filters.visitPurpose) {
+        results = results.filter(sv => sv.visitPurpose === filters.visitPurpose);
+      }
+
+      return results;
     } catch (error) {
       console.error('Error getting filtered site visits:', error);
       throw new Error('Failed to get filtered site visits');
@@ -354,13 +364,13 @@ export class SiteVisitService {
   private convertFirestoreToSiteVisit(data: any): Omit<SiteVisit, 'id'> {
     return {
       ...data,
-      siteInTime: data.siteInTime.toDate(),
-      siteOutTime: data.siteOutTime ? data.siteOutTime.toDate() : undefined,
-      createdAt: data.createdAt.toDate(),
-      updatedAt: data.updatedAt.toDate(),
+      siteInTime: data.siteInTime?.toDate() || new Date(),
+      siteOutTime: data.siteOutTime?.toDate() || undefined,
+      createdAt: data.createdAt?.toDate() || new Date(),
+      updatedAt: data.updatedAt?.toDate() || new Date(),
       sitePhotos: (data.sitePhotos || []).map((photo: any) => ({
         ...photo,
-        timestamp: photo.timestamp.toDate()
+        timestamp: photo.timestamp?.toDate() || new Date()
       }))
     };
   }
