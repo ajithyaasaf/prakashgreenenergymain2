@@ -201,40 +201,6 @@ class LocationService {
   }
 
   /**
-   * Handle geolocation errors with user-friendly messages
-   */
-  private handleLocationError(error: GeolocationPositionError): LocationStatus {
-    let errorMessage: string;
-    let canRetry = true;
-
-    switch (error.code) {
-      case error.PERMISSION_DENIED:
-        errorMessage = 'Location access denied. Please enable location permissions and try again.';
-        canRetry = true;
-        break;
-      case error.POSITION_UNAVAILABLE:
-        errorMessage = 'Location information is unavailable. Please check your GPS signal.';
-        canRetry = true;
-        break;
-      case error.TIMEOUT:
-        errorMessage = 'Location request timed out. Please try again.';
-        canRetry = true;
-        break;
-      default:
-        errorMessage = 'An unknown error occurred while detecting location.';
-        canRetry = true;
-        break;
-    }
-
-    return {
-      status: 'denied',
-      location: null,
-      error: errorMessage,
-      canRetry
-    };
-  }
-
-  /**
    * Check if location services are available
    */
   isLocationSupported(): boolean {

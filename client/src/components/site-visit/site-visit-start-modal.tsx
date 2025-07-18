@@ -140,30 +140,7 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
 
   const createSiteVisitMutation = useMutation({
     mutationFn: async (data: any) => {
-      // First upload photo to Cloudinary if selected
-      let photoUrl = '';
-      if (selectedPhoto) {
-        const formData = new FormData();
-        formData.append('file', selectedPhoto);
-        formData.append('upload_preset', 'site_visits'); // You'll need to configure this in Cloudinary
-        
-        try {
-          const response = await fetch(
-            `https://api.cloudinary.com/v1_1/your_cloud_name/image/upload`, // Replace with your Cloudinary URL
-            {
-              method: 'POST',
-              body: formData,
-            }
-          );
-          const result = await response.json();
-          photoUrl = result.secure_url;
-        } catch (error) {
-          console.error('Photo upload failed:', error);
-          throw new Error('Failed to upload photo');
-        }
-      }
-
-      // Create site visit
+      // Create site visit without photo upload for now
       return apiRequest('/api/site-visits', {
         method: 'POST',
         headers: {
@@ -171,7 +148,7 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
         },
         body: JSON.stringify({
           ...data,
-          siteInPhotoUrl: photoUrl || 'https://via.placeholder.com/400x300?text=Site+Photo', // Fallback
+          siteInPhotoUrl: selectedPhoto ? 'Photo captured locally' : '', // Photo handling disabled temporarily
           siteInTime: new Date(),
           siteInLocation: currentLocation,
           status: 'in_progress',
