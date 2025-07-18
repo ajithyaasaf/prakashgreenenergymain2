@@ -5034,27 +5034,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========== SITE VISIT MANAGEMENT API ROUTES ==========
   
   // Permission helper for site visit access
-  const checkSiteVisitPermission = (user: any, action: string) => {
-    console.log('SITE VISIT PERMISSION CHECK:', {
-      userId: user.uid,
-      role: user.role,
-      department: user.department,
-      action: action
-    });
-    
-    // Master admin has full access to everything
-    if (user.role === 'master_admin') {
-      console.log('Master admin detected, granting site visit access');
-      return true;
-    }
-    
+  const checkSiteVisitPermission = async (user: any, action: string) => {
     // Only Technical, Marketing, and Admin departments can access Site Visit
     const allowedDepartments = ['technical', 'marketing', 'admin', 'administration'];
     
+    if (user.role === 'master_admin') return true;
+    
     if (!user.department || !allowedDepartments.includes(user.department.toLowerCase())) {
-      console.log('Department not allowed for site visits:', user.department);
       return false;
     }
+    
+    // Calculate effective permissions dynamically
+    const { getEffectivePermissions } = await import("@shared/schema");
+    const effectivePermissions = getEffectivePermissions(user.department, user.designation);
     
     // Check specific permissions based on action
     const requiredPermissions = {
@@ -5066,19 +5058,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       'delete': ['site_visit.delete']
     };
     
-    const hasPermission = user.permissions?.some((permission: string) => 
+    return effectivePermissions?.some((permission: string) => 
       requiredPermissions[action]?.includes(permission)
     ) || false;
-    
-    console.log('Site visit permission result:', hasPermission);
-    return hasPermission;
   };
 
   // Create new site visit (Site In)
   app.post("/api/site-visits", verifyAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.user.uid);
-      if (!user || !checkSiteVisitPermission(user, 'create')) {
+      const hasPermission = user ? await checkSiteVisitPermission(user, 'create') : false;
+      
+      if (!user || !hasPermission) {
         return res.status(403).json({ 
           message: "Access denied. Site Visit access is limited to Technical, Marketing, and Admin departments." 
         });
@@ -5155,7 +5146,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/site-visits/:id", verifyAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.user.uid);
-      if (!user || !checkSiteVisitPermission(user, 'view_own')) {
+      if (!user || !(await checkSiteVisitPermission(user, 'view_own'))) {
         return res.status(403).json({ message: "Access denied" });
       }
 
@@ -5168,8 +5159,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check if user can view this site visit
       const canView = siteVisit.userId === user.uid || 
-                     checkSiteVisitPermission(user, 'view_all') ||
-                     (checkSiteVisitPermission(user, 'view_team') && siteVisit.department === user.department) ||
+                     await checkSiteVisitPermission(user, 'view_all') ||
+                     (await checkSiteVisitPermission(user, 'view_team') && siteVisit.department === user.department) ||
                      user.role === 'master_admin';
       
       if (!canView) {
@@ -5187,7 +5178,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/site-visits", verifyAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.user.uid);
-      if (!user || !checkSiteVisitPermission(user, 'view_own')) {
+      const hasPermission = user ? await checkSiteVisitPermission(user, 'view_own') : false;
+      
+      if (!user || !hasPermission) {
         return res.status(403).json({ message: "Access denied" });
       }
 
@@ -5199,11 +5192,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       // Determine what the user can see based on permissions
-      if (user.role === 'master_admin' || checkSiteVisitPermission(user, 'view_all')) {
+      if (user.role === 'master_admin' || await checkSiteVisitPermission(user, 'view_all')) {
         // Can see all site visits, apply any filters from query
         if (req.query.userId) filters.userId = req.query.userId as string;
         if (req.query.department) filters.department = req.query.department as string;
-      } else if (checkSiteVisitPermission(user, 'view_team')) {
+      } else if (await checkSiteVisitPermission(user, 'view_team')) {
         // Can see team/department site visits
         filters.department = user.department;
       } else {
@@ -5234,7 +5227,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/site-visits/active", verifyAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.user.uid);
-      if (!user || !checkSiteVisitPermission(user, 'view_own')) {
+      if (!user || !(await checkSiteVisitPermission(user, 'view_own'))) {
         return res.status(403).json({ message: "Access denied" });
       }
 
@@ -5244,8 +5237,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Filter based on user permissions
       let filteredSiteVisits = activeSiteVisits;
       
-      if (user.role !== 'master_admin' && !checkSiteVisitPermission(user, 'view_all')) {
-        if (checkSiteVisitPermission(user, 'view_team')) {
+      if (user.role !== 'master_admin' && !(await checkSiteVisitPermission(user, 'view_all'))) {
+        if (await checkSiteVisitPermission(user, 'view_team')) {
           filteredSiteVisits = activeSiteVisits.filter(sv => sv.department === user.department);
         } else {
           filteredSiteVisits = activeSiteVisits.filter(sv => sv.userId === user.uid);
@@ -5306,7 +5299,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/site-visits/stats", verifyAuth, async (req, res) => {
     try {
       const user = await storage.getUser(req.user.uid);
-      if (!user || !checkSiteVisitPermission(user, 'view_own')) {
+      if (!user || !(await checkSiteVisitPermission(user, 'view_own'))) {
         return res.status(403).json({ message: "Access denied" });
       }
 
