@@ -1,14 +1,15 @@
 /**
  * Site Visit Checkout Modal
- * Handles the completion of a site visit with photos and final remarks
+ * Handles the site visit checkout process with location and photo verification
  */
 
-import React, { useState, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -18,50 +19,43 @@ import {
   Camera, 
   CheckCircle, 
   Clock,
-  Upload,
-  X,
+  User,
   AlertTriangle
 } from "lucide-react";
-import { format } from "date-fns";
 import { EnhancedLocationCapture } from "./enhanced-location-capture";
 import { LocationData } from "@/lib/location-service";
-
-interface SiteVisit {
-  id: string;
-  userId: string;
-  department: 'technical' | 'marketing' | 'admin';
-  visitPurpose: string;
-  status: 'in_progress' | 'completed' | 'cancelled';
-  siteInTime: string;
-  customer: {
-    name: string;
-    mobile: string;
-    address: string;
-  };
-  notes?: string;
-}
+import ErrorBoundary from "@/components/error-boundary";
 
 interface SiteVisitCheckoutModalProps {
   isOpen: boolean;
   onClose: () => void;
-  siteVisit: SiteVisit;
-}
-
-interface PhotoUpload {
-  file: File;
-  preview: string;
-  description: string;
+  siteVisit: any;
 }
 
 export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisitCheckoutModalProps) {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  
-  const [finalRemarks, setFinalRemarks] = useState('');
-  const [photos, setPhotos] = useState<PhotoUpload[]>([]);
+  const [step, setStep] = useState(1);
   const [currentLocation, setCurrentLocation] = useState<LocationData | null>(null);
   const [locationCaptured, setLocationCaptured] = useState(false);
+  const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [notes, setNotes] = useState('');
+  const [lastErrorMessage, setLastErrorMessage] = useState<string>('');
+  
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  // Reset form when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setStep(1);
+      setCurrentLocation(null);
+      setLocationCaptured(false);
+      setSelectedPhoto(null);
+      setPhotoPreview(null);
+      setNotes('');
+      setLastErrorMessage('');
+    }
+  }, [isOpen]);
 
   const handleLocationCaptured = (location: LocationData) => {
     setCurrentLocation(location);
@@ -69,61 +63,38 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
   };
 
   const handleLocationError = (error: string) => {
-    toast({
-      title: "Location Error",
-      description: error,
-      variant: "destructive",
-    });
+    if (error !== lastErrorMessage) {
+      toast({
+        title: "Location Error",
+        description: error,
+        variant: "destructive",
+      });
+      setLastErrorMessage(error);
+    }
     setLocationCaptured(false);
   };
 
-  const handlePhotoSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files) return;
-
-    Array.from(files).forEach(file => {
-      if (file.type.startsWith('image/')) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          setPhotos(prev => [...prev, {
-            file,
-            preview: e.target?.result as string,
-            description: ''
-          }]);
-        };
-        reader.readAsDataURL(file);
-      }
-    });
-
-    // Reset the input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+  const handlePhotoCapture = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setSelectedPhoto(file);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setPhotoPreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
-  const removePhoto = (index: number) => {
-    setPhotos(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const updatePhotoDescription = (index: number, description: string) => {
-    setPhotos(prev => prev.map((photo, i) => 
-      i === index ? { ...photo, description } : photo
-    ));
-  };
-
-  const checkoutSiteVisitMutation = useMutation({
-    mutationFn: async () => {
-      if (!currentLocation) {
-        throw new Error('Location is required for checkout');
-      }
-
-      // Upload photos first if any
-      const uploadedPhotos = [];
+  const checkoutMutation = useMutation({
+    mutationFn: async (data: any) => {
+      // Upload photo to Cloudinary if provided
+      let photoUrl = 'https://via.placeholder.com/400x300.jpg?text=No+Photo';
       
-      for (const photo of photos) {
+      if (selectedPhoto) {
         try {
           const formData = new FormData();
-          formData.append('file', photo.file);
+          formData.append('file', selectedPhoto);
           formData.append('upload_preset', 'attendance_photos');
           formData.append('folder', 'site_visits');
 
@@ -137,71 +108,71 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
           }
 
           const result = await response.json();
-          uploadedPhotos.push({
-            url: result.secure_url,
-            timestamp: new Date(),
-            description: photo.description || 'Site visit photo'
-          });
+          photoUrl = result.secure_url;
         } catch (error) {
           console.error('Photo upload failed:', error);
-          // Continue with other photos even if one fails
+          toast({
+            title: "Photo Upload Failed",
+            description: "Could not upload photo. Please try again.",
+            variant: "destructive",
+          });
+          return;
         }
       }
 
-      // Update site visit with checkout data
+      // Create checkout payload
+      const checkoutPayload = {
+        status: 'completed',
+        siteOutTime: new Date().toISOString(),
+        checkoutLocation: currentLocation,
+        checkoutPhoto: photoUrl,
+        completionNotes: notes,
+        updatedAt: new Date().toISOString()
+      };
+
       return apiRequest(`/api/site-visits/${siteVisit.id}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          status: 'completed',
-          siteOutTime: new Date(),
-          siteOutLocation: currentLocation,
-          finalRemarks,
-          sitePhotos: uploadedPhotos,
-          completedAt: new Date()
-        }),
+        body: JSON.stringify(checkoutPayload),
       });
     },
     onSuccess: () => {
       toast({
         title: "Site Visit Completed",
-        description: "Your site visit has been completed successfully",
+        description: "Site visit has been successfully completed.",
+        variant: "default",
       });
       queryClient.invalidateQueries({ queryKey: ['/api/site-visits'] });
       onClose();
     },
-    onError: (error: any) => {
+    onError: (error) => {
+      console.error('Checkout failed:', error);
       toast({
-        title: "Error",
-        description: error.message || "Failed to complete site visit",
+        title: "Checkout Failed",
+        description: "Could not complete site visit. Please try again.",
         variant: "destructive",
       });
-    },
+    }
   });
 
-  const handleCheckout = () => {
-    if (!locationCaptured || !currentLocation) {
+  const handleSubmit = () => {
+    if (!locationCaptured) {
       toast({
         title: "Location Required",
-        description: "Please allow location detection to complete the site visit",
+        description: "Please capture your checkout location first.",
         variant: "destructive",
       });
       return;
     }
 
-    if (finalRemarks.trim().length < 10) {
-      toast({
-        title: "Final Remarks Required",
-        description: "Please provide detailed final remarks (at least 10 characters)",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    checkoutSiteVisitMutation.mutate();
+    checkoutMutation.mutate({});
   };
+
+  const canProceedToStep2 = locationCaptured;
+  const canCheckout = locationCaptured && selectedPhoto;
+
+  if (!siteVisit) {
+    return null;
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -212,163 +183,165 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
             Complete Site Visit
           </DialogTitle>
           <DialogDescription>
-            Finalize your site visit with photos and remarks
+            Complete your site visit by capturing checkout location and photo
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* Visit Summary */}
+          {/* Step Indicator */}
+          <div className="flex items-center justify-between">
+            <div className={`flex items-center gap-2 ${step >= 1 ? 'text-primary' : 'text-muted-foreground'}`}>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 1 ? 'bg-primary text-white' : 'bg-muted'}`}>
+                1
+              </div>
+              <span className="text-sm font-medium">Checkout Location</span>
+            </div>
+            <div className={`flex items-center gap-2 ${step >= 2 ? 'text-primary' : 'text-muted-foreground'}`}>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 2 ? 'bg-primary text-white' : 'bg-muted'}`}>
+                2
+              </div>
+              <span className="text-sm font-medium">Photo & Notes</span>
+            </div>
+          </div>
+
+          {/* Site Visit Summary */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <MapPin className="h-5 w-5" />
-                Visit Summary
-              </CardTitle>
+              <CardTitle className="text-lg">Site Visit Summary</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Customer</p>
-                  <p className="font-medium">{siteVisit.customer.name}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Purpose</p>
-                  <Badge variant="secondary">{siteVisit.visitPurpose}</Badge>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Started At</p>
-                  <p className="font-medium">{format(new Date(siteVisit.siteInTime), 'PPP p')}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Duration</p>
-                  <p className="font-medium">
-                    {(() => {
-                      const start = new Date(siteVisit.siteInTime);
-                      const now = new Date();
-                      const diffHours = Math.floor((now.getTime() - start.getTime()) / (1000 * 60 * 60));
-                      const diffMinutes = Math.floor(((now.getTime() - start.getTime()) % (1000 * 60 * 60)) / (1000 * 60));
-                      return `${diffHours}h ${diffMinutes}m`;
-                    })()}
-                  </p>
-                </div>
+            <CardContent className="space-y-2">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Purpose:</span>
+                <Badge variant="outline">{siteVisit.visitPurpose}</Badge>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Customer:</span>
+                <span className="font-medium">{siteVisit.customer?.name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Started:</span>
+                <span>{new Date(siteVisit.siteInTime).toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Department:</span>
+                <span className="capitalize">{siteVisit.department}</span>
               </div>
             </CardContent>
           </Card>
 
-          <EnhancedLocationCapture
-            onLocationCaptured={handleLocationCaptured}
-            onLocationError={handleLocationError}
-            title="Site Checkout Location"
-            description="We need to capture your location for site checkout"
-            autoDetect={true}
-            required={true}
-            showAddress={true}
-          />
-
-          {/* Photo Upload */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Camera className="h-5 w-5" />
-                Site Photos ({photos.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={handlePhotoSelect}
-                  className="hidden"
+          {/* Step 1: Location Capture */}
+          {step === 1 && (
+            <div className="space-y-4">
+              <ErrorBoundary>
+                <EnhancedLocationCapture
+                  onLocationCaptured={handleLocationCaptured}
+                  onLocationError={handleLocationError}
+                  title="Site Check-Out Location"
+                  description="We need to detect your current location for site check-out"
+                  autoDetect={true}
+                  required={true}
+                  showAddress={true}
                 />
-                <Button 
-                  onClick={() => fileInputRef.current?.click()}
-                  variant="outline"
-                  className="w-full"
+              </ErrorBoundary>
+
+              <div className="flex justify-end">
+                <Button
+                  onClick={() => setStep(2)}
+                  disabled={!canProceedToStep2}
                 >
-                  <Upload className="h-4 w-4 mr-2" />
-                  Add Photos
+                  Next: Photo & Notes
                 </Button>
               </div>
+            </div>
+          )}
 
-              {photos.length > 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {photos.map((photo, index) => (
-                    <div key={index} className="space-y-2">
-                      <div className="relative">
-                        <img
-                          src={photo.preview}
-                          alt={`Site photo ${index + 1}`}
-                          className="w-full h-32 object-cover rounded-lg"
-                        />
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          className="absolute top-2 right-2 h-6 w-6 p-0"
-                          onClick={() => removePhoto(index)}
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                      <Textarea
-                        placeholder="Photo description (optional)"
-                        value={photo.description}
-                        onChange={(e) => updatePhotoDescription(index, e.target.value)}
-                        rows={2}
-                        className="text-sm"
+          {/* Step 2: Photo & Notes */}
+          {step === 2 && (
+            <div className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Site Out Photo</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="checkoutPhoto">Take Final Site Photo</Label>
+                      <Input
+                        id="checkoutPhoto"
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        onChange={handlePhotoCapture}
                       />
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
 
-          {/* Final Remarks */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Final Remarks *</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Textarea
-                value={finalRemarks}
-                onChange={(e) => setFinalRemarks(e.target.value)}
-                placeholder="Summarize the work completed, findings, next steps, or any important notes about this site visit..."
-                rows={4}
-                className="resize-none"
-              />
-              <p className="text-xs text-muted-foreground mt-2">
-                {finalRemarks.length}/10 characters minimum
-              </p>
-            </CardContent>
-          </Card>
+                    {photoPreview && (
+                      <div className="relative">
+                        <img
+                          src={photoPreview}
+                          alt="Checkout photo preview"
+                          className="w-full h-48 object-cover rounded-lg"
+                        />
+                        <Badge className="absolute top-2 right-2">
+                          Preview
+                        </Badge>
+                      </div>
+                    )}
 
-          {/* Actions */}
-          <div className="flex justify-between">
-            <Button variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleCheckout}
-              disabled={checkoutSiteVisitMutation.isPending || !locationCaptured || finalRemarks.trim().length < 10}
-            >
-              {checkoutSiteVisitMutation.isPending ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Completing...
-                </>
-              ) : (
-                <>
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  Complete Site Visit
-                </>
-              )}
-            </Button>
-          </div>
+                    {!photoPreview && (
+                      <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center">
+                        <Camera className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                        <p className="text-sm text-muted-foreground">
+                          Final photo will be taken with location and timestamp
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Completion Notes</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Textarea
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Add any final notes about the site visit completion..."
+                    rows={4}
+                  />
+                </CardContent>
+              </Card>
+
+              <div className="flex justify-between">
+                <Button variant="outline" onClick={() => setStep(1)}>
+                  Back
+                </Button>
+                <Button
+                  onClick={handleSubmit}
+                  disabled={checkoutMutation.isPending}
+                  className="flex items-center gap-2"
+                >
+                  {checkoutMutation.isPending ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      Completing...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="h-4 w-4" />
+                      Complete Site Visit
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>
   );
 }
+
+export default SiteVisitCheckoutModal;

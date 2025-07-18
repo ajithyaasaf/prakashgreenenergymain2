@@ -31,6 +31,7 @@ import { MarketingSiteVisitForm } from "./marketing-site-visit-form";
 import { AdminSiteVisitForm } from "./admin-site-visit-form";
 import { EnhancedLocationCapture } from "./enhanced-location-capture";
 import { LocationData } from "@/lib/location-service";
+import ErrorBoundary from "@/components/error-boundary";
 
 interface SiteVisitStartModalProps {
   isOpen: boolean;
@@ -468,36 +469,42 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
           {step === 3 && (
             <div className="space-y-4">
               {normalizedDepartment === 'technical' && (
-                <TechnicalSiteVisitForm 
-                  onSubmit={(data) => {
-                    setFormData(prev => ({ ...prev, technicalData: data }));
-                    setStep(4);
-                  }}
-                  onBack={() => setStep(2)}
-                  isLoading={false}
-                />
+                <ErrorBoundary>
+                  <TechnicalSiteVisitForm 
+                    onSubmit={(data) => {
+                      setFormData(prev => ({ ...prev, technicalData: data }));
+                      setStep(4);
+                    }}
+                    onBack={() => setStep(2)}
+                    isDisabled={false}
+                  />
+                </ErrorBoundary>
               )}
               
               {normalizedDepartment === 'marketing' && (
-                <MarketingSiteVisitForm 
-                  onSubmit={(data) => {
-                    setFormData(prev => ({ ...prev, marketingData: data }));
-                    setStep(4);
-                  }}
-                  onBack={() => setStep(2)}
-                  isLoading={false}
-                />
+                <ErrorBoundary>
+                  <MarketingSiteVisitForm 
+                    onSubmit={(data) => {
+                      setFormData(prev => ({ ...prev, marketingData: data }));
+                      setStep(4);
+                    }}
+                    onBack={() => setStep(2)}
+                    isDisabled={false}
+                  />
+                </ErrorBoundary>
               )}
               
               {normalizedDepartment === 'admin' && (
-                <AdminSiteVisitForm 
-                  onSubmit={(data) => {
-                    setFormData(prev => ({ ...prev, adminData: data }));
-                    setStep(4);
-                  }}
-                  onBack={() => setStep(2)}
-                  isLoading={false}
-                />
+                <ErrorBoundary>
+                  <AdminSiteVisitForm 
+                    onSubmit={(data) => {
+                      setFormData(prev => ({ ...prev, adminData: data }));
+                      setStep(4);
+                    }}
+                    onBack={() => setStep(2)}
+                    isDisabled={false}
+                  />
+                </ErrorBoundary>
               )}
             </div>
           )}

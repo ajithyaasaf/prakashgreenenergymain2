@@ -27,7 +27,8 @@ import { bankProcessSteps, ebProcessTypes } from "@shared/schema";
 
 interface AdminSiteVisitFormProps {
   onSubmit: (data: AdminFormData) => void;
-  onBack: () => void;
+  onBack?: () => void;
+  isDisabled?: boolean;
   isLoading?: boolean;
 }
 
@@ -432,12 +433,14 @@ export function AdminSiteVisitForm({ onSubmit, onBack, isLoading }: AdminSiteVis
 
       {/* Navigation */}
       <div className="flex justify-between">
-        <Button variant="outline" onClick={onBack}>
-          Back to Customer Details
-        </Button>
+        {onBack && (
+          <Button variant="outline" onClick={onBack}>
+            Back to Customer Details
+          </Button>
+        )}
         <Button
           onClick={handleSubmit}
-          disabled={!isFormValid || isLoading}
+          disabled={!isFormValid || isDisabled || isLoading}
           className="flex items-center gap-2"
         >
           {isLoading ? (
