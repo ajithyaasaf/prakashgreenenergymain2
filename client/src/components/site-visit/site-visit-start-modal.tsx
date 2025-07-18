@@ -177,9 +177,17 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
       const siteVisitPayload = {
         visitPurpose: data.visitPurpose,
         siteInTime: new Date().toISOString(),
-        siteInLocation: currentLocation,
+        siteInLocation: {
+          latitude: currentLocation.latitude,
+          longitude: currentLocation.longitude,
+          accuracy: currentLocation.accuracy,
+          address: currentLocation.formattedAddress || currentLocation.address || 'Address not available'
+        },
         siteInPhotoUrl: photoUrl,
-        customer: data.customer,
+        customer: {
+          ...data.customer,
+          ebServiceNumber: data.customer.ebServiceNumber || '',
+        },
         status: 'in_progress',
         // Include department-specific data with correct field names
         ...(data.technicalData && { technicalData: data.technicalData }),
