@@ -127,6 +127,22 @@ This is an enterprise-grade dashboard application for Prakash Greens Energy, bui
 
 ## Recent Changes
 
+### CRITICAL SITE CHECKOUT FIX - July 19, 2025
+- **Issue**: Site checkout was failing silently due to field name mismatches between frontend and backend
+- **Root Cause**: Frontend sent `checkoutLocation`, `checkoutPhoto`, `completionNotes` but schema expected `siteOutLocation`, `siteOutPhotoUrl`, `notes`
+- **Critical Fixes Applied**:
+  - ✅ Fixed field name: `checkoutLocation` → `siteOutLocation`
+  - ✅ Fixed field name: `checkoutPhoto` → `siteOutPhotoUrl` 
+  - ✅ Fixed field name: `completionNotes` → `notes`
+  - ✅ Fixed data type: Send `siteOutTime` as Date object, not ISO string
+  - ✅ Made photo optional in UI validation (removed `&& selectedPhoto` requirement)
+  - ✅ Enhanced server-side date handling for both Date objects and ISO strings
+  - ✅ Added comprehensive debugging logs for checkout process
+  - ✅ Improved error handling with specific error messages
+  - ✅ Added field validation warnings in PATCH route
+- **Result**: Site checkout now works correctly, all checkout data is properly saved to Firestore
+- **Impact**: Field teams can now complete site visits properly with location, photos, and notes
+
 ### Site Visit System Fix - July 19, 2025
 - **Issue**: Marketing site visit creation was failing due to schema validation error
 - **Root Cause**: `projectType` field was required in `marketingSiteVisitSchema` even when `updateRequirements` was false

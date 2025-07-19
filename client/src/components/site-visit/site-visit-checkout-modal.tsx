@@ -120,14 +120,14 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
         }
       }
 
-      // Create checkout payload
+      // Create checkout payload - using correct schema field names
       const checkoutPayload = {
         status: 'completed',
-        siteOutTime: new Date().toISOString(),
-        checkoutLocation: currentLocation,
-        checkoutPhoto: photoUrl,
-        completionNotes: notes,
-        updatedAt: new Date().toISOString()
+        siteOutTime: new Date(), // Send as Date object, not ISO string
+        siteOutLocation: currentLocation,
+        siteOutPhotoUrl: photoUrl,
+        notes: notes, // Use 'notes' instead of 'completionNotes'
+        updatedAt: new Date()
       };
 
       return apiRequest(`/api/site-visits/${siteVisit.id}`, {
@@ -144,11 +144,27 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
       queryClient.invalidateQueries({ queryKey: ['/api/site-visits'] });
       onClose();
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error('Checkout failed:', error);
+      
+      // Provide more specific error messages
+      let errorMessage = "Could not complete site visit. Please try again.";
+      
+      if (error?.message) {
+        if (error.message.includes('network') || error.message.includes('fetch')) {
+          errorMessage = "Network error. Please check your connection and try again.";
+        } else if (error.message.includes('permission') || error.message.includes('access')) {
+          errorMessage = "Access denied. Please check your permissions.";
+        } else if (error.message.includes('not found')) {
+          errorMessage = "Site visit not found. Please refresh the page.";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
       toast({
         title: "Checkout Failed",
-        description: "Could not complete site visit. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     }
@@ -168,7 +184,8 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
   };
 
   const canProceedToStep2 = locationCaptured;
-  const canCheckout = locationCaptured && selectedPhoto;
+  // Photo is optional according to schema - only require location
+  const canCheckout = locationCaptured;
 
   if (!siteVisit) {
     return null;
@@ -265,7 +282,7 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
                 <CardContent>
                   <div className="space-y-4">
                     <div>
-                      <Label htmlFor="checkoutPhoto">Take Final Site Photo</Label>
+                      <Label htmlFor="checkoutPhoto">Take Final Site Photo (Optional)</Label>
                       <Input
                         id="checkoutPhoto"
                         type="file"
@@ -273,6 +290,9 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
                         capture="environment"
                         onChange={handlePhotoCapture}
                       />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Photo is optional - you can complete checkout without taking a photo
+                      </p>
                     </div>
 
                     {photoPreview && (
@@ -292,7 +312,7 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
                       <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center">
                         <Camera className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
                         <p className="text-sm text-muted-foreground">
-                          Final photo will be taken with location and timestamp
+                          Optional: Take a final photo to document site completion
                         </p>
                       </div>
                     )}

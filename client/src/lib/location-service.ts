@@ -283,12 +283,7 @@ class LocationService {
     };
   }
 
-  /**
-   * Check if location services are available
-   */
-  isLocationSupported(): boolean {
-    return 'geolocation' in navigator;
-  }
+
 
   /**
    * Validate location data

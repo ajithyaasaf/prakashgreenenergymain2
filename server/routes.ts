@@ -5153,7 +5153,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied" });
       }
 
+      // Log the update request for debugging
+      console.log("=== SITE VISIT UPDATE DEBUG ===");
+      console.log("Site Visit ID:", req.params.id);
+      console.log("Update payload:", JSON.stringify(req.body, null, 2));
+      console.log("User:", user.uid, user.displayName);
+
+      // Validate known checkout fields
+      const allowedFields = [
+        'status', 'siteOutTime', 'siteOutLocation', 'siteOutPhotoUrl', 
+        'notes', 'updatedAt', 'sitePhotos'
+      ];
+      
+      const invalidFields = Object.keys(req.body).filter(field => 
+        !allowedFields.includes(field) && field !== 'updatedAt'
+      );
+      
+      if (invalidFields.length > 0) {
+        console.warn("Invalid fields in update request:", invalidFields);
+      }
+
       const updatedSiteVisit = await siteVisitService.updateSiteVisit(req.params.id, req.body);
+      
+      console.log("Site visit updated successfully:", updatedSiteVisit.id);
+      console.log("================================");
       
       res.json({
         message: "Site visit updated successfully",

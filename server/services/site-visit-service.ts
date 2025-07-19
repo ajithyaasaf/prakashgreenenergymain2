@@ -67,7 +67,11 @@ export class SiteVisitService {
       };
 
       if (updates.siteOutTime) {
-        firestoreUpdates.siteOutTime = Timestamp.fromDate(updates.siteOutTime);
+        // Handle both Date objects and ISO strings
+        const siteOutDate = updates.siteOutTime instanceof Date 
+          ? updates.siteOutTime 
+          : new Date(updates.siteOutTime);
+        firestoreUpdates.siteOutTime = Timestamp.fromDate(siteOutDate);
       }
 
       if (updates.sitePhotos) {
@@ -77,6 +81,19 @@ export class SiteVisitService {
         }));
       }
 
+      // Handle updatedAt conversion if it comes as Date object
+      if (updates.updatedAt && updates.updatedAt instanceof Date) {
+        firestoreUpdates.updatedAt = Timestamp.fromDate(updates.updatedAt);
+      }
+
+      console.log("=== FIRESTORE UPDATE PAYLOAD ===");
+      console.log("Updates being sent to Firestore:", JSON.stringify({
+        ...firestoreUpdates,
+        // Convert timestamps to readable format for logging
+        siteOutTime: firestoreUpdates.siteOutTime?.toDate?.() || firestoreUpdates.siteOutTime,
+        updatedAt: firestoreUpdates.updatedAt?.toDate?.() || firestoreUpdates.updatedAt
+      }, null, 2));
+
       await docRef.update(firestoreUpdates);
       
       const updatedDoc = await docRef.get();
@@ -84,10 +101,22 @@ export class SiteVisitService {
         throw new Error('Site visit not found');
       }
 
-      return {
+      const result = {
         id: updatedDoc.id,
         ...this.convertFirestoreToSiteVisit(updatedDoc.data()!)
       };
+
+      console.log("=== UPDATE SUCCESS ===");
+      console.log("Site visit updated successfully:", {
+        id: result.id,
+        status: result.status,
+        siteOutTime: result.siteOutTime,
+        hasLocation: !!result.siteOutLocation,
+        hasPhoto: !!result.siteOutPhotoUrl
+      });
+      console.log("======================");
+
+      return result;
     } catch (error) {
       console.error('Error updating site visit:', error);
       throw new Error('Failed to update site visit');
