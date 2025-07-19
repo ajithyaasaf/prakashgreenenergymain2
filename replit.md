@@ -126,6 +126,13 @@ This is an enterprise-grade dashboard application for Prakash Greens Energy, bui
 - **TypeScript**: Comprehensive tsconfig with path aliases
 
 ## Recent Changes
+
+### Site Visit System Fix - July 19, 2025
+- **Issue**: Marketing site visit creation was failing due to schema validation error
+- **Root Cause**: `projectType` field was required in `marketingSiteVisitSchema` even when `updateRequirements` was false
+- **Solution**: Made `projectType` optional in the marketing schema to match business logic
+- **Result**: Site visits now successfully create and store in Firestore database
+- **Impact**: Marketing department can now perform both simple visits and detailed requirement assessments
 - January 18, 2025: CRITICAL PRODUCTION SYSTEM FIXES COMPLETED
   - ✓ MAJOR FIX: Fixed all async permission system bugs - added proper await to all checkSiteVisitPermission calls
   - ✓ MAJOR FIX: Resolved Date/Timestamp conversion crashes with proper null checking in convertFirestoreToSiteVisit
