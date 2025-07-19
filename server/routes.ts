@@ -2208,12 +2208,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Authentication required" });
       }
       
+      // Debug authentication data
+      console.log("Customer search auth debug:");
+      console.log("- User role:", req.authenticatedUser.user.role);
+      console.log("- User department:", req.authenticatedUser.user.department);
+      console.log("- User designation:", req.authenticatedUser.user.designation);
+      console.log("- User permissions:", req.authenticatedUser.permissions);
+      console.log("- Permissions length:", req.authenticatedUser.permissions.length);
+      
       // Check if user has site visit permissions (allows customer search for site visits)
       const hasSiteVisitPermission = req.authenticatedUser.permissions.includes("site_visit.view") || 
                                    req.authenticatedUser.permissions.includes("site_visit.create") ||
                                    req.authenticatedUser.user.role === "master_admin";
       
+      console.log("- Has site visit permission:", hasSiteVisitPermission);
+      
       if (!hasSiteVisitPermission) {
+        console.log("DENIED: User lacks site visit permissions for customer search");
         return res.status(403).json({ message: "Site visit permission required to search customers" });
       }
       
