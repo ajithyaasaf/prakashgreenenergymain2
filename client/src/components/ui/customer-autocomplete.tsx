@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, User, X } from 'lucide-react';
+import { getAuth } from 'firebase/auth';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -54,16 +55,29 @@ const CustomerAutocomplete: React.FC<CustomerAutocompleteProps> = ({
 
     setIsLoading(true);
     try {
+      const auth = getAuth();
+      const currentUser = auth.currentUser;
+      
+      if (!currentUser) {
+        console.error('No authenticated user found');
+        setSuggestions([]);
+        return;
+      }
+
+      const token = await currentUser.getIdToken();
       const response = await fetch(`/api/customers/search?q=${encodeURIComponent(searchQuery)}`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
       });
       
       if (response.ok) {
         const data = await response.json();
         setSuggestions(data);
+        console.log('Found customers:', data.length);
       } else {
+        console.error('Customer search failed:', response.status, response.statusText);
         setSuggestions([]);
       }
     } catch (error) {

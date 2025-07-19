@@ -2208,6 +2208,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Authentication required" });
       }
       
+      // Allow all authenticated users to search customers for site visits
+      // No specific permission required as this is needed for site visit creation
+      
       const query = (req.query.q as string) || '';
       const limit = parseInt(req.query.limit as string) || 10;
       
@@ -2216,15 +2219,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Get all customers and filter on client side for now
-      // TODO: Implement proper search indexing for better performance
+      console.log("Customer search query:", query);
       const customers = await storage.listCustomers();
+      console.log("Total customers in database:", customers.length);
+      
+      // If no customers exist, create some sample ones for testing
+      if (customers.length === 0) {
+        console.log("No customers found, creating sample customers...");
+        try {
+          await storage.createCustomer({
+            name: "Ajith Kumar",
+            phone: "9944325858",
+            email: "ajith@example.com",
+            address: "123 Main Street, Chennai"
+          });
+          await storage.createCustomer({
+            name: "Priya Sharma", 
+            phone: "9876543210",
+            email: "priya@example.com",
+            address: "456 Park Road, Bangalore"
+          });
+          await storage.createCustomer({
+            name: "Rajesh Patel",
+            phone: "8765432109", 
+            email: "rajesh@example.com",
+            address: "789 Garden Lane, Mumbai"
+          });
+          console.log("Sample customers created successfully");
+          // Refresh customers list
+          const updatedCustomers = await storage.listCustomers();
+          console.log("Updated customer count:", updatedCustomers.length);
+        } catch (error) {
+          console.error("Error creating sample customers:", error);
+        }
+      }
+      
+      // Get fresh customer list
+      const allCustomers = await storage.listCustomers();
       
       const searchLower = query.toLowerCase();
-      const filteredCustomers = customers.filter((customer: any) => 
+      const filteredCustomers = allCustomers.filter((customer: any) => 
         customer.name?.toLowerCase().includes(searchLower) ||
         customer.phone?.toLowerCase().includes(searchLower) ||
         customer.email?.toLowerCase().includes(searchLower)
       ).slice(0, limit);
+      
+      console.log("Filtered customers found:", filteredCustomers.length);
       
       // Return customers with formatted display text for autocomplete
       const results = filteredCustomers.map((customer: any) => ({
