@@ -2201,25 +2201,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Customer search endpoint for autocomplete - Allow all authenticated users
-  app.get("/api/customers/search", async (req, res) => {
+  // Customer search endpoint for site visit autocomplete - requires site visit permissions only
+  app.get("/api/customers/search", verifyAuth, async (req, res) => {
     try {
-      // Basic auth check only - no specific permissions required
-      const authHeader = req.headers.authorization;
-      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      if (!req.authenticatedUser) {
         return res.status(401).json({ message: "Authentication required" });
       }
       
-      const token = authHeader.split("Bearer ")[1];
-      try {
-        const decodedToken = await auth.verifyIdToken(token);
-        // Valid token found - allow access for site visit autocomplete
-      } catch (error) {
-        return res.status(401).json({ message: "Invalid token" });
+      // Check if user has site visit permissions (allows customer search for site visits)
+      const hasSiteVisitPermission = req.authenticatedUser.permissions.includes("site_visit.view") || 
+                                   req.authenticatedUser.permissions.includes("site_visit.create") ||
+                                   req.authenticatedUser.user.role === "master_admin";
+      
+      if (!hasSiteVisitPermission) {
+        return res.status(403).json({ message: "Site visit permission required to search customers" });
       }
       
-      // Allow all authenticated users to search customers for site visits
-      // No specific permission required as this is needed for site visit creation
+      console.log("Customer search authorized via site visit permissions");
       
       const query = (req.query.q as string) || '';
       const limit = parseInt(req.query.limit as string) || 10;
