@@ -2201,11 +2201,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Customer search endpoint for autocomplete
-  app.get("/api/customers/search", verifyAuth, async (req, res) => {
+  // Customer search endpoint for autocomplete - Allow all authenticated users
+  app.get("/api/customers/search", async (req, res) => {
     try {
-      if (!req.authenticatedUser) {
+      // Basic auth check only - no specific permissions required
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
         return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      const token = authHeader.split("Bearer ")[1];
+      try {
+        const decodedToken = await auth.verifyIdToken(token);
+        // Valid token found - allow access for site visit autocomplete
+      } catch (error) {
+        return res.status(401).json({ message: "Invalid token" });
       }
       
       // Allow all authenticated users to search customers for site visits
