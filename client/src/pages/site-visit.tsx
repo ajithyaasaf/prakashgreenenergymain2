@@ -445,7 +445,11 @@ function SiteVisitCard({ siteVisit, onView, onCheckout, onDelete, showActions }:
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
               <div className="flex items-center gap-1">
                 <Clock className="h-4 w-4" />
-                <span>Started {formatDistanceToNow(new Date(siteVisit.siteInTime))} ago</span>
+                {siteVisit.siteOutTime ? (
+                  <span>Completed {formatDistanceToNow(new Date(siteVisit.siteOutTime))} ago</span>
+                ) : (
+                  <span>Started {formatDistanceToNow(new Date(siteVisit.siteInTime))} ago</span>
+                )}
               </div>
               {siteVisit.siteOutTime && (
                 <div className="flex items-center gap-1">
