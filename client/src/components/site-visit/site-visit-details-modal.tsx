@@ -328,12 +328,14 @@ export function SiteVisitDetailsModal({ isOpen, onClose, siteVisit }: SiteVisitD
                     </Badge>
                   </div>
                   
-                  <div>
-                    <p className="text-sm text-muted-foreground">Project Type</p>
-                    <Badge variant="outline" className="capitalize">
-                      {siteVisit.marketingData.projectType.replace('_', ' ')}
-                    </Badge>
-                  </div>
+                  {siteVisit.marketingData.projectType && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Project Type</p>
+                      <Badge variant="outline" className="capitalize">
+                        {siteVisit.marketingData.projectType.replace('_', ' ')}
+                      </Badge>
+                    </div>
+                  )}
                 </div>
 
                 {/* Project Configuration Details */}
