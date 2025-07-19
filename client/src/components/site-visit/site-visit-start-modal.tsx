@@ -32,6 +32,7 @@ import { AdminSiteVisitForm } from "./admin-site-visit-form";
 import { EnhancedLocationCapture } from "./enhanced-location-capture";
 import { LocationData } from "@/lib/location-service";
 import ErrorBoundary from "@/components/error-boundary";
+import CustomerAutocomplete from "@/components/ui/customer-autocomplete";
 
 interface SiteVisitStartModalProps {
   isOpen: boolean;
@@ -366,32 +367,29 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
                   <CardTitle className="text-lg">Customer Information</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="customerName">Customer Name *</Label>
-                      <Input
-                        id="customerName"
-                        value={formData.customer.name}
-                        onChange={(e) => setFormData(prev => ({
-                          ...prev,
-                          customer: { ...prev.customer, name: e.target.value }
-                        }))}
-                        placeholder="Enter customer name"
-                      />
-                    </div>
+                  <div>
+                    <Label htmlFor="customerName">Customer Name *</Label>
+                    <CustomerAutocomplete
+                      value={formData.customer}
+                      onChange={(customerData) => setFormData(prev => ({
+                        ...prev,
+                        customer: { ...prev.customer, ...customerData }
+                      }))}
+                      placeholder="Start typing customer name or phone number..."
+                    />
+                  </div>
 
-                    <div>
-                      <Label htmlFor="customerMobile">Mobile Number *</Label>
-                      <Input
-                        id="customerMobile"
-                        value={formData.customer.mobile}
-                        onChange={(e) => setFormData(prev => ({
-                          ...prev,
-                          customer: { ...prev.customer, mobile: e.target.value }
-                        }))}
-                        placeholder="Enter mobile number"
-                      />
-                    </div>
+                  <div>
+                    <Label htmlFor="customerMobile">Mobile Number *</Label>
+                    <Input
+                      id="customerMobile"
+                      value={formData.customer.mobile}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        customer: { ...prev.customer, mobile: e.target.value }
+                      }))}
+                      placeholder="Enter mobile number"
+                    />
                   </div>
 
                   <div>

@@ -2201,6 +2201,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Customer search endpoint for autocomplete
+  app.get("/api/customers/search", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      const query = (req.query.q as string) || '';
+      const limit = parseInt(req.query.limit as string) || 10;
+      
+      if (!query || query.length < 2) {
+        return res.json([]);
+      }
+      
+      // Get all customers and filter on client side for now
+      // TODO: Implement proper search indexing for better performance
+      const customers = await storage.listCustomers();
+      
+      const searchLower = query.toLowerCase();
+      const filteredCustomers = customers.filter((customer: any) => 
+        customer.name?.toLowerCase().includes(searchLower) ||
+        customer.phone?.toLowerCase().includes(searchLower) ||
+        customer.email?.toLowerCase().includes(searchLower)
+      ).slice(0, limit);
+      
+      // Return customers with formatted display text for autocomplete
+      const results = filteredCustomers.map((customer: any) => ({
+        id: customer.id,
+        name: customer.name,
+        phone: customer.phone,
+        email: customer.email,
+        address: customer.address,
+        displayText: `${customer.name}${customer.phone ? ` (${customer.phone})` : ''}`
+      }));
+      
+      res.json(results);
+    } catch (error) {
+      console.error("Error searching customers:", error);
+      res.status(500).json({ message: "Failed to search customers" });
+    }
+  });
+
   // Products with pagination and performance optimizations
   app.get("/api/products", verifyAuth, async (req, res) => {
     try {
@@ -5078,6 +5120,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { insertSiteVisitSchema } = await import("@shared/schema");
       const { siteVisitService } = await import("./services/site-visit-service");
 
+      // Automatically create/find customer if needed
+      let customerId = null;
+      if (req.body.customer && req.body.customer.name && req.body.customer.mobile) {
+        const customerData = req.body.customer;
+        
+        // Try to find existing customer by phone and name
+        const existingCustomers = await storage.listCustomers();
+        const existingCustomer = existingCustomers.find((customer: any) => 
+          (customer.phone === customerData.mobile) ||
+          (customer.name.toLowerCase() === customerData.name.toLowerCase() && customer.phone === customerData.mobile)
+        );
+
+        if (existingCustomer) {
+          customerId = existingCustomer.id;
+          console.log("Found existing customer:", existingCustomer.id, existingCustomer.name);
+        } else {
+          // Create new customer
+          try {
+            const newCustomer = await storage.createCustomer({
+              name: customerData.name,
+              phone: customerData.mobile,
+              email: customerData.email || '',
+              address: customerData.address || ''
+            });
+            customerId = newCustomer.id;
+            console.log("Created new customer:", newCustomer.id, newCustomer.name);
+          } catch (error) {
+            console.error("Error creating customer during site visit:", error);
+            // Continue without customer ID if creation fails
+          }
+        }
+      }
+
       // Map user department to site visit schema department
       const departmentMapping: Record<string, string> = {
         'admin': 'admin',
@@ -5093,6 +5168,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...req.body,
         userId: user.uid,
         department: mappedDepartment,
+        customerId: customerId, // Add the customer ID for reference
         siteInTime: req.body.siteInTime ? new Date(req.body.siteInTime) : new Date(),
         siteOutTime: req.body.siteOutTime ? new Date(req.body.siteOutTime) : undefined,
         createdAt: new Date(),
