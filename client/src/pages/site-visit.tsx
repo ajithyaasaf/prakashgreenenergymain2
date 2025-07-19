@@ -16,6 +16,7 @@ import {
   Plus, 
   MapPin, 
   Clock, 
+  Timer,
   Users, 
   Activity, 
   Camera,
@@ -446,6 +447,12 @@ function SiteVisitCard({ siteVisit, onView, onCheckout, onDelete, showActions }:
                 <Clock className="h-4 w-4" />
                 <span>Started {formatDistanceToNow(new Date(siteVisit.siteInTime))} ago</span>
               </div>
+              {siteVisit.siteOutTime && (
+                <div className="flex items-center gap-1">
+                  <Timer className="h-4 w-4" />
+                  <span>Duration: {Math.round((new Date(siteVisit.siteOutTime).getTime() - new Date(siteVisit.siteInTime).getTime()) / (1000 * 60))}min</span>
+                </div>
+              )}
               {siteVisit.sitePhotos.length > 0 && (
                 <div className="flex items-center gap-1">
                   <Camera className="h-4 w-4" />
