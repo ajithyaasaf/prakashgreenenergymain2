@@ -176,7 +176,7 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
       // Create site visit payload matching the schema exactly
       const siteVisitPayload = {
         visitPurpose: data.visitPurpose,
-        siteInTime: new Date().toISOString(),
+        siteInTime: new Date(), // Send as Date object for consistency with checkout
         siteInLocation: {
           latitude: currentLocation.latitude,
           longitude: currentLocation.longitude,

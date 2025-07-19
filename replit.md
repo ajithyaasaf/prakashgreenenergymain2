@@ -142,6 +142,7 @@ This is an enterprise-grade dashboard application for Prakash Greens Energy, bui
   - ✅ Added field validation warnings in PATCH route
 - **Result**: Site checkout now works correctly, all checkout data is properly saved to Firestore
 - **Impact**: Field teams can now complete site visits properly with location, photos, and notes
+- **Final Fix**: Corrected siteInTime to send Date object instead of ISO string for complete consistency
 
 ### Site Visit System Fix - July 19, 2025
 - **Issue**: Marketing site visit creation was failing due to schema validation error
