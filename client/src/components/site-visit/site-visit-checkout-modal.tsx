@@ -130,10 +130,23 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
         updatedAt: new Date()
       };
 
-      return apiRequest(`/api/site-visits/${siteVisit.id}`, {
-        method: 'PATCH',
-        body: JSON.stringify(checkoutPayload),
-      });
+      console.log("=== FRONTEND CHECKOUT REQUEST ===");
+      console.log("Site Visit ID:", siteVisit.id);
+      console.log("Checkout payload:", checkoutPayload);
+      console.log("================================");
+      
+      const response = await apiRequest(
+        `/api/site-visits/${siteVisit.id}`,
+        'PATCH',
+        checkoutPayload
+      );
+
+      const result = await response.json();
+      console.log("=== CHECKOUT SUCCESS ===");
+      console.log("Server response:", result);
+      console.log("=======================");
+      
+      return result;
     },
     onSuccess: () => {
       toast({
