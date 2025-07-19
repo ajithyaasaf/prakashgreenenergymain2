@@ -88,15 +88,20 @@ const CustomerAutocomplete: React.FC<CustomerAutocompleteProps> = ({
     }
   };
 
-  // Debounced search
+  // Debounced search with immediate loading state
   useEffect(() => {
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
     }
 
+    // Show loading immediately if query is long enough
+    if (query.length >= 2) {
+      setIsLoading(true);
+    }
+
     debounceRef.current = setTimeout(() => {
       searchCustomers(query);
-    }, 300);
+    }, 200); // Reduced from 300ms to 200ms for faster response
 
     return () => {
       if (debounceRef.current) {
@@ -176,7 +181,7 @@ const CustomerAutocomplete: React.FC<CustomerAutocompleteProps> = ({
         <Input
           value={query}
           onChange={handleInputChange}
-          placeholder={placeholder}
+          placeholder={placeholder || "Type customer name or phone number..."}
           className="pl-10 pr-10"
           onFocus={() => setShowSuggestions(true)}
         />
@@ -199,35 +204,50 @@ const CustomerAutocomplete: React.FC<CustomerAutocompleteProps> = ({
           <CardContent className="p-0">
             {isLoading ? (
               <div className="p-3 text-center text-sm text-muted-foreground">
-                Searching customers...
+                <div className="flex items-center justify-center gap-2">
+                  <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                  <span>Searching customers...</span>
+                </div>
+                <p className="text-xs mt-1 text-blue-600">Please wait while we find existing customers</p>
               </div>
             ) : suggestions.length > 0 ? (
-              <div className="max-h-60 overflow-y-auto">
-                {suggestions.map((customer) => (
-                  <div
-                    key={customer.id}
-                    className="flex items-center gap-3 p-3 hover:bg-muted cursor-pointer border-b last:border-b-0"
-                    onClick={() => handleCustomerSelect(customer)}
-                  >
-                    <div className="flex-shrink-0">
-                      <User className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">
-                        {customer.displayText}
-                      </p>
-                      {customer.address && (
-                        <p className="text-xs text-muted-foreground truncate">
-                          {customer.address}
+              <div>
+                <div className="px-3 py-2 bg-green-50 border-b text-xs text-green-700 font-medium">
+                  ✓ Found {suggestions.length} existing customer{suggestions.length > 1 ? 's' : ''} - Click to auto-fill details
+                </div>
+                <div className="max-h-60 overflow-y-auto">
+                  {suggestions.map((customer) => (
+                    <div
+                      key={customer.id}
+                      className="flex items-center gap-3 p-3 hover:bg-muted cursor-pointer border-b last:border-b-0 transition-colors"
+                      onClick={() => handleCustomerSelect(customer)}
+                    >
+                      <div className="flex-shrink-0">
+                        <User className="h-4 w-4 text-green-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">
+                          {customer.displayText}
                         </p>
-                      )}
+                        {customer.address && (
+                          <p className="text-xs text-muted-foreground truncate">
+                            📍 {customer.address}
+                          </p>
+                        )}
+                      </div>
+                      <div className="text-xs text-blue-600 font-medium">
+                        Click to select
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             ) : query.length >= 2 ? (
-              <div className="p-3 text-center text-sm text-muted-foreground">
-                No customers found. A new customer will be created.
+              <div className="p-3 text-center text-sm">
+                <div className="text-amber-600 mb-1">⚠️ No existing customers found</div>
+                <div className="text-muted-foreground text-xs">
+                  Continue filling the form - a new customer will be created automatically
+                </div>
               </div>
             ) : null}
           </CardContent>
@@ -238,9 +258,21 @@ const CustomerAutocomplete: React.FC<CustomerAutocompleteProps> = ({
       {selectedCustomer && (
         <div className="mt-2 flex items-center gap-2 p-2 bg-green-50 rounded-md border border-green-200">
           <User className="h-4 w-4 text-green-600" />
-          <span className="text-sm text-green-800">
-            Customer details auto-filled from database
-          </span>
+          <div className="flex-1">
+            <div className="text-sm font-medium text-green-800">
+              ✓ {selectedCustomer.name} selected from database
+            </div>
+            <div className="text-xs text-green-600">
+              All customer details have been auto-filled below
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Helpful hint for new users */}
+      {query.length >= 1 && query.length < 2 && !selectedCustomer && (
+        <div className="mt-1 text-xs text-blue-600">
+          💡 Keep typing to search existing customers (minimum 2 characters)
         </div>
       )}
     </div>
