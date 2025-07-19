@@ -2023,6 +2023,107 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Customer search endpoint for site visit autocomplete - MUST BE BEFORE /api/customers
+  app.get("/api/customers/search", verifyAuth, async (req, res) => {
+    try {
+      if (!req.authenticatedUser) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      // Debug authentication data
+      console.log("Customer search auth debug:");
+      console.log("- User role:", req.authenticatedUser.user.role);
+      console.log("- User department:", req.authenticatedUser.user.department);
+      console.log("- User designation:", req.authenticatedUser.user.designation);
+      console.log("- User permissions:", req.authenticatedUser.permissions);
+      console.log("- Permissions length:", req.authenticatedUser.permissions.length);
+      
+      // Check if user has site visit permissions (allows customer search for site visits)
+      const hasSiteVisitPermission = req.authenticatedUser.permissions.includes("site_visit.view") || 
+                                   req.authenticatedUser.permissions.includes("site_visit.create") ||
+                                   req.authenticatedUser.user.role === "master_admin";
+      
+      console.log("- Has site visit permission:", hasSiteVisitPermission);
+      
+      if (!hasSiteVisitPermission) {
+        console.log("DENIED: User lacks site visit permissions for customer search");
+        return res.status(403).json({ message: "Site visit permission required to search customers" });
+      }
+      
+      console.log("Customer search authorized via site visit permissions");
+      
+      const query = (req.query.q as string) || '';
+      const limit = parseInt(req.query.limit as string) || 10;
+      
+      if (!query || query.length < 2) {
+        return res.json([]);
+      }
+      
+      // Get all customers and filter on client side for now
+      console.log("Customer search query:", query);
+      const customers = await storage.listCustomers();
+      console.log("Total customers in database:", customers.length);
+      
+      // If no customers exist, create some sample ones for testing
+      if (customers.length === 0) {
+        console.log("No customers found, creating sample customers...");
+        try {
+          await storage.createCustomer({
+            name: "Ajith Kumar",
+            phone: "9944325858",
+            email: "ajith@example.com",
+            address: "123 Main Street, Chennai"
+          });
+          await storage.createCustomer({
+            name: "Priya Sharma", 
+            phone: "9876543210",
+            email: "priya@example.com",
+            address: "456 Park Road, Bangalore"
+          });
+          await storage.createCustomer({
+            name: "Rajesh Patel",
+            phone: "8765432109", 
+            email: "rajesh@example.com",
+            address: "789 Garden Lane, Mumbai"
+          });
+          console.log("Sample customers created successfully");
+          // Refresh customers list
+          const updatedCustomers = await storage.listCustomers();
+          console.log("Updated customer count:", updatedCustomers.length);
+        } catch (error) {
+          console.error("Error creating sample customers:", error);
+        }
+      }
+      
+      // Get fresh customer list
+      const allCustomers = await storage.listCustomers();
+      
+      const searchLower = query.toLowerCase();
+      const filteredCustomers = allCustomers.filter((customer: any) => 
+        customer.name?.toLowerCase().includes(searchLower) ||
+        customer.phone?.toLowerCase().includes(searchLower) ||
+        customer.email?.toLowerCase().includes(searchLower)
+      ).slice(0, limit);
+      
+      console.log("Filtered customers found:", filteredCustomers.length);
+      
+      // Return customers with formatted display text for autocomplete
+      const results = filteredCustomers.map((customer: any) => ({
+        id: customer.id,
+        name: customer.name,
+        phone: customer.phone,
+        email: customer.email,
+        address: customer.address,
+        displayText: `${customer.name}${customer.phone ? ` (${customer.phone})` : ''}`
+      }));
+      
+      res.json(results);
+    } catch (error) {
+      console.error("Error searching customers:", error);
+      res.status(500).json({ message: "Failed to search customers" });
+    }
+  });
+
   // Customers with pagination and performance optimizations
   app.get("/api/customers", verifyAuth, async (req, res) => {
     try {
@@ -2201,106 +2302,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Customer search endpoint for site visit autocomplete - requires site visit permissions only
-  app.get("/api/customers/search", verifyAuth, async (req, res) => {
-    try {
-      if (!req.authenticatedUser) {
-        return res.status(401).json({ message: "Authentication required" });
-      }
-      
-      // Debug authentication data
-      console.log("Customer search auth debug:");
-      console.log("- User role:", req.authenticatedUser.user.role);
-      console.log("- User department:", req.authenticatedUser.user.department);
-      console.log("- User designation:", req.authenticatedUser.user.designation);
-      console.log("- User permissions:", req.authenticatedUser.permissions);
-      console.log("- Permissions length:", req.authenticatedUser.permissions.length);
-      
-      // Check if user has site visit permissions (allows customer search for site visits)
-      const hasSiteVisitPermission = req.authenticatedUser.permissions.includes("site_visit.view") || 
-                                   req.authenticatedUser.permissions.includes("site_visit.create") ||
-                                   req.authenticatedUser.user.role === "master_admin";
-      
-      console.log("- Has site visit permission:", hasSiteVisitPermission);
-      
-      if (!hasSiteVisitPermission) {
-        console.log("DENIED: User lacks site visit permissions for customer search");
-        return res.status(403).json({ message: "Site visit permission required to search customers" });
-      }
-      
-      console.log("Customer search authorized via site visit permissions");
-      
-      const query = (req.query.q as string) || '';
-      const limit = parseInt(req.query.limit as string) || 10;
-      
-      if (!query || query.length < 2) {
-        return res.json([]);
-      }
-      
-      // Get all customers and filter on client side for now
-      console.log("Customer search query:", query);
-      const customers = await storage.listCustomers();
-      console.log("Total customers in database:", customers.length);
-      
-      // If no customers exist, create some sample ones for testing
-      if (customers.length === 0) {
-        console.log("No customers found, creating sample customers...");
-        try {
-          await storage.createCustomer({
-            name: "Ajith Kumar",
-            phone: "9944325858",
-            email: "ajith@example.com",
-            address: "123 Main Street, Chennai"
-          });
-          await storage.createCustomer({
-            name: "Priya Sharma", 
-            phone: "9876543210",
-            email: "priya@example.com",
-            address: "456 Park Road, Bangalore"
-          });
-          await storage.createCustomer({
-            name: "Rajesh Patel",
-            phone: "8765432109", 
-            email: "rajesh@example.com",
-            address: "789 Garden Lane, Mumbai"
-          });
-          console.log("Sample customers created successfully");
-          // Refresh customers list
-          const updatedCustomers = await storage.listCustomers();
-          console.log("Updated customer count:", updatedCustomers.length);
-        } catch (error) {
-          console.error("Error creating sample customers:", error);
-        }
-      }
-      
-      // Get fresh customer list
-      const allCustomers = await storage.listCustomers();
-      
-      const searchLower = query.toLowerCase();
-      const filteredCustomers = allCustomers.filter((customer: any) => 
-        customer.name?.toLowerCase().includes(searchLower) ||
-        customer.phone?.toLowerCase().includes(searchLower) ||
-        customer.email?.toLowerCase().includes(searchLower)
-      ).slice(0, limit);
-      
-      console.log("Filtered customers found:", filteredCustomers.length);
-      
-      // Return customers with formatted display text for autocomplete
-      const results = filteredCustomers.map((customer: any) => ({
-        id: customer.id,
-        name: customer.name,
-        phone: customer.phone,
-        email: customer.email,
-        address: customer.address,
-        displayText: `${customer.name}${customer.phone ? ` (${customer.phone})` : ''}`
-      }));
-      
-      res.json(results);
-    } catch (error) {
-      console.error("Error searching customers:", error);
-      res.status(500).json({ message: "Failed to search customers" });
-    }
-  });
+
 
   // Products with pagination and performance optimizations
   app.get("/api/products", verifyAuth, async (req, res) => {
