@@ -5134,22 +5134,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Debug endpoint to list all users and their roles/departments
+  app.get("/api/debug/users", verifyAuth, async (req, res) => {
+    try {
+      const currentUser = await storage.getUser(req.user.uid);
+      
+      // Only allow master_admin or admin role to access this debug info
+      if (!currentUser || (currentUser.role !== 'master_admin' && currentUser.role !== 'admin')) {
+        return res.status(403).json({ message: "Access denied. Debug endpoint requires admin access." });
+      }
+
+      const users = await storage.listUsers();
+      const debugUsers = users.map((user: any) => ({
+        uid: user.uid,
+        displayName: user.displayName,
+        email: user.email,
+        role: user.role,
+        department: user.department,
+        designation: user.designation,
+        isActive: user.isActive
+      }));
+
+      res.json({
+        total: users.length,
+        users: debugUsers
+      });
+    } catch (error) {
+      console.error("Error fetching debug user info:", error);
+      res.status(500).json({ message: "Failed to fetch user info" });
+    }
+  });
+
   // ========== SITE VISIT MANAGEMENT API ROUTES ==========
   
   // Permission helper for site visit access
   const checkSiteVisitPermission = async (user: any, action: string) => {
     // Only Technical, Marketing, and Admin departments can access Site Visit
-    const allowedDepartments = ['technical', 'marketing', 'admin', 'administration'];
+    const allowedDepartments = ['technical', 'marketing', 'admin', 'administration', 'operations'];
     
-    if (user.role === 'master_admin') return true;
+    console.log("=== SITE VISIT PERMISSION DEBUG ===");
+    console.log("User role:", user.role);
+    console.log("User department:", user.department);
+    console.log("Allowed departments:", allowedDepartments);
+    console.log("Department check result:", allowedDepartments.includes(user.department?.toLowerCase()));
+    
+    if (user.role === 'master_admin') {
+      console.log("Access granted: master_admin role");
+      return true;
+    }
+    
+    // Also allow admin role users regardless of department
+    if (user.role === 'admin') {
+      console.log("Access granted: admin role");
+      return true;
+    }
     
     if (!user.department || !allowedDepartments.includes(user.department.toLowerCase())) {
+      console.log("Access denied: Department not allowed");
+      console.log("=====================================");
       return false;
     }
+    
+    console.log("Passed department check, now checking permissions...");
     
     // Calculate effective permissions dynamically
     const { getEffectivePermissions } = await import("@shared/schema");
     const effectivePermissions = getEffectivePermissions(user.department, user.designation);
+    
+    console.log("User effective permissions:", effectivePermissions);
     
     // Check specific permissions based on action
     const requiredPermissions = {
@@ -5161,9 +5213,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       'delete': ['site_visit.delete']
     };
     
-    return effectivePermissions?.some((permission: string) => 
+    console.log("Required permissions for action:", action, "->", requiredPermissions[action]);
+    
+    const hasPermission = effectivePermissions?.some((permission: string) => 
       requiredPermissions[action]?.includes(permission)
     ) || false;
+    
+    console.log("Final permission result:", hasPermission);
+    console.log("=====================================");
+    
+    return hasPermission;
   };
 
   // Create new site visit (Site In)
@@ -5217,7 +5276,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Map user department to site visit schema department
       const departmentMapping: Record<string, string> = {
         'admin': 'admin',
-        'administration': 'admin', 
+        'administration': 'admin',
+        'operations': 'admin', // Operations users are often admin users
         'technical': 'technical',
         'marketing': 'marketing'
       };
