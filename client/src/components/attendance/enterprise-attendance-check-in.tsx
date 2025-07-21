@@ -631,12 +631,12 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
             )}
           </div>
 
-          {/* Location Status Card */}
+          {/* Simplified Location Display */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm flex items-center gap-2">
                 <MapPin className="h-4 w-4" />
-                Location Status
+                Current Location
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -658,16 +658,15 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
                   ) : (
                     <>
                       <RefreshCw className="h-3 w-3 mr-1" />
-                      Get Location
+                      Refresh
                     </>
                   )}
                 </Button>
               </div>
               
-              {/* Current Address Display */}
+              {/* Simplified Address Display */}
               {location && (
                 <div className="space-y-2">
-                  <div className="text-sm font-medium text-gray-700">Current Location:</div>
                   {isAddressLoading ? (
                     <div className="flex items-center gap-2 text-sm text-gray-600">
                       <Loader2 className="h-3 w-3 animate-spin" />
