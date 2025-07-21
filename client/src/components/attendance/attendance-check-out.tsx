@@ -509,18 +509,18 @@ export function AttendanceCheckOut({
             <CardHeader className="pb-3">
               <CardTitle className="text-sm flex items-center gap-2">
                 <MapPin className="h-4 w-4" />
-                Current Location
+                Location
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {location && (
-                <div className="space-y-2">
-                  <div className="text-sm text-gray-700">
-                    Getting readable location...
-                  </div>
-                  <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded border">
-                    Accuracy: {location.accuracy.toFixed(0)}m
-                  </div>
+              {location ? (
+                <div className="text-sm text-green-600 flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4" />
+                  Location captured for checkout
+                </div>
+              ) : (
+                <div className="text-sm text-gray-500">
+                  Capturing location...
                 </div>
               )}
             </CardContent>
