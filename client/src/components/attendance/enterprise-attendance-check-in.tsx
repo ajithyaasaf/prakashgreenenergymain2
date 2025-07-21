@@ -15,7 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { MapPin, Camera, Wifi, WifiOff, Loader2, CheckCircle, AlertTriangle, Timer, Building2, RefreshCw } from "lucide-react";
+import { MapPin, Camera, Wifi, WifiOff, Loader2, CheckCircle, AlertTriangle, Timer, Building2, RefreshCw, Monitor, Smartphone } from "lucide-react";
 
 interface EnterpriseAttendanceCheckInProps {
   isOpen: boolean;
@@ -40,6 +40,10 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
   const [currentAddress, setCurrentAddress] = useState<string>("");
   const [isLocationRefreshing, setIsLocationRefreshing] = useState(false);
   const [isAddressLoading, setIsAddressLoading] = useState(false);
+  
+  // Department policies state
+  const [departmentPolicies, setDepartmentPolicies] = useState<any>(null);
+  const [policyErrors, setPolicyErrors] = useState<string[]>([]);
 
   // Camera states
   const [isCameraActive, setIsCameraActive] = useState(false);
@@ -75,9 +79,8 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
       if (locationStatus.status === 'granted' && locationStatus.location?.address) {
         setCurrentAddress(locationStatus.location.address);
       } else {
-        // Fallback to manual geocoding
-        const address = await locationService.reverseGeocode(location.latitude, location.longitude);
-        setCurrentAddress(address.address);
+        // Fallback to coordinates if address service unavailable
+        setCurrentAddress(`${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}`);
       }
     } catch (error) {
       console.error('Failed to fetch address:', error);
@@ -274,6 +277,13 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
         }
       }
 
+      // Device detection for attendance context
+      const deviceInfo = {
+        type: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ? 'mobile' as const : 'desktop' as const,
+        userAgent: navigator.userAgent,
+        locationCapability: location.accuracy <= 10 ? 'excellent' as const : location.accuracy <= 50 ? 'good' as const : 'limited' as const
+      };
+
       const requestData = {
         userId: user.uid,
         latitude: location.latitude,
@@ -283,11 +293,7 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
         reason: attendanceType !== "office" ? reason : undefined,
         customerName: attendanceType === "field_work" ? customerName : undefined,
         imageUrl: photoUploadUrl,
-        deviceInfo: {
-          type: deviceInfo.type,
-          userAgent: deviceInfo.userAgent,
-          locationCapability: deviceInfo.locationCapability
-        }
+        deviceInfo
       };
 
       console.log('FRONTEND: Sending check-in request with enterprise location data');
