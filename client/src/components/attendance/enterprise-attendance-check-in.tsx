@@ -763,7 +763,7 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
             </Alert>
           )}
 
-          <Separator />
+
 
           {/* Submit Button with Context-Aware Messaging */}
           <Button

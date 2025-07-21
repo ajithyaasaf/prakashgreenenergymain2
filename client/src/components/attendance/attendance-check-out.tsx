@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { 
@@ -314,42 +314,15 @@ export function AttendanceCheckOut({
   };
 
   const resetForm = () => {
-    setReason("");
-    setOtReason("");
     setCapturedPhoto(null);
     stopCamera();
   };
 
+  // Simplified validation - only require location and photo
   const validateForm = (): string | null => {
     if (!location) return "Location access is required for check-out";
     if (!isOnline) return "Internet connection is required";
-    
-    // Check for early checkout (before 6:30 PM)
-    const now = new Date();
-    const currentTime = now.getHours() * 60 + now.getMinutes();
-    
-    // Parse department timing properly (12-hour format)
-    const expectedTimeStr = departmentTiming?.checkOutTime || "6:30 PM";
-    const timeMatch = expectedTimeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-    let expectedMinutes = 18 * 60 + 30; // Default 6:30 PM
-    if (timeMatch) {
-      let [, hours, minutes, period] = timeMatch;
-      let hour24 = parseInt(hours);
-      if (period.toUpperCase() === 'PM' && hour24 !== 12) hour24 += 12;
-      if (period.toUpperCase() === 'AM' && hour24 === 12) hour24 = 0;
-      expectedMinutes = hour24 * 60 + parseInt(minutes);
-    }
-    
-    const isEarlyCheckout = currentTime < expectedMinutes;
-    if (isEarlyCheckout && !reason.trim()) {
-      return "Early checkout requires a reason to be provided";
-    }
-    
-    // Overtime validation
-    if (overtimeInfo.hasOvertime) {
-      if (!otReason.trim()) return "Please provide a reason for overtime work";
-      if (!capturedPhoto) return "Photo is mandatory for overtime verification";
-    }
+    if (!capturedPhoto) return "Selfie photo is required for checkout verification";
     
     return null;
   };
@@ -369,13 +342,13 @@ export function AttendanceCheckOut({
     try {
       let photoUploadUrl = undefined;
 
-      // Upload photo to Cloudinary if overtime requires it
-      if (overtimeInfo.hasOvertime && capturedPhoto) {
+      // Upload photo to Cloudinary
+      if (capturedPhoto) {
         try {
           const uploadResponse = await apiRequest('/api/attendance/upload-photo', 'POST', {
             imageData: capturedPhoto,
             userId: user?.uid,
-            attendanceType: 'overtime_checkout'
+            attendanceType: 'checkout'
           });
 
           const uploadData = await uploadResponse.json();
@@ -388,20 +361,18 @@ export function AttendanceCheckOut({
         } catch (uploadError) {
           toast({
             title: "Photo Upload Failed",
-            description: "Unable to upload overtime verification photo. Please try again.",
+            description: "Unable to upload checkout photo. Please try again.",
             variant: "destructive",
           });
           return;
         }
       }
 
-      // Submit check-out with uploaded photo URL
+      // Submit simplified check-out with photo URL
       const checkOutData = {
         userId: user?.uid,
         latitude: location!.latitude,
         longitude: location!.longitude,
-        reason: reason || undefined,
-        otReason: overtimeInfo.hasOvertime ? otReason : undefined,
         imageUrl: photoUploadUrl, // Use uploaded Cloudinary URL
       };
 
@@ -533,147 +504,45 @@ export function AttendanceCheckOut({
 
 
 
-          {/* Overtime Alert */}
-          {overtimeInfo.hasOvertime && (
-            <Alert className="border-orange-200 bg-orange-50">
-              <Zap className="h-4 w-4" />
-              <AlertDescription>
+          {/* Simplified Location Display */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <MapPin className="h-4 w-4" />
+                Current Location
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {location && (
                 <div className="space-y-2">
-                  <p className="font-medium text-orange-800">
-                    Overtime Detected ({overtimeInfo.overtimeHours}h {overtimeInfo.overtimeMinutes}m)
-                  </p>
-                  <p className="text-sm text-orange-700">
-                    Please provide a reason and take a photo for overtime verification.
-                  </p>
-                </div>
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {/* Location Status */}
-          {location && (
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-blue-600" />
-                  <span className="text-sm font-medium">
-                    Location: {location.accuracy.toFixed(0)}m accuracy
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-
-          {/* Early Checkout Warning */}
-          {(() => {
-            const now = new Date();
-            const currentTime = now.getHours() * 60 + now.getMinutes();
-            // Parse department timing properly (12-hour format)
-            const expectedTimeStr = departmentTiming?.checkOutTime || "6:30 PM";
-            const timeMatch = expectedTimeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-            let expectedMinutes = 18 * 60 + 30; // Default 6:30 PM
-            if (timeMatch) {
-              let [, hours, minutes, period] = timeMatch;
-              let hour24 = parseInt(hours);
-              if (period.toUpperCase() === 'PM' && hour24 !== 12) hour24 += 12;
-              if (period.toUpperCase() === 'AM' && hour24 === 12) hour24 = 0;
-              expectedMinutes = hour24 * 60 + parseInt(minutes);
-            }
-            const isEarlyCheckout = currentTime < expectedMinutes;
-            
-            return isEarlyCheckout && (
-              <Alert className="border-amber-200 bg-amber-50">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription>
-                  <div className="space-y-2">
-                    <p className="font-medium text-amber-800">
-                      Early Checkout Detected
-                    </p>
-                    <p className="text-sm text-amber-700">
-                      You are checking out before the expected time (<TimeDisplay time={departmentTiming?.checkOutTime || "6:30 PM"} format12Hour={true} />). Please provide a reason below.
-                    </p>
+                  <div className="text-sm text-gray-700">
+                    Getting readable location...
                   </div>
-                </AlertDescription>
-              </Alert>
-            );
-          })()}
+                  <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded border">
+                    Accuracy: {location.accuracy.toFixed(0)}m
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-          {/* General Reason (Required for early checkout) */}
-          <div className="space-y-2">
-            {(() => {
-              const now = new Date();
-              const currentTime = now.getHours() * 60 + now.getMinutes();
-              // Parse department timing properly (12-hour format)
-              const expectedTimeStr = departmentTiming?.checkOutTime || "6:30 PM";
-              const timeMatch = expectedTimeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-              let expectedMinutes = 18 * 60 + 30; // Default 6:30 PM
-              if (timeMatch) {
-                let [, hours, minutes, period] = timeMatch;
-                let hour24 = parseInt(hours);
-                if (period.toUpperCase() === 'PM' && hour24 !== 12) hour24 += 12;
-                if (period.toUpperCase() === 'AM' && hour24 === 12) hour24 = 0;
-                expectedMinutes = hour24 * 60 + parseInt(minutes);
-              }
-              const isEarlyCheckout = currentTime < expectedMinutes;
-              
-              return (
-                <>
-                  <Label htmlFor="reason">
-                    Remarks {isEarlyCheckout ? "*" : "(Optional)"}
-                  </Label>
-                  <Textarea
-                    id="reason"
-                    value={reason}
-                    onChange={(e) => setReason(e.target.value)}
-                    placeholder={isEarlyCheckout 
-                      ? "Please explain the reason for early checkout" 
-                      : "Add any comments about your work session"
-                    }
-                    rows={3}
-                    required={isEarlyCheckout}
-                  />
-                </>
-              );
-            })()}
-          </div>
-
-          {/* Overtime Reason (Required if OT) */}
-          {overtimeInfo.hasOvertime && (
-            <div className="space-y-2">
-              <Label htmlFor="ot-reason">Overtime Reason *</Label>
-              <Textarea
-                id="ot-reason"
-                placeholder="Example: Completing urgent client deliverable, project deadline requirements, emergency maintenance work..."
-                value={otReason}
-                onChange={(e) => setOtReason(e.target.value)}
-                rows={3}
-                className={otReason.trim().length > 0 && otReason.trim().length < 10 ? "border-orange-300" : ""}
-              />
-              <div className="flex justify-between text-xs">
-                <span className={otReason.trim().length < 10 ? "text-orange-600" : "text-green-600"}>
-                  {otReason.trim().length}/10 characters minimum
-                </span>
-                {otReason.trim().length >= 10 && (
-                  <span className="text-green-600">✓ Valid overtime reason</span>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Photo Capture for Overtime */}
-          {overtimeInfo.hasOvertime && (
-            <div className="space-y-4">
-              <Label>Overtime Photo Verification *</Label>
-              
+          {/* Simplified Selfie Photo Capture */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Camera className="h-4 w-4" />
+                Checkout Selfie
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
               {!capturedPhoto && !isCameraActive && (
                 <Button onClick={startCamera} variant="outline" className="w-full">
                   <Camera className="h-4 w-4 mr-2" />
-                  Take Photo for OT Verification
+                  Take Selfie
                 </Button>
               )}
 
-              {/* Camera view - always render video element but hide when not active */}
+              {/* Camera view */}
               <div className="space-y-2" style={{ display: isCameraActive ? 'block' : 'none' }}>
                 <div className="relative bg-black rounded border overflow-hidden">
                   <video 
@@ -687,28 +556,16 @@ export function AttendanceCheckOut({
                       minHeight: '16rem',
                       backgroundColor: '#000'
                     }}
-                    onCanPlay={() => {
-                      console.log('CAMERA: Overtime video can play - stream is ready');
-                    }}
-                    onLoadedData={() => {
-                      console.log('CAMERA: Overtime video data loaded');
-                    }}
-                    onPlaying={() => {
-                      console.log('CAMERA: Overtime video is now playing');
-                    }}
-                    onLoadedMetadata={() => {
-                      console.log('CAMERA: Overtime video metadata loaded');
-                    }}
                   />
                   <div className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded">
-                    LIVE - OT VERIFICATION
+                    LIVE
                   </div>
                 </div>
                 {isCameraActive && (
                   <div className="flex gap-2">
                     <Button onClick={capturePhoto} className="flex-1">
                       <Camera className="h-4 w-4 mr-2" />
-                      Capture Photo
+                      Capture
                     </Button>
                     <Button onClick={stopCamera} variant="outline">
                       Cancel
@@ -719,25 +576,14 @@ export function AttendanceCheckOut({
 
               {capturedPhoto && (
                 <div className="space-y-2">
-                  <img 
-                    src={capturedPhoto} 
-                    alt="Overtime verification photo" 
-                    className="w-full rounded border" 
-                  />
-                  <Button 
-                    onClick={() => {
-                      setCapturedPhoto(null);
-                      startCamera();
-                    }} 
-                    variant="outline" 
-                    className="w-full"
-                  >
+                  <img src={capturedPhoto} alt="Checkout selfie" className="w-full rounded border" />
+                  <Button onClick={() => setCapturedPhoto(null)} variant="outline" className="w-full">
                     Retake Photo
                   </Button>
                 </div>
               )}
-            </div>
-          )}
+            </CardContent>
+          </Card>
 
           {/* Error Display */}
           {locationError && (
