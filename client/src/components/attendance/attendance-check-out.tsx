@@ -42,6 +42,10 @@ export function AttendanceCheckOut({
   const [otReason, setOtReason] = useState("");
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Location address state
+  const [locationAddress, setLocationAddress] = useState<string | null>(null);
+  const [isLoadingAddress, setIsLoadingAddress] = useState(false);
 
   // Camera states
   const [isCameraActive, setIsCameraActive] = useState(false);
@@ -211,6 +215,50 @@ export function AttendanceCheckOut({
       getCurrentLocation();
     }
   }, [isOpen]);
+
+  // Reverse geocoding function to get readable address
+  const getAddressFromCoordinates = async (lat: number, lng: number) => {
+    setIsLoadingAddress(true);
+    try {
+      // Using Nominatim (OpenStreetMap) free reverse geocoding service
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
+        {
+          headers: {
+            'User-Agent': 'PrakashGreensAttendanceApp/1.0'
+          }
+        }
+      );
+      
+      if (!response.ok) {
+        // Fallback to coordinates if service fails
+        setLocationAddress(`Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}`);
+        return;
+      }
+      
+      const data = await response.json();
+      if (data && data.display_name) {
+        // Clean up the address to make it more readable
+        const address = data.display_name.split(',').slice(0, 3).join(', ');
+        setLocationAddress(address || data.display_name);
+      } else {
+        setLocationAddress(`Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}`);
+      }
+    } catch (error) {
+      console.error('Error getting address:', error);
+      // Fallback to coordinates
+      setLocationAddress(`Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}`);
+    } finally {
+      setIsLoadingAddress(false);
+    }
+  };
+
+  // Get address when location is available
+  useEffect(() => {
+    if (location && location.latitude && location.longitude) {
+      getAddressFromCoordinates(location.latitude, location.longitude);
+    }
+  }, [location]);
 
   // Camera functions
   const startCamera = async () => {
@@ -514,12 +562,25 @@ export function AttendanceCheckOut({
             </CardHeader>
             <CardContent className="space-y-3">
               {location ? (
-                <div className="text-sm text-green-600 flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4" />
-                  Location captured for checkout
+                <div className="space-y-2">
+                  <div className="text-sm text-green-600 flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4" />
+                    Location captured
+                  </div>
+                  {isLoadingAddress ? (
+                    <div className="text-xs text-gray-500 flex items-center gap-2">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Getting address...
+                    </div>
+                  ) : locationAddress ? (
+                    <div className="text-xs text-gray-700 bg-gray-50 p-2 rounded border">
+                      📍 {locationAddress}
+                    </div>
+                  ) : null}
                 </div>
               ) : (
-                <div className="text-sm text-gray-500">
+                <div className="text-sm text-gray-500 flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
                   Capturing location...
                 </div>
               )}
