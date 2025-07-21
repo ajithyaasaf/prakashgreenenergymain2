@@ -102,14 +102,14 @@ export function AdminSiteVisitForm({ onSubmit, onBack, isDisabled, isLoading }: 
   const updateBankProcess = (updates: Partial<{ step: string; description: string }>) => {
     setFormData(prev => ({
       ...prev,
-      bankProcess: { ...prev.bankProcess, ...updates }
+      bankProcess: prev.bankProcess ? { ...prev.bankProcess, ...updates } : { step: '', description: '', ...updates }
     }));
   };
 
   const updateEbProcess = (updates: Partial<{ type: string; description: string }>) => {
     setFormData(prev => ({
       ...prev,
-      ebProcess: { ...prev.ebProcess, ...updates }
+      ebProcess: prev.ebProcess ? { ...prev.ebProcess, ...updates } : { type: '', description: '', ...updates }
     }));
   };
 
@@ -117,14 +117,17 @@ export function AdminSiteVisitForm({ onSubmit, onBack, isDisabled, isLoading }: 
     onSubmit(formData);
   };
 
-  const isFormValid = Object.keys(formData).length > 0 &&
-    (!formData.bankProcess || (formData.bankProcess.step && (!formData.bankProcess.description || formData.bankProcess.description.trim().length >= 10))) &&
-    (!formData.ebProcess || (formData.ebProcess.type && (!formData.ebProcess.description || formData.ebProcess.description.trim().length >= 10))) &&
-    (formData.bankProcess?.step || formData.ebProcess?.type || 
-     Object.entries(formData).some(([key, value]) => {
-       if (key === 'bankProcess' || key === 'ebProcess') return false;
-       return typeof value === 'string' && value.trim().length >= 10;
-     }));
+  const isFormValid = Object.keys(formData).length > 0 && (
+    // Bank process validation: if selected, must have step and description (min 10 chars)
+    (formData.bankProcess && formData.bankProcess.step && formData.bankProcess.description && formData.bankProcess.description.trim().length >= 10) ||
+    // EB process validation: if selected, must have type and description (min 10 chars)
+    (formData.ebProcess && formData.ebProcess.type && formData.ebProcess.description && formData.ebProcess.description.trim().length >= 10) ||
+    // Other fields validation: must have at least one field with meaningful content (min 10 chars)
+    Object.entries(formData).some(([key, value]) => {
+      if (key === 'bankProcess' || key === 'ebProcess') return false;
+      return typeof value === 'string' && value.trim().length >= 10;
+    })
+  );
 
   return (
     <div className="space-y-6">
@@ -300,13 +303,18 @@ export function AdminSiteVisitForm({ onSubmit, onBack, isDisabled, isLoading }: 
             </div>
 
             <div>
-              <Label>Process Description</Label>
+              <Label>Process Description *</Label>
               <Textarea
                 value={formData.bankProcess.description || ''}
                 onChange={(e) => updateBankProcess({ description: e.target.value })}
-                placeholder="Describe the bank process work performed..."
+                placeholder="Describe the bank process work performed (minimum 10 characters)..."
                 rows={3}
               />
+              {formData.bankProcess.description && formData.bankProcess.description.trim().length < 10 && (
+                <p className="text-sm text-destructive mt-1">
+                  Description must be at least 10 characters long
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -345,13 +353,18 @@ export function AdminSiteVisitForm({ onSubmit, onBack, isDisabled, isLoading }: 
             </div>
 
             <div>
-              <Label>Process Description</Label>
+              <Label>Process Description *</Label>
               <Textarea
                 value={formData.ebProcess.description || ''}
                 onChange={(e) => updateEbProcess({ description: e.target.value })}
-                placeholder="Describe the EB office work performed..."
+                placeholder="Describe the EB office work performed (minimum 10 characters)..."
                 rows={3}
               />
+              {formData.ebProcess.description && formData.ebProcess.description.trim().length < 10 && (
+                <p className="text-sm text-destructive mt-1">
+                  Description must be at least 10 characters long
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -380,9 +393,16 @@ export function AdminSiteVisitForm({ onSubmit, onBack, isDisabled, isLoading }: 
                   }))}
                   placeholder={`Describe the ${field === 'officialCashTransactions' ? 'cash transactions' :
                                field === 'officialPersonalWork' ? 'personal work' :
-                               field} performed...`}
+                               field} performed (minimum 10 characters)...`}
                   rows={4}
                 />
+                {formData[field as keyof AdminFormData] && 
+                 typeof formData[field as keyof AdminFormData] === 'string' && 
+                 (formData[field as keyof AdminFormData] as string).trim().length < 10 && (
+                  <p className="text-sm text-destructive mt-1">
+                    Description must be at least 10 characters long
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>

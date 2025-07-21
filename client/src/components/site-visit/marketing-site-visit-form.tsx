@@ -22,7 +22,8 @@ import {
   Sun,
   Camera,
   MapPin,
-  DollarSign
+  DollarSign,
+  Waves
 } from "lucide-react";
 import { 
   marketingProjectTypes,
@@ -198,10 +199,15 @@ export function MarketingSiteVisitForm({ onSubmit, onBack, isDisabled, isLoading
   };
 
   const updateConfig = (configType: keyof MarketingFormData, updates: any) => {
-    setFormData(prev => ({
-      ...prev,
-      [configType]: { ...prev[configType], ...updates }
-    }));
+    setFormData(prev => {
+      const currentConfig = prev[configType];
+      return {
+        ...prev,
+        [configType]: currentConfig && typeof currentConfig === 'object' 
+          ? { ...currentConfig, ...updates } 
+          : updates
+      };
+    });
   };
 
   const handleSubmit = () => {
@@ -466,8 +472,430 @@ export function MarketingSiteVisitForm({ onSubmit, onBack, isDisabled, isLoading
             </Card>
           )}
 
-          {/* Similar components for OFF-GRID, HYBRID, WATER HEATER, WATER PUMP would go here */}
-          {/* For brevity, I'll implement just the On-Grid config. The others follow the same pattern */}
+          {/* OFF-GRID Configuration */}
+          {formData.projectType === 'off_grid' && formData.offGridConfig && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Battery className="h-5 w-5" />
+                  Off-Grid Solar System Configuration
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label>Solar Panel Make *</Label>
+                    <Select 
+                      value={formData.offGridConfig.solarPanelMake}
+                      onValueChange={(value) => updateConfig('offGridConfig', { solarPanelMake: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select panel brand" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {solarPanelBrands.map((brand) => (
+                          <SelectItem key={brand} value={brand}>
+                            {brand.replace('_', ' ').toUpperCase()}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label>Panel Watts</Label>
+                    <Select 
+                      value={formData.offGridConfig.panelWatts.toString()}
+                      onValueChange={(value) => updateConfig('offGridConfig', { panelWatts: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {panelWatts.map((watts) => (
+                          <SelectItem key={watts} value={watts}>
+                            {watts}W
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label>Inverter Make *</Label>
+                    <Select 
+                      value={formData.offGridConfig.inverterMake}
+                      onValueChange={(value) => updateConfig('offGridConfig', { inverterMake: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select inverter brand" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {inverterMakes.map((make) => (
+                          <SelectItem key={make} value={make}>
+                            {make.toUpperCase()}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label>Battery Brand *</Label>
+                    <Select 
+                      value={formData.offGridConfig.batteryBrand}
+                      onValueChange={(value) => updateConfig('offGridConfig', { batteryBrand: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select battery brand" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {batteryBrands.map((brand) => (
+                          <SelectItem key={brand} value={brand}>
+                            {brand.replace('_', ' ').toUpperCase()}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label>Panel Count *</Label>
+                    <Input
+                      type="number"
+                      value={formData.offGridConfig.panelCount}
+                      onChange={(e) => updateConfig('offGridConfig', { panelCount: parseInt(e.target.value) || 1 })}
+                      min="1"
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Battery Count</Label>
+                    <Input
+                      type="number"
+                      value={formData.offGridConfig.batteryCount}
+                      onChange={(e) => updateConfig('offGridConfig', { batteryCount: parseInt(e.target.value) || 1 })}
+                      min="1"
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Battery Voltage</Label>
+                    <Input
+                      type="number"
+                      value={formData.offGridConfig.voltage}
+                      onChange={(e) => updateConfig('offGridConfig', { voltage: parseInt(e.target.value) || 12 })}
+                      placeholder="12V, 24V, 48V etc"
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Project Value (₹)</Label>
+                    <Input
+                      type="number"
+                      value={formData.offGridConfig.projectValue}
+                      onChange={(e) => updateConfig('offGridConfig', { projectValue: parseInt(e.target.value) || 0 })}
+                      min="0"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label>Additional Notes</Label>
+                  <Textarea
+                    value={formData.offGridConfig.others || ''}
+                    onChange={(e) => updateConfig('offGridConfig', { others: e.target.value })}
+                    placeholder="Any additional specifications or notes..."
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* HYBRID Configuration */}
+          {formData.projectType === 'hybrid' && formData.hybridConfig && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Zap className="h-5 w-5" />
+                  Hybrid Solar System Configuration
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label>Solar Panel Make *</Label>
+                    <Select 
+                      value={formData.hybridConfig.solarPanelMake}
+                      onValueChange={(value) => updateConfig('hybridConfig', { solarPanelMake: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select panel brand" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {solarPanelBrands.map((brand) => (
+                          <SelectItem key={brand} value={brand}>
+                            {brand.replace('_', ' ').toUpperCase()}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label>Inverter Make *</Label>
+                    <Select 
+                      value={formData.hybridConfig.inverterMake}
+                      onValueChange={(value) => updateConfig('hybridConfig', { inverterMake: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select inverter brand" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {inverterMakes.map((make) => (
+                          <SelectItem key={make} value={make}>
+                            {make.toUpperCase()}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label>Battery Brand *</Label>
+                    <Select 
+                      value={formData.hybridConfig.batteryBrand}
+                      onValueChange={(value) => updateConfig('hybridConfig', { batteryBrand: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select battery brand" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {batteryBrands.map((brand) => (
+                          <SelectItem key={brand} value={brand}>
+                            {brand.replace('_', ' ').toUpperCase()}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label>Panel Count *</Label>
+                    <Input
+                      type="number"
+                      value={formData.hybridConfig.panelCount}
+                      onChange={(e) => updateConfig('hybridConfig', { panelCount: parseInt(e.target.value) || 1 })}
+                      min="1"
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Project Value (₹)</Label>
+                    <Input
+                      type="number"
+                      value={formData.hybridConfig.projectValue}
+                      onChange={(e) => updateConfig('hybridConfig', { projectValue: parseInt(e.target.value) || 0 })}
+                      min="0"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label>Additional Notes</Label>
+                  <Textarea
+                    value={formData.hybridConfig.others || ''}
+                    onChange={(e) => updateConfig('hybridConfig', { others: e.target.value })}
+                    placeholder="Any additional specifications or notes..."
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* WATER HEATER Configuration */}
+          {formData.projectType === 'water_heater' && formData.waterHeaterConfig && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Droplets className="h-5 w-5" />
+                  Solar Water Heater Configuration
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label>Water Heater Brand *</Label>
+                    <Select 
+                      value={formData.waterHeaterConfig.brand}
+                      onValueChange={(value) => updateConfig('waterHeaterConfig', { brand: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select water heater brand" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {waterHeaterBrands.map((brand) => (
+                          <SelectItem key={brand} value={brand}>
+                            {brand.replace('_', ' ').toUpperCase()}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label>Capacity (Litre) *</Label>
+                    <Input
+                      type="number"
+                      value={formData.waterHeaterConfig.litre}
+                      onChange={(e) => updateConfig('waterHeaterConfig', { litre: parseInt(e.target.value) || 100 })}
+                      min="50"
+                      placeholder="100, 150, 200, 300..."
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Heating Coil Type</Label>
+                    <Input
+                      value={formData.waterHeaterConfig.heatingCoil || ''}
+                      onChange={(e) => updateConfig('waterHeaterConfig', { heatingCoil: e.target.value })}
+                      placeholder="Standard, Premium, etc."
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Project Value (₹)</Label>
+                    <Input
+                      type="number"
+                      value={formData.waterHeaterConfig.projectValue}
+                      onChange={(e) => updateConfig('waterHeaterConfig', { projectValue: parseInt(e.target.value) || 0 })}
+                      min="0"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label>Additional Notes</Label>
+                  <Textarea
+                    value={formData.waterHeaterConfig.others || ''}
+                    onChange={(e) => updateConfig('waterHeaterConfig', { others: e.target.value })}
+                    placeholder="Any additional specifications or notes..."
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* WATER PUMP Configuration */}
+          {formData.projectType === 'water_pump' && formData.waterPumpConfig && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Waves className="h-5 w-5" />
+                  Solar Water Pump Configuration
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label>Motor HP *</Label>
+                    <Select 
+                      value={formData.waterPumpConfig.hp}
+                      onValueChange={(value) => updateConfig('waterPumpConfig', { hp: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select motor horsepower" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="0.5">0.5 HP</SelectItem>
+                        <SelectItem value="1">1 HP</SelectItem>
+                        <SelectItem value="2">2 HP</SelectItem>
+                        <SelectItem value="3">3 HP</SelectItem>
+                        <SelectItem value="5">5 HP</SelectItem>
+                        <SelectItem value="7.5">7.5 HP</SelectItem>
+                        <SelectItem value="10">10 HP</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label>Drive Type</Label>
+                    <Select 
+                      value={formData.waterPumpConfig.drive}
+                      onValueChange={(value) => updateConfig('waterPumpConfig', { drive: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select drive type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="vfd">VFD (Variable Frequency Drive)</SelectItem>
+                        <SelectItem value="direct">Direct Drive</SelectItem>
+                        <SelectItem value="submersible">Submersible</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label>Panel Brand *</Label>
+                    <Select 
+                      value={formData.waterPumpConfig.panelBrand}
+                      onValueChange={(value) => updateConfig('waterPumpConfig', { panelBrand: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select panel brand" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {solarPanelBrands.map((brand) => (
+                          <SelectItem key={brand} value={brand}>
+                            {brand.replace('_', ' ').toUpperCase()}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label>Panel Count *</Label>
+                    <Input
+                      type="number"
+                      value={formData.waterPumpConfig.panelCount}
+                      onChange={(e) => updateConfig('waterPumpConfig', { panelCount: parseInt(e.target.value) || 1 })}
+                      min="1"
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Structure Height (ft)</Label>
+                    <Input
+                      type="number"
+                      value={formData.waterPumpConfig.structureHeight}
+                      onChange={(e) => updateConfig('waterPumpConfig', { structureHeight: parseInt(e.target.value) || 0 })}
+                      min="0"
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Project Value (₹)</Label>
+                    <Input
+                      type="number"
+                      value={formData.waterPumpConfig.projectValue}
+                      onChange={(e) => updateConfig('waterPumpConfig', { projectValue: parseInt(e.target.value) || 0 })}
+                      min="0"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label>Additional Notes</Label>
+                  <Textarea
+                    value={formData.waterPumpConfig.others || ''}
+                    onChange={(e) => updateConfig('waterPumpConfig', { others: e.target.value })}
+                    placeholder="Any additional specifications or notes..."
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
         </>
       )}

@@ -177,7 +177,7 @@ export const earthingTypes = [
 ] as const;
 
 export const panelWatts = [
-  530, 535, 550, 590
+  "530", "535", "550", "590"
 ] as const;
 
 export const inverterWatts = [
@@ -593,7 +593,7 @@ export const insertDepartmentTimingSchema = z.object({
   workingHours: z.number().min(1).max(24).default(8), // Standard working hours per day
   checkInTime: z.string().regex(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i, "Time must be in 12-hour format (h:mm AM/PM)"), // e.g., "9:00 AM"
   checkOutTime: z.string().regex(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i, "Time must be in 12-hour format (h:mm AM/PM)") // e.g., "6:00 PM"
-    .refine((checkOut, ctx) => {
+    .refine((checkOut: string, ctx: { parent: any }) => {
       const checkIn = ctx.parent.checkInTime;
       if (checkIn && checkOut) {
         // Parse 12-hour format properly for validation
@@ -707,7 +707,7 @@ export const insertPayrollSchema = z.object({
   userId: z.string(),
   employeeId: z.string(),
   month: z.number().min(1).max(12)
-    .refine((month, ctx) => {
+    .refine((month: number, ctx: { parent: any }) => {
       const year = ctx.parent.year;
       const currentDate = new Date();
       const currentYear = currentDate.getFullYear();
@@ -722,7 +722,7 @@ export const insertPayrollSchema = z.object({
   year: z.number().min(2020).max(new Date().getFullYear() + 1), // Prevent future years beyond next year
   workingDays: z.number().min(0).max(31),
   presentDays: z.number().min(0)
-    .refine((presentDays, ctx) => {
+    .refine((presentDays: number, ctx: { parent: any }) => {
       const workingDays = ctx.parent.workingDays;
       return presentDays <= workingDays;
     }, "Present days cannot exceed working days"),
@@ -870,7 +870,7 @@ export const insertEnhancedPayrollSchema = z.object({
   userId: z.string(),
   employeeId: z.string(),
   month: z.number().min(1).max(12)
-    .refine((month, ctx) => {
+    .refine((month: number, ctx: { parent: any }) => {
       const year = ctx.parent.year;
       const currentDate = new Date();
       const currentYear = currentDate.getFullYear();
@@ -884,7 +884,7 @@ export const insertEnhancedPayrollSchema = z.object({
   year: z.number().min(2020).max(new Date().getFullYear() + 1),
   monthDays: z.number().min(1).max(31),
   presentDays: z.number().min(0)
-    .refine((presentDays, ctx) => {
+    .refine((presentDays: number, ctx: { parent: any }) => {
       const monthDays = ctx.parent.monthDays;
       return presentDays <= monthDays;
     }, "Present days cannot exceed month days"),
