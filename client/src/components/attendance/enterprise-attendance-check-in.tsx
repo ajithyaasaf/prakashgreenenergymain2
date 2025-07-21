@@ -4,6 +4,7 @@ import { useAuthContext } from "@/contexts/auth-context";
 import { useGeolocation } from "@/hooks/use-geolocation";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { LocationService } from "@/lib/location-service";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,23 +15,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { MapPin, Camera, Wifi, WifiOff, Loader2, CheckCircle, AlertTriangle, Timer, Building2, Smartphone, Monitor } from "lucide-react";
-import { DeviceDetection, getDeviceInfo, getLocationStatusMessage } from "@/utils/device-detection";
+import { MapPin, Camera, Wifi, WifiOff, Loader2, CheckCircle, AlertTriangle, Timer, Building2, RefreshCw } from "lucide-react";
 
 interface EnterpriseAttendanceCheckInProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  officeLocations?: any[];
-}
-
-interface LocationValidation {
-  type: string;
-  confidence: number;
-  distance: number;
-  detectedOffice: string | null;
-  message: string;
-  recommendations: string[];
 }
 
 export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: EnterpriseAttendanceCheckInProps) {
@@ -38,27 +28,7 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
   const { location, error: locationError, isLoading: locationLoading, getCurrentLocation } = useGeolocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-
-  // Get device information for smart validation
-  const deviceInfo = getDeviceInfo();
-
-  // User-friendly location quality text
-  const getLocationQualityText = (accuracy: number): string => {
-    if (deviceInfo.type === 'mobile') {
-      // Mobile device - show user-friendly status
-      if (accuracy <= 10) return "(Perfect)";
-      if (accuracy <= 50) return "(Great)";
-      if (accuracy <= 200) return "(Good for indoors)";
-      if (accuracy <= 500) return "(Indoor signal)";
-      return "(Weak signal)";
-    } else {
-      // Desktop/Laptop - show office network status
-      const expected = DeviceDetection.getExpectedAccuracy(deviceInfo);
-      if (accuracy <= expected.typical) return "(Office network OK)";
-      if (accuracy <= expected.max) return "(Office location)";
-      return "(Limited office signal)";
-    }
-  };
+  const locationService = new LocationService();
 
   // Form states
   const [attendanceType, setAttendanceType] = useState<"office" | "remote" | "field_work">("office");
@@ -66,13 +36,10 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
   const [reason, setReason] = useState("");
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
   
-  // Department policies state
-  const [departmentPolicies, setDepartmentPolicies] = useState<any>(null);
-  const [policyErrors, setPolicyErrors] = useState<string[]>([]);
-
-  // Location validation states
-  const [locationValidation, setLocationValidation] = useState<LocationValidation | null>(null);
+  // Location states
+  const [currentAddress, setCurrentAddress] = useState<string>("");
   const [isLocationRefreshing, setIsLocationRefreshing] = useState(false);
+  const [isAddressLoading, setIsAddressLoading] = useState(false);
 
   // Camera states
   const [isCameraActive, setIsCameraActive] = useState(false);
@@ -84,30 +51,48 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
   // Network status
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
-  // Device-aware location status display
+  // Simple location status display
   const getLocationStatus = () => {
-    if (locationError) return { text: "Location Error", color: "destructive" };
-    if (locationLoading) return { text: "Getting Location...", color: "secondary" };
-    if (!location) return { text: "Location Required", color: "outline" };
-    
-    const statusInfo = getLocationStatusMessage(location.accuracy);
-    
-    // Map our color scheme to badge variants
-    const colorMap = {
-      success: "default" as const,
-      info: "secondary" as const,
-      warning: "outline" as const,
-      error: "destructive" as const
-    };
+    if (locationError) return { text: "Location Error", color: "destructive" as const };
+    if (locationLoading) return { text: "Getting Location...", color: "secondary" as const };
+    if (!location) return { text: "Location Required", color: "outline" as const };
     
     return { 
-      text: statusInfo.message, 
-      color: colorMap[statusInfo.color],
-      technical: statusInfo.technical
+      text: "Location Ready", 
+      color: "default" as const
     };
   };
 
   const locationStatus = getLocationStatus();
+
+  // Fetch address from location
+  const fetchLocationAddress = async () => {
+    if (!location) return;
+    
+    setIsAddressLoading(true);
+    try {
+      const locationStatus = await locationService.detectLocation();
+      if (locationStatus.status === 'granted' && locationStatus.location?.address) {
+        setCurrentAddress(locationStatus.location.address);
+      } else {
+        // Fallback to manual geocoding
+        const address = await locationService.reverseGeocode(location.latitude, location.longitude);
+        setCurrentAddress(address.address);
+      }
+    } catch (error) {
+      console.error('Failed to fetch address:', error);
+      setCurrentAddress(`${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}`);
+    } finally {
+      setIsAddressLoading(false);
+    }
+  };
+
+  // Fetch address when location changes
+  useEffect(() => {
+    if (location && !currentAddress && !isAddressLoading) {
+      fetchLocationAddress();
+    }
+  }, [location]);
 
   // Network status monitoring
   useEffect(() => {
@@ -222,6 +207,7 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
   // Enhanced location refresh
   const refreshLocation = async () => {
     setIsLocationRefreshing(true);
+    setCurrentAddress("");
     try {
       await getCurrentLocation();
       console.log('FRONTEND: Location refreshed successfully');
@@ -318,27 +304,14 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
       if (!response.ok) {
         const errorData = await response.json();
         
-        // Store location validation results for display
-        if (errorData.locationValidation) {
-          setLocationValidation(errorData.locationValidation);
-        }
+
         
         throw new Error(errorData.message || 'Failed to check in');
       }
 
       const result = await response.json();
       
-      // Store successful location validation for display
-      if (result.location?.validation) {
-        setLocationValidation({
-          type: result.location.validation.type,
-          confidence: result.location.validation.confidence,
-          distance: result.location.validation.distance,
-          detectedOffice: result.location.office?.name || null,
-          message: result.message,
-          recommendations: result.recommendations || []
-        });
-      }
+
 
       return result;
     },
@@ -361,7 +334,7 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
       setCustomerName("");
       setReason("");
       setCapturedPhoto(null);
-      setLocationValidation(null);
+
       
       // Cleanup camera
       if (stream) {
@@ -636,11 +609,6 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
               <CardTitle className="text-sm flex items-center gap-2">
                 <MapPin className="h-4 w-4" />
                 Location Status
-                {deviceInfo.type === 'mobile' ? (
-                  <Smartphone className="h-3 w-3 text-green-600" />
-                ) : (
-                  <Monitor className="h-3 w-3 text-blue-600" />
-                )}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -662,69 +630,36 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
                 </Button>
               </div>
               
-              {/* Device Information */}
-              <div className="text-xs text-gray-600 space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">Device:</span>
-                  <Badge variant="outline" className="text-xs">
-                    {deviceInfo.type.charAt(0).toUpperCase() + deviceInfo.type.slice(1)}
-                  </Badge>
-                  <Badge variant="outline" className="text-xs">
-                    {deviceInfo.type === 'mobile' ? 'Phone Location' : 'Office Network'}
-                  </Badge>
-                </div>
-              </div>
-              
+              {/* Current Address Display */}
               {location && (
-                <div className="text-xs text-gray-600 space-y-1">
-                  <div>{locationStatus.technical || `${deviceInfo.type === 'mobile' ? 'Phone location' : 'Office network'} accuracy: ${Math.round(location.accuracy)}m ${getLocationQualityText(location.accuracy)}`}</div>
-                  <div>Location: {location.latitude.toFixed(4)}, {location.longitude.toFixed(4)}</div>
+                <div className="space-y-2">
+                  <div className="text-sm font-medium text-gray-700">Current Location:</div>
+                  {isAddressLoading ? (
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      <span>Getting address...</span>
+                    </div>
+                  ) : currentAddress ? (
+                    <div className="text-sm text-gray-900 bg-gray-50 p-2 rounded border">
+                      {currentAddress}
+                    </div>
+                  ) : (
+                    <div className="text-sm text-gray-600">
+                      {location.latitude.toFixed(4)}, {location.longitude.toFixed(4)}
+                    </div>
+                  )}
                 </div>
               )}
 
               {locationError && (
-                <div className="text-xs text-red-600">
-                  Error: {locationError.message}
+                <div className="text-sm text-red-600 bg-red-50 p-2 rounded border border-red-200">
+                  {locationError.message}
                 </div>
               )}
             </CardContent>
           </Card>
 
-          {/* Location Validation Results */}
-          {locationValidation && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  {locationValidation.type === 'failed' ? (
-                    <AlertTriangle className="h-4 w-4 text-red-500" />
-                  ) : (
-                    <CheckCircle className="h-4 w-4 text-green-500" />
-                  )}
-                  Location Validation
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <div className="text-sm">{locationValidation.message}</div>
-                <div className="flex items-center gap-2 text-xs">
-                  <Badge variant="outline">{locationValidation.type}</Badge>
-                  <Badge variant="outline">{locationValidation.confidence}% confidence</Badge>
-                  <Badge variant="outline">{locationValidation.distance}m</Badge>
-                </div>
-                {locationValidation.detectedOffice && (
-                  <div className="text-xs text-green-600">
-                    Office: {locationValidation.detectedOffice}
-                  </div>
-                )}
-                {locationValidation.recommendations.length > 0 && (
-                  <div className="text-xs text-gray-600">
-                    {locationValidation.recommendations.map((rec, index) => (
-                      <div key={index}>• {rec}</div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
+
 
           {/* Attendance Type Selection with Policy Indicators */}
           <div className="space-y-2">
@@ -790,7 +725,7 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
                 <div className="font-medium mb-1">Requirements for {attendanceType.replace('_', ' ')}:</div>
                 <ul className="space-y-1">
                   {attendanceType === "office" && (
-                    <li>• Location verification within office area</li>
+                    <li>• Selfie photo with current location</li>
                   )}
                   {attendanceType === "remote" && (
                     <>
@@ -801,8 +736,8 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
                   {attendanceType === "field_work" && (
                     <>
                       <li>• Customer/site name</li>
-                      <li>• Photo verification at location</li>
-                      <li>• Purpose of visit</li>
+                      <li>• Selfie photo with geo location</li>
+                      <li>• Current location details</li>
                     </>
                   )}
                 </ul>

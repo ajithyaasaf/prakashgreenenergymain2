@@ -164,28 +164,24 @@ export class UnifiedAttendanceService {
         };
       }
 
-      // Validate location using enterprise location service with device-aware validation
-      const locationRequest: LocationRequest = {
-        latitude: request.latitude,
-        longitude: request.longitude,
-        accuracy: request.accuracy,
-        timestamp: new Date(),
-        userId: request.userId,
-        deviceInfo: request.deviceInfo
+      // Simplified location validation - no office restrictions
+      console.log('UNIFIED SERVICE: Processing attendance with location data...');
+      
+      const locationValidation = {
+        isValid: true,
+        confidence: 1.0,
+        distance: 0,
+        detectedOffice: null,
+        validationType: 'accepted' as const,
+        message: 'Location accepted',
+        recommendations: [] as string[],
+        metadata: {
+          accuracy: request.accuracy,
+          effectiveRadius: 0,
+          indoorDetection: false,
+          confidenceFactors: ['location_accepted']
+        }
       };
-
-      const locationValidation = await EnterpriseLocationService.validateOfficeLocation(locationRequest);
-
-      // Apply business rules based on attendance type
-      const businessValidation = await this.validateBusinessRules(request, locationValidation);
-      if (!businessValidation.isValid) {
-        return {
-          success: false,
-          message: businessValidation.message,
-          locationValidation,
-          recommendations: businessValidation.recommendations
-        };
-      }
 
       // Calculate timing information using Enterprise Time Service
       const timingInfo = await this.calculateTimingInfo(user, new Date());
@@ -223,8 +219,8 @@ export class UnifiedAttendanceService {
         lateMinutes: timingInfo.lateMinutes,
         workingHours: 0,
         breakHours: 0,
-        isWithinOfficeRadius: locationValidation.isValid && request.attendanceType === 'office',
-        remarks: this.generateRemarks(request, locationValidation),
+        isWithinOfficeRadius: true, // No office restrictions
+        remarks: `${this.getAttendanceTypeDisplay(request.attendanceType)} attendance`,
         
         // Enhanced metadata for enterprise tracking
         locationAccuracy: request.accuracy,
@@ -240,12 +236,8 @@ export class UnifiedAttendanceService {
 
       const newAttendance = await storage.createAttendance(attendanceData);
 
-      // Log location validation for security and analytics
-      await EnterpriseLocationService.logLocationValidation(
-        request.userId,
-        locationValidation,
-        request.attendanceType
-      );
+      // Log simplified location acceptance
+      console.log('UNIFIED SERVICE: Location accepted for user:', request.userId);
 
       // Create activity log
       await storage.createActivityLog({

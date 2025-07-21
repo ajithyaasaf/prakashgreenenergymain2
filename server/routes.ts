@@ -1051,21 +1051,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!result.success) {
         console.log('ENTERPRISE CHECK-IN: Validation failed -', result.message);
         return res.status(400).json({
-          message: result.message,
-          locationValidation: {
-            type: result.locationValidation.validationType,
-            confidence: Math.round(result.locationValidation.confidence * 100),
-            distance: result.locationValidation.distance,
-            detectedOffice: result.locationValidation.detectedOffice?.name,
-            message: result.locationValidation.message
-          },
-          recommendations: result.recommendations || result.locationValidation.recommendations
+          message: result.message
         });
       }
 
       console.log('ENTERPRISE CHECK-IN: Success -', result.message);
-      console.log('Location validation:', result.locationValidation.validationType, 
-                  'Confidence:', Math.round(result.locationValidation.confidence * 100) + '%');
 
       // Success response with comprehensive information
       res.status(201).json({
