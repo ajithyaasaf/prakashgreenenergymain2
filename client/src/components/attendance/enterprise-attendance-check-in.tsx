@@ -4,7 +4,7 @@ import { useAuthContext } from "@/contexts/auth-context";
 import { useGeolocation } from "@/hooks/use-geolocation";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { LocationService } from "@/lib/location-service";
+import { locationService } from "@/lib/location-service";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,7 +28,7 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
   const { location, error: locationError, isLoading: locationLoading, getCurrentLocation } = useGeolocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const locationService = new LocationService();
+  // locationService is imported as singleton
 
   // Form states
   const [attendanceType, setAttendanceType] = useState<"office" | "remote" | "field_work">("office");
