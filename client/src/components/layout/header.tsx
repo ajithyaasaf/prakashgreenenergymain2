@@ -90,6 +90,11 @@ export function Header({ onMenuClick }: HeaderProps) {
               <h1 className="text-lg sm:text-xl md:text-2xl font-bold truncate max-w-[180px] sm:max-w-[250px] md:max-w-none">{pageTitle}</h1>
               <p className="text-xs md:text-sm text-gray-500 truncate max-w-[180px] sm:max-w-[250px] md:max-w-none">
                 Welcome back, {user?.displayName || user?.email || 'User'}!
+                {user?.department && (
+                  <span className="ml-2 text-primary font-medium">
+                    • {user.department.charAt(0).toUpperCase() + user.department.slice(1)} Dept.
+                  </span>
+                )}
               </p>
             </div>
           </div>

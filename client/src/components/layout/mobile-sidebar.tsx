@@ -143,7 +143,17 @@ export function MobileSidebar({ isOpen, setIsOpen }: MobileSidebarProps) {
               </div>
               <div className="ml-3 min-w-0">
                 <p className="font-medium text-sm truncate">{user?.displayName || "User"}</p>
-                <p className="text-xs text-gray-500 truncate">{user?.role === "master_admin" ? "Master Admin" : user?.role === "admin" ? "Admin" : "Employee"}</p>
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <span className="truncate">{user?.role === "master_admin" ? "Master Admin" : user?.role === "admin" ? "Admin" : "Employee"}</span>
+                  {user?.department && (
+                    <>
+                      <span>•</span>
+                      <span className="text-primary font-medium truncate">
+                        {user.department.charAt(0).toUpperCase() + user.department.slice(1)} Dept.
+                      </span>
+                    </>
+                  )}
+                </div>
               </div>
               <button 
                 onClick={() => {
