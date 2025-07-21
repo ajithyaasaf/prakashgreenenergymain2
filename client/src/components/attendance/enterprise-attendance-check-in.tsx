@@ -6,16 +6,13 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { locationService } from "@/lib/location-service";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+// Select components removed - no longer needed for simplified attendance
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { MapPin, Camera, Wifi, WifiOff, Loader2, CheckCircle, AlertTriangle, Timer, Building2, RefreshCw, Monitor, Smartphone } from "lucide-react";
+import { MapPin, Camera, Wifi, WifiOff, Loader2, CheckCircle, AlertTriangle, Timer, Clock, RefreshCw } from "lucide-react";
 
 interface EnterpriseAttendanceCheckInProps {
   isOpen: boolean;
@@ -30,10 +27,7 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
   const queryClient = useQueryClient();
   // locationService is imported as singleton
 
-  // Form states
-  const [attendanceType, setAttendanceType] = useState<"office" | "remote" | "field_work">("office");
-  const [customerName, setCustomerName] = useState("");
-  const [reason, setReason] = useState("");
+  // Simplified form states
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
   
   // Location states
@@ -41,8 +35,7 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
   const [isLocationRefreshing, setIsLocationRefreshing] = useState(false);
   const [isAddressLoading, setIsAddressLoading] = useState(false);
   
-  // Department policies state
-  const [departmentPolicies, setDepartmentPolicies] = useState<any>(null);
+  // Validation state
   const [policyErrors, setPolicyErrors] = useState<string[]>([]);
 
   // Camera states
@@ -168,45 +161,16 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
     }
   };
 
-  // Real-time form validation with policy enforcement
+  // Simplified form validation - only require location and photo
   const validateForm = () => {
     const errors: string[] = [];
     
-    if (!departmentPolicies) {
-      return { isValid: false, errors: ['Loading department policies...'] };
-    }
-
-    // Policy-based validation with explicit boolean checking
-    if (attendanceType === "remote" && departmentPolicies.allowRemoteWork === false) {
-      errors.push('Remote work is not allowed for your department');
+    if (!location) {
+      errors.push('Location access required for check-in');
     }
     
-    if (attendanceType === "field_work" && departmentPolicies.allowFieldWork === false) {
-      errors.push('Field work is not allowed for your department');
-    }
-
-    // Progressive requirements validation
-    if (!location && attendanceType === "office") {
-      errors.push('Location access required for office check-in');
-    }
-    
-    if (attendanceType === "remote") {
-      if (!reason.trim()) {
-        errors.push('Reason required for remote work');
-      } else if (reason.trim().length < 10) {
-        errors.push('Remote work reason must be at least 10 characters');
-      }
-    }
-    
-    if (attendanceType === "field_work") {
-      if (!customerName.trim()) {
-        errors.push('Customer name required for field work');
-      } else if (customerName.trim().length < 3) {
-        errors.push('Customer name must be at least 3 characters');
-      }
-      if (!capturedPhoto) {
-        errors.push('Photo required for field work verification');
-      }
+    if (!capturedPhoto) {
+      errors.push('Selfie photo required for attendance verification');
     }
 
     return { isValid: errors.length === 0, errors };
@@ -216,7 +180,7 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
   useEffect(() => {
     const validation = validateForm();
     setPolicyErrors(validation.errors);
-  }, [attendanceType, reason, customerName, capturedPhoto, departmentPolicies]);
+  }, [location, capturedPhoto]);
 
   const isFormValid = () => {
     return validateForm().isValid;
@@ -255,23 +219,23 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
         throw new Error('Location data not available');
       }
 
-      // Ensure we have captured photo for field work
-      if (attendanceType === "field_work" && !capturedPhoto) {
-        throw new Error('Photo is required for field work');
+      // Ensure we have captured photo
+      if (!capturedPhoto) {
+        throw new Error('Selfie photo is required for attendance');
       }
 
       // Prepare request data
       let photoUploadUrl = undefined;
 
-      // Upload photo to Cloudinary if available
-      if (capturedPhoto && attendanceType === "field_work") {
+      // Upload photo to Cloudinary
+      if (capturedPhoto) {
         console.log('FRONTEND: Uploading photo to Cloudinary...');
         
         try {
           const uploadResponse = await apiRequest('/api/attendance/upload-photo', 'POST', {
             imageData: capturedPhoto,
             userId: user.uid,
-            attendanceType: attendanceType
+            attendanceType: 'office'
           });
 
           if (!uploadResponse.ok) {
@@ -311,20 +275,18 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
         latitude: location.latitude,
         longitude: location.longitude,
         accuracy: location.accuracy,
-        attendanceType,
-        reason: attendanceType !== "office" ? reason : undefined,
-        customerName: attendanceType === "field_work" ? customerName : undefined,
+        attendanceType: 'office',
         imageUrl: photoUploadUrl,
         deviceInfo
       };
 
-      console.log('FRONTEND: Sending check-in request with enterprise location data');
+      console.log('FRONTEND: Sending simplified check-in request');
       console.log('Location data:', { 
         latitude: location.latitude, 
         longitude: location.longitude, 
         accuracy: location.accuracy,
-        type: attendanceType,
-        hasPhoto: !!photoUploadUrl
+        hasPhoto: !!photoUploadUrl,
+        address: currentAddress
       });
 
       const response = await apiRequest('/api/attendance/check-in', 'POST', requestData);
@@ -353,15 +315,13 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
       
       toast({
         title: "Check-in Successful",
-        description: `${data.message} - ${validationType} validation (${confidence}% confidence)${indoorDetection}`,
+        description: `${data.message} at ${currentAddress || 'current location'}`,
         variant: "default",
       });
       
       // Reset form
-      setAttendanceType("office");
-      setCustomerName("");
-      setReason("");
       setCapturedPhoto(null);
+      setCurrentAddress("");
 
       
       // Cleanup camera
@@ -610,8 +570,8 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Building2 className="h-5 w-5" />
-            Enterprise Check-in
+            <Clock className="h-5 w-5" />
+            Check In
           </DialogTitle>
         </DialogHeader>
 
@@ -694,225 +654,107 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
 
 
 
-          {/* Attendance Type Selection with Policy Indicators */}
-          <div className="space-y-2">
-            <Label htmlFor="attendance-type">Attendance Type</Label>
-            <Select value={attendanceType} onValueChange={(value: any) => setAttendanceType(value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select attendance type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="office">
-                  <div className="flex items-center justify-between w-full">
-                    <div className="flex items-center gap-2">
-                      <Building2 className="h-4 w-4" />
-                      Office Work
-                    </div>
-                    <Badge variant="outline" className="text-xs">Always Available</Badge>
+          {/* Simplified Selfie Photo Capture */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Camera className="h-4 w-4" />
+                Selfie Photo
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {!capturedPhoto && !isCameraActive && (
+                <Button onClick={startCamera} variant="outline" className="w-full">
+                  <Camera className="h-4 w-4 mr-2" />
+                  Take Selfie
+                </Button>
+              )}
+
+              {/* Camera view */}
+              <div className="space-y-2" style={{ display: isCameraActive ? 'block' : 'none' }}>
+                <div className="relative bg-black rounded border overflow-hidden">
+                  <video 
+                    ref={videoRef} 
+                    autoPlay 
+                    playsInline
+                    muted
+                    className="w-full h-64 object-cover"
+                    style={{ 
+                      transform: 'scaleX(-1)',
+                      minHeight: '16rem',
+                      backgroundColor: '#000'
+                    }}
+                    onCanPlay={() => setIsVideoReady(true)}
+                    onLoadedData={() => setIsVideoReady(true)}
+                    onPlaying={() => setIsVideoReady(true)}
+                    onLoadedMetadata={() => setIsVideoReady(true)}
+                  />
+                  <div className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded">
+                    LIVE
                   </div>
-                </SelectItem>
-                <SelectItem 
-                  value="remote" 
-                  disabled={departmentPolicies ? departmentPolicies.allowRemoteWork === false : false}
-                >
-                  <div className="flex items-center justify-between w-full">
-                    <div className="flex items-center gap-2">
-                      <Monitor className="h-4 w-4" />
-                      Remote Work
-                    </div>
-                    {departmentPolicies && (
-                      <Badge 
-                        variant={departmentPolicies.allowRemoteWork === true ? "default" : "secondary"} 
-                        className="text-xs"
-                      >
-                        {departmentPolicies.allowRemoteWork === true ? "Allowed" : "Not Allowed"}
-                      </Badge>
-                    )}
-                  </div>
-                </SelectItem>
-                <SelectItem 
-                  value="field_work" 
-                  disabled={departmentPolicies ? departmentPolicies.allowFieldWork === false : false}
-                >
-                  <div className="flex items-center justify-between w-full">
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4" />
-                      Field Work
-                    </div>
-                    {departmentPolicies && (
-                      <Badge 
-                        variant={departmentPolicies.allowFieldWork === true ? "default" : "secondary"} 
-                        className="text-xs"
-                      >
-                        {departmentPolicies.allowFieldWork === true ? "Allowed" : "Not Allowed"}
-                      </Badge>
-                    )}
-                  </div>
-                </SelectItem>
-              </SelectContent>
-            </Select>
-            
-            {/* Requirements Preview */}
-            {attendanceType && (
-              <div className="text-xs text-muted-foreground p-2 bg-blue-50 rounded">
-                <div className="font-medium mb-1">Requirements for {attendanceType.replace('_', ' ')}:</div>
-                <ul className="space-y-1">
-                  {attendanceType === "office" && (
-                    <li>• Selfie photo with current location</li>
-                  )}
-                  {attendanceType === "remote" && (
-                    <>
-                      <li>• Detailed reason (minimum 10 characters)</li>
-                      <li>• Current work location information</li>
-                    </>
-                  )}
-                  {attendanceType === "field_work" && (
-                    <>
-                      <li>• Customer/site name</li>
-                      <li>• Selfie photo with geo location</li>
-                      <li>• Current location details</li>
-                    </>
-                  )}
-                </ul>
-              </div>
-            )}
-          </div>
-
-          {/* Remote Work Reason with Real-time Validation */}
-          {attendanceType === "remote" && (
-            <div className="space-y-2">
-              <Label htmlFor="reason">Reason for Remote Work *</Label>
-              <Textarea
-                id="reason"
-                placeholder="Example: Working from home office due to client meeting, focusing on project deliverables without office distractions..."
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                rows={3}
-                className={reason.trim().length > 0 && reason.trim().length < 10 ? "border-orange-300" : ""}
-              />
-              <div className="flex justify-between text-xs">
-                <span className={reason.trim().length < 10 ? "text-orange-600" : "text-green-600"}>
-                  {reason.trim().length}/10 characters minimum
-                </span>
-                {reason.trim().length >= 10 && (
-                  <span className="text-green-600">✓ Valid reason provided</span>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Field Work Details with Real-time Validation */}
-          {attendanceType === "field_work" && (
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="customer-name">Customer/Site Name *</Label>
-                <Input
-                  id="customer-name"
-                  placeholder="e.g., ABC Corporation, Solar Installation Site, Client Office"
-                  value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                  className={customerName.trim().length > 0 && customerName.trim().length < 3 ? "border-orange-300" : ""}
-                />
-                <div className="flex justify-between text-xs">
-                  <span className={customerName.trim().length < 3 ? "text-orange-600" : "text-green-600"}>
-                    {customerName.trim().length}/3 characters minimum
-                  </span>
-                  {customerName.trim().length >= 3 && (
-                    <span className="text-green-600">✓ Valid name provided</span>
-                  )}
-                </div>
-              </div>
-
-              {/* Photo Capture for Field Work */}
-              <div className="space-y-2">
-                <Label>Field Work Photo * (Required)</Label>
-                
-                {!capturedPhoto && !isCameraActive && (
-                  <Button onClick={() => {
-                    console.log('BUTTON: Take Photo clicked');
-                    startCamera();
-                  }} variant="outline" className="w-full">
-                    <Camera className="h-4 w-4 mr-2" />
-                    Take Photo
-                  </Button>
-                )}
-
-                {/* Camera view - always render video element but hide when not active */}
-                <div className="space-y-2" style={{ display: isCameraActive ? 'block' : 'none' }}>
-                  <div className="relative bg-black rounded border overflow-hidden">
-                    <video 
-                      ref={videoRef} 
-                      autoPlay 
-                      playsInline
-                      muted
-                      className="w-full h-64 object-cover"
-                      style={{ 
-                        transform: 'scaleX(-1)',
-                        minHeight: '16rem',
-                        backgroundColor: '#000'
-                      }}
-                      onCanPlay={() => {
-                        console.log('CAMERA: Video can play - stream is ready');
-                        setIsVideoReady(true);
-                      }}
-                      onLoadedData={() => {
-                        console.log('CAMERA: Video data loaded');
-                        setIsVideoReady(true);
-                      }}
-                      onPlaying={() => {
-                        console.log('CAMERA: Video is now playing');
-                        setIsVideoReady(true);
-                      }}
-                      onLoadedMetadata={() => {
-                        console.log('CAMERA: Video metadata loaded');
-                        setIsVideoReady(true);
-                      }}
-                    />
-                    <div className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded">
-                      LIVE
-                    </div>
-                    {/* Loading indicator overlay */}
-                    {!isVideoReady && isCameraActive && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 text-white text-sm">
-                        <div className="text-center">
-                          <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
-                          <div>Loading camera...</div>
-                        </div>
+                  {!isVideoReady && isCameraActive && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 text-white text-sm">
+                      <div className="text-center">
+                        <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+                        <div>Loading camera...</div>
                       </div>
-                    )}
-                  </div>
-                  {isCameraActive && (
-                    <div className="flex gap-2">
-                      <Button onClick={capturePhoto} className="flex-1" disabled={!isVideoReady}>
-                        <Camera className="h-4 w-4 mr-2" />
-                        Capture Photo
-                      </Button>
-                      <Button onClick={resetPhoto} variant="outline">
-                        Cancel
-                      </Button>
                     </div>
                   )}
                 </div>
-
-                {capturedPhoto && (
-                  <div className="space-y-2">
-                    <img src={capturedPhoto} alt="Captured" className="w-full rounded border" />
-                    <Button onClick={resetPhoto} variant="outline" className="w-full">
-                      Retake Photo
+                {isCameraActive && (
+                  <div className="flex gap-2">
+                    <Button onClick={capturePhoto} className="flex-1" disabled={!isVideoReady}>
+                      <Camera className="h-4 w-4 mr-2" />
+                      Capture
+                    </Button>
+                    <Button onClick={resetPhoto} variant="outline">
+                      Cancel
                     </Button>
                   </div>
                 )}
               </div>
-            </div>
-          )}
 
-          {/* Real-time Validation Feedback */}
+              {capturedPhoto && (
+                <div className="space-y-2">
+                  <img src={capturedPhoto} alt="Captured selfie" className="w-full rounded border" />
+                  <Button onClick={resetPhoto} variant="outline" className="w-full">
+                    Retake Photo
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Requirements Status */}
+          <div className="space-y-2">
+            <div className="text-sm font-medium">Requirements:</div>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-sm">
+                {location ? (
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                ) : (
+                  <AlertTriangle className="h-4 w-4 text-orange-500" />
+                )}
+                <span>Current location</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                {capturedPhoto ? (
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                ) : (
+                  <AlertTriangle className="h-4 w-4 text-orange-500" />
+                )}
+                <span>Selfie photo</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Validation Feedback */}
           {policyErrors.length > 0 && (
             <Alert>
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
                 <div className="space-y-1">
-                  <div className="font-medium">Please address the following:</div>
+                  <div className="font-medium">Please complete:</div>
                   {policyErrors.map((error, index) => (
                     <div key={index} className="text-sm">• {error}</div>
                   ))}
@@ -937,7 +779,7 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
             ) : (
               <>
                 <Timer className="h-4 w-4 mr-2" />
-                {isFormValid() ? `Check In - ${attendanceType.replace('_', ' ')}` : 'Complete Requirements Above'}
+                {isFormValid() ? 'Check In Now' : 'Complete Requirements Above'}
               </>
             )}
           </Button>
@@ -948,10 +790,10 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
             </div>
           )}
 
-          {/* Progressive Disclosure of Next Steps */}
+          {/* Ready Status */}
           {isFormValid() && (
             <div className="text-xs text-green-600 text-center p-2 bg-green-50 rounded">
-              Ready to check in! Your {attendanceType.replace('_', ' ')} session will begin immediately.
+              Ready to check in! Your attendance will be recorded with current location and time.
             </div>
           )}
         </div>

@@ -164,22 +164,27 @@ export class UnifiedAttendanceService {
         };
       }
 
-      // Simplified location validation - no office restrictions
-      console.log('UNIFIED SERVICE: Processing attendance with location data...');
+      // Simplified location validation - accept any location
+      console.log('UNIFIED SERVICE: Processing simplified attendance with location data...');
+      console.log('Location coordinates:', { 
+        latitude: request.latitude, 
+        longitude: request.longitude, 
+        accuracy: request.accuracy 
+      });
       
       const locationValidation = {
         isValid: true,
         confidence: 1.0,
         distance: 0,
         detectedOffice: null,
-        validationType: 'accepted' as const,
-        message: 'Location accepted',
+        validationType: 'simplified' as const,
+        message: 'Location recorded successfully',
         recommendations: [] as string[],
         metadata: {
           accuracy: request.accuracy,
           effectiveRadius: 0,
           indoorDetection: false,
-          confidenceFactors: ['location_accepted']
+          confidenceFactors: ['simplified_attendance']
         }
       };
 
@@ -219,8 +224,8 @@ export class UnifiedAttendanceService {
         lateMinutes: timingInfo.lateMinutes,
         workingHours: 0,
         breakHours: 0,
-        isWithinOfficeRadius: true, // No office restrictions
-        remarks: `${this.getAttendanceTypeDisplay(request.attendanceType)} attendance`,
+        isWithinOfficeRadius: true, // Simplified - no office restrictions
+        remarks: `Attendance recorded with location verification`,
         
         // Enhanced metadata for enterprise tracking
         locationAccuracy: request.accuracy,
@@ -236,14 +241,14 @@ export class UnifiedAttendanceService {
 
       const newAttendance = await storage.createAttendance(attendanceData);
 
-      // Log simplified location acceptance
-      console.log('UNIFIED SERVICE: Location accepted for user:', request.userId);
+      // Log simplified attendance acceptance
+      console.log('UNIFIED SERVICE: Simplified attendance accepted for user:', request.userId);
 
       // Create activity log
       await storage.createActivityLog({
         type: 'attendance',
         title: `${this.getAttendanceTypeDisplay(request.attendanceType)} Check-in`,
-        description: `${user.displayName} checked in for ${request.attendanceType} work${timingInfo.isLate ? ` (${timingInfo.lateMinutes} minutes late)` : ''} - Location confidence: ${Math.round(locationValidation.confidence * 100)}%`,
+        description: `${user.displayName} checked in${timingInfo.isLate ? ` (${timingInfo.lateMinutes} minutes late)` : ''} - Location recorded successfully`,
         entityId: newAttendance.id,
         entityType: 'attendance',
         userId: request.userId
@@ -252,7 +257,7 @@ export class UnifiedAttendanceService {
       return {
         success: true,
         attendanceId: newAttendance.id,
-        message: `Check-in successful for ${this.getAttendanceTypeDisplay(request.attendanceType)} work${timingInfo.isLate ? ` (${timingInfo.lateMinutes} minutes late)` : ''}`,
+        message: `Check-in successful${timingInfo.isLate ? ` (${timingInfo.lateMinutes} minutes late)` : ''}`,
         locationValidation,
         attendanceDetails: {
           isLate: timingInfo.isLate,
