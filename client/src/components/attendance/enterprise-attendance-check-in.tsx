@@ -190,11 +190,6 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
       errors.push('Location access required for office check-in');
     }
     
-    // Selfie photo required for ALL attendance types
-    if (!capturedPhoto) {
-      errors.push('Selfie photo required for attendance verification');
-    }
-    
     if (attendanceType === "remote") {
       if (!reason.trim()) {
         errors.push('Reason required for remote work');
@@ -208,6 +203,9 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
         errors.push('Customer name required for field work');
       } else if (customerName.trim().length < 3) {
         errors.push('Customer name must be at least 3 characters');
+      }
+      if (!capturedPhoto) {
+        errors.push('Photo required for field work verification');
       }
     }
 
@@ -804,104 +802,106 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
             </div>
           )}
 
-          {/* Selfie Photo - Required for ALL attendance types */}
-          <div className="space-y-2">
-            <Label>Selfie Photo * (Required for Verification)</Label>
-                
-            {!capturedPhoto && !isCameraActive && (
-              <Button onClick={() => {
-                console.log('BUTTON: Take Photo clicked');
-                startCamera();
-              }} variant="outline" className="w-full">
-                <Camera className="h-4 w-4 mr-2" />
-                Take Photo
-              </Button>
-            )}
-
-            {/* Camera view - always render video element but hide when not active */}
-            <div className="space-y-2" style={{ display: isCameraActive ? 'block' : 'none' }}>
-              <div className="relative bg-black rounded border overflow-hidden">
-                <video 
-                  ref={videoRef} 
-                  autoPlay 
-                  playsInline
-                  muted
-                  className="w-full h-64 object-cover"
-                  style={{ 
-                    transform: 'scaleX(-1)',
-                    minHeight: '16rem',
-                    backgroundColor: '#000'
-                  }}
-                  onCanPlay={() => {
-                    console.log('CAMERA: Video can play - stream is ready');
-                    setIsVideoReady(true);
-                  }}
-                  onLoadedData={() => {
-                    console.log('CAMERA: Video data loaded');
-                    setIsVideoReady(true);
-                  }}
-                  onPlaying={() => {
-                    console.log('CAMERA: Video is now playing');
-                    setIsVideoReady(true);
-                  }}
-                  onLoadedMetadata={() => {
-                    console.log('CAMERA: Video metadata loaded');
-                    setIsVideoReady(true);
-                  }}
-                />
-                <div className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded">
-                  LIVE
-                </div>
-                {/* Loading indicator overlay */}
-                {!isVideoReady && isCameraActive && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 text-white text-sm">
-                    <div className="text-center">
-                      <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
-                      <div>Loading camera...</div>
-                    </div>
-                  </div>
-                )}
-              </div>
-              {isCameraActive && (
-                <div className="flex gap-2">
-                  <Button onClick={capturePhoto} className="flex-1" disabled={!isVideoReady}>
-                    <Camera className="h-4 w-4 mr-2" />
-                    Capture Photo
-                  </Button>
-                  <Button onClick={resetPhoto} variant="outline">
-                    Cancel
-                  </Button>
-                </div>
-              )}
-            </div>
-
-            {capturedPhoto && (
-              <div className="space-y-2">
-                <img src={capturedPhoto} alt="Captured" className="w-full rounded border" />
-                <Button onClick={resetPhoto} variant="outline" className="w-full">
-                  Retake Photo
-                </Button>
-              </div>
-            )}
-          </div>
-
-          {/* Field Work Details - Only Customer Name */}
+          {/* Field Work Details with Real-time Validation */}
           {attendanceType === "field_work" && (
-            <div className="space-y-2">
-              <Label htmlFor="customer-name">Customer/Site Name *</Label>
-              <Input
-                id="customer-name"
-                placeholder="e.g., ABC Corporation, Solar Installation Site, Client Office"
-                value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-                className={customerName.trim().length > 0 && customerName.trim().length < 3 ? "border-orange-300" : ""}
-              />
-              <div className="flex justify-between text-xs">
-                <span className={customerName.trim().length < 3 ? "text-orange-600" : "text-green-600"}>
-                  {customerName.trim().length}/3 characters minimum
-                </span>
-                {customerName.trim().length >= 3 && (
-                  <span className="text-green-600">✓ Valid name provided</span>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="customer-name">Customer/Site Name *</Label>
+                <Input
+                  id="customer-name"
+                  placeholder="e.g., ABC Corporation, Solar Installation Site, Client Office"
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  className={customerName.trim().length > 0 && customerName.trim().length < 3 ? "border-orange-300" : ""}
+                />
+                <div className="flex justify-between text-xs">
+                  <span className={customerName.trim().length < 3 ? "text-orange-600" : "text-green-600"}>
+                    {customerName.trim().length}/3 characters minimum
+                  </span>
+                  {customerName.trim().length >= 3 && (
+                    <span className="text-green-600">✓ Valid name provided</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Photo Capture for Field Work */}
+              <div className="space-y-2">
+                <Label>Field Work Photo * (Required)</Label>
+                
+                {!capturedPhoto && !isCameraActive && (
+                  <Button onClick={() => {
+                    console.log('BUTTON: Take Photo clicked');
+                    startCamera();
+                  }} variant="outline" className="w-full">
+                    <Camera className="h-4 w-4 mr-2" />
+                    Take Photo
+                  </Button>
+                )}
+
+                {/* Camera view - always render video element but hide when not active */}
+                <div className="space-y-2" style={{ display: isCameraActive ? 'block' : 'none' }}>
+                  <div className="relative bg-black rounded border overflow-hidden">
+                    <video 
+                      ref={videoRef} 
+                      autoPlay 
+                      playsInline
+                      muted
+                      className="w-full h-64 object-cover"
+                      style={{ 
+                        transform: 'scaleX(-1)',
+                        minHeight: '16rem',
+                        backgroundColor: '#000'
+                      }}
+                      onCanPlay={() => {
+                        console.log('CAMERA: Video can play - stream is ready');
+                        setIsVideoReady(true);
+                      }}
+                      onLoadedData={() => {
+                        console.log('CAMERA: Video data loaded');
+                        setIsVideoReady(true);
+                      }}
+                      onPlaying={() => {
+                        console.log('CAMERA: Video is now playing');
+                        setIsVideoReady(true);
+                      }}
+                      onLoadedMetadata={() => {
+                        console.log('CAMERA: Video metadata loaded');
+                        setIsVideoReady(true);
+                      }}
+                    />
+                    <div className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded">
+                      LIVE
+                    </div>
+                    {/* Loading indicator overlay */}
+                    {!isVideoReady && isCameraActive && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 text-white text-sm">
+                        <div className="text-center">
+                          <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+                          <div>Loading camera...</div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  {isCameraActive && (
+                    <div className="flex gap-2">
+                      <Button onClick={capturePhoto} className="flex-1" disabled={!isVideoReady}>
+                        <Camera className="h-4 w-4 mr-2" />
+                        Capture Photo
+                      </Button>
+                      <Button onClick={resetPhoto} variant="outline">
+                        Cancel
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                {capturedPhoto && (
+                  <div className="space-y-2">
+                    <img src={capturedPhoto} alt="Captured" className="w-full rounded border" />
+                    <Button onClick={resetPhoto} variant="outline" className="w-full">
+                      Retake Photo
+                    </Button>
+                  </div>
                 )}
               </div>
             </div>
