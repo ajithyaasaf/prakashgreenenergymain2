@@ -69,22 +69,37 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
 
   const locationStatus = getLocationStatus();
 
-  // Fetch address from location
+  // Fetch address from location using Google Maps API
   const fetchLocationAddress = async () => {
     if (!location) return;
     
     setIsAddressLoading(true);
     try {
-      const locationStatus = await locationService.detectLocation();
-      if (locationStatus.status === 'granted' && locationStatus.location?.address) {
-        setCurrentAddress(locationStatus.location.address);
-      } else {
-        // Fallback to coordinates if address service unavailable
-        setCurrentAddress(`${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}`);
+      // Direct Google Maps reverse geocoding for accurate address
+      const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || import.meta.env.GOOGLE_MAPS_API_KEY;
+      
+      if (apiKey) {
+        const response = await fetch(
+          `https://maps.googleapis.com/maps/api/geocode/json?latlng=${location.latitude},${location.longitude}&key=${apiKey}`
+        );
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.results && data.results.length > 0) {
+            const address = data.results[0].formatted_address;
+            setCurrentAddress(address);
+            console.log('Google Maps address resolved:', address);
+            return;
+          }
+        }
       }
+      
+      // Fallback to coordinates if Google Maps API unavailable
+      setCurrentAddress(`${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}`);
+      console.log('Using coordinate fallback for address');
     } catch (error) {
       console.error('Failed to fetch address:', error);
-      setCurrentAddress(`${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}`);
+      setCurrentAddress(`${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}`);
     } finally {
       setIsAddressLoading(false);
     }
@@ -207,13 +222,20 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
     return validateForm().isValid;
   };
 
-  // Enhanced location refresh
+  // Enhanced location refresh with immediate address fetch
   const refreshLocation = async () => {
     setIsLocationRefreshing(true);
     setCurrentAddress("");
     try {
+      console.log('FRONTEND: Refreshing location and address...');
       await getCurrentLocation();
       console.log('FRONTEND: Location refreshed successfully');
+      
+      toast({
+        title: "Location Updated",
+        description: "Getting your current address...",
+        variant: "default",
+      });
     } catch (error) {
       console.error('FRONTEND: Location refresh failed:', error);
       toast({
@@ -629,9 +651,15 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
                   disabled={isLocationRefreshing}
                 >
                   {isLocationRefreshing ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
+                    <>
+                      <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                      Getting...
+                    </>
                   ) : (
-                    "Refresh"
+                    <>
+                      <RefreshCw className="h-3 w-3 mr-1" />
+                      Get Location
+                    </>
                   )}
                 </Button>
               </div>
