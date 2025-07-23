@@ -216,36 +216,20 @@ export function AttendanceCheckOut({
     }
   }, [isOpen]);
 
-  // Reverse geocoding function to get readable address
+  // Reverse geocoding function using server-side Google Maps API for accurate location
   const getAddressFromCoordinates = async (lat: number, lng: number) => {
     setIsLoadingAddress(true);
     try {
-      // Using Nominatim (OpenStreetMap) free reverse geocoding service
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
-        {
-          headers: {
-            'User-Agent': 'PrakashGreensAttendanceApp/1.0'
-          }
-        }
-      );
+      // Using server-side Google Maps reverse geocoding endpoint
+      const response = await apiRequest(`/api/reverse-geocode?lat=${lat}&lng=${lng}`);
       
-      if (!response.ok) {
-        // Fallback to coordinates if service fails
-        setLocationAddress(`Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}`);
-        return;
-      }
-      
-      const data = await response.json();
-      if (data && data.display_name) {
-        // Clean up the address to make it more readable
-        const address = data.display_name.split(',').slice(0, 3).join(', ');
-        setLocationAddress(address || data.display_name);
+      if (response.address) {
+        setLocationAddress(response.address);
       } else {
         setLocationAddress(`Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}`);
       }
     } catch (error) {
-      console.error('Error getting address:', error);
+      console.error('Error getting address from Google Maps:', error);
       // Fallback to coordinates
       setLocationAddress(`Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}`);
     } finally {

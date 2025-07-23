@@ -5590,6 +5590,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Reverse Geocoding API endpoint using Google Maps
+  app.get("/api/reverse-geocode", verifyAuth, async (req, res) => {
+    try {
+      const { lat, lng } = req.query;
+      
+      if (!lat || !lng) {
+        return res.status(400).json({ message: "Latitude and longitude are required" });
+      }
+
+      const googleMapsApiKey = process.env.GOOGLE_MAPS_API_KEY;
+      if (!googleMapsApiKey) {
+        return res.status(500).json({ message: "Google Maps API key not configured" });
+      }
+
+      // Call Google Maps Geocoding API
+      const response = await fetch(
+        `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${googleMapsApiKey}`
+      );
+
+      if (!response.ok) {
+        return res.status(500).json({ message: "Failed to fetch address from Google Maps" });
+      }
+
+      const data = await response.json();
+      
+      if (data.status === 'OK' && data.results && data.results.length > 0) {
+        const address = data.results[0].formatted_address;
+        res.json({ address, fullResponse: data.results[0] });
+      } else {
+        res.json({ 
+          address: `${parseFloat(lat as string).toFixed(6)}, ${parseFloat(lng as string).toFixed(6)}`,
+          error: "Address not found" 
+        });
+      }
+    } catch (error) {
+      console.error("Error in reverse geocoding:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
