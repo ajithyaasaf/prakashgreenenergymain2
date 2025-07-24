@@ -240,29 +240,17 @@ export class SiteVisitService {
     limit?: number;
   }): Promise<SiteVisit[]> {
     try {
-      // Start with base query
-      let query = this.collection.orderBy('createdAt', 'desc');
+      // Ultra-simplified approach: Get all data without any compound queries
+      // This completely avoids Firebase index requirements
+      let query: any = this.collection;
 
-      // Apply filters one by one to avoid compound index issues
-      // For master admin, get all data and filter in memory to avoid index requirements
-      
+      // Only apply ONE simple equality filter if needed
       if (filters.userId) {
         query = query.where('userId', '==', filters.userId);
       } else if (filters.department) {
         query = query.where('department', '==', filters.department);
       }
-      
-      // Don't apply status filter in query to avoid compound index requirement
-      // Status filtering will be done in memory below
-
-      // Apply date range filters
-      if (filters.startDate) {
-        query = query.where('siteInTime', '>=', Timestamp.fromDate(filters.startDate));
-      }
-
-      if (filters.endDate) {
-        query = query.where('siteInTime', '<=', Timestamp.fromDate(filters.endDate));
-      }
+      // For master admin, get all data without any query filters
 
       const snapshot = await query.limit(filters.limit || 100).get();
       let results = snapshot.docs.map(doc => ({
@@ -270,15 +258,33 @@ export class SiteVisitService {
         ...this.convertFirestoreToSiteVisit(doc.data())
       }));
 
-      // Apply additional filters in memory to avoid compound index requirements
+      console.log(`SITE_VISIT_SERVICE: Retrieved ${results.length} documents from Firestore`);
+
+      // Apply all other filters in memory to avoid compound index requirements
       if (filters.status) {
+        const beforeCount = results.length;
         results = results.filter(sv => sv.status === filters.status);
-        console.log(`SITE_VISIT_SERVICE: Applied status filter '${filters.status}' in memory, found ${results.length} results`);
+        console.log(`SITE_VISIT_SERVICE: Applied status filter '${filters.status}' in memory, ${beforeCount} -> ${results.length} results`);
+      }
+
+      if (filters.startDate) {
+        const beforeCount = results.length;
+        results = results.filter(sv => sv.siteInTime >= filters.startDate!);
+        console.log(`SITE_VISIT_SERVICE: Applied start date filter ${filters.startDate.toISOString()}, ${beforeCount} -> ${results.length} results`);
+      }
+
+      if (filters.endDate) {
+        const beforeCount = results.length;
+        results = results.filter(sv => sv.siteInTime <= filters.endDate!);
+        console.log(`SITE_VISIT_SERVICE: Applied end date filter ${filters.endDate.toISOString()}, ${beforeCount} -> ${results.length} results`);
       }
 
       if (filters.visitPurpose) {
         results = results.filter(sv => sv.visitPurpose === filters.visitPurpose);
       }
+
+      // Sort results by date descending (newest first)
+      results.sort((a, b) => b.siteInTime.getTime() - a.siteInTime.getTime());
 
       return results;
     } catch (error) {

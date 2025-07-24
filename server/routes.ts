@@ -5440,8 +5440,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Apply additional filters
       if (req.query.status) filters.status = req.query.status as string;
       if (req.query.visitPurpose) filters.visitPurpose = req.query.visitPurpose as string;
-      if (req.query.startDate) filters.startDate = new Date(req.query.startDate as string);
-      if (req.query.endDate) filters.endDate = new Date(req.query.endDate as string);
+      if (req.query.startDate) {
+        const startDate = new Date(req.query.startDate as string);
+        startDate.setHours(0, 0, 0, 0); // Start of day
+        filters.startDate = startDate;
+      }
+      if (req.query.endDate) {
+        const endDate = new Date(req.query.endDate as string);
+        endDate.setHours(23, 59, 59, 999); // End of day
+        filters.endDate = endDate;
+      }
 
       console.log('SITE_VISITS_API_FILTERS:', filters);
       const siteVisits = await siteVisitService.getSiteVisitsWithFilters(filters);
