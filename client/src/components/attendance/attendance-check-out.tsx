@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from "react";
 import { useAuthContext } from "@/contexts/auth-context";
-import { useGeolocation } from "@/hooks/use-geolocation";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -34,7 +33,6 @@ export function AttendanceCheckOut({
   departmentTiming 
 }: AttendanceCheckOutProps) {
   const { user } = useAuthContext();
-  const { location, error: locationError, isLoading: locationLoading, getCurrentLocation, calculateDistance } = useGeolocation();
   const { toast } = useToast();
 
   // Form states
@@ -43,9 +41,11 @@ export function AttendanceCheckOut({
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Location address state
+  // Simple location state
+  const [location, setLocation] = useState<{latitude: number, longitude: number} | null>(null);
   const [locationAddress, setLocationAddress] = useState<string | null>(null);
-  const [isLoadingAddress, setIsLoadingAddress] = useState(false);
+  const [isLoadingLocation, setIsLoadingLocation] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
 
   // Camera states
   const [isCameraActive, setIsCameraActive] = useState(false);
@@ -210,39 +210,72 @@ export function AttendanceCheckOut({
     }
   }, [isOpen, stream]);
 
-  useEffect(() => {
-    if (isOpen) {
-      getCurrentLocation();
-    }
-  }, [isOpen]);
-
-  // Reverse geocoding function using server-side Google Maps API for accurate location
-  const getAddressFromCoordinates = async (lat: number, lng: number) => {
-    setIsLoadingAddress(true);
+  // Simple location fetching with Google Maps API
+  const getCurrentLocationWithAddress = async () => {
+    setIsLoadingLocation(true);
+    setLocationError(null);
+    
     try {
-      // Using server-side Google Maps reverse geocoding endpoint
-      const response = await apiRequest(`/api/reverse-geocode?lat=${lat}&lng=${lng}`);
+      // Get user's coordinates
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        if (!navigator.geolocation) {
+          reject(new Error('Geolocation is not supported'));
+          return;
+        }
+        
+        navigator.geolocation.getCurrentPosition(
+          resolve,
+          reject,
+          {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 60000
+          }
+        );
+      });
       
-      if (response.address) {
-        setLocationAddress(response.address);
-      } else {
-        setLocationAddress(`Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}`);
+      const { latitude, longitude } = position.coords;
+      setLocation({ latitude, longitude });
+      
+      // Get readable address using Google Maps API
+      try {
+        const response = await apiRequest(`/api/reverse-geocode?lat=${latitude}&lng=${longitude}`);
+        const data = await response.json();
+        
+        if (data.address) {
+          setLocationAddress(data.address);
+        } else {
+          setLocationAddress(`Location: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
+        }
+      } catch (addressError) {
+        console.error('Address lookup failed:', addressError);
+        setLocationAddress(`Location: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
       }
-    } catch (error) {
-      console.error('Error getting address from Google Maps:', error);
-      // Fallback to coordinates
-      setLocationAddress(`Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}`);
+      
+    } catch (error: any) {
+      console.error('Location error:', error);
+      let errorMessage = 'Unable to get location';
+      
+      if (error.code === 1) {
+        errorMessage = 'Location access denied. Please allow location access and try again.';
+      } else if (error.code === 2) {
+        errorMessage = 'Location unavailable. Please check your GPS and internet connection.';
+      } else if (error.code === 3) {
+        errorMessage = 'Location request timed out. Please try again.';
+      }
+      
+      setLocationError(errorMessage);
     } finally {
-      setIsLoadingAddress(false);
+      setIsLoadingLocation(false);
     }
   };
 
-  // Get address when location is available
+  // Auto-fetch location when modal opens
   useEffect(() => {
-    if (location && location.latitude && location.longitude) {
-      getAddressFromCoordinates(location.latitude, location.longitude);
+    if (isOpen) {
+      getCurrentLocationWithAddress();
     }
-  }, [location]);
+  }, [isOpen]);
 
   // Camera functions
   const startCamera = async () => {
@@ -353,7 +386,7 @@ export function AttendanceCheckOut({
   // Simplified validation - only require location and photo
   const validateForm = (): string | null => {
     if (!location) return "Location access is required for check-out";
-    if (!isOnline) return "Internet connection is required";
+    if (!navigator.onLine) return "Internet connection is required";
     if (!capturedPhoto) return "Selfie photo is required for checkout verification";
     
     return null;
@@ -551,7 +584,7 @@ export function AttendanceCheckOut({
                     <CheckCircle className="h-4 w-4" />
                     Location captured
                   </div>
-                  {isLoadingAddress ? (
+                  {isLoadingLocation ? (
                     <div className="text-xs text-gray-500 flex items-center gap-2">
                       <Loader2 className="h-3 w-3 animate-spin" />
                       Getting address...
@@ -562,10 +595,34 @@ export function AttendanceCheckOut({
                     </div>
                   ) : null}
                 </div>
-              ) : (
+              ) : isLoadingLocation ? (
                 <div className="text-sm text-gray-500 flex items-center gap-2">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Capturing location...
+                  Getting location...
+                </div>
+              ) : locationError ? (
+                <div className="space-y-2">
+                  <div className="text-sm text-red-600 flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4" />
+                    Location Error
+                  </div>
+                  <div className="text-xs text-red-700 bg-red-50 p-2 rounded border">
+                    {locationError}
+                  </div>
+                  <Button 
+                    onClick={getCurrentLocationWithAddress} 
+                    variant="outline" 
+                    size="sm"
+                    className="w-full"
+                  >
+                    <RefreshCw className="h-3 w-3 mr-2" />
+                    Try Again
+                  </Button>
+                </div>
+              ) : (
+                <div className="text-sm text-gray-500 flex items-center gap-2">
+                  <MapPin className="h-4 w-4" />
+                  Waiting for location...
                 </div>
               )}
             </CardContent>
@@ -630,37 +687,7 @@ export function AttendanceCheckOut({
             </CardContent>
           </Card>
 
-          {/* Error Display */}
-          {locationError && (
-            <div className="space-y-3">
-              <Alert variant="destructive">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription>
-                  Location Error: {locationError.message}
-                </AlertDescription>
-              </Alert>
-              
-              {/* Mobile-responsive help instructions */}
-              <div className="text-xs text-muted-foreground space-y-2">
-                <p className="font-medium">To enable location access:</p>
-                {/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ? (
-                  <ul className="list-disc list-inside space-y-1 pl-2">
-                    <li>Go to your device Settings → Privacy → Location Services</li>
-                    <li>Turn on Location Services for your browser app</li>
-                    <li>Allow location access when prompted</li>
-                    <li>Refresh the page to try again</li>
-                  </ul>
-                ) : (
-                  <ul className="list-disc list-inside space-y-1 pl-2">
-                    <li>Click the location/lock icon in your browser's address bar</li>
-                    <li>Select "Allow" for location permissions</li>
-                    <li>Ensure WiFi or internet connection is stable</li>
-                    <li>Refresh the page to try again</li>
-                  </ul>
-                )}
-              </div>
-            </div>
-          )}
+
         </div>
 
         <DialogFooter>
@@ -672,8 +699,8 @@ export function AttendanceCheckOut({
             disabled={
               isSubmitting || 
               !location || 
-              !isOnline || 
-              (overtimeInfo.hasOvertime && (!otReason.trim() || otReason.trim().length < 10))
+              !navigator.onLine || 
+              !capturedPhoto
             }
             className="bg-red-600 hover:bg-red-700"
           >
@@ -685,9 +712,7 @@ export function AttendanceCheckOut({
             ) : (
               <>
                 <CheckCircle className="h-4 w-4 mr-2" />
-                {overtimeInfo.hasOvertime && (!otReason.trim() || otReason.trim().length < 10) 
-                  ? 'Complete OT Requirements' 
-                  : 'Check Out'}
+                Check Out
               </>
             )}
           </Button>
