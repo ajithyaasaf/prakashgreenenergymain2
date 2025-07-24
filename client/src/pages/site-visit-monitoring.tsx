@@ -59,8 +59,8 @@ export default function SiteVisitMonitoring() {
   // State management
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFilter, setDateFilter] = useState("");
-  const [departmentFilter, setDepartmentFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [departmentFilter, setDepartmentFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [selectedVisit, setSelectedVisit] = useState<SiteVisit | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
@@ -108,10 +108,10 @@ export default function SiteVisitMonitoring() {
     const matchesDate = !dateFilter || 
       format(visit.siteInTime, 'yyyy-MM-dd') === dateFilter;
     
-    const matchesDepartment = !departmentFilter || 
+    const matchesDepartment = !departmentFilter || departmentFilter === 'all' || 
       visit.department.toLowerCase() === departmentFilter.toLowerCase();
     
-    const matchesStatus = !statusFilter || visit.status === statusFilter;
+    const matchesStatus = !statusFilter || statusFilter === 'all' || visit.status === statusFilter;
     
     return matchesSearch && matchesDate && matchesDepartment && matchesStatus;
   });
@@ -269,7 +269,7 @@ export default function SiteVisitMonitoring() {
                 <SelectValue placeholder="Department" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Departments</SelectItem>
+                <SelectItem value="all">All Departments</SelectItem>
                 <SelectItem value="technical">Technical</SelectItem>
                 <SelectItem value="marketing">Marketing</SelectItem>
                 <SelectItem value="admin">Admin</SelectItem>
@@ -282,22 +282,22 @@ export default function SiteVisitMonitoring() {
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Status</SelectItem>
+                <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="in_progress">In Progress</SelectItem>
                 <SelectItem value="completed">Completed</SelectItem>
                 <SelectItem value="cancelled">Cancelled</SelectItem>
               </SelectContent>
             </Select>
 
-            {(searchQuery || dateFilter || departmentFilter || statusFilter) && (
+            {(searchQuery || dateFilter || (departmentFilter && departmentFilter !== 'all') || (statusFilter && statusFilter !== 'all')) && (
               <Button 
                 variant="outline" 
                 size="sm"
                 onClick={() => {
                   setSearchQuery("");
                   setDateFilter("");
-                  setDepartmentFilter("");
-                  setStatusFilter("");
+                  setDepartmentFilter("all");
+                  setStatusFilter("all");
                 }}
               >
                 Clear Filters
