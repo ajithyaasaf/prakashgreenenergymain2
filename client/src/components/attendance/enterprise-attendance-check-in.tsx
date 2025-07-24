@@ -618,7 +618,7 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
                   ) : (
                     <>
                       <RefreshCw className="h-3 w-3 mr-1" />
-                      Refresh
+                      Get Location
                     </>
                   )}
                 </Button>
@@ -645,8 +645,30 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
               )}
 
               {locationError && (
-                <div className="text-sm text-red-600 bg-red-50 p-2 rounded border border-red-200">
-                  {locationError.message}
+                <div className="space-y-3">
+                  <div className="text-sm text-red-600 bg-red-50 p-3 rounded border border-red-200">
+                    {locationError.message}
+                  </div>
+                  
+                  {/* Mobile-responsive help instructions */}
+                  <div className="text-xs text-muted-foreground space-y-2">
+                    <p className="font-medium">To enable location access:</p>
+                    {/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ? (
+                      <ul className="list-disc list-inside space-y-1 pl-2">
+                        <li>Go to your device Settings → Privacy → Location Services</li>
+                        <li>Turn on Location Services for your browser app</li>
+                        <li>Allow location access when prompted</li>
+                        <li>Try the "Get Location" button above</li>
+                      </ul>
+                    ) : (
+                      <ul className="list-disc list-inside space-y-1 pl-2">
+                        <li>Click the location/lock icon in your browser's address bar</li>
+                        <li>Select "Allow" for location permissions</li>
+                        <li>Ensure WiFi or internet connection is stable</li>
+                        <li>Try the "Get Location" button above</li>
+                      </ul>
+                    )}
+                  </div>
                 </div>
               )}
             </CardContent>

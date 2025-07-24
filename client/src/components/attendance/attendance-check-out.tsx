@@ -632,12 +632,34 @@ export function AttendanceCheckOut({
 
           {/* Error Display */}
           {locationError && (
-            <Alert variant="destructive">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertDescription>
-                Location Error: {locationError.message}
-              </AlertDescription>
-            </Alert>
+            <div className="space-y-3">
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  Location Error: {locationError.message}
+                </AlertDescription>
+              </Alert>
+              
+              {/* Mobile-responsive help instructions */}
+              <div className="text-xs text-muted-foreground space-y-2">
+                <p className="font-medium">To enable location access:</p>
+                {/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ? (
+                  <ul className="list-disc list-inside space-y-1 pl-2">
+                    <li>Go to your device Settings → Privacy → Location Services</li>
+                    <li>Turn on Location Services for your browser app</li>
+                    <li>Allow location access when prompted</li>
+                    <li>Refresh the page to try again</li>
+                  </ul>
+                ) : (
+                  <ul className="list-disc list-inside space-y-1 pl-2">
+                    <li>Click the location/lock icon in your browser's address bar</li>
+                    <li>Select "Allow" for location permissions</li>
+                    <li>Ensure WiFi or internet connection is stable</li>
+                    <li>Refresh the page to try again</li>
+                  </ul>
+                )}
+              </div>
+            </div>
           )}
         </div>
 

@@ -127,6 +127,24 @@ This is an enterprise-grade dashboard application for Prakash Greens Energy, bui
 
 ## Recent Changes
 
+### ENHANCED LOCATION UX & 12-HOUR FORMAT ENFORCEMENT - July 24, 2025
+- **Issue**: Users requested better location button text and mobile-responsive error messages for location permissions
+- **Improvements Applied**:
+  - ✅ Changed location refresh button text from "Refresh" to "Get Location" across all components
+  - ✅ Enhanced location error messages with mobile-responsive instructions
+  - ✅ Added device-specific help text for location permission issues
+  - ✅ Mobile users now see device Settings → Privacy → Location Services instructions
+  - ✅ Desktop users see browser-specific location permission instructions
+  - ✅ Applied consistent improvements to check-in, checkout, and site visit components
+- **12-Hour Format Enforcement**:
+  - ✅ Enhanced attendance validation to enforce 12-hour format requirement with AM/PM
+  - ✅ Marketing department invalid timing (09:30, 18:30) now properly detected and blocked
+  - ✅ Clear error message: "Department timing must be in 12-hour format (e.g., 9:00 AM - 6:00 PM)"
+  - ✅ Check-in button correctly disabled for departments with wrong timing format
+  - ✅ Universal validation ensures all departments must use proper 12-hour format
+- **Result**: Improved user experience with clear location guidance and strict timing format compliance
+- **System Impact**: Universal attendance integrity with proper timing format enforcement and better location UX
+
 ### CRITICAL ATTENDANCE VALIDATION FIX COMPLETED - July 24, 2025
 - **Issue**: Check-in button was enabled for departments without proper timing configuration
 - **Root Cause**: Frontend only checked if departmentTiming object existed, not if it contained valid checkInTime/checkOutTime values
