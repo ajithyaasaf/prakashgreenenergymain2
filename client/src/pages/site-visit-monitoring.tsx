@@ -14,7 +14,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { 
   MapPin, Search, Download, Eye, Calendar, Clock, Users, Building, 
   Camera, FileText, Filter, RefreshCw, TrendingUp, BarChart3,
-  CheckCircle, XCircle, AlertTriangle, Navigation, Phone, Mail
+  CheckCircle, XCircle, AlertTriangle, Navigation, Phone, Mail,
+  User, Zap
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -45,6 +46,25 @@ interface SiteVisit {
   technicalData?: any;
   marketingData?: any;
   adminData?: any;
+  // Location data
+  siteInLocation?: {
+    latitude: number;
+    longitude: number;
+    accuracy?: number;
+    address?: string;
+  };
+  siteOutLocation?: {
+    latitude: number;
+    longitude: number;
+    accuracy?: number;
+    address?: string;
+  };
+  siteInPhotoUrl?: string;
+  siteOutPhotoUrl?: string;
+  customer?: {
+    ebServiceNumber?: string;
+    propertyType?: string;
+  };
 }
 
 export default function SiteVisitMonitoring() {
@@ -378,53 +398,97 @@ export default function SiteVisitMonitoring() {
           ) : (
             <div className="space-y-4">
               {filteredVisits.map((visit) => (
-                <div key={visit.id} className="border rounded-lg p-4 hover:bg-gray-50">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 space-y-2">
+                <Card key={visit.id} className="hover:shadow-md transition-shadow">
+                  <CardContent className="p-6">
+                    <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center gap-3">
-                        <h3 className="font-medium">{visit.customerName}</h3>
-                        <Badge 
-                          variant={
-                            visit.status === 'completed' ? 'default' : 
-                            visit.status === 'in_progress' ? 'secondary' : 'destructive'
-                          }
-                        >
-                          {visit.status === 'in_progress' ? 'In Progress' : 
-                           visit.status === 'completed' ? 'Completed' : 'Cancelled'}
-                        </Badge>
-                        <Badge variant="outline">{visit.department}</Badge>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
-                        <div className="flex items-center gap-2">
-                          <MapPin className="h-4 w-4" />
-                          {visit.siteAddress}
+                        <div className="flex flex-col">
+                          <h3 className="font-semibold text-lg">{visit.customerName}</h3>
+                          <p className="text-sm text-muted-foreground">{visit.visitPurpose || 'Site Visit'}</p>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Users className="h-4 w-4" />
-                          {visit.userName} ({visit.userDepartment})
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4" />
-                          {format(visit.siteInTime, 'MMM dd, yyyy HH:mm')}
+                        <div className="flex gap-2">
+                          <Badge 
+                            variant={
+                              visit.status === 'completed' ? 'default' : 
+                              visit.status === 'in_progress' ? 'secondary' : 'destructive'
+                            }
+                            className="capitalize"
+                          >
+                            {visit.status === 'in_progress' ? 'In Progress' : 
+                             visit.status === 'completed' ? 'Completed' : 'Cancelled'}
+                          </Badge>
+                          <Badge variant="outline" className="capitalize">{visit.department}</Badge>
                         </div>
                       </div>
-                      
-                      {visit.customerPhone && (
-                        <div className="flex items-center gap-2 text-sm text-gray-600">
-                          <Phone className="h-4 w-4" />
-                          {visit.customerPhone}
-                        </div>
-                      )}
                     </div>
-                    
-                    <div className="flex items-center gap-2">
-                      {visit.sitePhotos?.length > 0 && (
-                        <Badge variant="outline" className="flex items-center gap-1">
-                          <Camera className="h-3 w-3" />
-                          {visit.sitePhotos.length} Photos
-                        </Badge>
-                      )}
+
+                    {/* Customer & Contact Info */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-sm">
+                          <MapPin className="h-4 w-4 text-blue-500" />
+                          <span className="font-medium">Address:</span>
+                          <span className="text-muted-foreground">{visit.siteAddress}</span>
+                        </div>
+                        {visit.customerPhone && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <Phone className="h-4 w-4 text-green-500" />
+                            <span className="font-medium">Phone:</span>
+                            <span className="text-muted-foreground">{visit.customerPhone}</span>
+                          </div>
+                        )}
+                        {visit.customerEmail && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <Mail className="h-4 w-4 text-orange-500" />
+                            <span className="font-medium">Email:</span>
+                            <span className="text-muted-foreground">{visit.customerEmail}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-sm">
+                          <Users className="h-4 w-4 text-purple-500" />
+                          <span className="font-medium">Employee:</span>
+                          <span className="text-muted-foreground">{visit.userName} ({visit.userDepartment})</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm">
+                          <Calendar className="h-4 w-4 text-indigo-500" />
+                          <span className="font-medium">Check-in:</span>
+                          <span className="text-muted-foreground">{format(visit.siteInTime, 'MMM dd, yyyy HH:mm')}</span>
+                        </div>
+                        {visit.siteOutTime && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <Clock className="h-4 w-4 text-red-500" />
+                            <span className="font-medium">Check-out:</span>
+                            <span className="text-muted-foreground">{format(visit.siteOutTime, 'MMM dd, yyyy HH:mm')}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Location & Photo Info */}
+                    <div className="flex items-center justify-between pt-3 border-t">
+                      <div className="flex items-center gap-4">
+                        {visit.siteInLocation && (
+                          <Badge variant="secondary" className="flex items-center gap-1">
+                            <Navigation className="h-3 w-3" />
+                            Location Tracked
+                          </Badge>
+                        )}
+                        {visit.sitePhotos?.length > 0 && (
+                          <Badge variant="outline" className="flex items-center gap-1">
+                            <Camera className="h-3 w-3" />
+                            {visit.sitePhotos.length} Photos
+                          </Badge>
+                        )}
+                        {(visit.technicalData || visit.marketingData || visit.adminData) && (
+                          <Badge variant="outline" className="flex items-center gap-1">
+                            <FileText className="h-3 w-3" />
+                            Department Data
+                          </Badge>
+                        )}
+                      </div>
                       
                       <Dialog>
                         <DialogTrigger asChild>
@@ -437,7 +501,7 @@ export default function SiteVisitMonitoring() {
                             }}
                           >
                             <Eye className="h-4 w-4 mr-2" />
-                            View Details
+                            View Complete Details
                           </Button>
                         </DialogTrigger>
                         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -454,40 +518,173 @@ export default function SiteVisitMonitoring() {
                                 <TabsTrigger value="data">Department Data</TabsTrigger>
                               </TabsList>
                               
-                              <TabsContent value="overview" className="space-y-4">
-                                <div className="grid grid-cols-2 gap-4">
-                                  <div>
-                                    <h4 className="font-medium mb-2">Customer Information</h4>
-                                    <div className="space-y-2 text-sm">
-                                      <p><strong>Name:</strong> {selectedVisit.customerName}</p>
-                                      <p><strong>Phone:</strong> {selectedVisit.customerPhone}</p>
+                              <TabsContent value="overview" className="space-y-6">
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                  {/* Customer Information Card */}
+                                  <Card>
+                                    <CardHeader>
+                                      <CardTitle className="flex items-center gap-2 text-lg">
+                                        <Users className="h-5 w-5" />
+                                        Customer Information
+                                      </CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="space-y-3">
+                                      <div className="flex items-center gap-2">
+                                        <User className="h-4 w-4 text-blue-500" />
+                                        <span className="font-medium">Name:</span>
+                                        <span>{selectedVisit.customerName}</span>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <Phone className="h-4 w-4 text-green-500" />
+                                        <span className="font-medium">Phone:</span>
+                                        <span>{selectedVisit.customerPhone}</span>
+                                      </div>
                                       {selectedVisit.customerEmail && (
-                                        <p><strong>Email:</strong> {selectedVisit.customerEmail}</p>
+                                        <div className="flex items-center gap-2">
+                                          <Mail className="h-4 w-4 text-orange-500" />
+                                          <span className="font-medium">Email:</span>
+                                          <span>{selectedVisit.customerEmail}</span>
+                                        </div>
                                       )}
-                                      <p><strong>Address:</strong> {selectedVisit.siteAddress}</p>
-                                    </div>
-                                  </div>
+                                      <div className="flex items-start gap-2">
+                                        <MapPin className="h-4 w-4 text-red-500 mt-0.5" />
+                                        <span className="font-medium">Address:</span>
+                                        <span className="text-sm">{selectedVisit.siteAddress}</span>
+                                      </div>
+                                      {selectedVisit.customer?.ebServiceNumber && (
+                                        <div className="flex items-center gap-2">
+                                          <Building className="h-4 w-4 text-purple-500" />
+                                          <span className="font-medium">EB Service:</span>
+                                          <span>{selectedVisit.customer.ebServiceNumber}</span>
+                                        </div>
+                                      )}
+                                      {selectedVisit.customer?.propertyType && (
+                                        <div className="flex items-center gap-2">
+                                          <Building className="h-4 w-4 text-indigo-500" />
+                                          <span className="font-medium">Property Type:</span>
+                                          <Badge variant="outline" className="capitalize">
+                                            {selectedVisit.customer.propertyType}
+                                          </Badge>
+                                        </div>
+                                      )}
+                                    </CardContent>
+                                  </Card>
                                   
-                                  <div>
-                                    <h4 className="font-medium mb-2">Visit Information</h4>
-                                    <div className="space-y-2 text-sm">
-                                      <p><strong>Employee:</strong> {selectedVisit.userName}</p>
-                                      <p><strong>Department:</strong> {selectedVisit.department}</p>
-                                      <p><strong>Visit Type:</strong> {selectedVisit.visitType}</p>
-                                      <p><strong>Purpose:</strong> {selectedVisit.visitPurpose}</p>
-                                      <p><strong>Site In:</strong> {format(selectedVisit.siteInTime, 'MMM dd, yyyy HH:mm')}</p>
+                                  {/* Visit Information Card */}
+                                  <Card>
+                                    <CardHeader>
+                                      <CardTitle className="flex items-center gap-2 text-lg">
+                                        <Calendar className="h-5 w-5" />
+                                        Visit Information
+                                      </CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="space-y-3">
+                                      <div className="flex items-center gap-2">
+                                        <Users className="h-4 w-4 text-purple-500" />
+                                        <span className="font-medium">Employee:</span>
+                                        <span>{selectedVisit.userName}</span>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <Building className="h-4 w-4 text-blue-500" />
+                                        <span className="font-medium">Department:</span>
+                                        <Badge variant="outline" className="capitalize">
+                                          {selectedVisit.department}
+                                        </Badge>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <MapPin className="h-4 w-4 text-green-500" />
+                                        <span className="font-medium">Purpose:</span>
+                                        <Badge variant="secondary" className="capitalize">
+                                          {selectedVisit.visitPurpose || 'Site Visit'}
+                                        </Badge>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <Clock className="h-4 w-4 text-indigo-500" />
+                                        <span className="font-medium">Status:</span>
+                                        <Badge 
+                                          variant={
+                                            selectedVisit.status === 'completed' ? 'default' : 
+                                            selectedVisit.status === 'in_progress' ? 'secondary' : 'destructive'
+                                          }
+                                          className="capitalize"
+                                        >
+                                          {selectedVisit.status.replace('_', ' ')}
+                                        </Badge>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <Calendar className="h-4 w-4 text-blue-500" />
+                                        <span className="font-medium">Check-in:</span>
+                                        <span className="text-sm">{format(selectedVisit.siteInTime, 'MMM dd, yyyy HH:mm:ss')}</span>
+                                      </div>
                                       {selectedVisit.siteOutTime && (
-                                        <p><strong>Site Out:</strong> {format(selectedVisit.siteOutTime, 'MMM dd, yyyy HH:mm')}</p>
+                                        <div className="flex items-center gap-2">
+                                          <Clock className="h-4 w-4 text-red-500" />
+                                          <span className="font-medium">Check-out:</span>
+                                          <span className="text-sm">{format(selectedVisit.siteOutTime, 'MMM dd, yyyy HH:mm:ss')}</span>
+                                        </div>
                                       )}
-                                    </div>
-                                  </div>
+                                      {selectedVisit.siteInTime && selectedVisit.siteOutTime && (
+                                        <div className="flex items-center gap-2">
+                                          <TrendingUp className="h-4 w-4 text-orange-500" />
+                                          <span className="font-medium">Duration:</span>
+                                          <span className="text-sm">
+                                            {Math.round((new Date(selectedVisit.siteOutTime).getTime() - new Date(selectedVisit.siteInTime).getTime()) / (1000 * 60))} minutes
+                                          </span>
+                                        </div>
+                                      )}
+                                    </CardContent>
+                                  </Card>
                                 </div>
+
+                                {/* Photos Overview */}
+                                {selectedVisit.siteInPhotoUrl && (
+                                  <Card>
+                                    <CardHeader>
+                                      <CardTitle className="flex items-center gap-2 text-lg">
+                                        <Camera className="h-5 w-5" />
+                                        Check-in Photo
+                                      </CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                      <img 
+                                        src={selectedVisit.siteInPhotoUrl}
+                                        alt="Check-in photo"
+                                        className="w-full max-w-md h-48 object-cover rounded-lg border"
+                                      />
+                                    </CardContent>
+                                  </Card>
+                                )}
+
+                                {selectedVisit.siteOutPhotoUrl && (
+                                  <Card>
+                                    <CardHeader>
+                                      <CardTitle className="flex items-center gap-2 text-lg">
+                                        <Camera className="h-5 w-5" />
+                                        Check-out Photo
+                                      </CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                      <img 
+                                        src={selectedVisit.siteOutPhotoUrl}
+                                        alt="Check-out photo"
+                                        className="w-full max-w-md h-48 object-cover rounded-lg border"
+                                      />
+                                    </CardContent>
+                                  </Card>
+                                )}
                                 
                                 {selectedVisit.notes && (
-                                  <div>
-                                    <h4 className="font-medium mb-2">Notes</h4>
-                                    <p className="text-sm bg-gray-50 p-3 rounded">{selectedVisit.notes}</p>
-                                  </div>
+                                  <Card>
+                                    <CardHeader>
+                                      <CardTitle className="flex items-center gap-2 text-lg">
+                                        <FileText className="h-5 w-5" />
+                                        Notes
+                                      </CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                      <p className="text-sm bg-gray-50 p-4 rounded-lg border">{selectedVisit.notes}</p>
+                                    </CardContent>
+                                  </Card>
                                 )}
                               </TabsContent>
                               
@@ -569,81 +766,351 @@ export default function SiteVisitMonitoring() {
                                 )}
                               </TabsContent>
                               
-                              <TabsContent value="location">
-                                {selectedVisit.latitude && selectedVisit.longitude ? (
-                                  <div className="space-y-4">
-                                    <div className="bg-gray-50 p-4 rounded-lg">
-                                      <p className="text-sm font-medium mb-2">GPS Coordinates</p>
-                                      <p className="text-sm text-gray-600">
-                                        Latitude: {selectedVisit.latitude}<br />
-                                        Longitude: {selectedVisit.longitude}
-                                      </p>
-                                    </div>
-                                    
-                                    <Button
-                                      variant="outline"
-                                      className="w-full"
-                                      onClick={() => {
-                                        const url = `https://www.google.com/maps?q=${selectedVisit.latitude},${selectedVisit.longitude}`;
-                                        window.open(url, '_blank');
-                                      }}
-                                    >
-                                      <Navigation className="h-4 w-4 mr-2" />
-                                      View on Google Maps
-                                    </Button>
+                              <TabsContent value="location" className="space-y-6">
+                                {(selectedVisit.siteInLocation || selectedVisit.siteOutLocation) ? (
+                                  <div className="space-y-6">
+                                    {/* Check-in Location */}
+                                    {selectedVisit.siteInLocation && (
+                                      <Card>
+                                        <CardHeader>
+                                          <CardTitle className="flex items-center gap-2 text-lg">
+                                            <MapPin className="h-5 w-5 text-green-500" />
+                                            Check-in Location
+                                          </CardTitle>
+                                        </CardHeader>
+                                        <CardContent className="space-y-4">
+                                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="space-y-3">
+                                              <div className="flex items-center gap-2">
+                                                <Navigation className="h-4 w-4 text-blue-500" />
+                                                <span className="font-medium">Coordinates:</span>
+                                                <span className="text-sm">
+                                                  {selectedVisit.siteInLocation.latitude?.toFixed(6)}, {selectedVisit.siteInLocation.longitude?.toFixed(6)}
+                                                </span>
+                                              </div>
+                                              {selectedVisit.siteInLocation.accuracy && (
+                                                <div className="flex items-center gap-2">
+                                                  <TrendingUp className="h-4 w-4 text-orange-500" />
+                                                  <span className="font-medium">Accuracy:</span>
+                                                  <Badge variant="outline">±{selectedVisit.siteInLocation.accuracy}m</Badge>
+                                                </div>
+                                              )}
+                                              <div className="flex items-start gap-2">
+                                                <MapPin className="h-4 w-4 text-red-500 mt-0.5" />
+                                                <span className="font-medium">Address:</span>
+                                                <span className="text-sm">{selectedVisit.siteInLocation.address || 'Address not available'}</span>
+                                              </div>
+                                            </div>
+                                            <div>
+                                              <Button
+                                                variant="outline"
+                                                className="w-full"
+                                                onClick={() => {
+                                                  const url = `https://www.google.com/maps?q=${selectedVisit.siteInLocation.latitude},${selectedVisit.siteInLocation.longitude}`;
+                                                  window.open(url, '_blank');
+                                                }}
+                                              >
+                                                <Navigation className="h-4 w-4 mr-2" />
+                                                View Check-in on Maps
+                                              </Button>
+                                            </div>
+                                          </div>
+                                        </CardContent>
+                                      </Card>
+                                    )}
+
+                                    {/* Check-out Location */}
+                                    {selectedVisit.siteOutLocation && (
+                                      <Card>
+                                        <CardHeader>
+                                          <CardTitle className="flex items-center gap-2 text-lg">
+                                            <MapPin className="h-5 w-5 text-red-500" />
+                                            Check-out Location
+                                          </CardTitle>
+                                        </CardHeader>
+                                        <CardContent className="space-y-4">
+                                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="space-y-3">
+                                              <div className="flex items-center gap-2">
+                                                <Navigation className="h-4 w-4 text-blue-500" />
+                                                <span className="font-medium">Coordinates:</span>
+                                                <span className="text-sm">
+                                                  {selectedVisit.siteOutLocation.latitude?.toFixed(6)}, {selectedVisit.siteOutLocation.longitude?.toFixed(6)}
+                                                </span>
+                                              </div>
+                                              {selectedVisit.siteOutLocation.accuracy && (
+                                                <div className="flex items-center gap-2">
+                                                  <TrendingUp className="h-4 w-4 text-orange-500" />
+                                                  <span className="font-medium">Accuracy:</span>
+                                                  <Badge variant="outline">±{selectedVisit.siteOutLocation.accuracy}m</Badge>
+                                                </div>
+                                              )}
+                                              <div className="flex items-start gap-2">
+                                                <MapPin className="h-4 w-4 text-red-500 mt-0.5" />
+                                                <span className="font-medium">Address:</span>
+                                                <span className="text-sm">{selectedVisit.siteOutLocation.address || 'Address not available'}</span>
+                                              </div>
+                                            </div>
+                                            <div>
+                                              <Button
+                                                variant="outline"
+                                                className="w-full"
+                                                onClick={() => {
+                                                  const url = `https://www.google.com/maps?q=${selectedVisit.siteOutLocation.latitude},${selectedVisit.siteOutLocation.longitude}`;
+                                                  window.open(url, '_blank');
+                                                }}
+                                              >
+                                                <Navigation className="h-4 w-4 mr-2" />
+                                                View Check-out on Maps
+                                              </Button>
+                                            </div>
+                                          </div>
+                                        </CardContent>
+                                      </Card>
+                                    )}
+
+                                    {/* Location Comparison */}
+                                    {selectedVisit.siteInLocation && selectedVisit.siteOutLocation && (
+                                      <Card>
+                                        <CardHeader>
+                                          <CardTitle className="flex items-center gap-2 text-lg">
+                                            <BarChart3 className="h-5 w-5 text-purple-500" />
+                                            Location Analysis
+                                          </CardTitle>
+                                        </CardHeader>
+                                        <CardContent>
+                                          <div className="space-y-3">
+                                            <div className="flex items-center gap-2">
+                                              <TrendingUp className="h-4 w-4 text-blue-500" />
+                                              <span className="font-medium">Distance between locations:</span>
+                                              <Badge variant="secondary">
+                                                {(() => {
+                                                  const R = 6371; // Earth's radius in km
+                                                  const dLat = (selectedVisit.siteOutLocation.latitude - selectedVisit.siteInLocation.latitude) * Math.PI / 180;
+                                                  const dLon = (selectedVisit.siteOutLocation.longitude - selectedVisit.siteInLocation.longitude) * Math.PI / 180;
+                                                  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                                                           Math.cos(selectedVisit.siteInLocation.latitude * Math.PI / 180) * Math.cos(selectedVisit.siteOutLocation.latitude * Math.PI / 180) *
+                                                           Math.sin(dLon/2) * Math.sin(dLon/2);
+                                                  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                                                  const distance = R * c * 1000; // Convert to meters
+                                                  return distance < 1000 ? `${Math.round(distance)}m` : `${(distance/1000).toFixed(2)}km`;
+                                                })()}
+                                              </Badge>
+                                            </div>
+                                            <Button
+                                              variant="outline"
+                                              className="w-full"
+                                              onClick={() => {
+                                                const url = `https://www.google.com/maps/dir/${selectedVisit.siteInLocation.latitude},${selectedVisit.siteInLocation.longitude}/${selectedVisit.siteOutLocation.latitude},${selectedVisit.siteOutLocation.longitude}`;
+                                                window.open(url, '_blank');
+                                              }}
+                                            >
+                                              <Navigation className="h-4 w-4 mr-2" />
+                                              View Route on Maps
+                                            </Button>
+                                          </div>
+                                        </CardContent>
+                                      </Card>
+                                    )}
                                   </div>
                                 ) : (
-                                  <div className="text-center py-8 text-gray-500">
-                                    <MapPin className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                                    Location data not available
+                                  <div className="text-center py-12">
+                                    <MapPin className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+                                    <h3 className="text-lg font-medium text-gray-600 mb-2">No Location Data Available</h3>
+                                    <p className="text-sm text-gray-500">Location tracking was not enabled for this site visit</p>
                                   </div>
                                 )}
                               </TabsContent>
                               
-                              <TabsContent value="data">
-                                <div className="space-y-4">
-                                  {selectedVisit.technicalData && (
-                                    <div>
-                                      <h4 className="font-medium mb-2">Technical Data</h4>
-                                      <pre className="text-sm bg-gray-50 p-3 rounded overflow-auto">
-                                        {JSON.stringify(selectedVisit.technicalData, null, 2)}
-                                      </pre>
-                                    </div>
-                                  )}
-                                  
-                                  {selectedVisit.marketingData && (
-                                    <div>
-                                      <h4 className="font-medium mb-2">Marketing Data</h4>
-                                      <pre className="text-sm bg-gray-50 p-3 rounded overflow-auto">
-                                        {JSON.stringify(selectedVisit.marketingData, null, 2)}
-                                      </pre>
-                                    </div>
-                                  )}
-                                  
-                                  {selectedVisit.adminData && (
-                                    <div>
-                                      <h4 className="font-medium mb-2">Admin Data</h4>
-                                      <pre className="text-sm bg-gray-50 p-3 rounded overflow-auto">
-                                        {JSON.stringify(selectedVisit.adminData, null, 2)}
-                                      </pre>
-                                    </div>
-                                  )}
-                                  
-                                  {!selectedVisit.technicalData && !selectedVisit.marketingData && !selectedVisit.adminData && (
-                                    <div className="text-center py-8 text-gray-500">
-                                      <FileText className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                                      No department-specific data available
-                                    </div>
-                                  )}
-                                </div>
+                              <TabsContent value="data" className="space-y-6">
+                                {/* Technical Data */}
+                                {selectedVisit.technicalData && (
+                                  <Card>
+                                    <CardHeader>
+                                      <CardTitle className="flex items-center gap-2 text-lg">
+                                        <Zap className="h-5 w-5 text-blue-500" />
+                                        Technical Department Data
+                                      </CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="space-y-4">
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {selectedVisit.technicalData.serviceTypes && (
+                                          <div>
+                                            <span className="font-medium">Service Types:</span>
+                                            <div className="flex flex-wrap gap-1 mt-1">
+                                              {selectedVisit.technicalData.serviceTypes.map((type: string, index: number) => (
+                                                <Badge key={index} variant="secondary" className="text-xs">
+                                                  {type.replace('_', ' ').toUpperCase()}
+                                                </Badge>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        )}
+                                        {selectedVisit.technicalData.workType && (
+                                          <div>
+                                            <span className="font-medium">Work Type:</span>
+                                            <Badge variant="outline" className="ml-2 capitalize">
+                                              {selectedVisit.technicalData.workType.replace('_', ' ')}
+                                            </Badge>
+                                          </div>
+                                        )}
+                                        {selectedVisit.technicalData.workingStatus && (
+                                          <div>
+                                            <span className="font-medium">Status:</span>
+                                            <Badge 
+                                              variant={selectedVisit.technicalData.workingStatus === 'completed' ? 'default' : 'secondary'}
+                                              className="ml-2 capitalize"
+                                            >
+                                              {selectedVisit.technicalData.workingStatus}
+                                            </Badge>
+                                          </div>
+                                        )}
+                                        {selectedVisit.technicalData.teamMembers && (
+                                          <div>
+                                            <span className="font-medium">Team Members:</span>
+                                            <div className="flex flex-wrap gap-1 mt-1">
+                                              {selectedVisit.technicalData.teamMembers.map((member: string, index: number) => (
+                                                <Badge key={index} variant="outline" className="text-xs">
+                                                  {member}
+                                                </Badge>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                      {selectedVisit.technicalData.pendingRemarks && (
+                                        <div className="pt-3 border-t">
+                                          <span className="font-medium">Pending Remarks:</span>
+                                          <p className="text-sm mt-1 bg-yellow-50 p-3 rounded border">
+                                            {selectedVisit.technicalData.pendingRemarks}
+                                          </p>
+                                        </div>
+                                      )}
+                                      {selectedVisit.technicalData.description && (
+                                        <div className="pt-3 border-t">
+                                          <span className="font-medium">Description:</span>
+                                          <p className="text-sm mt-1 bg-gray-50 p-3 rounded">
+                                            {selectedVisit.technicalData.description}
+                                          </p>
+                                        </div>
+                                      )}
+                                    </CardContent>
+                                  </Card>
+                                )}
+                                
+                                {/* Marketing Data */}
+                                {selectedVisit.marketingData && (
+                                  <Card>
+                                    <CardHeader>
+                                      <CardTitle className="flex items-center gap-2 text-lg">
+                                        <TrendingUp className="h-5 w-5 text-green-500" />
+                                        Marketing Department Data
+                                      </CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="space-y-4">
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                          <span className="font-medium">Requirements Update:</span>
+                                          <Badge 
+                                            variant={selectedVisit.marketingData.updateRequirements ? 'default' : 'secondary'}
+                                            className="ml-2"
+                                          >
+                                            {selectedVisit.marketingData.updateRequirements ? 'Yes' : 'No'}
+                                          </Badge>
+                                        </div>
+                                        {selectedVisit.marketingData.projectType && (
+                                          <div>
+                                            <span className="font-medium">Project Type:</span>
+                                            <Badge variant="outline" className="ml-2 capitalize">
+                                              {selectedVisit.marketingData.projectType.replace('_', ' ')}
+                                            </Badge>
+                                          </div>
+                                        )}
+                                      </div>
+                                      
+                                      {/* Project Configuration Details */}
+                                      {selectedVisit.marketingData.onGridConfig && (
+                                        <div className="pt-3 border-t">
+                                          <h5 className="font-medium mb-2">On-Grid Configuration</h5>
+                                          <div className="grid grid-cols-2 gap-2 text-sm">
+                                            <div>Panel: {selectedVisit.marketingData.onGridConfig.solarPanelMake}</div>
+                                            <div>Inverter: {selectedVisit.marketingData.onGridConfig.inverterMake}</div>
+                                            <div>Panel Count: {selectedVisit.marketingData.onGridConfig.panelCount}</div>
+                                            <div>Project Value: ₹{selectedVisit.marketingData.onGridConfig.projectValue}</div>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </CardContent>
+                                  </Card>
+                                )}
+                                
+                                {/* Admin Data */}
+                                {selectedVisit.adminData && (
+                                  <Card>
+                                    <CardHeader>
+                                      <CardTitle className="flex items-center gap-2 text-lg">
+                                        <Building className="h-5 w-5 text-purple-500" />
+                                        Administrative Data
+                                      </CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="space-y-4">
+                                      {selectedVisit.adminData.bankProcess && (
+                                        <div>
+                                          <span className="font-medium">Bank Process:</span>
+                                          <Badge variant="outline" className="ml-2 capitalize">
+                                            {selectedVisit.adminData.bankProcess.step?.replace('_', ' ')}
+                                          </Badge>
+                                          {selectedVisit.adminData.bankProcess.description && (
+                                            <p className="text-sm mt-2 bg-blue-50 p-3 rounded">
+                                              {selectedVisit.adminData.bankProcess.description}
+                                            </p>
+                                          )}
+                                        </div>
+                                      )}
+                                      
+                                      {selectedVisit.adminData.ebProcess && (
+                                        <div>
+                                          <span className="font-medium">EB Process:</span>
+                                          <Badge variant="outline" className="ml-2 capitalize">
+                                            {selectedVisit.adminData.ebProcess.type?.replace('_', ' ')}
+                                          </Badge>
+                                          {selectedVisit.adminData.ebProcess.description && (
+                                            <p className="text-sm mt-2 bg-yellow-50 p-3 rounded">
+                                              {selectedVisit.adminData.ebProcess.description}
+                                            </p>
+                                          )}
+                                        </div>
+                                      )}
+                                      
+                                      {Object.entries(selectedVisit.adminData).filter(([key, value]) => 
+                                        !['bankProcess', 'ebProcess'].includes(key) && value
+                                      ).map(([key, value]) => (
+                                        <div key={key} className="pt-3 border-t">
+                                          <span className="font-medium capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
+                                          <p className="text-sm mt-1 bg-gray-50 p-3 rounded">
+                                            {value as string}
+                                          </p>
+                                        </div>
+                                      ))}
+                                    </CardContent>
+                                  </Card>
+                                )}
+                                
+                                {!selectedVisit.technicalData && !selectedVisit.marketingData && !selectedVisit.adminData && (
+                                  <div className="text-center py-12">
+                                    <FileText className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+                                    <h3 className="text-lg font-medium text-gray-600 mb-2">No Department Data Available</h3>
+                                    <p className="text-sm text-gray-500">No department-specific information was captured for this site visit</p>
+                                  </div>
+                                )}
                               </TabsContent>
                             </Tabs>
                           )}
                         </DialogContent>
                       </Dialog>
                     </div>
-                  </div>
-                </div>
+                  </CardContent>
+                </Card>
               ))}
             </div>
           )}
