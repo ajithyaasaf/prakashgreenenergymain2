@@ -212,6 +212,21 @@ export default function Attendance() {
     if (!departmentTiming || !departmentTiming.checkInTime || !departmentTiming.checkOutTime) {
       return { state: 'no_timing', canCheckIn: false, canCheckOut: false };
     }
+    
+    // Additional validation: Check if timing values are properly formatted (must contain AM/PM)
+    const checkInTime = departmentTiming.checkInTime;
+    const checkOutTime = departmentTiming.checkOutTime;
+    
+    // Validate that timing values are proper 12-hour format (contain AM or PM)
+    const isValidTimeFormat = (time: string) => {
+      return time && (time.includes('AM') || time.includes('PM'));
+    };
+    
+    if (!isValidTimeFormat(checkInTime) || !isValidTimeFormat(checkOutTime)) {
+      console.log('ATTENDANCE: Invalid timing format detected:', { checkInTime, checkOutTime });
+      return { state: 'no_timing', canCheckIn: false, canCheckOut: false };
+    }
+    
     if (!todayAttendance) return { state: 'not_started', canCheckIn: true, canCheckOut: false };
     if (todayAttendance.checkInTime && !todayAttendance.checkOutTime) return { state: 'checked_in', canCheckIn: false, canCheckOut: true };
     if (todayAttendance.checkInTime && todayAttendance.checkOutTime) return { state: 'completed', canCheckIn: false, canCheckOut: false };
@@ -362,12 +377,19 @@ export default function Attendance() {
 
             {/* Action Buttons */}
             <div className="flex gap-3 pt-2">
-              {!departmentTiming ? (
+              {!departmentTiming || !departmentTiming.checkInTime || !departmentTiming.checkOutTime || 
+               !(departmentTiming.checkInTime.includes('AM') || departmentTiming.checkInTime.includes('PM')) ||
+               !(departmentTiming.checkOutTime.includes('AM') || departmentTiming.checkOutTime.includes('PM')) ? (
                 <div className="flex-1 text-center py-4">
                   <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-                    <div className="text-orange-700 font-medium mb-2">Department Timing Not Configured</div>
+                    <div className="text-orange-700 font-medium mb-2">
+                      {!departmentTiming ? "Department Timing Not Configured" : "Invalid Timing Format"}
+                    </div>
                     <div className="text-sm text-orange-600 mb-3">
-                      Your department's working hours must be configured before you can check in.
+                      {!departmentTiming 
+                        ? "Your department's working hours must be configured before you can check in."
+                        : "Department timing must be in 12-hour format (e.g., 9:00 AM - 6:00 PM)."
+                      }
                     </div>
                     {user?.role === "master_admin" && (
                       <div className="space-y-2">
