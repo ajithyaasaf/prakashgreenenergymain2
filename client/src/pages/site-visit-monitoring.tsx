@@ -86,6 +86,16 @@ export default function SiteVisitMonitoring() {
     enabled: hasAccess
   });
 
+  // Debug: Log all site visits data to understand the structure
+  console.log('SITE_VISITS_RAW_DATA:', siteVisits.map(visit => ({
+    id: visit.id,
+    customerName: visit.customerName,
+    status: visit.status,
+    department: visit.department,
+    siteInTime: visit.siteInTime,
+    siteOutTime: visit.siteOutTime
+  })));
+
   // Dashboard statistics
   const stats = {
     total: siteVisits.length,
@@ -97,8 +107,10 @@ export default function SiteVisitMonitoring() {
       return visitDate.toDateString() === today.toDateString();
     }).length
   };
+  
+  console.log('SITE_VISITS_STATS:', stats);
 
-  // Filtered data
+  // Filtered data with debugging
   const filteredVisits = siteVisits.filter(visit => {
     const matchesSearch = !searchQuery || 
       visit.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -112,6 +124,19 @@ export default function SiteVisitMonitoring() {
       visit.department.toLowerCase() === departmentFilter.toLowerCase();
     
     const matchesStatus = !statusFilter || statusFilter === 'all' || visit.status === statusFilter;
+    
+    // Debug logging for status filter issues
+    if (statusFilter === 'completed') {
+      console.log('SITE_VISIT_FILTER_DEBUG:', {
+        visitId: visit.id,
+        customerName: visit.customerName,
+        status: visit.status,
+        statusFilter,
+        matchesStatus,
+        department: visit.department,
+        siteInTime: visit.siteInTime
+      });
+    }
     
     return matchesSearch && matchesDate && matchesDepartment && matchesStatus;
   });
@@ -270,10 +295,13 @@ export default function SiteVisitMonitoring() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Departments</SelectItem>
-                <SelectItem value="technical">Technical</SelectItem>
-                <SelectItem value="marketing">Marketing</SelectItem>
+                <SelectItem value="operations">Operations</SelectItem>
                 <SelectItem value="admin">Admin</SelectItem>
-                <SelectItem value="administration">Administration</SelectItem>
+                <SelectItem value="hr">HR</SelectItem>
+                <SelectItem value="marketing">Marketing</SelectItem>
+                <SelectItem value="sales">Sales</SelectItem>
+                <SelectItem value="technical">Technical</SelectItem>
+                <SelectItem value="housekeeping">Housekeeping</SelectItem>
               </SelectContent>
             </Select>
             
