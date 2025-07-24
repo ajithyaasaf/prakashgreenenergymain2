@@ -254,16 +254,18 @@ export class UnifiedAttendanceService {
         userId: request.userId
       });
 
+      const actualCheckInTime = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+      
       return {
         success: true,
         attendanceId: newAttendance.id,
-        message: `Check-in successful${timingInfo.isLate ? ` (${timingInfo.lateMinutes} minutes late)` : ''}`,
+        message: `Check-in successful at ${actualCheckInTime}${timingInfo.isLate ? ` (${timingInfo.lateMinutes} minutes late from ${timingInfo.expectedCheckInTime} start time)` : ''}`,
         locationValidation,
         attendanceDetails: {
           isLate: timingInfo.isLate,
           lateMinutes: timingInfo.lateMinutes,
           expectedCheckInTime: timingInfo.expectedCheckInTime,
-          actualCheckInTime: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+          actualCheckInTime: actualCheckInTime
         },
         recommendations: locationValidation.recommendations
       };
