@@ -238,71 +238,71 @@ export default function SiteVisitMonitoring() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-4 p-3 sm:p-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Site Visit Monitoring</h1>
-          <p className="text-gray-600">Live monitoring and reporting dashboard for all site visits</p>
+          <h1 className="text-xl sm:text-2xl font-bold">Site Visit Monitoring</h1>
+          <p className="text-sm sm:text-base text-gray-600">Live monitoring and reporting dashboard for all site visits</p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={() => refetch()} variant="outline" size="sm">
+          <Button onClick={() => refetch()} variant="outline" size="sm" className="flex-1 sm:flex-initial">
             <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
+            <span className="hidden xs:inline">Refresh</span>
           </Button>
-          <Button onClick={exportSiteVisitsData} variant="outline" size="sm">
+          <Button onClick={exportSiteVisitsData} variant="outline" size="sm" className="flex-1 sm:flex-initial">
             <Download className="h-4 w-4 mr-2" />
-            Export Data
+            <span className="hidden xs:inline">Export</span>
           </Button>
         </div>
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <Card>
-          <CardContent className="py-4">
+          <CardContent className="py-3 sm:py-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Total Visits</p>
-                <p className="text-2xl font-bold">{stats.total}</p>
+                <p className="text-xs sm:text-sm text-gray-600">Total Visits</p>
+                <p className="text-lg sm:text-2xl font-bold">{stats.total}</p>
               </div>
-              <BarChart3 className="h-8 w-8 text-blue-500" />
+              <BarChart3 className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500" />
             </div>
           </CardContent>
         </Card>
         
         <Card>
-          <CardContent className="py-4">
+          <CardContent className="py-3 sm:py-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">In Progress</p>
-                <p className="text-2xl font-bold text-orange-600">{stats.inProgress}</p>
+                <p className="text-xs sm:text-sm text-gray-600">In Progress</p>
+                <p className="text-lg sm:text-2xl font-bold text-orange-600">{stats.inProgress}</p>
               </div>
-              <Clock className="h-8 w-8 text-orange-500" />
+              <Clock className="h-6 w-6 sm:h-8 sm:w-8 text-orange-500" />
             </div>
           </CardContent>
         </Card>
         
         <Card>
-          <CardContent className="py-4">
+          <CardContent className="py-3 sm:py-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Completed</p>
-                <p className="text-2xl font-bold text-green-600">{stats.completed}</p>
+                <p className="text-xs sm:text-sm text-gray-600">Completed</p>
+                <p className="text-lg sm:text-2xl font-bold text-green-600">{stats.completed}</p>
               </div>
-              <CheckCircle className="h-8 w-8 text-green-500" />
+              <CheckCircle className="h-6 w-6 sm:h-8 sm:w-8 text-green-500" />
             </div>
           </CardContent>
         </Card>
         
         <Card>
-          <CardContent className="py-4">
+          <CardContent className="py-3 sm:py-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Today's Visits</p>
-                <p className="text-2xl font-bold text-purple-600">{stats.today}</p>
+                <p className="text-xs sm:text-sm text-gray-600">Today's Visits</p>
+                <p className="text-lg sm:text-2xl font-bold text-purple-600">{stats.today}</p>
               </div>
-              <Calendar className="h-8 w-8 text-purple-500" />
+              <Calendar className="h-6 w-6 sm:h-8 sm:w-8 text-purple-500" />
             </div>
           </CardContent>
         </Card>
@@ -310,59 +310,62 @@ export default function SiteVisitMonitoring() {
 
       {/* Filters */}
       <Card>
-        <CardContent className="py-4">
-          <div className="flex flex-wrap gap-4">
-            <div className="flex-1 min-w-[200px]">
+        <CardContent className="py-3 sm:py-4">
+          <div className="space-y-3 sm:space-y-0 sm:flex sm:flex-wrap sm:gap-4">
+            <div className="flex-1 sm:min-w-[200px]">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
                   placeholder="Search by customer, address, or employee..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 text-sm"
                 />
               </div>
             </div>
             
-            <Input
-              type="date"
-              value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value)}
-              className="w-40"
-            />
-            
-            <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Department" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Departments</SelectItem>
-                <SelectItem value="operations">Operations</SelectItem>
-                <SelectItem value="admin">Admin</SelectItem>
-                <SelectItem value="hr">HR</SelectItem>
-                <SelectItem value="marketing">Marketing</SelectItem>
-                <SelectItem value="sales">Sales</SelectItem>
-                <SelectItem value="technical">Technical</SelectItem>
-                <SelectItem value="housekeeping">Housekeeping</SelectItem>
-              </SelectContent>
-            </Select>
-            
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-32">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="in_progress">In Progress</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-                <SelectItem value="cancelled">Cancelled</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:flex sm:gap-4">
+              <Input
+                type="date"
+                value={dateFilter}
+                onChange={(e) => setDateFilter(e.target.value)}
+                className="sm:w-40 text-sm"
+              />
+              
+              <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+                <SelectTrigger className="sm:w-40">
+                  <SelectValue placeholder="Department" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Departments</SelectItem>
+                  <SelectItem value="operations">Operations</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="hr">HR</SelectItem>
+                  <SelectItem value="marketing">Marketing</SelectItem>
+                  <SelectItem value="sales">Sales</SelectItem>
+                  <SelectItem value="technical">Technical</SelectItem>
+                  <SelectItem value="housekeeping">Housekeeping</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="sm:w-32">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="in_progress">In Progress</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
             {(searchQuery || dateFilter || (departmentFilter && departmentFilter !== 'all') || (statusFilter && statusFilter !== 'all')) && (
               <Button 
                 variant="outline" 
                 size="sm"
+                className="w-full sm:w-auto"
                 onClick={() => {
                   setSearchQuery("");
                   setDateFilter("");
@@ -399,93 +402,93 @@ export default function SiteVisitMonitoring() {
             <div className="space-y-4">
               {filteredVisits.map((visit) => (
                 <Card key={visit.id} className="hover:shadow-md transition-shadow">
-                  <CardContent className="p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex flex-col">
-                          <h3 className="font-semibold text-lg">{visit.customerName}</h3>
-                          <p className="text-sm text-muted-foreground">{visit.visitPurpose || 'Site Visit'}</p>
+                  <CardContent className="p-3 sm:p-6">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
+                      <div className="flex-1">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
+                          <h3 className="font-semibold text-base sm:text-lg">{visit.customerName}</h3>
+                          <div className="flex gap-2">
+                            <Badge 
+                              variant={
+                                visit.status === 'completed' ? 'default' : 
+                                visit.status === 'in_progress' ? 'secondary' : 'destructive'
+                              }
+                              className="capitalize text-xs"
+                            >
+                              {visit.status === 'in_progress' ? 'In Progress' : 
+                               visit.status === 'completed' ? 'Completed' : 'Cancelled'}
+                            </Badge>
+                            <Badge variant="outline" className="capitalize text-xs">{visit.department}</Badge>
+                          </div>
                         </div>
-                        <div className="flex gap-2">
-                          <Badge 
-                            variant={
-                              visit.status === 'completed' ? 'default' : 
-                              visit.status === 'in_progress' ? 'secondary' : 'destructive'
-                            }
-                            className="capitalize"
-                          >
-                            {visit.status === 'in_progress' ? 'In Progress' : 
-                             visit.status === 'completed' ? 'Completed' : 'Cancelled'}
-                          </Badge>
-                          <Badge variant="outline" className="capitalize">{visit.department}</Badge>
-                        </div>
+                        <p className="text-xs sm:text-sm text-muted-foreground">{visit.visitPurpose || 'Site Visit'}</p>
                       </div>
                     </div>
 
                     {/* Customer & Contact Info */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-sm">
-                          <MapPin className="h-4 w-4 text-blue-500" />
+                    <div className="space-y-3 mb-4">
+                      <div className="flex items-start gap-2 text-xs sm:text-sm">
+                        <MapPin className="h-3 w-3 sm:h-4 sm:w-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                        <div className="flex-1">
                           <span className="font-medium">Address:</span>
-                          <span className="text-muted-foreground">{visit.siteAddress}</span>
+                          <span className="text-muted-foreground ml-1 break-words">{visit.siteAddress}</span>
                         </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
                         {visit.customerPhone && (
-                          <div className="flex items-center gap-2 text-sm">
-                            <Phone className="h-4 w-4 text-green-500" />
+                          <div className="flex items-center gap-2 text-xs sm:text-sm">
+                            <Phone className="h-3 w-3 sm:h-4 sm:w-4 text-green-500 flex-shrink-0" />
                             <span className="font-medium">Phone:</span>
                             <span className="text-muted-foreground">{visit.customerPhone}</span>
                           </div>
                         )}
                         {visit.customerEmail && (
-                          <div className="flex items-center gap-2 text-sm">
-                            <Mail className="h-4 w-4 text-orange-500" />
+                          <div className="flex items-center gap-2 text-xs sm:text-sm">
+                            <Mail className="h-3 w-3 sm:h-4 sm:w-4 text-orange-500 flex-shrink-0" />
                             <span className="font-medium">Email:</span>
-                            <span className="text-muted-foreground">{visit.customerEmail}</span>
+                            <span className="text-muted-foreground truncate">{visit.customerEmail}</span>
                           </div>
                         )}
-                      </div>
-
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-sm">
-                          <Users className="h-4 w-4 text-purple-500" />
+                        <div className="flex items-center gap-2 text-xs sm:text-sm">
+                          <Users className="h-3 w-3 sm:h-4 sm:w-4 text-purple-500 flex-shrink-0" />
                           <span className="font-medium">Employee:</span>
-                          <span className="text-muted-foreground">{visit.userName} ({visit.userDepartment})</span>
+                          <span className="text-muted-foreground">{visit.userName}</span>
                         </div>
-                        <div className="flex items-center gap-2 text-sm">
-                          <Calendar className="h-4 w-4 text-indigo-500" />
+                        <div className="flex items-center gap-2 text-xs sm:text-sm">
+                          <Calendar className="h-3 w-3 sm:h-4 sm:w-4 text-indigo-500 flex-shrink-0" />
                           <span className="font-medium">Check-in:</span>
-                          <span className="text-muted-foreground">{format(visit.siteInTime, 'MMM dd, yyyy HH:mm')}</span>
+                          <span className="text-muted-foreground">{format(visit.siteInTime, 'MMM dd, HH:mm')}</span>
                         </div>
                         {visit.siteOutTime && (
-                          <div className="flex items-center gap-2 text-sm">
-                            <Clock className="h-4 w-4 text-red-500" />
+                          <div className="flex items-center gap-2 text-xs sm:text-sm col-span-1 sm:col-span-2">
+                            <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-red-500 flex-shrink-0" />
                             <span className="font-medium">Check-out:</span>
-                            <span className="text-muted-foreground">{format(visit.siteOutTime, 'MMM dd, yyyy HH:mm')}</span>
+                            <span className="text-muted-foreground">{format(visit.siteOutTime, 'MMM dd, HH:mm')}</span>
                           </div>
                         )}
                       </div>
                     </div>
 
                     {/* Location & Photo Info */}
-                    <div className="flex items-center justify-between pt-3 border-t">
-                      <div className="flex items-center gap-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-3 border-t">
+                      <div className="flex flex-wrap items-center gap-2">
                         {visit.siteInLocation && (
-                          <Badge variant="secondary" className="flex items-center gap-1">
-                            <Navigation className="h-3 w-3" />
+                          <Badge variant="secondary" className="flex items-center gap-1 text-xs">
+                            <Navigation className="h-2 w-2 sm:h-3 sm:w-3" />
                             Location Tracked
                           </Badge>
                         )}
                         {visit.sitePhotos?.length > 0 && (
-                          <Badge variant="outline" className="flex items-center gap-1">
-                            <Camera className="h-3 w-3" />
+                          <Badge variant="outline" className="flex items-center gap-1 text-xs">
+                            <Camera className="h-2 w-2 sm:h-3 sm:w-3" />
                             {visit.sitePhotos.length} Photos
                           </Badge>
                         )}
                         {(visit.technicalData || visit.marketingData || visit.adminData) && (
-                          <Badge variant="outline" className="flex items-center gap-1">
-                            <FileText className="h-3 w-3" />
-                            Department Data
+                          <Badge variant="outline" className="flex items-center gap-1 text-xs">
+                            <FileText className="h-2 w-2 sm:h-3 sm:w-3" />
+                            Data
                           </Badge>
                         )}
                       </div>
@@ -495,61 +498,73 @@ export default function SiteVisitMonitoring() {
                           <Button 
                             variant="outline" 
                             size="sm"
+                            className="w-full sm:w-auto"
                             onClick={() => {
                               setSelectedVisit(visit);
                               setCurrentImageIndex(0);
                             }}
                           >
-                            <Eye className="h-4 w-4 mr-2" />
-                            View Complete Details
+                            <Eye className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
+                            <span className="text-xs sm:text-sm">View Details</span>
                           </Button>
                         </DialogTrigger>
-                        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                        <DialogContent className="w-[95vw] max-w-4xl h-[90vh] sm:h-[90vh] overflow-y-auto">
                           <DialogHeader>
-                            <DialogTitle>Site Visit Details - {visit.customerName}</DialogTitle>
+                            <DialogTitle className="text-sm sm:text-base truncate">Site Visit Details - {visit.customerName}</DialogTitle>
                           </DialogHeader>
                           
                           {selectedVisit && (
-                            <Tabs defaultValue="overview" className="space-y-4">
-                              <TabsList>
-                                <TabsTrigger value="overview">Overview</TabsTrigger>
-                                <TabsTrigger value="photos">Photos ({selectedVisit.sitePhotos?.length || 0})</TabsTrigger>
-                                <TabsTrigger value="location">Location</TabsTrigger>
-                                <TabsTrigger value="data">Department Data</TabsTrigger>
+                            <Tabs defaultValue="overview" className="space-y-3 sm:space-y-4">
+                              <TabsList className="grid w-full grid-cols-4 h-auto">
+                                <TabsTrigger value="overview" className="text-xs sm:text-sm px-1 sm:px-3 py-1.5">
+                                  <span className="hidden sm:inline">Overview</span>
+                                  <span className="sm:hidden">Info</span>
+                                </TabsTrigger>
+                                <TabsTrigger value="photos" className="text-xs sm:text-sm px-1 sm:px-3 py-1.5">
+                                  <span className="hidden sm:inline">Photos ({selectedVisit.sitePhotos?.length || 0})</span>
+                                  <span className="sm:hidden">Photos</span>
+                                </TabsTrigger>
+                                <TabsTrigger value="location" className="text-xs sm:text-sm px-1 sm:px-3 py-1.5">
+                                  Location
+                                </TabsTrigger>
+                                <TabsTrigger value="data" className="text-xs sm:text-sm px-1 sm:px-3 py-1.5">
+                                  <span className="hidden sm:inline">Department Data</span>
+                                  <span className="sm:hidden">Data</span>
+                                </TabsTrigger>
                               </TabsList>
                               
-                              <TabsContent value="overview" className="space-y-6">
-                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                              <TabsContent value="overview" className="space-y-4 sm:space-y-6">
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                                   {/* Customer Information Card */}
                                   <Card>
-                                    <CardHeader>
-                                      <CardTitle className="flex items-center gap-2 text-lg">
-                                        <Users className="h-5 w-5" />
+                                    <CardHeader className="pb-3">
+                                      <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                                        <Users className="h-4 w-4 sm:h-5 sm:w-5" />
                                         Customer Information
                                       </CardTitle>
                                     </CardHeader>
-                                    <CardContent className="space-y-3">
-                                      <div className="flex items-center gap-2">
-                                        <User className="h-4 w-4 text-blue-500" />
+                                    <CardContent className="space-y-2 sm:space-y-3 pt-0">
+                                      <div className="flex items-center gap-2 text-sm">
+                                        <User className="h-3 w-3 sm:h-4 sm:w-4 text-blue-500 flex-shrink-0" />
                                         <span className="font-medium">Name:</span>
-                                        <span>{selectedVisit.customerName}</span>
+                                        <span className="truncate">{selectedVisit.customerName}</span>
                                       </div>
-                                      <div className="flex items-center gap-2">
-                                        <Phone className="h-4 w-4 text-green-500" />
+                                      <div className="flex items-center gap-2 text-sm">
+                                        <Phone className="h-3 w-3 sm:h-4 sm:w-4 text-green-500 flex-shrink-0" />
                                         <span className="font-medium">Phone:</span>
                                         <span>{selectedVisit.customerPhone}</span>
                                       </div>
                                       {selectedVisit.customerEmail && (
-                                        <div className="flex items-center gap-2">
-                                          <Mail className="h-4 w-4 text-orange-500" />
+                                        <div className="flex items-center gap-2 text-sm">
+                                          <Mail className="h-3 w-3 sm:h-4 sm:w-4 text-orange-500 flex-shrink-0" />
                                           <span className="font-medium">Email:</span>
-                                          <span>{selectedVisit.customerEmail}</span>
+                                          <span className="truncate">{selectedVisit.customerEmail}</span>
                                         </div>
                                       )}
-                                      <div className="flex items-start gap-2">
-                                        <MapPin className="h-4 w-4 text-red-500 mt-0.5" />
+                                      <div className="flex items-start gap-2 text-sm">
+                                        <MapPin className="h-3 w-3 sm:h-4 sm:w-4 text-red-500 mt-0.5 flex-shrink-0" />
                                         <span className="font-medium">Address:</span>
-                                        <span className="text-sm">{selectedVisit.siteAddress}</span>
+                                        <span className="text-xs sm:text-sm break-words">{selectedVisit.siteAddress}</span>
                                       </div>
                                       {selectedVisit.customer?.ebServiceNumber && (
                                         <div className="flex items-center gap-2">
