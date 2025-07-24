@@ -208,7 +208,10 @@ export default function Attendance() {
 
   // Enhanced attendance state logic with clear UX states
   const getAttendanceState = () => {
-    if (!departmentTiming) return { state: 'no_timing', canCheckIn: false, canCheckOut: false };
+    // Check if department timing exists AND has valid timing values
+    if (!departmentTiming || !departmentTiming.checkInTime || !departmentTiming.checkOutTime) {
+      return { state: 'no_timing', canCheckIn: false, canCheckOut: false };
+    }
     if (!todayAttendance) return { state: 'not_started', canCheckIn: true, canCheckOut: false };
     if (todayAttendance.checkInTime && !todayAttendance.checkOutTime) return { state: 'checked_in', canCheckIn: false, canCheckOut: true };
     if (todayAttendance.checkInTime && todayAttendance.checkOutTime) return { state: 'completed', canCheckIn: false, canCheckOut: false };
@@ -271,7 +274,7 @@ export default function Attendance() {
                   ({new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })})
                 </span>
               </CardTitle>
-              {departmentTiming && (
+              {departmentTiming && departmentTiming.checkInTime && departmentTiming.checkOutTime && (
                 <div className="text-xs text-muted-foreground">
                   Office: <TimeDisplay time={departmentTiming.checkInTime} format12Hour={true} /> - <TimeDisplay time={departmentTiming.checkOutTime} format12Hour={true} />
                 </div>
@@ -407,9 +410,11 @@ export default function Attendance() {
                     </Button>
                   )}
                   {!canCheckIn && !canCheckOut && todayAttendance && (
-                    <Badge variant="secondary" className="py-2 px-4">
-                      Attendance Complete for Today
-                    </Badge>
+                    <div className="flex-1 text-center py-3">
+                      <Badge variant="secondary" className="py-2 px-4">
+                        Attendance Complete for Today
+                      </Badge>
+                    </div>
                   )}
                 </>
               )}
@@ -419,7 +424,7 @@ export default function Attendance() {
       )}
 
       {/* Department Timing Settings Display */}
-      {departmentTiming && (
+      {departmentTiming && departmentTiming.checkInTime && departmentTiming.checkOutTime && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card className="bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200">
             <CardHeader>
