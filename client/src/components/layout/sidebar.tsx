@@ -91,6 +91,13 @@ export function Sidebar() {
       requiredPermissions: ["site_visit.view", "site_visit.create"]
     },
     { 
+      href: "/site-visit-monitoring", 
+      label: "Site Visit Monitoring", 
+      icon: <i className="ri-dashboard-line mr-3 text-xl"></i>,
+      roles: ["master_admin", "admin"],
+      requiredPermissions: ["site_visit.view_all", "site_visit.reports"]
+    },
+    { 
       href: "/user-management", 
       label: "User Management", 
       icon: <i className="ri-user-settings-line mr-3 text-xl"></i>,

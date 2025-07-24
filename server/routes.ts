@@ -5590,6 +5590,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Site Visit Monitoring - Master Admin and HR only
+  app.get("/api/site-visits/monitoring", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      // Check access - only master admin and HR department
+      const hasAccess = user.role === "master_admin" || 
+                       (user.department && user.department.toLowerCase() === 'hr');
+
+      if (!hasAccess) {
+        return res.status(403).json({ message: "Access denied. This endpoint is restricted to Master Admin and HR Department." });
+      }
+
+      const { siteVisitService } = await import("./services/site-visit-service");
+      
+      // Get all site visits with enhanced data for monitoring
+      const siteVisits = await siteVisitService.getAllSiteVisitsForMonitoring();
+      
+      res.json(siteVisits);
+    } catch (error) {
+      console.error("Error fetching site visits for monitoring:", error);
+      res.status(500).json({ message: "Failed to fetch site visits data" });
+    }
+  });
+
+  // Site Visit Data Export - Master Admin and HR only
+  app.post("/api/site-visits/export", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      // Check access - only master admin and HR department
+      const hasAccess = user.role === "master_admin" || 
+                       (user.department && user.department.toLowerCase() === 'hr');
+
+      if (!hasAccess) {
+        return res.status(403).json({ message: "Access denied. This endpoint is restricted to Master Admin and HR Department." });
+      }
+
+      const { siteVisitService } = await import("./services/site-visit-service");
+      const { filters } = req.body;
+      
+      // Generate Excel export
+      const excelBuffer = await siteVisitService.exportSiteVisitsToExcel(filters);
+      
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename=site-visits-${new Date().toISOString().split('T')[0]}.xlsx`);
+      res.send(excelBuffer);
+    } catch (error) {
+      console.error("Error exporting site visits:", error);
+      res.status(500).json({ message: "Failed to export site visits data" });
+    }
+  });
+
   // Reverse Geocoding API endpoint using Google Maps
   app.get("/api/reverse-geocode", verifyAuth, async (req, res) => {
     try {

@@ -349,7 +349,7 @@ export class SiteVisitService {
     endDate?: Date;
   }) {
     try {
-      let query = this.collection;
+      let query: any = this.collection;
 
       if (filters?.department) {
         query = query.where('department', '==', filters.department);
@@ -364,19 +364,19 @@ export class SiteVisitService {
       }
 
       const snapshot = await query.get();
-      const siteVisits = snapshot.docs.map(doc => doc.data());
+      const siteVisits = snapshot.docs.map((doc: any) => doc.data());
 
       return {
         total: siteVisits.length,
-        inProgress: siteVisits.filter(sv => sv.status === 'in_progress').length,
-        completed: siteVisits.filter(sv => sv.status === 'completed').length,
-        cancelled: siteVisits.filter(sv => sv.status === 'cancelled').length,
+        inProgress: siteVisits.filter((sv: any) => sv.status === 'in_progress').length,
+        completed: siteVisits.filter((sv: any) => sv.status === 'completed').length,
+        cancelled: siteVisits.filter((sv: any) => sv.status === 'cancelled').length,
         byDepartment: {
-          technical: siteVisits.filter(sv => sv.department === 'technical').length,
-          marketing: siteVisits.filter(sv => sv.department === 'marketing').length,
-          admin: siteVisits.filter(sv => sv.department === 'admin').length
+          technical: siteVisits.filter((sv: any) => sv.department === 'technical').length,
+          marketing: siteVisits.filter((sv: any) => sv.department === 'marketing').length,
+          admin: siteVisits.filter((sv: any) => sv.department === 'admin').length
         },
-        byPurpose: siteVisits.reduce((acc, sv) => {
+        byPurpose: siteVisits.reduce((acc: any, sv: any) => {
           acc[sv.visitPurpose] = (acc[sv.visitPurpose] || 0) + 1;
           return acc;
         }, {} as Record<string, number>)
@@ -384,6 +384,115 @@ export class SiteVisitService {
     } catch (error) {
       console.error('Error getting site visit stats:', error);
       throw new Error('Failed to get site visit statistics');
+    }
+  }
+
+  /**
+   * Get all site visits for monitoring dashboard (Master Admin and HR only)
+   */
+  async getAllSiteVisitsForMonitoring(): Promise<SiteVisit[]> {
+    try {
+      const snapshot = await this.collection
+        .orderBy('siteInTime', 'desc')
+        .limit(500) // Limit to recent 500 for performance
+        .get();
+
+      return snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...this.convertFirestoreToSiteVisit(doc.data())
+      }));
+    } catch (error) {
+      console.error('Error getting site visits for monitoring:', error);
+      throw new Error('Failed to get site visits for monitoring');
+    }
+  }
+
+  /**
+   * Export site visits to Excel format
+   */
+  async exportSiteVisitsToExcel(filters?: {
+    department?: string;
+    status?: string;
+    startDate?: Date;
+    endDate?: Date;
+  }): Promise<Buffer> {
+    try {
+      // Import xlsx dynamically to avoid bundling issues
+      const XLSX = await import('xlsx');
+      
+      let query: any = this.collection.orderBy('siteInTime', 'desc');
+
+      // Apply filters
+      if (filters?.department) {
+        query = query.where('department', '==', filters.department);
+      }
+      if (filters?.status) {
+        query = query.where('status', '==', filters.status);
+      }
+      if (filters?.startDate) {
+        query = query.where('siteInTime', '>=', Timestamp.fromDate(filters.startDate));
+      }
+      if (filters?.endDate) {
+        query = query.where('siteInTime', '<=', Timestamp.fromDate(filters.endDate));
+      }
+
+      const snapshot = await query.get();
+      const siteVisits = snapshot.docs.map((doc: any) => ({
+        id: doc.id,
+        ...this.convertFirestoreToSiteVisit(doc.data())
+      }));
+
+      // Transform data for Excel export
+      const excelData = siteVisits.map((visit: any) => ({
+        'Visit ID': visit.id,
+        'Employee Name': visit.userId,
+        'Department': visit.department,
+        'Customer Name': (visit as any).customerDetails?.name || visit.customerName || 'N/A',
+        'Customer Phone': (visit as any).customerDetails?.phone || visit.customerPhone || 'N/A',
+        'Customer Email': (visit as any).customerDetails?.email || visit.customerEmail || 'N/A',
+        'Visit Purpose': visit.visitPurpose,
+        'Status': visit.status,
+        'Check-in Time': visit.siteInTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
+        'Check-in Location': visit.siteInLocation || 'N/A',
+        'Check-out Time': visit.siteOutTime ? visit.siteOutTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'Not checked out',
+        'Check-out Location': visit.siteOutLocation || 'N/A',
+        'Notes': visit.notes || 'N/A',
+        'Photos Count': visit.sitePhotos?.length || 0,
+        'Created At': visit.createdAt.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
+      }));
+
+      // Create workbook and worksheet
+      const workbook = XLSX.utils.book_new();
+      const worksheet = XLSX.utils.json_to_sheet(excelData);
+
+      // Auto-fit column widths
+      const columnWidths = [
+        { wch: 15 }, // Visit ID
+        { wch: 20 }, // Employee Name
+        { wch: 12 }, // Department
+        { wch: 25 }, // Customer Name
+        { wch: 15 }, // Customer Phone
+        { wch: 25 }, // Customer Email
+        { wch: 15 }, // Visit Purpose
+        { wch: 12 }, // Status
+        { wch: 20 }, // Check-in Time
+        { wch: 30 }, // Check-in Location
+        { wch: 20 }, // Check-out Time
+        { wch: 30 }, // Check-out Location
+        { wch: 40 }, // Notes
+        { wch: 12 }, // Photos Count
+        { wch: 20 }  // Created At
+      ];
+      worksheet['!cols'] = columnWidths;
+
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Site Visits');
+
+      // Generate buffer
+      const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+      return excelBuffer;
+    } catch (error) {
+      console.error('Error exporting site visits to Excel:', error);
+      throw new Error('Failed to export site visits to Excel');
     }
   }
 
