@@ -244,18 +244,16 @@ export class SiteVisitService {
       let query = this.collection.orderBy('createdAt', 'desc');
 
       // Apply filters one by one to avoid compound index issues
-      // Priority order: userId (most selective), department, status, then dates
+      // For master admin, get all data and filter in memory to avoid index requirements
       
       if (filters.userId) {
         query = query.where('userId', '==', filters.userId);
       } else if (filters.department) {
         query = query.where('department', '==', filters.department);
       }
-
-      // Apply status filter if no other primary filter is set
-      if (filters.status && !filters.userId && !filters.department) {
-        query = query.where('status', '==', filters.status);
-      }
+      
+      // Don't apply status filter in query to avoid compound index requirement
+      // Status filtering will be done in memory below
 
       // Apply date range filters
       if (filters.startDate) {
@@ -272,9 +270,10 @@ export class SiteVisitService {
         ...this.convertFirestoreToSiteVisit(doc.data())
       }));
 
-      // Apply additional filters in memory if needed
-      if (filters.status && (filters.userId || filters.department)) {
+      // Apply additional filters in memory to avoid compound index requirements
+      if (filters.status) {
         results = results.filter(sv => sv.status === filters.status);
+        console.log(`SITE_VISIT_SERVICE: Applied status filter '${filters.status}' in memory, found ${results.length} results`);
       }
 
       if (filters.visitPurpose) {

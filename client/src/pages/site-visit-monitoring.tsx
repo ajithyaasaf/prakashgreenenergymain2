@@ -61,18 +61,40 @@ export default function SiteVisitMonitoring() {
   const [dateFilter, setDateFilter] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+
+  // Force data refresh when filters change
+  const refetchData = () => {
+    queryClient.invalidateQueries({ queryKey: ["/api/site-visits/monitoring"] });
+    refetch();
+  };
   const [selectedVisit, setSelectedVisit] = useState<SiteVisit | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   // Live site visits data with real-time updates
   const { data: siteVisits = [], isLoading, refetch } = useQuery({
-    queryKey: ["/api/site-visits/monitoring"],
+    queryKey: ["/api/site-visits/monitoring", statusFilter, departmentFilter, dateFilter],
     queryFn: async () => {
-      const response = await apiRequest("/api/site-visits", 'GET');
-      const data = await response.json();
+      // Build query params
+      const params = new URLSearchParams();
+      if (statusFilter && statusFilter !== 'all') params.append('status', statusFilter);
+      if (departmentFilter && departmentFilter !== 'all') params.append('department', departmentFilter);
+      if (dateFilter) params.append('startDate', dateFilter);
+      
+      const queryString = params.toString();
+      const url = `/api/site-visits${queryString ? `?${queryString}` : ''}`;
+      
+      console.log('SITE_VISITS_QUERY_URL:', url);
+      
+      const response = await apiRequest(url, 'GET');
+      const responseData = await response.json();
+      
+      console.log('SITE_VISITS_API_RESPONSE:', responseData);
+      
+      // The API returns { data: [...], filters: {}, count: number }
+      const visits = responseData.data || responseData || [];
       
       // Enrich with user information
-      return data.map((visit: any) => ({
+      return visits.map((visit: any) => ({
         ...visit,
         siteInTime: new Date(visit.siteInTime),
         siteOutTime: visit.siteOutTime ? new Date(visit.siteOutTime) : null,
@@ -86,7 +108,7 @@ export default function SiteVisitMonitoring() {
     enabled: hasAccess
   });
 
-  // Debug: Log all site visits data to understand the structure
+  // Debug: Log all site visits data to understand the structure (can be removed after testing)
   console.log('SITE_VISITS_RAW_DATA:', siteVisits.map(visit => ({
     id: visit.id,
     customerName: visit.customerName,
@@ -125,7 +147,7 @@ export default function SiteVisitMonitoring() {
     
     const matchesStatus = !statusFilter || statusFilter === 'all' || visit.status === statusFilter;
     
-    // Debug logging for status filter issues
+    // Debug logging for status filter issues (can be removed after testing)
     if (statusFilter === 'completed') {
       console.log('SITE_VISIT_FILTER_DEBUG:', {
         visitId: visit.id,

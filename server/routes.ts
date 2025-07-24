@@ -5443,7 +5443,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (req.query.startDate) filters.startDate = new Date(req.query.startDate as string);
       if (req.query.endDate) filters.endDate = new Date(req.query.endDate as string);
 
+      console.log('SITE_VISITS_API_FILTERS:', filters);
       const siteVisits = await siteVisitService.getSiteVisitsWithFilters(filters);
+      console.log(`SITE_VISITS_API_RESULTS: Found ${siteVisits.length} site visits after filtering`);
       
       res.json({
         data: siteVisits,
