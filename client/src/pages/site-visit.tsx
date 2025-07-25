@@ -25,11 +25,13 @@ import {
   Eye,
   Edit,
   Trash2,
-  LogOut
+  LogOut,
+  RefreshCw
 } from "lucide-react";
 import { SiteVisitStartModal } from "@/components/site-visit/site-visit-start-modal";
 import { SiteVisitDetailsModal } from "@/components/site-visit/site-visit-details-modal";
 import { SiteVisitCheckoutModal } from "@/components/site-visit/site-visit-checkout-modal";
+import { FollowUpModal } from "@/components/site-visit/follow-up-modal";
 import { formatDistanceToNow } from "date-fns";
 
 interface SiteVisit {
@@ -68,6 +70,7 @@ export default function SiteVisitPage() {
   const [selectedSiteVisit, setSelectedSiteVisit] = useState<SiteVisit | null>(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
+  const [isFollowUpModalOpen, setIsFollowUpModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("my-visits");
 
   // Check if user has access to Site Visit features
@@ -135,6 +138,11 @@ export default function SiteVisitPage() {
   const handleCheckoutSiteVisit = (siteVisit: SiteVisit) => {
     setSelectedSiteVisit(siteVisit);
     setIsCheckoutModalOpen(true);
+  };
+
+  const handleFollowUpVisit = (siteVisit: SiteVisit) => {
+    setSelectedSiteVisit(siteVisit);
+    setIsFollowUpModalOpen(true);
   };
 
   if (!hasAccess) {
@@ -278,6 +286,7 @@ export default function SiteVisitPage() {
                       siteVisit={visit}
                       onView={() => handleViewDetails(visit)}
                       onCheckout={() => handleCheckoutSiteVisit(visit)}
+                      onFollowUp={() => handleFollowUpVisit(visit)}
                       onDelete={() => handleDeleteSiteVisit(visit.id)}
                       showActions={true}
                     />
@@ -318,6 +327,7 @@ export default function SiteVisitPage() {
                       siteVisit={visit}
                       onView={() => handleViewDetails(visit)}
                       onCheckout={() => handleCheckoutSiteVisit(visit)}
+                      onFollowUp={() => handleFollowUpVisit(visit)}
                       showActions={true}
                     />
                   ))}
@@ -357,6 +367,7 @@ export default function SiteVisitPage() {
                       siteVisit={visit}
                       onView={() => handleViewDetails(visit)}
                       onCheckout={() => handleCheckoutSiteVisit(visit)}
+                      onFollowUp={() => handleFollowUpVisit(visit)}
                       showActions={true}
                     />
                   ))}
@@ -387,6 +398,12 @@ export default function SiteVisitPage() {
           siteVisit={selectedSiteVisit}
         />
       )}
+
+      <FollowUpModal
+        isOpen={isFollowUpModalOpen}
+        onClose={() => setIsFollowUpModalOpen(false)}
+        originalVisit={selectedSiteVisit}
+      />
     </div>
   );
 }
@@ -396,11 +413,12 @@ interface SiteVisitCardProps {
   siteVisit: SiteVisit;
   onView: () => void;
   onCheckout?: () => void;
+  onFollowUp?: () => void;
   onDelete?: () => void;
   showActions: boolean;
 }
 
-function SiteVisitCard({ siteVisit, onView, onCheckout, onDelete, showActions }: SiteVisitCardProps) {
+function SiteVisitCard({ siteVisit, onView, onCheckout, onFollowUp, onDelete, showActions }: SiteVisitCardProps) {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'in_progress': return 'bg-orange-100 text-orange-800';
@@ -483,6 +501,17 @@ function SiteVisitCard({ siteVisit, onView, onCheckout, onDelete, showActions }:
                   className="bg-green-600 hover:bg-green-700"
                 >
                   <LogOut className="h-4 w-4" />
+                </Button>
+              )}
+              {siteVisit.status === 'completed' && onFollowUp && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onFollowUp}
+                  className="text-blue-600 hover:text-blue-700"
+                  title="Create follow-up visit"
+                >
+                  <RefreshCw className="h-4 w-4" />
                 </Button>
               )}
               {onDelete && siteVisit.status !== 'in_progress' && (

@@ -5628,6 +5628,120 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Create Follow-up Site Visit
+  app.post("/api/site-visits/follow-up", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      const hasPermission = user ? await checkSiteVisitPermission(user, 'create') : false;
+      
+      if (!user || !hasPermission) {
+        return res.status(403).json({ 
+          message: "Access denied. Site Visit access is limited to Technical, Marketing, and Admin departments." 
+        });
+      }
+
+      const { insertFollowUpSiteVisitSchema } = await import("@shared/schema");
+      const { siteVisitService } = await import("./services/site-visit-service");
+
+      // Validate follow-up data
+      const followUpData = insertFollowUpSiteVisitSchema.parse(req.body);
+      
+      // Get original visit to copy customer data and verify ownership
+      const originalVisit = await siteVisitService.getSiteVisitById(followUpData.originalVisitId);
+      if (!originalVisit) {
+        return res.status(404).json({ message: "Original site visit not found" });
+      }
+
+      // Verify user can create follow-up for this visit (own visit or has permission)
+      const canCreateFollowUp = originalVisit.userId === user.uid || 
+                               await checkSiteVisitPermission(user, 'view_all') ||
+                               user.role === 'master_admin';
+      
+      if (!canCreateFollowUp) {
+        return res.status(403).json({ message: "Access denied. You can only create follow-ups for your own visits." });
+      }
+
+      // Map user department to site visit schema department
+      const departmentMapping: Record<string, string> = {
+        'admin': 'admin',
+        'administration': 'admin',
+        'operations': 'admin',
+        'technical': 'technical',
+        'marketing': 'marketing'
+      };
+      
+      const mappedDepartment = departmentMapping[user.department?.toLowerCase() || ''] || user.department;
+
+      // Create follow-up site visit with data from original visit
+      const followUpSiteVisit = {
+        userId: user.uid,
+        department: mappedDepartment,
+        visitPurpose: 'visit', // Default purpose for follow-ups
+        
+        // Current location and time
+        siteInTime: followUpData.siteInTime || new Date(),
+        siteInLocation: followUpData.siteInLocation,
+        siteInPhotoUrl: followUpData.siteInPhotoUrl,
+        
+        // Copy customer data from original visit
+        customer: originalVisit.customer,
+        
+        // Follow-up specific fields
+        isFollowUp: true,
+        followUpOf: followUpData.originalVisitId,
+        followUpReason: followUpData.followUpReason,
+        followUpDescription: followUpData.description,
+        
+        // Initialize empty department data (follow-ups are simpler)
+        technicalData: undefined,
+        marketingData: undefined,
+        adminData: undefined,
+        
+        // Default values
+        sitePhotos: [],
+        status: 'in_progress' as const,
+        notes: followUpData.description,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      console.log("=== FOLLOW-UP SITE VISIT CREATION ===");
+      console.log("Original Visit ID:", followUpData.originalVisitId);
+      console.log("Follow-up reason:", followUpData.followUpReason);
+      console.log("User:", user.uid, user.displayName);
+      console.log("Customer:", originalVisit.customer.name);
+      console.log("=====================================");
+
+      const newFollowUpVisit = await siteVisitService.createSiteVisit(followUpSiteVisit);
+      
+      // Update original visit to mark it has follow-ups and increment count
+      await siteVisitService.updateSiteVisit(followUpData.originalVisitId, {
+        hasFollowUps: true,
+        followUpCount: (originalVisit.followUpCount || 0) + 1,
+        updatedAt: new Date()
+      });
+
+      res.status(201).json({
+        message: "Follow-up visit created successfully",
+        siteVisit: newFollowUpVisit,
+        originalVisit: {
+          id: originalVisit.id,
+          customer: originalVisit.customer.name
+        }
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        console.error("Follow-up validation errors:", JSON.stringify(error.errors, null, 2));
+        return res.status(400).json({ 
+          message: "Validation error",
+          errors: error.errors 
+        });
+      }
+      console.error("Error creating follow-up site visit:", error);
+      res.status(500).json({ message: "Failed to create follow-up site visit" });
+    }
+  });
+
   // Site Visit Data Export - Master Admin and HR only
   app.post("/api/site-visits/export", verifyAuth, async (req, res) => {
     try {
