@@ -26,15 +26,12 @@ import {
   Edit,
   Trash2,
   LogOut,
-  RefreshCw,
-  ArrowUpRight,
-  Link2
+  RefreshCw
 } from "lucide-react";
 import { SiteVisitStartModal } from "@/components/site-visit/site-visit-start-modal";
 import { SiteVisitDetailsModal } from "@/components/site-visit/site-visit-details-modal";
 import { SiteVisitCheckoutModal } from "@/components/site-visit/site-visit-checkout-modal";
 import { FollowUpModal } from "@/components/site-visit/follow-up-modal";
-import { CustomerSiteVisitCard } from "@/components/site-visit/customer-site-visit-card";
 import { formatDistanceToNow } from "date-fns";
 
 interface SiteVisit {
@@ -62,13 +59,6 @@ interface SiteVisit {
   notes?: string;
   createdAt: string;
   updatedAt: string;
-  // Follow-up fields
-  isFollowUp?: boolean;
-  followUpOf?: string;
-  hasFollowUps?: boolean;
-  followUpCount?: number;
-  followUpReason?: string;
-  followUpDescription?: string;
 }
 
 export default function SiteVisitPage() {
@@ -82,7 +72,6 @@ export default function SiteVisitPage() {
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
   const [isFollowUpModalOpen, setIsFollowUpModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("my-visits");
-  const [viewMode, setViewMode] = useState<"individual" | "customer">("customer");
 
   // Check if user has access to Site Visit features
   const hasAccess = user?.department && ['technical', 'marketing', 'admin', 'administration'].includes(user.department.toLowerCase());
@@ -156,43 +145,6 @@ export default function SiteVisitPage() {
     setIsFollowUpModalOpen(true);
   };
 
-  // Group site visits by customer for customer view mode
-  const groupSiteVisitsByCustomer = (visits: SiteVisit[]) => {
-    const groups = visits.reduce((acc: any, visit: SiteVisit) => {
-      const customerKey = `${visit.customer.name}_${visit.customer.mobile}`;
-      if (!acc[customerKey]) {
-        acc[customerKey] = {
-          customer: visit.customer,
-          visits: [],
-          latestVisit: visit,
-          totalVisits: 0,
-          hasInProgress: false,
-          hasCompleted: false
-        };
-      }
-      
-      acc[customerKey].visits.push(visit);
-      acc[customerKey].totalVisits++;
-      
-      // Update latest visit if this one is more recent
-      if (new Date(visit.createdAt) > new Date(acc[customerKey].latestVisit.createdAt)) {
-        acc[customerKey].latestVisit = visit;
-      }
-      
-      // Track status types
-      if (visit.status === 'in_progress') {
-        acc[customerKey].hasInProgress = true;
-      }
-      if (visit.status === 'completed') {
-        acc[customerKey].hasCompleted = true;
-      }
-      
-      return acc;
-    }, {});
-
-    return Object.values(groups);
-  };
-
   if (!hasAccess) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -233,35 +185,15 @@ export default function SiteVisitPage() {
             Manage field operations and site visits for {user?.department} department
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center border rounded-lg">
-            <Button
-              variant={viewMode === "customer" ? "default" : "ghost"}
-              size="sm"
-              onClick={() => setViewMode("customer")}
-              className="rounded-r-none"
-            >
-              Customer View
-            </Button>
-            <Button
-              variant={viewMode === "individual" ? "default" : "ghost"}
-              size="sm"
-              onClick={() => setViewMode("individual")}
-              className="rounded-l-none"
-            >
-              Individual Visits
-            </Button>
-          </div>
-          <Button onClick={() => setIsStartModalOpen(true)} size="lg">
-            <Plus className="h-4 w-4 mr-2" />
-            Start Site Visit
-          </Button>
-        </div>
+        <Button onClick={() => setIsStartModalOpen(true)} size="lg">
+          <Plus className="h-4 w-4 mr-2" />
+          Start Site Visit
+        </Button>
       </div>
 
       {/* Statistics Cards */}
       {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center">
@@ -348,33 +280,17 @@ export default function SiteVisitPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {viewMode === "customer" ? (
-                    // Customer grouped view
-                    groupSiteVisitsByCustomer(mySiteVisits?.data || []).map((customerGroup: any) => (
-                      <CustomerSiteVisitCard
-                        key={`${customerGroup.customer.name}_${customerGroup.customer.mobile}`}
-                        customerGroup={customerGroup}
-                        onView={handleViewDetails}
-                        onCheckout={handleCheckoutSiteVisit}
-                        onFollowUp={handleFollowUpVisit}
-                        onDelete={handleDeleteSiteVisit}
-                        showActions={true}
-                      />
-                    ))
-                  ) : (
-                    // Individual visit view
-                    mySiteVisits?.data?.map((visit: SiteVisit) => (
-                      <SiteVisitCard
-                        key={visit.id}
-                        siteVisit={visit}
-                        onView={() => handleViewDetails(visit)}
-                        onCheckout={() => handleCheckoutSiteVisit(visit)}
-                        onFollowUp={() => handleFollowUpVisit(visit)}
-                        onDelete={() => handleDeleteSiteVisit(visit.id)}
-                        showActions={true}
-                      />
-                    ))
-                  )}
+                  {mySiteVisits?.data?.map((visit: SiteVisit) => (
+                    <SiteVisitCard
+                      key={visit.id}
+                      siteVisit={visit}
+                      onView={() => handleViewDetails(visit)}
+                      onCheckout={() => handleCheckoutSiteVisit(visit)}
+                      onFollowUp={() => handleFollowUpVisit(visit)}
+                      onDelete={() => handleDeleteSiteVisit(visit.id)}
+                      showActions={true}
+                    />
+                  ))}
                 </div>
               )}
             </CardContent>
@@ -521,20 +437,8 @@ function SiteVisitCard({ siteVisit, onView, onCheckout, onFollowUp, onDelete, sh
     }
   };
 
-  const getFollowUpReasonDisplay = (reason: string) => {
-    switch (reason) {
-      case 'additional_assessment': return 'Additional Assessment';
-      case 'installation_follow_up': return 'Installation Follow-up';
-      case 'maintenance_check': return 'Maintenance Check';
-      case 'customer_request': return 'Customer Request';
-      case 'technical_issue': return 'Technical Issue';
-      case 'other': return 'Other';
-      default: return reason;
-    }
-  };
-
   return (
-    <Card className={`hover:shadow-md transition-shadow ${siteVisit.isFollowUp ? 'border-l-4 border-l-blue-500 bg-blue-50/30' : ''}`}>
+    <Card className="hover:shadow-md transition-shadow">
       <CardContent className="p-6">
         <div className="flex items-start justify-between">
           <div className="space-y-2 flex-1">
@@ -548,41 +452,12 @@ function SiteVisitCard({ siteVisit, onView, onCheckout, onFollowUp, onDelete, sh
               <Badge variant="outline">
                 {siteVisit.visitPurpose}
               </Badge>
-              
-              {/* Follow-up indicators */}
-              {siteVisit.isFollowUp && (
-                <Badge variant="outline" className="text-purple-600 border-purple-200 bg-purple-50">
-                  <Link2 className="h-3 w-3 mr-1" />
-                  Follow-up: {getFollowUpReasonDisplay(siteVisit.followUpReason || 'other')}
-                </Badge>
-              )}
-              
-              {siteVisit.hasFollowUps && siteVisit.followUpCount && siteVisit.followUpCount > 0 && (
-                <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">
-                  <ArrowUpRight className="h-3 w-3 mr-1" />
-                  {siteVisit.followUpCount} follow-up{siteVisit.followUpCount > 1 ? 's' : ''}
-                </Badge>
-              )}
             </div>
             
             <div>
-              <h3 className="font-semibold text-lg flex items-center gap-2">
-                {siteVisit.customer.name}
-                {siteVisit.isFollowUp && (
-                  <span className="text-sm text-purple-600 font-normal">
-                    (Follow-up Visit)
-                  </span>
-                )}
-              </h3>
+              <h3 className="font-semibold text-lg">{siteVisit.customer.name}</h3>
               <p className="text-sm text-muted-foreground">{siteVisit.customer.address}</p>
               <p className="text-sm text-muted-foreground">{siteVisit.customer.mobile}</p>
-              
-              {/* Follow-up description */}
-              {siteVisit.isFollowUp && siteVisit.followUpDescription && (
-                <p className="text-sm text-purple-600 mt-1 italic">
-                  Follow-up reason: "{siteVisit.followUpDescription}"
-                </p>
-              )}
             </div>
 
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
