@@ -5737,6 +5737,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get customer site visit history for follow-up modal
+  app.get("/api/site-visits/customer-history", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      const hasPermission = user ? await checkSiteVisitPermission(user, 'view_own') : false;
+      
+      if (!user || !hasPermission) {
+        return res.status(403).json({ 
+          message: "Access denied. Site Visit access is limited to Technical, Marketing, and Admin departments." 
+        });
+      }
+
+      const { mobile } = req.query;
+      if (!mobile) {
+        return res.status(400).json({ message: "Customer mobile number is required" });
+      }
+
+      const { siteVisitService } = await import("./services/site-visit-service");
+      
+      // Get all site visits for this customer (by mobile number)
+      const allVisits = await siteVisitService.getAllSiteVisits({});
+      
+      // Filter visits by customer mobile number
+      const customerVisits = allVisits.filter((visit: any) => 
+        visit.customer && visit.customer.mobile === mobile
+      );
+      
+      // Sort by creation date (newest first)
+      customerVisits.sort((a: any, b: any) => 
+        new Date(b.createdAt || b.siteInTime).getTime() - new Date(a.createdAt || a.siteInTime).getTime()
+      );
+      
+      // Return limited data for timeline display
+      const timeline = customerVisits.map((visit: any) => ({
+        id: visit.id,
+        visitPurpose: visit.visitPurpose,
+        department: visit.department,
+        siteInTime: visit.siteInTime,
+        siteOutTime: visit.siteOutTime,
+        status: visit.status,
+        isFollowUp: visit.isFollowUp || false,
+        followUpReason: visit.followUpReason,
+        followUpOf: visit.followUpOf,
+        notes: visit.notes
+      }));
+
+      res.json(timeline);
+    } catch (error) {
+      console.error("Error fetching customer visit history:", error);
+      res.status(500).json({ message: "Failed to fetch customer visit history" });
+    }
+  });
+
   // Site Visit Data Export - Master Admin and HR only
   app.post("/api/site-visits/export", verifyAuth, async (req, res) => {
     try {
