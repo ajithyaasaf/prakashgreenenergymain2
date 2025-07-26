@@ -124,15 +124,12 @@ export function FollowUpModal({ isOpen, onClose, originalVisit }: FollowUpModalP
         }
       }
 
-      return apiRequest('/api/site-visits/follow-up', {
-        method: 'POST',
-        body: JSON.stringify({
-          originalVisitId: originalVisit!.id,
-          siteInLocation: locationStatus.location,
-          siteInPhotoUrl: photoUrl,
-          followUpReason,
-          description
-        }),
+      return apiRequest('/api/site-visits/follow-up', 'POST', {
+        originalVisitId: originalVisit!.id,
+        siteInLocation: locationStatus.location,
+        siteInPhotoUrl: photoUrl,
+        followUpReason,
+        description
       });
     },
     onSuccess: () => {
