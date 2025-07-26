@@ -5681,7 +5681,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Current location and time
         siteInTime: followUpData.siteInTime || new Date(),
         siteInLocation: followUpData.siteInLocation,
-        siteInPhotoUrl: followUpData.siteInPhotoUrl,
+        ...(followUpData.siteInPhotoUrl && { siteInPhotoUrl: followUpData.siteInPhotoUrl }),
         
         // Copy customer data from original visit
         customer: originalVisit.customer,
@@ -5692,15 +5692,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         followUpReason: followUpData.followUpReason,
         followUpDescription: followUpData.description,
         
-        // Initialize empty department data (follow-ups are simpler)
-        technicalData: undefined,
-        marketingData: undefined,
-        adminData: undefined,
-        
         // Default values
         sitePhotos: [],
         status: 'in_progress' as const,
-        notes: followUpData.description,
+        notes: followUpData.description || '',
         createdAt: new Date(),
         updatedAt: new Date()
       };
