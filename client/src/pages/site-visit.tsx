@@ -80,6 +80,10 @@ interface CustomerVisitGroup {
 
 // Group visits by customer mobile number
 function groupVisitsByCustomer(visits: SiteVisit[]): CustomerVisitGroup[] {
+  if (!visits || !Array.isArray(visits)) {
+    return [];
+  }
+
   const groupMap = new Map<string, CustomerVisitGroup>();
 
   visits.forEach(visit => {
@@ -165,15 +169,15 @@ export default function SiteVisitPage() {
   // Fetch user's site visits
   const { data: mySiteVisits, isLoading: isLoadingMy } = useQuery({
     queryKey: ['/api/site-visits', { userId: user?.uid }],
-    queryFn: () => apiRequest('/api/site-visits', 'GET'),
-    enabled: Boolean(hasAccess && user?.uid),
+    queryFn: () => apiRequest(`/api/site-visits?userId=${user?.uid}`, 'GET'),
+    enabled: Boolean(hasAccess && user?.uid && activeTab === 'my-visits'),
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 
   // Fetch team/all site visits based on permissions
   const { data: teamSiteVisits, isLoading: isLoadingTeam } = useQuery({
     queryKey: ['/api/site-visits', { department: user?.department }],
-    queryFn: () => apiRequest('/api/site-visits', 'GET'),
+    queryFn: () => apiRequest(`/api/site-visits?department=${user?.department}`, 'GET'),
     enabled: Boolean(hasAccess && user?.department && activeTab === 'team-visits'),
     refetchInterval: 30000,
   });
