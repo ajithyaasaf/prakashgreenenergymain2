@@ -372,7 +372,10 @@ export default function SiteVisitPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {groupVisitsByCustomer((mySiteVisits as any)?.data || []).map((group: CustomerVisitGroup) => (
+                  {(() => {
+                    const data = (mySiteVisits as any)?.data || [];
+                    return groupVisitsByCustomer(data);
+                  })().map((group: CustomerVisitGroup) => (
                     <UnifiedSiteVisitCard
                       key={group.customerMobile}
                       visitGroup={group}
