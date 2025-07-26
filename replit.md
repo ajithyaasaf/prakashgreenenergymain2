@@ -127,6 +127,25 @@ This is an enterprise-grade dashboard application for Prakash Greens Energy, bui
 
 ## Recent Changes
 
+### FOLLOW-UP VISIT UX ENHANCEMENTS COMPLETED - July 25, 2025
+- **Issue**: Users couldn't distinguish follow-up visits from original visits, leading to confusion
+- **UX Improvements Applied**:
+  - ✅ Added blue left border to follow-up visit cards for visual distinction
+  - ✅ Enhanced site visit cards with follow-up relationship badges and indicators
+  - ✅ Added "(Follow-up Visit)" label next to customer names in follow-up cards
+  - ✅ Implemented follow-up reason display with human-readable labels
+  - ✅ Added follow-up description quotes to show context of why visit was created
+  - ✅ Created visual badges showing follow-up relationships with Link2 and ArrowUpRight icons
+  - ✅ Added count indicators showing how many follow-ups exist for original visits
+  - ✅ Enhanced cards to show purple accent colors for follow-up related elements
+- **Visual Design**:
+  - ✅ Follow-up cards have distinctive blue left border and subtle blue background tint
+  - ✅ Purple badges show follow-up reason (Additional Assessment, Installation Follow-up, etc.)
+  - ✅ Green badges show follow-up count on original visits (e.g., "2 follow-ups")
+  - ✅ Italic purple text displays follow-up description for additional context
+- **Result**: Users can now easily identify follow-up visits and understand their relationship to original visits
+- **Business Impact**: Improved workflow clarity and reduced confusion in site visit management
+
 ### ENHANCED LOCATION UX & 12-HOUR FORMAT ENFORCEMENT - July 24, 2025
 - **Issue**: Users requested better location button text and mobile-responsive error messages for location permissions
 - **Improvements Applied**:

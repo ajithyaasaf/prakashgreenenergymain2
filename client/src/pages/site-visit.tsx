@@ -26,7 +26,9 @@ import {
   Edit,
   Trash2,
   LogOut,
-  RefreshCw
+  RefreshCw,
+  ArrowUpRight,
+  Link2
 } from "lucide-react";
 import { SiteVisitStartModal } from "@/components/site-visit/site-visit-start-modal";
 import { SiteVisitDetailsModal } from "@/components/site-visit/site-visit-details-modal";
@@ -59,6 +61,13 @@ interface SiteVisit {
   notes?: string;
   createdAt: string;
   updatedAt: string;
+  // Follow-up fields
+  isFollowUp?: boolean;
+  followUpOf?: string;
+  hasFollowUps?: boolean;
+  followUpCount?: number;
+  followUpReason?: string;
+  followUpDescription?: string;
 }
 
 export default function SiteVisitPage() {
@@ -193,7 +202,7 @@ export default function SiteVisitPage() {
 
       {/* Statistics Cards */}
       {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center">
@@ -437,8 +446,20 @@ function SiteVisitCard({ siteVisit, onView, onCheckout, onFollowUp, onDelete, sh
     }
   };
 
+  const getFollowUpReasonDisplay = (reason: string) => {
+    switch (reason) {
+      case 'additional_assessment': return 'Additional Assessment';
+      case 'installation_follow_up': return 'Installation Follow-up';
+      case 'maintenance_check': return 'Maintenance Check';
+      case 'customer_request': return 'Customer Request';
+      case 'technical_issue': return 'Technical Issue';
+      case 'other': return 'Other';
+      default: return reason;
+    }
+  };
+
   return (
-    <Card className="hover:shadow-md transition-shadow">
+    <Card className={`hover:shadow-md transition-shadow ${siteVisit.isFollowUp ? 'border-l-4 border-l-blue-500 bg-blue-50/30' : ''}`}>
       <CardContent className="p-6">
         <div className="flex items-start justify-between">
           <div className="space-y-2 flex-1">
@@ -452,12 +473,41 @@ function SiteVisitCard({ siteVisit, onView, onCheckout, onFollowUp, onDelete, sh
               <Badge variant="outline">
                 {siteVisit.visitPurpose}
               </Badge>
+              
+              {/* Follow-up indicators */}
+              {siteVisit.isFollowUp && (
+                <Badge variant="outline" className="text-purple-600 border-purple-200 bg-purple-50">
+                  <Link2 className="h-3 w-3 mr-1" />
+                  Follow-up: {getFollowUpReasonDisplay(siteVisit.followUpReason || 'other')}
+                </Badge>
+              )}
+              
+              {siteVisit.hasFollowUps && siteVisit.followUpCount && siteVisit.followUpCount > 0 && (
+                <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">
+                  <ArrowUpRight className="h-3 w-3 mr-1" />
+                  {siteVisit.followUpCount} follow-up{siteVisit.followUpCount > 1 ? 's' : ''}
+                </Badge>
+              )}
             </div>
             
             <div>
-              <h3 className="font-semibold text-lg">{siteVisit.customer.name}</h3>
+              <h3 className="font-semibold text-lg flex items-center gap-2">
+                {siteVisit.customer.name}
+                {siteVisit.isFollowUp && (
+                  <span className="text-sm text-purple-600 font-normal">
+                    (Follow-up Visit)
+                  </span>
+                )}
+              </h3>
               <p className="text-sm text-muted-foreground">{siteVisit.customer.address}</p>
               <p className="text-sm text-muted-foreground">{siteVisit.customer.mobile}</p>
+              
+              {/* Follow-up description */}
+              {siteVisit.isFollowUp && siteVisit.followUpDescription && (
+                <p className="text-sm text-purple-600 mt-1 italic">
+                  Follow-up reason: "{siteVisit.followUpDescription}"
+                </p>
+              )}
             </div>
 
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
