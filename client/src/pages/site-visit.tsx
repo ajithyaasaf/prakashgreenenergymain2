@@ -34,6 +34,7 @@ import { SiteVisitStartModal } from "@/components/site-visit/site-visit-start-mo
 import { SiteVisitDetailsModal } from "@/components/site-visit/site-visit-details-modal";
 import { SiteVisitCheckoutModal } from "@/components/site-visit/site-visit-checkout-modal";
 import { FollowUpModal } from "@/components/site-visit/follow-up-modal";
+import { CustomerSiteVisitCard } from "@/components/site-visit/customer-site-visit-card";
 import { formatDistanceToNow } from "date-fns";
 
 interface SiteVisit {
@@ -81,6 +82,7 @@ export default function SiteVisitPage() {
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
   const [isFollowUpModalOpen, setIsFollowUpModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("my-visits");
+  const [viewMode, setViewMode] = useState<"individual" | "customer">("customer");
 
   // Check if user has access to Site Visit features
   const hasAccess = user?.department && ['technical', 'marketing', 'admin', 'administration'].includes(user.department.toLowerCase());
@@ -154,6 +156,43 @@ export default function SiteVisitPage() {
     setIsFollowUpModalOpen(true);
   };
 
+  // Group site visits by customer for customer view mode
+  const groupSiteVisitsByCustomer = (visits: SiteVisit[]) => {
+    const groups = visits.reduce((acc: any, visit: SiteVisit) => {
+      const customerKey = `${visit.customer.name}_${visit.customer.mobile}`;
+      if (!acc[customerKey]) {
+        acc[customerKey] = {
+          customer: visit.customer,
+          visits: [],
+          latestVisit: visit,
+          totalVisits: 0,
+          hasInProgress: false,
+          hasCompleted: false
+        };
+      }
+      
+      acc[customerKey].visits.push(visit);
+      acc[customerKey].totalVisits++;
+      
+      // Update latest visit if this one is more recent
+      if (new Date(visit.createdAt) > new Date(acc[customerKey].latestVisit.createdAt)) {
+        acc[customerKey].latestVisit = visit;
+      }
+      
+      // Track status types
+      if (visit.status === 'in_progress') {
+        acc[customerKey].hasInProgress = true;
+      }
+      if (visit.status === 'completed') {
+        acc[customerKey].hasCompleted = true;
+      }
+      
+      return acc;
+    }, {});
+
+    return Object.values(groups);
+  };
+
   if (!hasAccess) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -194,10 +233,30 @@ export default function SiteVisitPage() {
             Manage field operations and site visits for {user?.department} department
           </p>
         </div>
-        <Button onClick={() => setIsStartModalOpen(true)} size="lg">
-          <Plus className="h-4 w-4 mr-2" />
-          Start Site Visit
-        </Button>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center border rounded-lg">
+            <Button
+              variant={viewMode === "customer" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("customer")}
+              className="rounded-r-none"
+            >
+              Customer View
+            </Button>
+            <Button
+              variant={viewMode === "individual" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("individual")}
+              className="rounded-l-none"
+            >
+              Individual Visits
+            </Button>
+          </div>
+          <Button onClick={() => setIsStartModalOpen(true)} size="lg">
+            <Plus className="h-4 w-4 mr-2" />
+            Start Site Visit
+          </Button>
+        </div>
       </div>
 
       {/* Statistics Cards */}
@@ -289,17 +348,33 @@ export default function SiteVisitPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {mySiteVisits?.data?.map((visit: SiteVisit) => (
-                    <SiteVisitCard
-                      key={visit.id}
-                      siteVisit={visit}
-                      onView={() => handleViewDetails(visit)}
-                      onCheckout={() => handleCheckoutSiteVisit(visit)}
-                      onFollowUp={() => handleFollowUpVisit(visit)}
-                      onDelete={() => handleDeleteSiteVisit(visit.id)}
-                      showActions={true}
-                    />
-                  ))}
+                  {viewMode === "customer" ? (
+                    // Customer grouped view
+                    groupSiteVisitsByCustomer(mySiteVisits?.data || []).map((customerGroup: any) => (
+                      <CustomerSiteVisitCard
+                        key={`${customerGroup.customer.name}_${customerGroup.customer.mobile}`}
+                        customerGroup={customerGroup}
+                        onView={handleViewDetails}
+                        onCheckout={handleCheckoutSiteVisit}
+                        onFollowUp={handleFollowUpVisit}
+                        onDelete={handleDeleteSiteVisit}
+                        showActions={true}
+                      />
+                    ))
+                  ) : (
+                    // Individual visit view
+                    mySiteVisits?.data?.map((visit: SiteVisit) => (
+                      <SiteVisitCard
+                        key={visit.id}
+                        siteVisit={visit}
+                        onView={() => handleViewDetails(visit)}
+                        onCheckout={() => handleCheckoutSiteVisit(visit)}
+                        onFollowUp={() => handleFollowUpVisit(visit)}
+                        onDelete={() => handleDeleteSiteVisit(visit.id)}
+                        showActions={true}
+                      />
+                    ))
+                  )}
                 </div>
               )}
             </CardContent>
