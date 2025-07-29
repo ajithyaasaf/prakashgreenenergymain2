@@ -169,7 +169,10 @@ export default function SiteVisitPage() {
   // Fetch user's site visits
   const { data: mySiteVisits, isLoading: isLoadingMy } = useQuery({
     queryKey: ['/api/site-visits', { userId: user?.uid }],
-    queryFn: () => apiRequest(`/api/site-visits?userId=${user?.uid}`, 'GET'),
+    queryFn: async () => {
+      const response = await apiRequest(`/api/site-visits?userId=${user?.uid}`, 'GET');
+      return await response.json();
+    },
     enabled: Boolean(hasAccess && user?.uid && activeTab === 'my-visits'),
     refetchInterval: 30000, // Refresh every 30 seconds
   });
@@ -177,7 +180,10 @@ export default function SiteVisitPage() {
   // Fetch team/all site visits based on permissions
   const { data: teamSiteVisits, isLoading: isLoadingTeam } = useQuery({
     queryKey: ['/api/site-visits', { department: user?.department }],
-    queryFn: () => apiRequest(`/api/site-visits?department=${user?.department}`, 'GET'),
+    queryFn: async () => {
+      const response = await apiRequest(`/api/site-visits?department=${user?.department}`, 'GET');
+      return await response.json();
+    },
     enabled: Boolean(hasAccess && user?.department && activeTab === 'team-visits'),
     refetchInterval: 30000,
   });
@@ -185,7 +191,10 @@ export default function SiteVisitPage() {
   // Fetch active site visits
   const { data: activeSiteVisits, isLoading: isLoadingActive } = useQuery({
     queryKey: ['/api/site-visits/active'],
-    queryFn: () => apiRequest('/api/site-visits/active', 'GET'),
+    queryFn: async () => {
+      const response = await apiRequest('/api/site-visits/active', 'GET');
+      return await response.json();
+    },
     enabled: Boolean(hasAccess && activeTab === 'active-visits'),
     refetchInterval: 15000, // More frequent updates for active visits
   });
@@ -193,7 +202,10 @@ export default function SiteVisitPage() {
   // Fetch site visit statistics
   const { data: stats } = useQuery({
     queryKey: ['/api/site-visits/stats'],
-    queryFn: () => apiRequest('/api/site-visits/stats', 'GET'),
+    queryFn: async () => {
+      const response = await apiRequest('/api/site-visits/stats', 'GET');
+      return await response.json();
+    },
     enabled: Boolean(hasAccess),
   });
 
