@@ -276,6 +276,8 @@ export class SiteVisitService {
         console.log('- Has technical data:', !!results[0].technicalData);
         console.log('- Has admin data:', !!results[0].adminData);
         console.log('- Has site photos:', !!results[0].sitePhotos && results[0].sitePhotos.length);
+        console.log('- Has check-in photo:', !!results[0].siteInPhotoUrl);
+        console.log('- Has check-out photo:', !!results[0].siteOutPhotoUrl);
         console.log('- Customer name:', results[0].customer?.name || results[0].customerName || 'N/A');
         console.log('- Status:', results[0].status);
         console.log('- Department:', results[0].department);
