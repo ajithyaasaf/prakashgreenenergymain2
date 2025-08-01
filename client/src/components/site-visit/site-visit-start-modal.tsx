@@ -594,46 +594,64 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <MapPin className="h-5 w-5" />
+      <DialogContent className="w-[95vw] max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto p-3 sm:p-6">
+        <DialogHeader className="text-center sm:text-left">
+          <DialogTitle className="flex items-center gap-2 justify-center sm:justify-start text-lg sm:text-xl">
+            <MapPin className="h-4 w-4 sm:h-5 sm:w-5" />
             Start Site Visit
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-sm">
             Follow the steps to start your field site visit for {userDepartment} department
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {/* Step Indicator */}
-          <div className="flex items-center justify-between">
-            <div className={`flex items-center gap-2 ${step >= 1 ? 'text-primary' : 'text-muted-foreground'}`}>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 1 ? 'bg-primary text-white' : 'bg-muted'}`}>
-                1
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-0">
+            {/* Mobile: Vertical layout with current step highlighted */}
+            <div className="flex sm:hidden w-full justify-center">
+              <div className={`flex items-center gap-2 ${step >= 1 ? 'text-primary' : 'text-muted-foreground'}`}>
+                <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm ${step >= 1 ? 'bg-primary text-white' : 'bg-muted'}`}>
+                  {step}
+                </div>
+                <span className="text-xs sm:text-sm font-medium">
+                  {step === 1 && 'Purpose & Location'}
+                  {step === 2 && 'Customer Details'}
+                  {step === 3 && `${userDepartment.charAt(0).toUpperCase() + userDepartment.slice(1)} Details`}
+                  {step === 4 && 'Photo & Confirm'}
+                </span>
               </div>
-              <span className="text-sm font-medium">Purpose & Location</span>
             </div>
-            <ArrowRight className="h-4 w-4 text-muted-foreground" />
-            <div className={`flex items-center gap-2 ${step >= 2 ? 'text-primary' : 'text-muted-foreground'}`}>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 2 ? 'bg-primary text-white' : 'bg-muted'}`}>
-                2
+            
+            {/* Desktop: Horizontal layout */}
+            <div className="hidden sm:flex items-center justify-between w-full">
+              <div className={`flex items-center gap-2 ${step >= 1 ? 'text-primary' : 'text-muted-foreground'}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 1 ? 'bg-primary text-white' : 'bg-muted'}`}>
+                  1
+                </div>
+                <span className="text-sm font-medium hidden lg:block">Purpose & Location</span>
               </div>
-              <span className="text-sm font-medium">Customer Details</span>
-            </div>
-            <ArrowRight className="h-4 w-4 text-muted-foreground" />
-            <div className={`flex items-center gap-2 ${step >= 3 ? 'text-primary' : 'text-muted-foreground'}`}>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 3 ? 'bg-primary text-white' : 'bg-muted'}`}>
-                3
+              <ArrowRight className="h-4 w-4 text-muted-foreground" />
+              <div className={`flex items-center gap-2 ${step >= 2 ? 'text-primary' : 'text-muted-foreground'}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 2 ? 'bg-primary text-white' : 'bg-muted'}`}>
+                  2
+                </div>
+                <span className="text-sm font-medium hidden lg:block">Customer Details</span>
               </div>
-              <span className="text-sm font-medium">{userDepartment.charAt(0).toUpperCase() + userDepartment.slice(1)} Details</span>
-            </div>
-            <ArrowRight className="h-4 w-4 text-muted-foreground" />
-            <div className={`flex items-center gap-2 ${step >= 4 ? 'text-primary' : 'text-muted-foreground'}`}>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 4 ? 'bg-primary text-white' : 'bg-muted'}`}>
-                4
+              <ArrowRight className="h-4 w-4 text-muted-foreground" />
+              <div className={`flex items-center gap-2 ${step >= 3 ? 'text-primary' : 'text-muted-foreground'}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 3 ? 'bg-primary text-white' : 'bg-muted'}`}>
+                  3
+                </div>
+                <span className="text-sm font-medium hidden lg:block">{userDepartment.charAt(0).toUpperCase() + userDepartment.slice(1)} Details</span>
               </div>
-              <span className="text-sm font-medium">Photo & Confirm</span>
+              <ArrowRight className="h-4 w-4 text-muted-foreground" />
+              <div className={`flex items-center gap-2 ${step >= 4 ? 'text-primary' : 'text-muted-foreground'}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 4 ? 'bg-primary text-white' : 'bg-muted'}`}>
+                  4
+                </div>
+                <span className="text-sm font-medium hidden lg:block">Photo & Confirm</span>
+              </div>
             </div>
           </div>
 
@@ -641,11 +659,11 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
           {step === 1 && (
             <div className="space-y-4">
               <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Visit Purpose</CardTitle>
+                <CardHeader className="pb-3 sm:pb-6">
+                  <CardTitle className="text-base sm:text-lg">Visit Purpose</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
                     {visitPurposes.map((purpose) => {
                       const Icon = purpose.icon;
                       return (
@@ -656,9 +674,9 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
                           }`}
                           onClick={() => setFormData(prev => ({ ...prev, visitPurpose: purpose.value }))}
                         >
-                          <CardContent className="p-4 text-center">
-                            <Icon className="h-6 w-6 mx-auto mb-2" />
-                            <p className="text-sm font-medium">{purpose.label}</p>
+                          <CardContent className="p-2 sm:p-4 text-center">
+                            <Icon className="h-4 w-4 sm:h-6 sm:w-6 mx-auto mb-1 sm:mb-2" />
+                            <p className="text-xs sm:text-sm font-medium line-clamp-2">{purpose.label}</p>
                           </CardContent>
                         </Card>
                       );
@@ -677,10 +695,11 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
                 showAddress={true}
               />
 
-              <div className="flex justify-end">
+              <div className="flex justify-center sm:justify-end">
                 <Button
                   onClick={() => setStep(2)}
                   disabled={!canProceedToStep2}
+                  className="w-full sm:w-auto"
                 >
                   Next: Customer Details
                   <ArrowRight className="h-4 w-4 ml-2" />
@@ -693,12 +712,12 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
           {step === 2 && (
             <div className="space-y-4">
               <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Customer Information</CardTitle>
+                <CardHeader className="pb-3 sm:pb-6">
+                  <CardTitle className="text-base sm:text-lg">Customer Information</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-3 sm:space-y-4">
                   <div>
-                    <Label htmlFor="customerName">Customer Name *</Label>
+                    <Label htmlFor="customerName" className="text-sm">Customer Name *</Label>
                     <CustomerAutocomplete
                       value={formData.customer}
                       onChange={(customerData) => setFormData(prev => ({
@@ -710,7 +729,7 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
                   </div>
 
                   <div>
-                    <Label htmlFor="customerMobile">Mobile Number *</Label>
+                    <Label htmlFor="customerMobile" className="text-sm">Mobile Number *</Label>
                     <Input
                       id="customerMobile"
                       value={formData.customer.mobile}
@@ -719,11 +738,12 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
                         customer: { ...prev.customer, mobile: e.target.value }
                       }))}
                       placeholder="Enter mobile number"
+                      className="text-sm"
                     />
                   </div>
 
                   <div>
-                    <Label htmlFor="customerAddress">Address *</Label>
+                    <Label htmlFor="customerAddress" className="text-sm">Address *</Label>
                     <Textarea
                       id="customerAddress"
                       value={formData.customer.address}
@@ -732,12 +752,13 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
                         customer: { ...prev.customer, address: e.target.value }
                       }))}
                       placeholder="Enter complete address"
+                      className="text-sm min-h-[60px] sm:min-h-[80px]"
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div>
-                      <Label htmlFor="propertyType">Property Type *</Label>
+                      <Label htmlFor="propertyType" className="text-sm">Property Type *</Label>
                       <Select
                         value={formData.customer.propertyType}
                         onValueChange={(value) => setFormData(prev => ({
@@ -745,7 +766,7 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
                           customer: { ...prev.customer, propertyType: value }
                         }))}
                       >
-                        <SelectTrigger>
+                        <SelectTrigger className="text-sm">
                           <SelectValue placeholder="Select property type" />
                         </SelectTrigger>
                         <SelectContent>
@@ -760,7 +781,7 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
 
                     {userDepartment === 'marketing' && (
                       <div>
-                        <Label htmlFor="ebServiceNumber">EB Service Number</Label>
+                        <Label htmlFor="ebServiceNumber" className="text-sm">EB Service Number</Label>
                         <Input
                           id="ebServiceNumber"
                           value={formData.customer.ebServiceNumber}
@@ -769,30 +790,33 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
                             customer: { ...prev.customer, ebServiceNumber: e.target.value }
                           }))}
                           placeholder="Enter EB service number"
+                          className="text-sm"
                         />
                       </div>
                     )}
                   </div>
 
                   <div>
-                    <Label htmlFor="notes">Additional Notes</Label>
+                    <Label htmlFor="notes" className="text-sm">Additional Notes</Label>
                     <Textarea
                       id="notes"
                       value={formData.notes}
                       onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
                       placeholder="Any additional notes about the visit"
+                      className="text-sm min-h-[60px] sm:min-h-[80px]"
                     />
                   </div>
                 </CardContent>
               </Card>
 
-              <div className="flex justify-between">
-                <Button variant="outline" onClick={() => setStep(1)}>
+              <div className="flex flex-col sm:flex-row justify-between gap-2 sm:gap-0">
+                <Button variant="outline" onClick={() => setStep(1)} className="w-full sm:w-auto order-2 sm:order-1">
                   Back
                 </Button>
                 <Button
                   onClick={() => setStep(3)}
                   disabled={!canProceedToStep3}
+                  className="w-full sm:w-auto order-1 sm:order-2"
                 >
                   Next: {userDepartment.charAt(0).toUpperCase() + userDepartment.slice(1)} Details
                   <ArrowRight className="h-4 w-4 ml-2" />
@@ -849,14 +873,14 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
           {step === 4 && (
             <div className="space-y-4">
               <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Camera className="h-5 w-5" />
+                <CardHeader className="pb-3 sm:pb-6">
+                  <CardTitle className="text-base sm:text-lg flex items-center gap-2 justify-center sm:justify-start">
+                    <Camera className="h-4 w-4 sm:h-5 sm:w-5" />
                     Site In Photo
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
+                  <div className="space-y-3 sm:space-y-4">
                     {!capturedPhoto && !isCameraActive && (
                       <div className="space-y-3">
                         <Button 
@@ -867,9 +891,9 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
                           <Camera className="h-4 w-4 mr-2" />
                           Start Camera
                         </Button>
-                        <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center">
-                          <Camera className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                          <p className="text-sm text-muted-foreground">
+                        <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-4 sm:p-8 text-center">
+                          <Camera className="h-8 w-8 sm:h-12 sm:w-12 mx-auto mb-2 sm:mb-4 text-muted-foreground" />
+                          <p className="text-xs sm:text-sm text-muted-foreground">
                             Take a live photo of the site with location and timestamp
                           </p>
                         </div>
@@ -884,32 +908,37 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
                             autoPlay
                             playsInline
                             muted
-                            className="w-full h-64 object-cover rounded-lg bg-black"
+                            className="w-full h-48 sm:h-64 object-cover rounded-lg bg-black"
                           />
                           {!isVideoReady && (
                             <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-lg">
                               <div className="text-white text-center">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-2"></div>
-                                <p className="text-sm">Loading camera...</p>
+                                <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-white mx-auto mb-2"></div>
+                                <p className="text-xs sm:text-sm">Loading camera...</p>
                               </div>
                             </div>
                           )}
                         </div>
                         
-                        <div className="flex justify-between">
+                        <div className="flex flex-col sm:flex-row justify-between gap-2 sm:gap-0">
                           <Button
                             variant="outline"
                             onClick={switchCamera}
                             disabled={!isVideoReady}
+                            className="w-full sm:w-auto order-2 sm:order-1"
+                            size="sm"
                           >
                             <RotateCcw className="h-4 w-4 mr-2" />
-                            Switch to {currentCamera === 'front' ? 'Back' : 'Front'}
+                            <span className="hidden sm:inline">Switch to {currentCamera === 'front' ? 'Back' : 'Front'}</span>
+                            <span className="sm:hidden">Switch Camera</span>
                           </Button>
                           
-                          <div className="flex gap-2">
+                          <div className="flex gap-2 order-1 sm:order-2">
                             <Button
                               variant="destructive"
                               onClick={stopCamera}
+                              className="flex-1 sm:flex-none"
+                              size="sm"
                             >
                               <X className="h-4 w-4 mr-2" />
                               Cancel
@@ -917,6 +946,8 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
                             <Button
                               onClick={capturePhoto}
                               disabled={!isVideoReady}
+                              className="flex-1 sm:flex-none"
+                              size="sm"
                             >
                               <Camera className="h-4 w-4 mr-2" />
                               Capture
@@ -932,9 +963,9 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
                           <img
                             src={capturedPhoto}
                             alt="Captured site photo"
-                            className="w-full h-64 object-cover rounded-lg"
+                            className="w-full h-48 sm:h-64 object-cover rounded-lg"
                           />
-                          <Badge className="absolute top-2 right-2">
+                          <Badge className="absolute top-2 right-2 text-xs">
                             Captured
                           </Badge>
                         </div>
@@ -942,6 +973,7 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
                           variant="outline"
                           onClick={resetPhoto}
                           className="w-full"
+                          size="sm"
                         >
                           <RotateCcw className="h-4 w-4 mr-2" />
                           Retake Photo
@@ -954,50 +986,57 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
 
               {/* Summary */}
               <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Visit Summary</CardTitle>
+                <CardHeader className="pb-3 sm:pb-6">
+                  <CardTitle className="text-base sm:text-lg text-center sm:text-left">Visit Summary</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Purpose:</span>
-                    <Badge variant="outline">{formData.visitPurpose}</Badge>
+                  <div className="flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-0">
+                    <span className="text-muted-foreground text-sm">Purpose:</span>
+                    <Badge variant="outline" className="w-fit text-xs">{formData.visitPurpose}</Badge>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Customer:</span>
-                    <span className="font-medium">{formData.customer.name}</span>
+                  <div className="flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-0">
+                    <span className="text-muted-foreground text-sm">Customer:</span>
+                    <span className="font-medium text-sm line-clamp-2">{formData.customer.name}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Mobile:</span>
-                    <span>{formData.customer.mobile}</span>
+                  <div className="flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-0">
+                    <span className="text-muted-foreground text-sm">Mobile:</span>
+                    <span className="text-sm">{formData.customer.mobile}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Property Type:</span>
-                    <span className="capitalize">{formData.customer.propertyType}</span>
+                  <div className="flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-0">
+                    <span className="text-muted-foreground text-sm">Property Type:</span>
+                    <span className="capitalize text-sm">{formData.customer.propertyType}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Location:</span>
-                    <span className="text-green-600">Acquired</span>
+                  <div className="flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-0">
+                    <span className="text-muted-foreground text-sm">Location:</span>
+                    <span className="text-green-600 text-sm">Acquired</span>
                   </div>
                 </CardContent>
               </Card>
 
-              <div className="flex justify-between">
-                <Button variant="outline" onClick={() => setStep(3)}>
+              <div className="flex flex-col sm:flex-row justify-between gap-2 sm:gap-0">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setStep(3)}
+                  className="w-full sm:w-auto order-2 sm:order-1"
+                >
                   Back
                 </Button>
                 <Button
                   onClick={handleSubmit}
                   disabled={createSiteVisitMutation.isPending}
+                  className="w-full sm:w-auto order-1 sm:order-2"
                 >
                   {createSiteVisitMutation.isPending ? (
                     <>
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Starting Visit...
+                      <span className="hidden sm:inline">Starting Visit...</span>
+                      <span className="sm:hidden">Starting...</span>
                     </>
                   ) : (
                     <>
                       <CheckCircle className="h-4 w-4 mr-2" />
-                      Start Site Visit
+                      <span className="hidden sm:inline">Start Site Visit</span>
+                      <span className="sm:hidden">Start Visit</span>
                     </>
                   )}
                 </Button>
