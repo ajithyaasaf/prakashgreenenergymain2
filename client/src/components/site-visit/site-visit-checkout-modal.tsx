@@ -76,13 +76,13 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
       setIsVideoReady(false);
       setCurrentCamera('back');
       
-      // Stop any existing camera stream
+      // Stop any existing camera stream on modal open
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
         setStream(null);
       }
     }
-  }, [isOpen, stream]);
+  }, [isOpen]); // Removed stream dependency to prevent form reset on camera start
 
   // Cleanup camera stream when modal closes or component unmounts
   useEffect(() => {
@@ -721,40 +721,7 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
                     {!capturedPhotos.selfie && (!isCameraActive || currentPhotoType !== 'selfie') && (
                       <div className="space-y-3">
                         <Button 
-                          onClick={() => {
-                            console.log('=== BUTTON CLICK TEST ===');
-                            alert('Button clicked!');
-                            console.log('CHECKOUT_CAMERA: Selfie button clicked');
-                            
-                            // Check if function exists
-                            console.log('CHECKOUT_CAMERA: startCameraForPhoto function exists:', typeof startCameraForPhoto);
-                            console.log('CHECKOUT_CAMERA: startCamera function exists:', typeof startCamera);
-                            
-                            // Check component state
-                            console.log('CHECKOUT_CAMERA: Current state:', {
-                              isCameraActive,
-                              isVideoReady,
-                              currentPhotoType,
-                              currentCamera
-                            });
-                            
-                            try {
-                              console.log('CHECKOUT_CAMERA: About to call startCameraForPhoto');
-                              const result = startCameraForPhoto('selfie');
-                              console.log('CHECKOUT_CAMERA: startCameraForPhoto result:', result);
-                              
-                              // Handle promise if returned
-                              if (result && typeof result.catch === 'function') {
-                                result.catch(err => {
-                                  console.error('CHECKOUT_CAMERA: Promise rejected:', err);
-                                  alert(`Promise Error: ${err.message || err}`);
-                                });
-                              }
-                            } catch (error) {
-                              console.error('CHECKOUT_CAMERA: Sync error starting camera:', error);
-                              alert(`Sync Error: ${error instanceof Error ? error.message : String(error)}`);
-                            }
-                          }}
+                          onClick={() => startCameraForPhoto('selfie')}
                           variant="outline"
                           className="w-full"
                         >
@@ -896,15 +863,7 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
                         
                         {capturedPhotos.sitePhotos.length < 20 && (
                           <Button 
-                            onClick={(e) => {
-                              try {
-                                e.preventDefault();
-                                console.log('CHECKOUT_CAMERA: Add another site photo button clicked');
-                                startCameraForPhoto('site');
-                              } catch (error) {
-                                console.error('CHECKOUT_CAMERA: Add another site photo button click error:', error);
-                              }
-                            }}
+                            onClick={() => startCameraForPhoto('site')}
                             variant="outline"
                             className="w-full"
                             size="sm"
@@ -926,30 +885,7 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
                     {capturedPhotos.sitePhotos.length === 0 && (!isCameraActive || currentPhotoType !== 'site') && (
                       <div className="space-y-3">
                         <Button 
-                          onClick={(e) => {
-                            try {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              console.log('CHECKOUT_CAMERA: Site photos button clicked');
-                              console.log('CHECKOUT_CAMERA: startCameraForPhoto function exists:', typeof startCameraForPhoto);
-                              console.log('CHECKOUT_CAMERA: About to call startCameraForPhoto with "site"');
-                              startCameraForPhoto('site').catch(err => {
-                                console.error('CHECKOUT_CAMERA: startCameraForPhoto promise rejected:', err);
-                                toast({
-                                  title: "Camera Error", 
-                                  description: `Failed to start camera: ${err.message || err}`,
-                                  variant: "destructive",
-                                });
-                              });
-                            } catch (error) {
-                              console.error('CHECKOUT_CAMERA: Site photos button click error:', error);
-                              toast({
-                                title: "Button Error",
-                                description: `Button click failed: ${error instanceof Error ? error.message : error}`,
-                                variant: "destructive",
-                              });
-                            }
-                          }}
+                          onClick={() => startCameraForPhoto('site')}
                           variant="outline"
                           className="w-full"
                         >
