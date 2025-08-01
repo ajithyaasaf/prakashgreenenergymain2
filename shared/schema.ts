@@ -315,7 +315,9 @@ export const adminSiteVisitSchema = z.object({
 export const sitePhotoSchema = z.object({
   url: z.string().url(),
   location: locationSchema,
-  timestamp: z.date(),
+  timestamp: z.union([z.date(), z.string()]).transform((val) => 
+    typeof val === 'string' ? new Date(val) : val
+  ),
   description: z.string().optional()
 });
 

@@ -579,7 +579,7 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
                 accuracy: currentLocation?.accuracy,
                 address: currentLocation?.formattedAddress || currentLocation?.address || 'Address not available'
               },
-              timestamp: new Date(),
+              timestamp: new Date().toISOString(),
               description: `Site photo ${i + 1} captured during check-in`
             });
             console.log(`Site photo ${i + 1} uploaded successfully:`, uploadResult.url);
