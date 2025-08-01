@@ -458,13 +458,6 @@ export function FollowUpModal({ isOpen, onClose, originalVisit }: FollowUpModalP
                       <p className="font-medium text-sm">
                         {locationStatus.location.formattedAddress || locationStatus.location.address}
                       </p>
-                      <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                        <span>Accuracy: {Math.round(locationStatus.location.accuracy)}m</span>
-                        <span>•</span>
-                        <span>
-                          {locationStatus.location.latitude.toFixed(6)}, {locationStatus.location.longitude.toFixed(6)}
-                        </span>
-                      </div>
                     </div>
                   </div>
                 </div>
