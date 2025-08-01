@@ -133,23 +133,45 @@ export function FollowUpModal({ isOpen, onClose, originalVisit }: FollowUpModalP
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch visit history for the customer
+  // Fetch visit history for the customer  
   const { data: visitHistory } = useQuery({
     queryKey: ['/api/site-visits/customer-history', originalVisit?.customer.mobile],
     queryFn: async () => {
       if (!originalVisit?.customer.mobile) return [];
-      const response = await fetch(`/api/site-visits/customer-history?mobile=${encodeURIComponent(originalVisit.customer.mobile)}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
+      
+      try {
+        // Get fresh token from Firebase Auth
+        const { getAuth } = await import('firebase/auth');
+        const auth = getAuth();
+        const currentUser = auth.currentUser;
+        
+        if (!currentUser) {
+          console.warn('No authenticated user found');
+          return [];
         }
-      });
-      if (!response.ok) {
-        throw new Error('Failed to fetch customer history');
+        
+        const token = await currentUser.getIdToken(true); // Force refresh
+        
+        const response = await fetch(`/api/site-visits/customer-history?mobile=${encodeURIComponent(originalVisit.customer.mobile)}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (!response.ok) {
+          console.warn('Customer history fetch failed:', response.status, response.statusText);
+          return []; // Return empty array instead of throwing error
+        }
+        
+        return response.json();
+      } catch (error) {
+        console.warn('Customer history query failed:', error);
+        return [];
       }
-      return response.json();
     },
     enabled: isOpen && !!originalVisit?.customer.mobile,
+    retry: false, // Don't retry failed requests automatically
   });
 
   // Auto-detect location when modal opens and reset form
@@ -168,11 +190,35 @@ export function FollowUpModal({ isOpen, onClose, originalVisit }: FollowUpModalP
 
   const detectLocation = async () => {
     setLocationStatus({ status: 'detecting', location: null });
-    const result = await locationService.detectLocation();
-    setLocationStatus(result);
     
-    if (result.status === 'granted') {
-      console.log('✅ Follow-up location detected:', result.location?.address);
+    try {
+      const result = await locationService.getCurrentLocation();
+      
+      if (result.success && result.location) {
+        console.log('✅ Follow-up location detected:', {
+          address: result.location.address,
+          formattedAddress: result.location.formattedAddress,
+          coordinates: `${result.location.latitude}, ${result.location.longitude}`,
+          accuracy: result.location.accuracy
+        });
+        
+        setLocationStatus({ 
+          status: 'granted', 
+          location: result.location 
+        });
+      } else {
+        console.error('❌ Location detection failed:', result.error);
+        setLocationStatus({ 
+          status: result.error === 'Permission denied' ? 'denied' : 'error',
+          error: result.error || 'Location detection failed'
+        });
+      }
+    } catch (error) {
+      console.error('❌ Location service error:', error);
+      setLocationStatus({ 
+        status: 'error',
+        error: 'Location service unavailable'
+      });
     }
   };
 
@@ -406,11 +452,17 @@ export function FollowUpModal({ isOpen, onClose, originalVisit }: FollowUpModalP
                 <div className="space-y-2">
                   <div className="flex items-start gap-2">
                     <MapPin className="h-4 w-4 text-green-600 mt-1 flex-shrink-0" />
-                    <div>
-                      <p className="font-medium">{locationStatus.location.address}</p>
-                      <p className="text-sm text-muted-foreground">
-                        Accuracy: {Math.round(locationStatus.location.accuracy)}m
+                    <div className="flex-1">
+                      <p className="font-medium text-sm">
+                        {locationStatus.location.formattedAddress || locationStatus.location.address}
                       </p>
+                      <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                        <span>Accuracy: {Math.round(locationStatus.location.accuracy)}m</span>
+                        <span>•</span>
+                        <span>
+                          {locationStatus.location.latitude.toFixed(6)}, {locationStatus.location.longitude.toFixed(6)}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
