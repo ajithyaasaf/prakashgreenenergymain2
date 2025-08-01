@@ -26,7 +26,8 @@ import {
   Building,
   Zap,
   RotateCcw,
-  X
+  X,
+  User
 } from "lucide-react";
 import { TechnicalSiteVisitForm } from "./technical-site-visit-form";
 import { MarketingSiteVisitForm } from "./marketing-site-visit-form";
@@ -67,8 +68,17 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
   const [step, setStep] = useState(1);
   const [currentLocation, setCurrentLocation] = useState<LocationData | null>(null);
   const [locationCaptured, setLocationCaptured] = useState(false);
-  const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
   const [lastErrorMessage, setLastErrorMessage] = useState<string>('');
+  
+  // Enhanced photo capture states - Support for multiple photos
+  const [capturedPhotos, setCapturedPhotos] = useState<{
+    selfie: string | null;
+    site: string | null;
+  }>({
+    selfie: null,
+    site: null
+  });
+  const [currentPhotoType, setCurrentPhotoType] = useState<'selfie' | 'site'>('selfie');
   
   // Camera states
   const [isCameraActive, setIsCameraActive] = useState(false);
@@ -112,7 +122,8 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
       setStep(1);
       setCurrentLocation(null);
       setLocationCaptured(false);
-      setCapturedPhoto(null);
+      setCapturedPhotos({ selfie: null, site: null });
+      setCurrentPhotoType('selfie');
       setLastErrorMessage('');
       setIsCameraActive(false);
       setIsVideoReady(false);
@@ -333,7 +344,7 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
   };
 
   const capturePhoto = () => {
-    console.log('SITE_VISIT_CAMERA: Attempting photo capture...');
+    console.log('SITE_VISIT_CAMERA: Attempting photo capture for:', currentPhotoType);
     
     if (!videoRef.current || !canvasRef.current) {
       console.error('SITE_VISIT_CAMERA: Video or canvas ref not available');
@@ -390,16 +401,21 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
         throw new Error('Generated image data too small');
       }
       
-      setCapturedPhoto(photoDataUrl);
+      // Update the captured photos state for the current photo type
+      setCapturedPhotos(prev => ({
+        ...prev,
+        [currentPhotoType]: photoDataUrl
+      }));
       
       // Stop camera after successful capture
       stopCamera();
       
-      console.log('SITE_VISIT_CAMERA: Photo captured successfully, size:', photoDataUrl.length);
+      console.log('SITE_VISIT_CAMERA: Photo captured successfully for', currentPhotoType, 'size:', photoDataUrl.length);
       
+      const photoTypeLabel = currentPhotoType === 'selfie' ? 'Selfie' : 'Site Photo';
       toast({
         title: "Photo Captured",
-        description: "Site visit photo captured successfully",
+        description: `${photoTypeLabel} captured successfully`,
         variant: "default",
       });
     } catch (error) {
@@ -435,9 +451,28 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
     }
   };
 
-  const resetPhoto = () => {
-    setCapturedPhoto(null);
+  const resetPhoto = (photoType?: 'selfie' | 'site') => {
+    if (photoType) {
+      // Reset specific photo type
+      setCapturedPhotos(prev => ({
+        ...prev,
+        [photoType]: null
+      }));
+    } else {
+      // Reset current photo type
+      setCapturedPhotos(prev => ({
+        ...prev,
+        [currentPhotoType]: null
+      }));
+    }
     stopCamera();
+  };
+
+  const startCameraForPhoto = (photoType: 'selfie' | 'site') => {
+    setCurrentPhotoType(photoType);
+    // Set camera orientation based on photo type
+    setCurrentCamera(photoType === 'selfie' ? 'front' : 'back');
+    startCamera();
   };
 
   const createSiteVisitMutation = useMutation({
@@ -445,34 +480,69 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
       console.log("=== MUTATION STARTED ===");
       console.log("Input data:", JSON.stringify(data, null, 2));
       console.log("Current location:", currentLocation);
-      console.log("Captured photo:", capturedPhoto ? 'present' : 'none');
+      console.log("Captured photos:", { 
+        selfie: capturedPhotos.selfie ? 'present' : 'none',
+        site: capturedPhotos.site ? 'present' : 'none'
+      });
       
-      // Upload photo to Cloudinary if provided
-      let photoUrl: string | undefined = undefined;
+      // Upload photos to Cloudinary if provided
+      let selfiePhotoUrl: string | undefined = undefined;
+      let sitePhotoUrl: string | undefined = undefined;
       
-      if (capturedPhoto) {
+      // Upload selfie photo
+      if (capturedPhotos.selfie) {
         try {
-          console.log("Uploading photo via server-side Cloudinary service...");
+          console.log("Uploading selfie photo via server-side Cloudinary service...");
           
           const uploadResponse = await apiRequest('/api/attendance/upload-photo', 'POST', {
-            imageData: capturedPhoto, // Already base64 encoded
-            userId: `site_visit_start_${Date.now()}`, // Unique ID for site visit start photos
-            attendanceType: 'site_visit'
+            imageData: capturedPhotos.selfie, // Already base64 encoded
+            userId: `site_visit_selfie_${Date.now()}`, // Unique ID for site visit selfie photos
+            attendanceType: 'site_visit_selfie'
           });
 
           if (!uploadResponse.ok) {
             const errorData = await uploadResponse.json();
-            throw new Error(errorData.message || 'Photo upload failed');
+            throw new Error(errorData.message || 'Selfie photo upload failed');
           }
 
           const uploadResult = await uploadResponse.json();
-          photoUrl = uploadResult.url;
-          console.log("Photo uploaded successfully:", photoUrl);
+          selfiePhotoUrl = uploadResult.url;
+          console.log("Selfie photo uploaded successfully:", selfiePhotoUrl);
         } catch (error) {
-          console.error('Photo upload failed:', error);
+          console.error('Selfie photo upload failed:', error);
           toast({
-            title: "Photo Upload Failed",
-            description: error instanceof Error ? error.message : "Could not upload photo. Please try again.",
+            title: "Selfie Upload Failed",
+            description: error instanceof Error ? error.message : "Could not upload selfie. Please try again.",
+            variant: "destructive",
+          });
+          throw error; // Re-throw to stop the mutation
+        }
+      }
+
+      // Upload site photo
+      if (capturedPhotos.site) {
+        try {
+          console.log("Uploading site photo via server-side Cloudinary service...");
+          
+          const uploadResponse = await apiRequest('/api/attendance/upload-photo', 'POST', {
+            imageData: capturedPhotos.site, // Already base64 encoded
+            userId: `site_visit_site_${Date.now()}`, // Unique ID for site visit site photos
+            attendanceType: 'site_visit_site'
+          });
+
+          if (!uploadResponse.ok) {
+            const errorData = await uploadResponse.json();
+            throw new Error(errorData.message || 'Site photo upload failed');
+          }
+
+          const uploadResult = await uploadResponse.json();
+          sitePhotoUrl = uploadResult.url;
+          console.log("Site photo uploaded successfully:", sitePhotoUrl);
+        } catch (error) {
+          console.error('Site photo upload failed:', error);
+          toast({
+            title: "Site Photo Upload Failed",
+            description: error instanceof Error ? error.message : "Could not upload site photo. Please try again.",
             variant: "destructive",
           });
           throw error; // Re-throw to stop the mutation
@@ -489,7 +559,18 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
           accuracy: currentLocation?.accuracy,
           address: currentLocation?.formattedAddress || currentLocation?.address || 'Address not available'
         },
-        ...(photoUrl && { siteInPhotoUrl: photoUrl }),
+        ...(selfiePhotoUrl && { siteInPhotoUrl: selfiePhotoUrl }),
+        sitePhotos: sitePhotoUrl ? [{
+          url: sitePhotoUrl,
+          location: {
+            latitude: currentLocation?.latitude || 0,
+            longitude: currentLocation?.longitude || 0,
+            accuracy: currentLocation?.accuracy,
+            address: currentLocation?.formattedAddress || currentLocation?.address || 'Address not available'
+          },
+          timestamp: new Date(),
+          description: 'Site photo captured during check-in'
+        }] : [],
         customer: {
           ...data.customer,
           ebServiceNumber: data.customer.ebServiceNumber || '',
@@ -499,7 +580,6 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
         ...(data.technicalData && { technicalData: data.technicalData }),
         ...(data.marketingData && { marketingData: data.marketingData }),
         ...(data.adminData && { adminData: data.adminData }),
-        sitePhotos: [],
         notes: data.notes || ''
       };
 
@@ -872,35 +952,37 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
           {/* Step 4: Photo & Confirmation */}
           {step === 4 && (
             <div className="space-y-4">
+              {/* Selfie Photo Section */}
               <Card>
                 <CardHeader className="pb-3 sm:pb-6">
                   <CardTitle className="text-base sm:text-lg flex items-center gap-2 justify-center sm:justify-start">
-                    <Camera className="h-4 w-4 sm:h-5 sm:w-5" />
-                    Site In Photo
+                    <User className="h-4 w-4 sm:h-5 sm:w-5" />
+                    Selfie Photo
+                    {capturedPhotos.selfie && <CheckCircle className="h-4 w-4 text-green-600" />}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3 sm:space-y-4">
-                    {!capturedPhoto && !isCameraActive && (
+                    {!capturedPhotos.selfie && (!isCameraActive || currentPhotoType !== 'selfie') && (
                       <div className="space-y-3">
                         <Button 
-                          onClick={startCamera}
+                          onClick={() => startCameraForPhoto('selfie')}
                           variant="outline"
                           className="w-full"
                         >
                           <Camera className="h-4 w-4 mr-2" />
-                          Start Camera
+                          Take Selfie
                         </Button>
                         <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-4 sm:p-8 text-center">
-                          <Camera className="h-8 w-8 sm:h-12 sm:w-12 mx-auto mb-2 sm:mb-4 text-muted-foreground" />
+                          <User className="h-8 w-8 sm:h-12 sm:w-12 mx-auto mb-2 sm:mb-4 text-muted-foreground" />
                           <p className="text-xs sm:text-sm text-muted-foreground">
-                            Take a live photo of the site with location and timestamp
+                            Take a selfie to verify your presence at the site
                           </p>
                         </div>
                       </div>
                     )}
 
-                    {isCameraActive && !capturedPhoto && (
+                    {isCameraActive && currentPhotoType === 'selfie' && !capturedPhotos.selfie && (
                       <div className="space-y-3">
                         <div className="relative">
                           <video
@@ -914,10 +996,13 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
                             <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-lg">
                               <div className="text-white text-center">
                                 <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-white mx-auto mb-2"></div>
-                                <p className="text-xs sm:text-sm">Loading camera...</p>
+                                <p className="text-xs sm:text-sm">Loading front camera...</p>
                               </div>
                             </div>
                           )}
+                          <Badge className="absolute top-2 left-2 text-xs bg-blue-600">
+                            Selfie Mode
+                          </Badge>
                         </div>
                         
                         <div className="flex flex-col sm:flex-row justify-between gap-2 sm:gap-0">
@@ -950,33 +1035,150 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
                               size="sm"
                             >
                               <Camera className="h-4 w-4 mr-2" />
-                              Capture
+                              Take Selfie
                             </Button>
                           </div>
                         </div>
                       </div>
                     )}
 
-                    {capturedPhoto && (
+                    {capturedPhotos.selfie && (
                       <div className="space-y-3">
                         <div className="relative">
                           <img
-                            src={capturedPhoto}
-                            alt="Captured site photo"
+                            src={capturedPhotos.selfie}
+                            alt="Captured selfie"
                             className="w-full h-48 sm:h-64 object-cover rounded-lg"
                           />
-                          <Badge className="absolute top-2 right-2 text-xs">
-                            Captured
+                          <Badge className="absolute top-2 right-2 text-xs bg-green-600">
+                            Selfie Captured
                           </Badge>
                         </div>
                         <Button
                           variant="outline"
-                          onClick={resetPhoto}
+                          onClick={() => resetPhoto('selfie')}
                           className="w-full"
                           size="sm"
                         >
                           <RotateCcw className="h-4 w-4 mr-2" />
-                          Retake Photo
+                          Retake Selfie
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Site Photo Section */}
+              <Card>
+                <CardHeader className="pb-3 sm:pb-6">
+                  <CardTitle className="text-base sm:text-lg flex items-center gap-2 justify-center sm:justify-start">
+                    <MapPin className="h-4 w-4 sm:h-5 sm:w-5" />
+                    Site Photo
+                    {capturedPhotos.site && <CheckCircle className="h-4 w-4 text-green-600" />}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3 sm:space-y-4">
+                    {!capturedPhotos.site && (!isCameraActive || currentPhotoType !== 'site') && (
+                      <div className="space-y-3">
+                        <Button 
+                          onClick={() => startCameraForPhoto('site')}
+                          variant="outline"
+                          className="w-full"
+                        >
+                          <Camera className="h-4 w-4 mr-2" />
+                          Capture Site
+                        </Button>
+                        <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-4 sm:p-8 text-center">
+                          <MapPin className="h-8 w-8 sm:h-12 sm:w-12 mx-auto mb-2 sm:mb-4 text-muted-foreground" />
+                          <p className="text-xs sm:text-sm text-muted-foreground">
+                            Take a photo of the site or work area
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {isCameraActive && currentPhotoType === 'site' && !capturedPhotos.site && (
+                      <div className="space-y-3">
+                        <div className="relative">
+                          <video
+                            ref={videoRef}
+                            autoPlay
+                            playsInline
+                            muted
+                            className="w-full h-48 sm:h-64 object-cover rounded-lg bg-black"
+                          />
+                          {!isVideoReady && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-lg">
+                              <div className="text-white text-center">
+                                <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-white mx-auto mb-2"></div>
+                                <p className="text-xs sm:text-sm">Loading back camera...</p>
+                              </div>
+                            </div>
+                          )}
+                          <Badge className="absolute top-2 left-2 text-xs bg-orange-600">
+                            Site Mode
+                          </Badge>
+                        </div>
+                        
+                        <div className="flex flex-col sm:flex-row justify-between gap-2 sm:gap-0">
+                          <Button
+                            variant="outline"
+                            onClick={switchCamera}
+                            disabled={!isVideoReady}
+                            className="w-full sm:w-auto order-2 sm:order-1"
+                            size="sm"
+                          >
+                            <RotateCcw className="h-4 w-4 mr-2" />
+                            <span className="hidden sm:inline">Switch to {currentCamera === 'front' ? 'Back' : 'Front'}</span>
+                            <span className="sm:hidden">Switch Camera</span>
+                          </Button>
+                          
+                          <div className="flex gap-2 order-1 sm:order-2">
+                            <Button
+                              variant="destructive"
+                              onClick={stopCamera}
+                              className="flex-1 sm:flex-none"
+                              size="sm"
+                            >
+                              <X className="h-4 w-4 mr-2" />
+                              Cancel
+                            </Button>
+                            <Button
+                              onClick={capturePhoto}
+                              disabled={!isVideoReady}
+                              className="flex-1 sm:flex-none"
+                              size="sm"
+                            >
+                              <Camera className="h-4 w-4 mr-2" />
+                              Capture Site
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {capturedPhotos.site && (
+                      <div className="space-y-3">
+                        <div className="relative">
+                          <img
+                            src={capturedPhotos.site}
+                            alt="Captured site photo"
+                            className="w-full h-48 sm:h-64 object-cover rounded-lg"
+                          />
+                          <Badge className="absolute top-2 right-2 text-xs bg-green-600">
+                            Site Captured
+                          </Badge>
+                        </div>
+                        <Button
+                          variant="outline"
+                          onClick={() => resetPhoto('site')}
+                          className="w-full"
+                          size="sm"
+                        >
+                          <RotateCcw className="h-4 w-4 mr-2" />
+                          Retake Site Photo
                         </Button>
                       </div>
                     )}
@@ -1010,6 +1212,17 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
                     <span className="text-muted-foreground text-sm">Location:</span>
                     <span className="text-green-600 text-sm">Acquired</span>
                   </div>
+                  <div className="flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-0">
+                    <span className="text-muted-foreground text-sm">Photos:</span>
+                    <div className="flex gap-2">
+                      <Badge variant={capturedPhotos.selfie ? "default" : "secondary"} className="text-xs">
+                        Selfie {capturedPhotos.selfie ? '✓' : '✗'}
+                      </Badge>
+                      <Badge variant={capturedPhotos.site ? "default" : "secondary"} className="text-xs">
+                        Site {capturedPhotos.site ? '✓' : '✗'}
+                      </Badge>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
 
@@ -1023,7 +1236,7 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
                 </Button>
                 <Button
                   onClick={handleSubmit}
-                  disabled={createSiteVisitMutation.isPending}
+                  disabled={!capturedPhotos.selfie || createSiteVisitMutation.isPending}
                   className="w-full sm:w-auto order-1 sm:order-2"
                 >
                   {createSiteVisitMutation.isPending ? (
