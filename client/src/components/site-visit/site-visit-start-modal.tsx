@@ -155,11 +155,17 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
 
   const createSiteVisitMutation = useMutation({
     mutationFn: async (data: any) => {
+      console.log("=== MUTATION STARTED ===");
+      console.log("Input data:", JSON.stringify(data, null, 2));
+      console.log("Current location:", currentLocation);
+      console.log("Selected photo:", selectedPhoto ? selectedPhoto.name : 'none');
+      
       // Upload photo to Cloudinary if provided
       let photoUrl: string | undefined = undefined;
       
       if (selectedPhoto) {
         try {
+          console.log("Uploading photo to Cloudinary...");
           const formData = new FormData();
           formData.append('file', selectedPhoto);
           formData.append('upload_preset', 'attendance_photos');
@@ -176,6 +182,7 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
 
           const result = await response.json();
           photoUrl = result.secure_url;
+          console.log("Photo uploaded successfully:", photoUrl);
         } catch (error) {
           console.error('Photo upload failed:', error);
           toast({
@@ -183,7 +190,7 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
             description: "Could not upload photo. Please try again.",
             variant: "destructive",
           });
-          return;
+          throw error; // Re-throw to stop the mutation
         }
       }
 
@@ -215,9 +222,19 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
       console.log("Payload being sent:", JSON.stringify(siteVisitPayload, null, 2));
       console.log("================================");
 
-      return apiRequest('/api/site-visits', 'POST', siteVisitPayload);
+      try {
+        console.log("Making API request to /api/site-visits...");
+        const result = await apiRequest('/api/site-visits', 'POST', siteVisitPayload);
+        console.log("API request successful:", result);
+        return result;
+      } catch (error) {
+        console.error("API request failed:", error);
+        throw error;
+      }
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
+      console.log("=== MUTATION SUCCESS ===");
+      console.log("Result:", result);
       toast({
         title: "Site Visit Started",
         description: "Your site visit has been started successfully",
@@ -226,6 +243,10 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
       onClose();
     },
     onError: (error: any) => {
+      console.error("=== MUTATION ERROR ===");
+      console.error("Error object:", error);
+      console.error("Error message:", error.message);
+      console.error("Error response:", error.response);
       toast({
         title: "Error",
         description: error.message || "Failed to start site visit",
@@ -235,7 +256,15 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
   });
 
   const handleSubmit = () => {
+    console.log("=== HANDLE SUBMIT STARTED ===");
+    console.log("Form data:", JSON.stringify(formData, null, 2));
+    console.log("Location captured:", locationCaptured);
+    console.log("Current location:", currentLocation);
+    console.log("Can proceed to step 4:", canProceedToStep4);
+    console.log("Normalized department:", normalizedDepartment);
+    
     if (!locationCaptured || !currentLocation) {
+      console.log("Validation failed: Location required");
       toast({
         title: "Location Required",
         description: "Please allow location detection to start a site visit",
@@ -245,6 +274,7 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
     }
 
     if (!formData.visitPurpose || !formData.customer.name || !formData.customer.mobile || !formData.customer.address || !formData.customer.propertyType) {
+      console.log("Validation failed: Required fields missing");
       toast({
         title: "Required Fields",
         description: "Please fill in all required fields",
@@ -255,6 +285,7 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
 
     // Validate department-specific data
     if (!canProceedToStep4) {
+      console.log("Validation failed: Department details required");
       toast({
         title: "Department Details Required",
         description: `Please complete the ${normalizedDepartment} department specific details`,
@@ -263,6 +294,7 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
       return;
     }
 
+    console.log("All validations passed, calling mutation...");
     createSiteVisitMutation.mutate(formData);
   };
 
