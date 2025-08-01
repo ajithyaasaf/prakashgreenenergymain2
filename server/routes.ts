@@ -5218,10 +5218,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create new site visit (Site In)
   app.post("/api/site-visits", verifyAuth, async (req, res) => {
     try {
+      console.log("=== SITE VISIT CREATION STARTED ===");
+      console.log("User ID:", req.user?.uid);
+      console.log("Request body received:", JSON.stringify(req.body, null, 2));
+      
       const user = await storage.getUser(req.user.uid);
+      console.log("User retrieved:", user ? `${user.displayName} (${user.department})` : 'null');
+      
       const hasPermission = user ? await checkSiteVisitPermission(user, 'create') : false;
+      console.log("Permission check result:", hasPermission);
       
       if (!user || !hasPermission) {
+        console.log("SITE VISIT CREATION DENIED - User or permission missing");
         return res.status(403).json({ 
           message: "Access denied. Site Visit access is limited to Technical, Marketing, and Admin departments." 
         });
@@ -5295,8 +5303,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("=====================================");
 
       const siteVisitData = insertSiteVisitSchema.parse(requestData);
+      console.log("Data validation passed, creating site visit...");
 
       const siteVisit = await siteVisitService.createSiteVisit(siteVisitData);
+      console.log("Site visit created successfully:", siteVisit.id);
+      console.log("===================================");
       
       res.status(201).json({
         message: "Site visit created successfully",

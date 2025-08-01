@@ -25,6 +25,8 @@ export class SiteVisitService {
    */
   async createSiteVisit(data: InsertSiteVisit): Promise<SiteVisit> {
     try {
+      console.log("SITE_VISIT_SERVICE: Creating site visit with data:", JSON.stringify(data, null, 2));
+      
       // Data is already validated in the route, so we can use it directly
       const validatedData = data;
       
@@ -35,20 +37,26 @@ export class SiteVisitService {
         siteOutTime: validatedData.siteOutTime ? Timestamp.fromDate(validatedData.siteOutTime) : null,
         createdAt: Timestamp.fromDate(validatedData.createdAt || new Date()),
         updatedAt: Timestamp.fromDate(validatedData.updatedAt || new Date()),
-        sitePhotos: validatedData.sitePhotos.map(photo => ({
+        sitePhotos: validatedData.sitePhotos?.map(photo => ({
           ...photo,
           timestamp: Timestamp.fromDate(photo.timestamp)
-        }))
+        })) || []
       };
 
+      console.log("SITE_VISIT_SERVICE: Prepared data for Firestore:", JSON.stringify(firestoreData, null, 2));
+
       const docRef = await this.collection.add(firestoreData);
+      console.log("SITE_VISIT_SERVICE: Document created with ID:", docRef.id);
       
-      return {
+      const result = {
         id: docRef.id,
         ...this.convertFirestoreToSiteVisit(firestoreData)
       };
+      
+      console.log("SITE_VISIT_SERVICE: Returning site visit:", JSON.stringify(result, null, 2));
+      return result;
     } catch (error) {
-      console.error('Error creating site visit:', error);
+      console.error('SITE_VISIT_SERVICE: Error creating site visit:', error);
       throw new Error('Failed to create site visit');
     }
   }
