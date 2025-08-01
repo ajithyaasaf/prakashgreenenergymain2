@@ -69,7 +69,20 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [lastErrorMessage, setLastErrorMessage] = useState<string>('');
   
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    visitPurpose: string;
+    customer: {
+      name: string;
+      mobile: string;
+      address: string;
+      ebServiceNumber: string;
+      propertyType: string;
+    };
+    notes: string;
+    technicalData: any;
+    marketingData: any;
+    adminData: any;
+  }>({
     visitPurpose: '',
     customer: {
       name: '',
@@ -179,10 +192,10 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
         visitPurpose: data.visitPurpose,
         siteInTime: new Date(), // Send as Date object for consistency with checkout
         siteInLocation: {
-          latitude: currentLocation.latitude,
-          longitude: currentLocation.longitude,
-          accuracy: currentLocation.accuracy,
-          address: currentLocation.formattedAddress || currentLocation.address || 'Address not available'
+          latitude: currentLocation?.latitude || 0,
+          longitude: currentLocation?.longitude || 0,
+          accuracy: currentLocation?.accuracy,
+          address: currentLocation?.formattedAddress || currentLocation?.address || 'Address not available'
         },
         ...(photoUrl && { siteInPhotoUrl: photoUrl }),
         customer: {
@@ -478,7 +491,7 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
                 <ErrorBoundary>
                   <TechnicalSiteVisitForm 
                     onSubmit={(data) => {
-                      setFormData(prev => ({ ...prev, technicalData: data }));
+                      setFormData(prev => ({ ...prev, technicalData: data, marketingData: null, adminData: null }));
                       setStep(4);
                     }}
                     onBack={() => setStep(2)}
@@ -491,7 +504,7 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
                 <ErrorBoundary>
                   <MarketingSiteVisitForm 
                     onSubmit={(data) => {
-                      setFormData(prev => ({ ...prev, marketingData: data }));
+                      setFormData(prev => ({ ...prev, marketingData: data, technicalData: null, adminData: null }));
                       setStep(4);
                     }}
                     onBack={() => setStep(2)}
@@ -504,7 +517,7 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
                 <ErrorBoundary>
                   <AdminSiteVisitForm 
                     onSubmit={(data) => {
-                      setFormData(prev => ({ ...prev, adminData: data }));
+                      setFormData(prev => ({ ...prev, adminData: data, technicalData: null, marketingData: null }));
                       setStep(4);
                     }}
                     onBack={() => setStep(2)}

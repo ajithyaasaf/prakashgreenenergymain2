@@ -61,7 +61,7 @@ interface BaseConfig {
 
 interface OnGridConfig extends BaseConfig {
   solarPanelMake: string;
-  panelWatts: number;
+  panelWatts: string;
   inverterMake: string;
   inverterWatts: string;
   inverterPhase: string;
@@ -130,7 +130,7 @@ export function MarketingSiteVisitForm({ onSubmit, onBack, isDisabled, isLoading
       projectType,
       onGridConfig: projectType === 'on_grid' ? {
         solarPanelMake: '',
-        panelWatts: 530,
+        panelWatts: '530',
         inverterMake: '',
         inverterWatts: '',
         inverterPhase: '',
@@ -144,7 +144,7 @@ export function MarketingSiteVisitForm({ onSubmit, onBack, isDisabled, isLoading
       } : undefined,
       offGridConfig: projectType === 'off_grid' ? {
         solarPanelMake: '',
-        panelWatts: 530,
+        panelWatts: '530',
         inverterMake: '',
         inverterWatts: '',
         inverterPhase: '',
@@ -162,7 +162,7 @@ export function MarketingSiteVisitForm({ onSubmit, onBack, isDisabled, isLoading
       } : undefined,
       hybridConfig: projectType === 'hybrid' ? {
         solarPanelMake: '',
-        panelWatts: 530,
+        panelWatts: '530',
         inverterMake: '',
         inverterWatts: '',
         inverterPhase: '',
@@ -325,15 +325,15 @@ export function MarketingSiteVisitForm({ onSubmit, onBack, isDisabled, isLoading
                   <div>
                     <Label>Panel Watts</Label>
                     <Select 
-                      value={formData.onGridConfig.panelWatts.toString()}
-                      onValueChange={(value) => updateConfig('onGridConfig', { panelWatts: parseInt(value) })}
+                      value={formData.onGridConfig.panelWatts}
+                      onValueChange={(value) => updateConfig('onGridConfig', { panelWatts: value })}
                     >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         {panelWatts.map((watts) => (
-                          <SelectItem key={watts} value={watts.toString()}>
+                          <SelectItem key={watts} value={watts}>
                             {watts}W
                           </SelectItem>
                         ))}
@@ -505,7 +505,7 @@ export function MarketingSiteVisitForm({ onSubmit, onBack, isDisabled, isLoading
                   <div>
                     <Label>Panel Watts</Label>
                     <Select 
-                      value={formData.offGridConfig.panelWatts.toString()}
+                      value={formData.offGridConfig.panelWatts}
                       onValueChange={(value) => updateConfig('offGridConfig', { panelWatts: value })}
                     >
                       <SelectTrigger>
