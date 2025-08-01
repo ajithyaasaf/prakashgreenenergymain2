@@ -38,9 +38,18 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
   const [step, setStep] = useState(1);
   const [currentLocation, setCurrentLocation] = useState<LocationData | null>(null);
   const [locationCaptured, setLocationCaptured] = useState(false);
-  const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
   const [notes, setNotes] = useState('');
   const [lastErrorMessage, setLastErrorMessage] = useState<string>('');
+  
+  // Enhanced photo capture states - Support for multiple photos
+  const [capturedPhotos, setCapturedPhotos] = useState<{
+    selfie: string | null;
+    sitePhotos: string[];
+  }>({
+    selfie: null,
+    sitePhotos: []
+  });
+  const [currentPhotoType, setCurrentPhotoType] = useState<'selfie' | 'site'>('selfie');
   
   // Camera states
   const [isCameraActive, setIsCameraActive] = useState(false);
@@ -59,7 +68,8 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
       setStep(1);
       setCurrentLocation(null);
       setLocationCaptured(false);
-      setCapturedPhoto(null);
+      setCapturedPhotos({ selfie: null, sitePhotos: [] });
+      setCurrentPhotoType('selfie');
       setNotes('');
       setLastErrorMessage('');
       setIsCameraActive(false);
@@ -72,6 +82,20 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
         setStream(null);
       }
     }
+  }, [isOpen, stream]);
+
+  // Cleanup camera stream when modal closes or component unmounts
+  useEffect(() => {
+    if (!isOpen && stream) {
+      stream.getTracks().forEach(track => track.stop());
+      setStream(null);
+    }
+    
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+    };
   }, [isOpen, stream]);
 
   const handleLocationCaptured = (location: LocationData) => {
@@ -91,47 +115,137 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
     setLocationCaptured(false);
   };
 
-  // Camera functions
+  // Camera functions with better error handling
   const startCamera = async () => {
+    console.log('=== CHECKOUT_CAMERA: START CAMERA CLICKED ===');
+    console.log('CHECKOUT_CAMERA: Function called at:', new Date().toISOString());
+    
+    // First set camera active state to trigger video element rendering
+    setIsCameraActive(true);
+    setIsVideoReady(false);
+    
     try {
       console.log('CHECKOUT_CAMERA: Starting camera...');
+      console.log('CHECKOUT_CAMERA: Navigator check:', !!navigator.mediaDevices);
+      console.log('CHECKOUT_CAMERA: getUserMedia check:', !!navigator.mediaDevices?.getUserMedia);
+      console.log('CHECKOUT_CAMERA: Current camera state:', { isCameraActive, isVideoReady });
       
-      const constraints = {
-        video: {
-          facingMode: currentCamera === 'front' ? 'user' : 'environment',
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        },
-        audio: false
-      };
-      
-      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
-      setStream(mediaStream);
-      setIsCameraActive(true);
-      setIsVideoReady(false);
-      
-      if (videoRef.current) {
-        const video = videoRef.current;
-        video.muted = true;
-        video.playsInline = true;
-        video.autoplay = true;
-        video.controls = false;
-        video.srcObject = mediaStream;
+      // Check if getUserMedia is supported
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Camera API not supported on this device');
+      }
+
+      // First, check available devices
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices.filter(device => device.kind === 'videoinput');
+        console.log('CHECKOUT_CAMERA: Available video devices:', videoDevices.length);
         
-        video.onloadedmetadata = () => {
-          console.log('CHECKOUT_CAMERA: Video metadata loaded');
-          setIsVideoReady(true);
+        if (videoDevices.length === 0) {
+          throw new Error('No camera devices found');
+        }
+      } catch (deviceError) {
+        console.warn('CHECKOUT_CAMERA: Could not enumerate devices:', deviceError);
+      }
+      
+      // Try with specific constraints first, then fall back to basic ones
+      let mediaStream: MediaStream;
+      const facingMode = currentCamera === 'front' ? 'user' : 'environment';
+      
+      try {
+        // Try with preferred constraints
+        const preferredConstraints = {
+          video: {
+            facingMode: { ideal: facingMode },
+            width: { ideal: 1280, min: 640, max: 1920 },
+            height: { ideal: 720, min: 480, max: 1080 }
+          },
+          audio: false
         };
         
-        setTimeout(async () => {
-          try {
-            await video.play();
-            console.log('CHECKOUT_CAMERA: Video play successful');
-          } catch (playError) {
-            console.warn('CHECKOUT_CAMERA: Auto-play failed:', playError);
-          }
-        }, 100);
+        console.log('CHECKOUT_CAMERA: Trying preferred constraints:', preferredConstraints);
+        mediaStream = await navigator.mediaDevices.getUserMedia(preferredConstraints);
+        console.log('CHECKOUT_CAMERA: Preferred constraints SUCCESS');
+      } catch (preferredError) {
+        console.warn('CHECKOUT_CAMERA: Preferred constraints failed, trying basic:', preferredError);
+        
+        try {
+          // Fall back to basic constraints
+          const basicConstraints = {
+            video: {
+              facingMode: facingMode
+            },
+            audio: false
+          };
+          
+          mediaStream = await navigator.mediaDevices.getUserMedia(basicConstraints);
+          console.log('CHECKOUT_CAMERA: Basic constraints SUCCESS');
+        } catch (basicError) {
+          console.warn('CHECKOUT_CAMERA: Basic constraints failed, trying minimal:', basicError);
+          
+          // Last resort - minimal constraints
+          const minimalConstraints = {
+            video: true,
+            audio: false
+          };
+          
+          mediaStream = await navigator.mediaDevices.getUserMedia(minimalConstraints);
+          console.log('CHECKOUT_CAMERA: Minimal constraints SUCCESS');
+        }
       }
+      console.log('CHECKOUT_CAMERA: MediaStream obtained:', !!mediaStream);
+      console.log('CHECKOUT_CAMERA: Stream active:', mediaStream.active);
+      console.log('CHECKOUT_CAMERA: Video tracks:', mediaStream.getVideoTracks().length);
+      
+      setStream(mediaStream);
+      
+      // Wait for video element to be available with retry mechanism
+      const setupVideoElement = async (stream: MediaStream, retryCount = 0): Promise<void> => {
+        const maxRetries = 10;
+        const retryDelay = 200; // 200ms delay between retries
+        
+        if (videoRef.current) {
+          const video = videoRef.current;
+          console.log('CHECKOUT_CAMERA: Setting up video element...');
+          
+          // Set video properties
+          video.muted = true;
+          video.playsInline = true;
+          video.autoplay = true;
+          video.controls = false;
+          video.srcObject = stream;
+          
+          // Set up event handlers
+          video.onloadedmetadata = () => {
+            console.log('CHECKOUT_CAMERA: Video metadata loaded');
+            console.log('CHECKOUT_CAMERA: Video dimensions:', video.videoWidth, 'x', video.videoHeight);
+            setIsVideoReady(true);
+          };
+          
+          video.onerror = (error) => {
+            console.error('CHECKOUT_CAMERA: Video element error:', error);
+          };
+          
+          // Attempt to play the video
+          setTimeout(async () => {
+            try {
+              await video.play();
+              console.log('CHECKOUT_CAMERA: Video play successful');
+            } catch (playError) {
+              console.warn('CHECKOUT_CAMERA: Auto-play failed, user interaction may be required:', playError);
+              // Don't show error toast for auto-play failures as this is common and expected
+            }
+          }, 100);
+        } else if (retryCount < maxRetries) {
+          console.log(`CHECKOUT_CAMERA: Video element not ready, retrying in ${retryDelay}ms (attempt ${retryCount + 1}/${maxRetries})`);
+          setTimeout(() => setupVideoElement(stream, retryCount + 1), retryDelay);
+        } else {
+          console.error('CHECKOUT_CAMERA: Failed to get video element after maximum retries');
+          throw new Error('Camera initialization failed - video element not available');
+        }
+      };
+      
+      await setupVideoElement(mediaStream);
       
     } catch (error) {
       console.error('CHECKOUT_CAMERA: Access failed:', error);
@@ -146,6 +260,8 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
           errorMessage += "No camera found on this device.";
         } else if (error.name === 'NotReadableError') {
           errorMessage += "Camera is being used by another application.";
+        } else if (error.name === 'NotSupportedError') {
+          errorMessage += "Camera constraints not supported.";
         } else {
           errorMessage += error.message;
         }
@@ -156,38 +272,102 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
         description: errorMessage,
         variant: "destructive",
       });
+      
+      // Don't throw the error to prevent form reset
+      return;
     }
   };
 
   const capturePhoto = () => {
-    if (videoRef.current && canvasRef.current && isVideoReady) {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      const context = canvas.getContext('2d');
+    console.log('CHECKOUT_CAMERA: Attempting photo capture for:', currentPhotoType);
+    
+    if (!videoRef.current || !canvasRef.current) {
+      console.error('CHECKOUT_CAMERA: Video or canvas ref not available');
+      toast({
+        title: "Capture Failed",
+        description: "Camera not properly initialized. Please try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!isVideoReady) {
+      console.error('CHECKOUT_CAMERA: Video not ready');
+      toast({
+        title: "Capture Failed",
+        description: "Please wait for camera to load completely",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    const context = canvas.getContext('2d');
+    
+    if (!context) {
+      console.error('CHECKOUT_CAMERA: Cannot get canvas context');
+      toast({
+        title: "Capture Failed",
+        description: "Canvas not supported. Please try a different browser.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (video.videoWidth === 0 || video.videoHeight === 0) {
+      console.error('CHECKOUT_CAMERA: Video dimensions invalid:', video.videoWidth, 'x', video.videoHeight);
+      toast({
+        title: "Capture Failed",
+        description: "Camera feed not ready. Please wait a moment and try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    try {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      context.drawImage(video, 0, 0);
       
-      if (context && video.videoWidth > 0 && video.videoHeight > 0) {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        context.drawImage(video, 0, 0);
-        
-        const photoDataUrl = canvas.toDataURL('image/jpeg', 0.8);
-        setCapturedPhoto(photoDataUrl);
-        
-        // Stop camera after capture
-        stopCamera();
-        
-        toast({
-          title: "Photo Captured",
-          description: "Site checkout photo captured successfully",
-          variant: "default",
-        });
-      } else {
-        toast({
-          title: "Capture Failed",
-          description: "Please wait for camera to load completely",
-          variant: "destructive",
-        });
+      const photoDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+      
+      if (photoDataUrl.length < 100) {
+        throw new Error('Generated image data too small');
       }
+      
+      // Update the captured photos state for the current photo type
+      if (currentPhotoType === 'selfie') {
+        setCapturedPhotos(prev => ({
+          ...prev,
+          selfie: photoDataUrl
+        }));
+      } else {
+        // For site photos, add to the array
+        setCapturedPhotos(prev => ({
+          ...prev,
+          sitePhotos: [...prev.sitePhotos, photoDataUrl]
+        }));
+      }
+      
+      // Stop camera after successful capture
+      stopCamera();
+      
+      console.log('CHECKOUT_CAMERA: Photo captured successfully for', currentPhotoType, 'size:', photoDataUrl.length);
+      
+      const photoTypeLabel = currentPhotoType === 'selfie' ? 'Selfie' : 'Site Photo';
+      toast({
+        title: "Photo Captured",
+        description: `${photoTypeLabel} captured successfully`,
+        variant: "default",
+      });
+    } catch (error) {
+      console.error('CHECKOUT_CAMERA: Photo capture error:', error);
+      toast({
+        title: "Capture Failed",
+        description: "Failed to capture photo. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -201,53 +381,149 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
   };
 
   const switchCamera = async () => {
+    console.log('CHECKOUT_CAMERA: Switching camera from', currentCamera);
     const newCamera = currentCamera === 'front' ? 'back' : 'front';
     setCurrentCamera(newCamera);
     
     if (isCameraActive) {
       stopCamera();
+      // Small delay to ensure camera is properly stopped
       setTimeout(() => {
         startCamera();
-      }, 200);
+      }, 300);
     }
   };
 
-  const resetPhoto = () => {
-    setCapturedPhoto(null);
+  const resetPhoto = (photoType?: 'selfie' | 'site', photoIndex?: number) => {
+    if (photoType === 'selfie') {
+      setCapturedPhotos(prev => ({
+        ...prev,
+        selfie: null
+      }));
+    } else if (photoType === 'site' && photoIndex !== undefined) {
+      // Remove specific site photo by index
+      setCapturedPhotos(prev => ({
+        ...prev,
+        sitePhotos: prev.sitePhotos.filter((_, index) => index !== photoIndex)
+      }));
+    } else if (photoType === 'site') {
+      // Clear all site photos
+      setCapturedPhotos(prev => ({
+        ...prev,
+        sitePhotos: []
+      }));
+    } else {
+      // Reset current photo type
+      if (currentPhotoType === 'selfie') {
+        setCapturedPhotos(prev => ({
+          ...prev,
+          selfie: null
+        }));
+      } else {
+        setCapturedPhotos(prev => ({
+          ...prev,
+          sitePhotos: []
+        }));
+      }
+    }
     stopCamera();
+  };
+
+  const startCameraForPhoto = (photoType: 'selfie' | 'site') => {
+    setCurrentPhotoType(photoType);
+    // Set camera orientation based on photo type
+    setCurrentCamera(photoType === 'selfie' ? 'front' : 'back');
+    startCamera();
   };
 
   const checkoutMutation = useMutation({
     mutationFn: async (data: any) => {
-      // Upload photo to Cloudinary if provided
-      let photoUrl = 'https://via.placeholder.com/400x300.jpg?text=No+Photo';
+      console.log("=== CHECKOUT MUTATION STARTED ===");
+      console.log("Captured photos:", { 
+        selfie: capturedPhotos.selfie ? 'present' : 'none',
+        sitePhotos: capturedPhotos.sitePhotos.length
+      });
       
-      if (capturedPhoto) {
+      // Upload photos to Cloudinary if provided
+      let selfiePhotoUrl: string | undefined = undefined;
+      
+      // Upload selfie photo
+      if (capturedPhotos.selfie) {
         try {
-          console.log("Uploading checkout photo via server-side Cloudinary service...");
+          console.log("Uploading checkout selfie photo via server-side Cloudinary service...");
           
           const uploadResponse = await apiRequest('/api/attendance/upload-photo', 'POST', {
-            imageData: capturedPhoto, // Already base64 encoded
-            userId: 'site_visit_checkout', // Temporary user ID for site visit checkouts
-            attendanceType: 'site_visit_checkout'
+            imageData: capturedPhotos.selfie, // Already base64 encoded
+            userId: `site_visit_checkout_selfie_${Date.now()}`, // Unique ID for checkout selfie photos
+            attendanceType: 'site_visit_checkout_selfie'
           });
 
           if (!uploadResponse.ok) {
             const errorData = await uploadResponse.json();
-            throw new Error(errorData.message || 'Photo upload failed');
+            throw new Error(errorData.message || 'Selfie photo upload failed');
           }
 
           const uploadResult = await uploadResponse.json();
-          photoUrl = uploadResult.url;
-          console.log("Checkout photo uploaded successfully:", photoUrl);
+          selfiePhotoUrl = uploadResult.url;
+          console.log("Checkout selfie photo uploaded successfully:", selfiePhotoUrl);
         } catch (error) {
-          console.error('Photo upload failed:', error);
+          console.error('Checkout selfie photo upload failed:', error);
           toast({
-            title: "Photo Upload Failed",
-            description: error instanceof Error ? error.message : "Could not upload photo. Please try again.",
+            title: "Selfie Upload Failed",
+            description: error instanceof Error ? error.message : "Could not upload selfie. Please try again.",
             variant: "destructive",
           });
-          return;
+          throw error; // Re-throw to stop the mutation
+        }
+      }
+
+      // Upload site photos
+      const sitePhotoUrls: Array<{
+        url: string;
+        location: any;
+        timestamp: Date;
+        description: string;
+      }> = [];
+      
+      if (capturedPhotos.sitePhotos.length > 0) {
+        for (let i = 0; i < capturedPhotos.sitePhotos.length; i++) {
+          const sitePhoto = capturedPhotos.sitePhotos[i];
+          try {
+            console.log(`Uploading checkout site photo ${i + 1}/${capturedPhotos.sitePhotos.length} via server-side Cloudinary service...`);
+            
+            const uploadResponse = await apiRequest('/api/attendance/upload-photo', 'POST', {
+              imageData: sitePhoto, // Already base64 encoded
+              userId: `site_visit_checkout_site_${Date.now()}_${i}`, // Unique ID for each site photo
+              attendanceType: 'site_visit_checkout_site'
+            });
+
+            if (!uploadResponse.ok) {
+              const errorData = await uploadResponse.json();
+              throw new Error(errorData.message || `Checkout site photo ${i + 1} upload failed`);
+            }
+
+            const uploadResult = await uploadResponse.json();
+            sitePhotoUrls.push({
+              url: uploadResult.url,
+              location: {
+                latitude: currentLocation?.latitude || 0,
+                longitude: currentLocation?.longitude || 0,
+                accuracy: currentLocation?.accuracy,
+                address: currentLocation?.formattedAddress || currentLocation?.address || 'Address not available'
+              },
+              timestamp: new Date(),
+              description: `Site photo ${i + 1} captured during checkout`
+            });
+            console.log(`Checkout site photo ${i + 1} uploaded successfully:`, uploadResult.url);
+          } catch (error) {
+            console.error(`Checkout site photo ${i + 1} upload failed:`, error);
+            toast({
+              title: "Site Photo Upload Failed",
+              description: error instanceof Error ? error.message : `Could not upload site photo ${i + 1}. Please try again.`,
+              variant: "destructive",
+            });
+            throw error; // Re-throw to stop the mutation
+          }
         }
       }
 
@@ -256,14 +532,15 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
         status: 'completed',
         siteOutTime: new Date(), // Send as Date object, not ISO string
         siteOutLocation: currentLocation,
-        siteOutPhotoUrl: photoUrl,
+        ...(selfiePhotoUrl && { siteOutPhotoUrl: selfiePhotoUrl }),
+        siteOutPhotos: sitePhotoUrls, // Add checkout site photos
         notes: notes, // Use 'notes' instead of 'completionNotes'
         updatedAt: new Date()
       };
 
       console.log("=== FRONTEND CHECKOUT REQUEST ===");
       console.log("Site Visit ID:", siteVisit.id);
-      console.log("Checkout payload:", checkoutPayload);
+      console.log("Checkout payload:", JSON.stringify(checkoutPayload, null, 2));
       console.log("================================");
       
       const response = await apiRequest(
@@ -328,7 +605,7 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
   };
 
   const canProceedToStep2 = locationCaptured;
-  // Photo is optional according to schema - only require location
+  // Enhanced validation - photos are optional but location is required
   const canCheckout = locationCaptured;
 
   if (!siteVisit) {
@@ -361,7 +638,7 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
               <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 2 ? 'bg-primary text-white' : 'bg-muted'}`}>
                 2
               </div>
-              <span className="text-sm font-medium">Photo & Notes</span>
+              <span className="text-sm font-medium">Photos & Notes</span>
             </div>
           </div>
 
@@ -416,38 +693,40 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
             </div>
           )}
 
-          {/* Step 2: Photo & Notes */}
+          {/* Step 2: Photos & Notes */}
           {step === 2 && (
             <div className="space-y-4">
+              {/* Selfie Photo Section */}
               <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Camera className="h-5 w-5" />
-                    Site Out Photo (Optional)
+                <CardHeader className="pb-3 sm:pb-6">
+                  <CardTitle className="text-base sm:text-lg flex items-center gap-2 justify-center sm:justify-start">
+                    <User className="h-4 w-4 sm:h-5 sm:w-5" />
+                    Selfie Photo (Optional)
+                    {capturedPhotos.selfie && <CheckCircle className="h-4 w-4 text-green-600" />}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    {!capturedPhoto && !isCameraActive && (
+                  <div className="space-y-3 sm:space-y-4">
+                    {!capturedPhotos.selfie && (!isCameraActive || currentPhotoType !== 'selfie') && (
                       <div className="space-y-3">
                         <Button 
-                          onClick={startCamera}
+                          onClick={() => startCameraForPhoto('selfie')}
                           variant="outline"
                           className="w-full"
                         >
                           <Camera className="h-4 w-4 mr-2" />
-                          Take Site Photo (Optional)
+                          Take Checkout Selfie
                         </Button>
-                        <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center">
-                          <Camera className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                          <p className="text-sm text-muted-foreground">
-                            Optional: Take a final photo to document site completion
+                        <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-4 sm:p-8 text-center">
+                          <User className="h-8 w-8 sm:h-12 sm:w-12 mx-auto mb-2 sm:mb-4 text-muted-foreground" />
+                          <p className="text-xs sm:text-sm text-muted-foreground">
+                            Take a selfie to verify your identity at checkout
                           </p>
                         </div>
                       </div>
                     )}
 
-                    {isCameraActive && !capturedPhoto && (
+                    {isCameraActive && currentPhotoType === 'selfie' && !capturedPhotos.selfie && (
                       <div className="space-y-3">
                         <div className="relative">
                           <video
@@ -455,32 +734,40 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
                             autoPlay
                             playsInline
                             muted
-                            className="w-full h-64 object-cover rounded-lg bg-black"
+                            className="w-full h-48 sm:h-64 object-cover rounded-lg bg-black"
                           />
                           {!isVideoReady && (
                             <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-lg">
                               <div className="text-white text-center">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-2"></div>
-                                <p className="text-sm">Loading camera...</p>
+                                <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-white mx-auto mb-2"></div>
+                                <p className="text-xs sm:text-sm">Loading front camera...</p>
                               </div>
                             </div>
                           )}
+                          <Badge className="absolute top-2 left-2 text-xs bg-blue-600">
+                            Checkout Selfie
+                          </Badge>
                         </div>
                         
-                        <div className="flex justify-between">
+                        <div className="flex flex-col sm:flex-row justify-between gap-2 sm:gap-0">
                           <Button
                             variant="outline"
                             onClick={switchCamera}
                             disabled={!isVideoReady}
+                            className="w-full sm:w-auto order-2 sm:order-1"
+                            size="sm"
                           >
                             <RotateCcw className="h-4 w-4 mr-2" />
-                            Switch to {currentCamera === 'front' ? 'Back' : 'Front'}
+                            <span className="hidden sm:inline">Switch to {currentCamera === 'front' ? 'Back' : 'Front'}</span>
+                            <span className="sm:hidden">Switch Camera</span>
                           </Button>
                           
-                          <div className="flex gap-2">
+                          <div className="flex gap-2 order-1 sm:order-2">
                             <Button
                               variant="destructive"
                               onClick={stopCamera}
+                              className="flex-1 sm:flex-none"
+                              size="sm"
                             >
                               <X className="h-4 w-4 mr-2" />
                               Cancel
@@ -488,6 +775,173 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
                             <Button
                               onClick={capturePhoto}
                               disabled={!isVideoReady}
+                              className="flex-1 sm:flex-none"
+                              size="sm"
+                            >
+                              <Camera className="h-4 w-4 mr-2" />
+                              Take Selfie
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {capturedPhotos.selfie && (
+                      <div className="space-y-3">
+                        <div className="relative">
+                          <img
+                            src={capturedPhotos.selfie}
+                            alt="Captured checkout selfie"
+                            className="w-full h-48 sm:h-64 object-cover rounded-lg"
+                          />
+                          <Badge className="absolute top-2 right-2 text-xs bg-green-600">
+                            Selfie Captured
+                          </Badge>
+                        </div>
+                        <Button
+                          variant="outline"
+                          onClick={() => resetPhoto('selfie')}
+                          className="w-full"
+                          size="sm"
+                        >
+                          <RotateCcw className="h-4 w-4 mr-2" />
+                          Retake Selfie
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Site Photos Section */}
+              <Card>
+                <CardHeader className="pb-3 sm:pb-6">
+                  <CardTitle className="text-base sm:text-lg flex items-center gap-2 justify-center sm:justify-start">
+                    <MapPin className="h-4 w-4 sm:h-5 sm:w-5" />
+                    Site Completion Photos (Optional)
+                    {capturedPhotos.sitePhotos.length > 0 && <Badge variant="default" className="text-xs">{capturedPhotos.sitePhotos.length}</Badge>}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3 sm:space-y-4">
+                    {/* Photo Gallery */}
+                    {capturedPhotos.sitePhotos.length > 0 && (
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                          {capturedPhotos.sitePhotos.map((photo, index) => (
+                            <div key={index} className="relative group">
+                              <img
+                                src={photo}
+                                alt={`Site completion photo ${index + 1}`}
+                                className="w-full h-20 sm:h-24 object-cover rounded-lg"
+                              />
+                              <Badge className="absolute top-1 right-1 text-xs bg-green-600">
+                                {index + 1}
+                              </Badge>
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => resetPhoto('site', index)}
+                                className="absolute bottom-1 right-1 h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                        
+                        {capturedPhotos.sitePhotos.length < 20 && (
+                          <Button 
+                            onClick={() => startCameraForPhoto('site')}
+                            variant="outline"
+                            className="w-full"
+                            size="sm"
+                          >
+                            <Camera className="h-4 w-4 mr-2" />
+                            Add Another Site Photo ({capturedPhotos.sitePhotos.length}/20)
+                          </Button>
+                        )}
+                        
+                        {capturedPhotos.sitePhotos.length >= 20 && (
+                          <div className="text-center p-2 bg-muted rounded-lg">
+                            <p className="text-xs text-muted-foreground">Maximum 20 photos reached</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Initial capture prompt */}
+                    {capturedPhotos.sitePhotos.length === 0 && (!isCameraActive || currentPhotoType !== 'site') && (
+                      <div className="space-y-3">
+                        <Button 
+                          onClick={() => startCameraForPhoto('site')}
+                          variant="outline"
+                          className="w-full"
+                        >
+                          <Camera className="h-4 w-4 mr-2" />
+                          Capture Site Completion Photos
+                        </Button>
+                        <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-4 sm:p-8 text-center">
+                          <MapPin className="h-8 w-8 sm:h-12 sm:w-12 mx-auto mb-2 sm:mb-4 text-muted-foreground" />
+                          <p className="text-xs sm:text-sm text-muted-foreground">
+                            Take photos to document site completion status (up to 20 photos)
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Camera interface */}
+                    {isCameraActive && currentPhotoType === 'site' && (
+                      <div className="space-y-3">
+                        <div className="relative">
+                          <video
+                            ref={videoRef}
+                            autoPlay
+                            playsInline
+                            muted
+                            className="w-full h-48 sm:h-64 object-cover rounded-lg bg-black"
+                          />
+                          {!isVideoReady && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-lg">
+                              <div className="text-white text-center">
+                                <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-white mx-auto mb-2"></div>
+                                <p className="text-xs sm:text-sm">Loading back camera...</p>
+                              </div>
+                            </div>
+                          )}
+                          <Badge className="absolute top-2 left-2 text-xs bg-orange-600">
+                            Site Photo {capturedPhotos.sitePhotos.length + 1}/20
+                          </Badge>
+                        </div>
+                        
+                        <div className="flex flex-col sm:flex-row justify-between gap-2 sm:gap-0">
+                          <Button
+                            variant="outline"
+                            onClick={switchCamera}
+                            disabled={!isVideoReady}
+                            className="w-full sm:w-auto order-2 sm:order-1"
+                            size="sm"
+                          >
+                            <RotateCcw className="h-4 w-4 mr-2" />
+                            <span className="hidden sm:inline">Switch to {currentCamera === 'front' ? 'Back' : 'Front'}</span>
+                            <span className="sm:hidden">Switch Camera</span>
+                          </Button>
+                          
+                          <div className="flex gap-2 order-1 sm:order-2">
+                            <Button
+                              variant="destructive"
+                              onClick={stopCamera}
+                              className="flex-1 sm:flex-none"
+                              size="sm"
+                            >
+                              <X className="h-4 w-4 mr-2" />
+                              Cancel
+                            </Button>
+                            <Button
+                              onClick={capturePhoto}
+                              disabled={!isVideoReady}
+                              className="flex-1 sm:flex-none"
+                              size="sm"
                             >
                               <Camera className="h-4 w-4 mr-2" />
                               Capture
@@ -496,37 +950,11 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
                         </div>
                       </div>
                     )}
-
-                    {capturedPhoto && (
-                      <div className="space-y-3">
-                        <div className="relative">
-                          <img
-                            src={capturedPhoto}
-                            alt="Captured checkout photo"
-                            className="w-full h-64 object-cover rounded-lg"
-                          />
-                          <Badge className="absolute top-2 right-2">
-                            Captured
-                          </Badge>
-                        </div>
-                        <Button
-                          variant="outline"
-                          onClick={resetPhoto}
-                          className="w-full"
-                        >
-                          <RotateCcw className="h-4 w-4 mr-2" />
-                          Retake Photo
-                        </Button>
-                      </div>
-                    )}
-                    
-                    <p className="text-xs text-muted-foreground">
-                      Photo is optional - you can complete checkout without taking a photo
-                    </p>
                   </div>
                 </CardContent>
               </Card>
 
+              {/* Completion Notes */}
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg">Completion Notes</CardTitle>
@@ -538,6 +966,30 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
                     placeholder="Add any final notes about the site visit completion..."
                     rows={4}
                   />
+                </CardContent>
+              </Card>
+
+              {/* Summary */}
+              <Card>
+                <CardHeader className="pb-3 sm:pb-6">
+                  <CardTitle className="text-base sm:text-lg text-center sm:text-left">Checkout Summary</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <div className="flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-0">
+                    <span className="text-muted-foreground text-sm">Location:</span>
+                    <span className="text-green-600 text-sm">Captured</span>
+                  </div>
+                  <div className="flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-0">
+                    <span className="text-muted-foreground text-sm">Photos:</span>
+                    <div className="flex gap-2">
+                      <Badge variant={capturedPhotos.selfie ? "default" : "secondary"} className="text-xs">
+                        Selfie {capturedPhotos.selfie ? '✓' : '✗'}
+                      </Badge>
+                      <Badge variant={capturedPhotos.sitePhotos.length > 0 ? "default" : "secondary"} className="text-xs">
+                        Site Photos ({capturedPhotos.sitePhotos.length})
+                      </Badge>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
 
