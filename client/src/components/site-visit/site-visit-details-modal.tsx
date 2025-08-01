@@ -19,7 +19,9 @@ import {
   FileText,
   Zap,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Eye,
+  ExternalLink
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -338,19 +340,227 @@ export function SiteVisitDetailsModal({ isOpen, onClose, siteVisit }: SiteVisitD
                   )}
                 </div>
 
-                {/* Project Configuration Details */}
-                {(siteVisit.marketingData.onGridConfig || 
-                  siteVisit.marketingData.offGridConfig || 
-                  siteVisit.marketingData.hybridConfig ||
-                  siteVisit.marketingData.waterHeaterConfig ||
-                  siteVisit.marketingData.waterPumpConfig) && (
+                {/* On-Grid Configuration Details */}
+                {siteVisit.marketingData.onGridConfig && (
                   <div className="space-y-3">
                     <Separator />
-                    <h4 className="font-medium">Configuration Details</h4>
-                    {/* You can expand this to show specific configuration details */}
-                    <p className="text-sm text-muted-foreground">
-                      Detailed project specifications available
-                    </p>
+                    <h4 className="font-medium text-blue-700">On-Grid Solar System Configuration</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-blue-50 p-4 rounded-lg">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Solar Panel Make</p>
+                        <p className="font-medium">{siteVisit.marketingData.onGridConfig.solarPanelMake?.replace('_', ' ').toUpperCase()}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Panel Watts</p>
+                        <p className="font-medium">{siteVisit.marketingData.onGridConfig.panelWatts}W</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Inverter Make</p>
+                        <p className="font-medium">{siteVisit.marketingData.onGridConfig.inverterMake?.toUpperCase()}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Inverter Capacity</p>
+                        <p className="font-medium">{siteVisit.marketingData.onGridConfig.inverterWatts}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Inverter Phase</p>
+                        <p className="font-medium">{siteVisit.marketingData.onGridConfig.inverterPhase?.replace('_', ' ')}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Earth Connection</p>
+                        <p className="font-medium">{siteVisit.marketingData.onGridConfig.earth?.toUpperCase()}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Panel Count</p>
+                        <p className="font-medium">{siteVisit.marketingData.onGridConfig.panelCount} panels</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Structure Height</p>
+                        <p className="font-medium">{siteVisit.marketingData.onGridConfig.structureHeight} ft</p>
+                      </div>
+                      {siteVisit.marketingData.onGridConfig.floor && (
+                        <div>
+                          <p className="text-sm text-muted-foreground">Floor Details</p>
+                          <p className="font-medium">{siteVisit.marketingData.onGridConfig.floor}</p>
+                        </div>
+                      )}
+                      <div>
+                        <p className="text-sm text-muted-foreground">Lightning Arrestor</p>
+                        <Badge variant={siteVisit.marketingData.onGridConfig.lightningArrest ? "default" : "secondary"}>
+                          {siteVisit.marketingData.onGridConfig.lightningArrest ? "Yes" : "No"}
+                        </Badge>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Project Value</p>
+                        <p className="font-medium text-green-600">₹{siteVisit.marketingData.onGridConfig.projectValue?.toLocaleString() || 'TBD'}</p>
+                      </div>
+                      {siteVisit.marketingData.onGridConfig.others && (
+                        <div className="col-span-full">
+                          <p className="text-sm text-muted-foreground">Additional Notes</p>
+                          <p className="font-medium">{siteVisit.marketingData.onGridConfig.others}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Off-Grid Configuration Details */}
+                {siteVisit.marketingData.offGridConfig && (
+                  <div className="space-y-3">
+                    <Separator />
+                    <h4 className="font-medium text-purple-700">Off-Grid Solar System Configuration</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-purple-50 p-4 rounded-lg">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Solar Panel Make</p>
+                        <p className="font-medium">{siteVisit.marketingData.offGridConfig.solarPanelMake?.replace('_', ' ').toUpperCase()}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Panel Watts</p>
+                        <p className="font-medium">{siteVisit.marketingData.offGridConfig.panelWatts}W</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Inverter Make</p>
+                        <p className="font-medium">{siteVisit.marketingData.offGridConfig.inverterMake?.toUpperCase()}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Inverter Capacity</p>
+                        <p className="font-medium">{siteVisit.marketingData.offGridConfig.inverterWatts}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Battery Brand</p>
+                        <p className="font-medium">{siteVisit.marketingData.offGridConfig.batteryBrand?.toUpperCase()}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Battery Voltage</p>
+                        <p className="font-medium">{siteVisit.marketingData.offGridConfig.voltage}V</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Battery Count</p>
+                        <p className="font-medium">{siteVisit.marketingData.offGridConfig.batteryCount} batteries</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Panel Count</p>
+                        <p className="font-medium">{siteVisit.marketingData.offGridConfig.panelCount} panels</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Structure Height</p>
+                        <p className="font-medium">{siteVisit.marketingData.offGridConfig.structureHeight} ft</p>
+                      </div>
+                      {siteVisit.marketingData.offGridConfig.batteryStands && (
+                        <div>
+                          <p className="text-sm text-muted-foreground">Battery Stands</p>
+                          <p className="font-medium">{siteVisit.marketingData.offGridConfig.batteryStands}</p>
+                        </div>
+                      )}
+                      <div>
+                        <p className="text-sm text-muted-foreground">Project Value</p>
+                        <p className="font-medium text-green-600">₹{siteVisit.marketingData.offGridConfig.projectValue?.toLocaleString() || 'TBD'}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Hybrid Configuration Details */}
+                {siteVisit.marketingData.hybridConfig && (
+                  <div className="space-y-3">
+                    <Separator />
+                    <h4 className="font-medium text-orange-700">Hybrid Solar System Configuration</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-orange-50 p-4 rounded-lg">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Solar Panel Make</p>
+                        <p className="font-medium">{siteVisit.marketingData.hybridConfig.solarPanelMake?.replace('_', ' ').toUpperCase()}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Panel Watts</p>
+                        <p className="font-medium">{siteVisit.marketingData.hybridConfig.panelWatts}W</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Inverter Make</p>
+                        <p className="font-medium">{siteVisit.marketingData.hybridConfig.inverterMake?.toUpperCase()}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Inverter Capacity</p>
+                        <p className="font-medium">{siteVisit.marketingData.hybridConfig.inverterWatts}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Battery Brand</p>
+                        <p className="font-medium">{siteVisit.marketingData.hybridConfig.batteryBrand?.toUpperCase()}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Battery Configuration</p>
+                        <p className="font-medium">{siteVisit.marketingData.hybridConfig.batteryCount} × {siteVisit.marketingData.hybridConfig.voltage}V</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Panel Count</p>
+                        <p className="font-medium">{siteVisit.marketingData.hybridConfig.panelCount} panels</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Project Value</p>
+                        <p className="font-medium text-green-600">₹{siteVisit.marketingData.hybridConfig.projectValue?.toLocaleString() || 'TBD'}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Water Heater Configuration */}
+                {siteVisit.marketingData.waterHeaterConfig && (
+                  <div className="space-y-3">
+                    <Separator />
+                    <h4 className="font-medium text-red-700">Solar Water Heater Configuration</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-red-50 p-4 rounded-lg">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Brand</p>
+                        <p className="font-medium">{siteVisit.marketingData.waterHeaterConfig.brand?.toUpperCase()}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Capacity</p>
+                        <p className="font-medium">{siteVisit.marketingData.waterHeaterConfig.litre} Litres</p>
+                      </div>
+                      {siteVisit.marketingData.waterHeaterConfig.heatingCoil && (
+                        <div>
+                          <p className="text-sm text-muted-foreground">Heating Coil</p>
+                          <p className="font-medium">{siteVisit.marketingData.waterHeaterConfig.heatingCoil}</p>
+                        </div>
+                      )}
+                      <div>
+                        <p className="text-sm text-muted-foreground">Project Value</p>
+                        <p className="font-medium text-green-600">₹{siteVisit.marketingData.waterHeaterConfig.projectValue?.toLocaleString() || 'TBD'}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Water Pump Configuration */}
+                {siteVisit.marketingData.waterPumpConfig && (
+                  <div className="space-y-3">
+                    <Separator />
+                    <h4 className="font-medium text-cyan-700">Solar Water Pump Configuration</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-cyan-50 p-4 rounded-lg">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Motor HP</p>
+                        <p className="font-medium">{siteVisit.marketingData.waterPumpConfig.hp} HP</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Drive Type</p>
+                        <p className="font-medium">{siteVisit.marketingData.waterPumpConfig.drive}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Panel Brand</p>
+                        <p className="font-medium">{siteVisit.marketingData.waterPumpConfig.panelBrand?.replace('_', ' ').toUpperCase()}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Panel Count</p>
+                        <p className="font-medium">{siteVisit.marketingData.waterPumpConfig.panelCount} panels</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Structure Height</p>
+                        <p className="font-medium">{siteVisit.marketingData.waterPumpConfig.structureHeight} ft</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Project Value</p>
+                        <p className="font-medium text-green-600">₹{siteVisit.marketingData.waterPumpConfig.projectValue?.toLocaleString() || 'TBD'}</p>
+                      </div>
+                    </div>
                   </div>
                 )}
               </CardContent>
@@ -412,18 +622,50 @@ export function SiteVisitDetailsModal({ isOpen, onClose, siteVisit }: SiteVisitD
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {siteVisit.sitePhotos.map((photo, index) => (
                     <div key={index} className="space-y-2">
-                      <div className="relative">
+                      <div className="relative group">
                         <img
                           src={photo.url}
                           alt={`Site photo ${index + 1}`}
-                          className="w-full h-48 object-cover rounded-lg"
+                          className="w-full h-48 object-cover rounded-lg transition-transform hover:scale-105 cursor-pointer"
+                          onClick={() => window.open(photo.url, '_blank')}
                         />
-                        <Badge className="absolute top-2 right-2 text-xs">
+                        <Badge className="absolute top-2 right-2 text-xs bg-black/70 text-white">
                           {format(new Date(photo.timestamp), 'MMM d, HH:mm')}
                         </Badge>
+                        
+                        {/* Eye icon overlay for viewing */}
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-lg flex items-center justify-center">
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            className="bg-white/90 hover:bg-white text-black"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              window.open(photo.url, '_blank');
+                            }}
+                          >
+                            <Eye className="h-4 w-4 mr-2" />
+                            View Full Size
+                          </Button>
+                        </div>
+                        
+                        {/* Quick view eye icon */}
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="absolute bottom-2 right-2 h-8 w-8 p-0 bg-white/90 hover:bg-white text-black opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            window.open(photo.url, '_blank');
+                          }}
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                        </Button>
                       </div>
                       {photo.description && (
-                        <p className="text-sm text-muted-foreground">{photo.description}</p>
+                        <p className="text-sm text-muted-foreground bg-gray-50 p-2 rounded">
+                          <span className="font-medium">Description:</span> {photo.description}
+                        </p>
                       )}
                     </div>
                   ))}
