@@ -88,12 +88,12 @@ export function AdminSiteVisitForm({ onSubmit, onBack, isDisabled, isLoading }: 
       if (section === 'bankProcess') {
         setFormData(prev => ({
           ...prev,
-          bankProcess: { step: '', description: '' }
+          bankProcess: { step: 'registration', description: '' }
         }));
       } else if (section === 'ebProcess') {
         setFormData(prev => ({
           ...prev,
-          ebProcess: { type: '', description: '' }
+          ebProcess: { type: 'new_connection', description: '' }
         }));
       }
     }
@@ -102,14 +102,14 @@ export function AdminSiteVisitForm({ onSubmit, onBack, isDisabled, isLoading }: 
   const updateBankProcess = (updates: Partial<{ step: string; description: string }>) => {
     setFormData(prev => ({
       ...prev,
-      bankProcess: prev.bankProcess ? { ...prev.bankProcess, ...updates } : { step: '', description: '', ...updates }
+      bankProcess: prev.bankProcess ? { ...prev.bankProcess, ...updates } : { step: 'registration', description: '', ...updates }
     }));
   };
 
   const updateEbProcess = (updates: Partial<{ type: string; description: string }>) => {
     setFormData(prev => ({
       ...prev,
-      ebProcess: prev.ebProcess ? { ...prev.ebProcess, ...updates } : { type: '', description: '', ...updates }
+      ebProcess: prev.ebProcess ? { ...prev.ebProcess, ...updates } : { type: 'new_connection', description: '', ...updates }
     }));
   };
 

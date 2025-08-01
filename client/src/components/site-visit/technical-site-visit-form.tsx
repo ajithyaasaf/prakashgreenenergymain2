@@ -123,8 +123,8 @@ const commonTeamMembers = [
 export function TechnicalSiteVisitForm({ onSubmit, onBack, isDisabled, isLoading }: TechnicalSiteVisitFormProps) {
   const [formData, setFormData] = useState<TechnicalFormData>({
     serviceTypes: [],
-    workType: '',
-    workingStatus: '',
+    workType: 'installation',
+    workingStatus: 'pending',
     pendingRemarks: '',
     teamMembers: [],
     description: ''
