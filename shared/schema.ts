@@ -223,7 +223,7 @@ export const locationSchema = z.object({
 export const customerDetailsSchema = z.object({
   name: z.string().min(2, "Customer name is required"),
   mobile: z.string().min(10, "Valid mobile number is required"),
-  address: z.string().min(5, "Address is required"),
+  address: z.string().min(3, "Address is required"),
   ebServiceNumber: z.string().optional(),
   propertyType: z.enum(propertyTypes),
   location: z.string().optional()

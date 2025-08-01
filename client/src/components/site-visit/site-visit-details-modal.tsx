@@ -633,16 +633,76 @@ export function SiteVisitDetailsModal({ isOpen, onClose, siteVisit }: SiteVisitD
             </Card>
           )}
 
-          {/* Site Photos */}
-          {siteVisit.sitePhotos.length > 0 && (
+          {/* Site Photos - Check-in, Check-out, and Additional Photos */}
+          {(siteVisit.siteInPhotoUrl || siteVisit.siteOutPhotoUrl || siteVisit.sitePhotos.length > 0) && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Camera className="h-5 w-5" />
-                  Site Photos ({siteVisit.sitePhotos.length})
+                  Site Photos ({(siteVisit.siteInPhotoUrl ? 1 : 0) + (siteVisit.siteOutPhotoUrl ? 1 : 0) + siteVisit.sitePhotos.length})
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
+                
+                {/* Check-in Photo */}
+                {siteVisit.siteInPhotoUrl && (
+                  <div>
+                    <h4 className="font-medium text-sm text-green-700 mb-2 flex items-center gap-2">
+                      <Camera className="h-4 w-4" />
+                      Check-in Photo
+                    </h4>
+                    <div className="relative group">
+                      <img
+                        src={siteVisit.siteInPhotoUrl}
+                        alt="Check-in photo"
+                        className="w-full max-w-md h-48 object-cover rounded-lg border transition-transform hover:scale-105 cursor-pointer"
+                        onClick={() => window.open(siteVisit.siteInPhotoUrl, '_blank')}
+                      />
+                      <Badge className="absolute top-2 right-2 text-xs bg-green-600 text-white">
+                        Check-in
+                      </Badge>
+                      
+                      {/* Eye icon overlay for viewing */}
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-lg flex items-center justify-center">
+                        <Eye className="h-8 w-8 text-white" />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Check-out Photo */}
+                {siteVisit.siteOutPhotoUrl && (
+                  <div>
+                    <h4 className="font-medium text-sm text-red-700 mb-2 flex items-center gap-2">
+                      <Camera className="h-4 w-4" />
+                      Check-out Photo
+                    </h4>
+                    <div className="relative group">
+                      <img
+                        src={siteVisit.siteOutPhotoUrl}
+                        alt="Check-out photo"
+                        className="w-full max-w-md h-48 object-cover rounded-lg border transition-transform hover:scale-105 cursor-pointer"
+                        onClick={() => window.open(siteVisit.siteOutPhotoUrl, '_blank')}
+                      />
+                      <Badge className="absolute top-2 right-2 text-xs bg-red-600 text-white">
+                        Check-out
+                      </Badge>
+                      
+                      {/* Eye icon overlay for viewing */}
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-lg flex items-center justify-center">
+                        <Eye className="h-8 w-8 text-white" />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Additional Site Photos */}
+                {siteVisit.sitePhotos.length > 0 && (
+                  <div>
+                    <h4 className="font-medium text-sm text-blue-700 mb-2 flex items-center gap-2">
+                      <Camera className="h-4 w-4" />
+                      Additional Site Photos ({siteVisit.sitePhotos.length})
+                    </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {siteVisit.sitePhotos.map((photo, index) => (
                     <div key={index} className="space-y-2">
@@ -694,6 +754,9 @@ export function SiteVisitDetailsModal({ isOpen, onClose, siteVisit }: SiteVisitD
                     </div>
                   ))}
                 </div>
+                  </div>
+                )}
+                
               </CardContent>
             </Card>
           )}
