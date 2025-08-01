@@ -78,7 +78,7 @@ interface CustomerVisitGroup {
   hasActiveVisit: boolean;
 }
 
-// Group visits by customer mobile number
+// Group visits by customer (mobile + name combination)
 function groupVisitsByCustomer(visits: SiteVisit[]): CustomerVisitGroup[] {
   if (!visits || !Array.isArray(visits)) {
     return [];
@@ -86,13 +86,15 @@ function groupVisitsByCustomer(visits: SiteVisit[]): CustomerVisitGroup[] {
 
   const groupMap = new Map<string, CustomerVisitGroup>();
 
-  visits.forEach(visit => {
-    const mobile = visit.customer.mobile;
+  visits.forEach((visit) => {
+    // Use combination of mobile and customer name for unique grouping
+    // This ensures different customers with same mobile are shown separately
+    const groupKey = `${visit.customer.mobile}_${visit.customer.name.toLowerCase()}`;
     
-    if (!groupMap.has(mobile)) {
+    if (!groupMap.has(groupKey)) {
       // Initialize new group with this visit as primary
-      groupMap.set(mobile, {
-        customerMobile: mobile,
+      groupMap.set(groupKey, {
+        customerMobile: visit.customer.mobile,
         customerName: visit.customer.name,
         customerAddress: visit.customer.address,
         primaryVisit: visit,
@@ -102,7 +104,7 @@ function groupVisitsByCustomer(visits: SiteVisit[]): CustomerVisitGroup[] {
         hasActiveVisit: visit.status === 'in_progress'
       });
     } else {
-      const group = groupMap.get(mobile)!;
+      const group = groupMap.get(groupKey)!;
       
       // If this visit is newer than current primary, swap them
       const visitTime = new Date(visit.createdAt || visit.siteInTime);
@@ -387,9 +389,9 @@ export default function SiteVisitPage() {
                   {(() => {
                     const data = (mySiteVisits as any)?.data || [];
                     return groupVisitsByCustomer(data);
-                  })().map((group: CustomerVisitGroup) => (
+                  })().map((group: CustomerVisitGroup, index: number) => (
                     <UnifiedSiteVisitCard
-                      key={group.customerMobile}
+                      key={`${group.customerMobile}_${group.customerName}_${index}`}
                       visitGroup={group}
                       onView={handleViewDetails}
                       onCheckout={handleCheckoutSiteVisit}
@@ -428,9 +430,9 @@ export default function SiteVisitPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {groupVisitsByCustomer((activeSiteVisits as SiteVisit[]) || []).map((group: CustomerVisitGroup) => (
+                  {groupVisitsByCustomer((activeSiteVisits as SiteVisit[]) || []).map((group: CustomerVisitGroup, index: number) => (
                     <UnifiedSiteVisitCard
-                      key={group.customerMobile}
+                      key={`${group.customerMobile}_${group.customerName}_${index}`}
                       visitGroup={group}
                       onView={handleViewDetails}
                       onCheckout={handleCheckoutSiteVisit}
@@ -468,9 +470,9 @@ export default function SiteVisitPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {groupVisitsByCustomer((teamSiteVisits as any)?.data || []).map((group: CustomerVisitGroup) => (
+                  {groupVisitsByCustomer((teamSiteVisits as any)?.data || []).map((group: CustomerVisitGroup, index: number) => (
                     <UnifiedSiteVisitCard
-                      key={group.customerMobile}
+                      key={`${group.customerMobile}_${group.customerName}_${index}`}
                       visitGroup={group}
                       onView={handleViewDetails}
                       onCheckout={handleCheckoutSiteVisit}
