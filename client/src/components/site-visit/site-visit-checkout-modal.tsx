@@ -429,11 +429,22 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
     stopCamera();
   };
 
-  const startCameraForPhoto = (photoType: 'selfie' | 'site') => {
-    setCurrentPhotoType(photoType);
-    // Set camera orientation based on photo type
-    setCurrentCamera(photoType === 'selfie' ? 'front' : 'back');
-    startCamera();
+  const startCameraForPhoto = async (photoType: 'selfie' | 'site') => {
+    try {
+      console.log('CHECKOUT_CAMERA: startCameraForPhoto called with photoType:', photoType);
+      setCurrentPhotoType(photoType);
+      // Set camera orientation based on photo type
+      setCurrentCamera(photoType === 'selfie' ? 'front' : 'back');
+      console.log('CHECKOUT_CAMERA: Starting camera for', photoType, 'with camera:', photoType === 'selfie' ? 'front' : 'back');
+      await startCamera();
+    } catch (error) {
+      console.error('CHECKOUT_CAMERA: startCameraForPhoto error:', error);
+      toast({
+        title: "Camera Error",
+        description: error instanceof Error ? error.message : "Failed to start camera",
+        variant: "destructive",
+      });
+    }
   };
 
   const checkoutMutation = useMutation({
@@ -710,7 +721,15 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
                     {!capturedPhotos.selfie && (!isCameraActive || currentPhotoType !== 'selfie') && (
                       <div className="space-y-3">
                         <Button 
-                          onClick={() => startCameraForPhoto('selfie')}
+                          onClick={(e) => {
+                            try {
+                              e.preventDefault();
+                              console.log('CHECKOUT_CAMERA: Selfie button clicked');
+                              startCameraForPhoto('selfie');
+                            } catch (error) {
+                              console.error('CHECKOUT_CAMERA: Selfie button click error:', error);
+                            }
+                          }}
                           variant="outline"
                           className="w-full"
                         >
@@ -852,7 +871,15 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
                         
                         {capturedPhotos.sitePhotos.length < 20 && (
                           <Button 
-                            onClick={() => startCameraForPhoto('site')}
+                            onClick={(e) => {
+                              try {
+                                e.preventDefault();
+                                console.log('CHECKOUT_CAMERA: Add another site photo button clicked');
+                                startCameraForPhoto('site');
+                              } catch (error) {
+                                console.error('CHECKOUT_CAMERA: Add another site photo button click error:', error);
+                              }
+                            }}
                             variant="outline"
                             className="w-full"
                             size="sm"
@@ -874,7 +901,15 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
                     {capturedPhotos.sitePhotos.length === 0 && (!isCameraActive || currentPhotoType !== 'site') && (
                       <div className="space-y-3">
                         <Button 
-                          onClick={() => startCameraForPhoto('site')}
+                          onClick={(e) => {
+                            try {
+                              e.preventDefault();
+                              console.log('CHECKOUT_CAMERA: Site photos button clicked');
+                              startCameraForPhoto('site');
+                            } catch (error) {
+                              console.error('CHECKOUT_CAMERA: Site photos button click error:', error);
+                            }
+                          }}
                           variant="outline"
                           className="w-full"
                         >
