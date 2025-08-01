@@ -267,6 +267,22 @@ export class SiteVisitService {
       }));
 
       console.log(`SITE_VISIT_SERVICE: Retrieved ${results.length} documents from Firestore`);
+      
+      // DEBUG: Log the structure of the first result to check what data is included
+      if (results.length > 0) {
+        console.log('SITE_VISIT_DEBUG: Sample result structure:');
+        console.log('- Has customer data:', !!results[0].customer);
+        console.log('- Has marketing data:', !!results[0].marketingData);
+        console.log('- Has technical data:', !!results[0].technicalData);
+        console.log('- Has admin data:', !!results[0].adminData);
+        console.log('- Has site photos:', !!results[0].sitePhotos && results[0].sitePhotos.length);
+        console.log('- Customer name:', results[0].customer?.name || results[0].customerName || 'N/A');
+        console.log('- Status:', results[0].status);
+        console.log('- Department:', results[0].department);
+        if (results[0].marketingData) {
+          console.log('- Marketing data keys:', Object.keys(results[0].marketingData));
+        }
+      }
 
       // Apply all other filters in memory to avoid compound index requirements
       if (filters.status) {
