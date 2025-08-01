@@ -725,12 +725,34 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
                             console.log('=== BUTTON CLICK TEST ===');
                             alert('Button clicked!');
                             console.log('CHECKOUT_CAMERA: Selfie button clicked');
+                            
+                            // Check if function exists
+                            console.log('CHECKOUT_CAMERA: startCameraForPhoto function exists:', typeof startCameraForPhoto);
+                            console.log('CHECKOUT_CAMERA: startCamera function exists:', typeof startCamera);
+                            
+                            // Check component state
+                            console.log('CHECKOUT_CAMERA: Current state:', {
+                              isCameraActive,
+                              isVideoReady,
+                              currentPhotoType,
+                              currentCamera
+                            });
+                            
                             try {
-                              console.log('CHECKOUT_CAMERA: startCameraForPhoto function exists:', typeof startCameraForPhoto);
-                              startCameraForPhoto('selfie');
+                              console.log('CHECKOUT_CAMERA: About to call startCameraForPhoto');
+                              const result = startCameraForPhoto('selfie');
+                              console.log('CHECKOUT_CAMERA: startCameraForPhoto result:', result);
+                              
+                              // Handle promise if returned
+                              if (result && typeof result.catch === 'function') {
+                                result.catch(err => {
+                                  console.error('CHECKOUT_CAMERA: Promise rejected:', err);
+                                  alert(`Promise Error: ${err.message || err}`);
+                                });
+                              }
                             } catch (error) {
-                              console.error('CHECKOUT_CAMERA: Error starting camera:', error);
-                              alert(`Error: ${error}`);
+                              console.error('CHECKOUT_CAMERA: Sync error starting camera:', error);
+                              alert(`Sync Error: ${error instanceof Error ? error.message : String(error)}`);
                             }
                           }}
                           variant="outline"
