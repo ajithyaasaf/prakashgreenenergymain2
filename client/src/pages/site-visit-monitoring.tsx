@@ -114,6 +114,12 @@ const CustomerVisitGroupCard = ({
                    group.latestStatus === 'completed' ? 'Completed' : 'Cancelled'}
                 </Badge>
                 <Badge variant="outline" className="capitalize text-xs">{group.primaryVisit.department}</Badge>
+                {group.primaryVisit.isFollowUp && (
+                  <Badge variant="outline" className="text-xs border-purple-500 text-purple-700">
+                    <RefreshCw className="h-3 w-3 mr-1" />
+                    Follow-up
+                  </Badge>
+                )}
                 <Badge variant="outline" className="text-xs border-blue-500 text-blue-700">
                   <Users className="h-3 w-3 mr-1" />
                   {group.totalVisits} Visit{group.totalVisits !== 1 ? 's' : ''}
@@ -128,7 +134,7 @@ const CustomerVisitGroupCard = ({
             </div>
             <div className="flex flex-col gap-1">
               <p className="text-xs sm:text-sm text-muted-foreground">
-                Latest: {group.primaryVisit.visitPurpose || 'Site Visit'}
+                {group.primaryVisit.isFollowUp ? 'Follow-up:' : 'Latest:'} {group.primaryVisit.visitPurpose || 'Site Visit'}
               </p>
               <p className="text-xs text-muted-foreground">
                 {format(group.latestActivity, 'MMM dd, yyyy HH:mm')}
