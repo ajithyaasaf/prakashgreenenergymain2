@@ -73,10 +73,10 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
   // Enhanced photo capture states - Support for multiple photos
   const [capturedPhotos, setCapturedPhotos] = useState<{
     selfie: string | null;
-    site: string | null;
+    sitePhotos: string[];
   }>({
     selfie: null,
-    site: null
+    sitePhotos: []
   });
   const [currentPhotoType, setCurrentPhotoType] = useState<'selfie' | 'site'>('selfie');
   
@@ -122,7 +122,7 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
       setStep(1);
       setCurrentLocation(null);
       setLocationCaptured(false);
-      setCapturedPhotos({ selfie: null, site: null });
+      setCapturedPhotos({ selfie: null, sitePhotos: [] });
       setCurrentPhotoType('selfie');
       setLastErrorMessage('');
       setIsCameraActive(false);
@@ -402,10 +402,18 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
       }
       
       // Update the captured photos state for the current photo type
-      setCapturedPhotos(prev => ({
-        ...prev,
-        [currentPhotoType]: photoDataUrl
-      }));
+      if (currentPhotoType === 'selfie') {
+        setCapturedPhotos(prev => ({
+          ...prev,
+          selfie: photoDataUrl
+        }));
+      } else {
+        // For site photos, add to the array
+        setCapturedPhotos(prev => ({
+          ...prev,
+          sitePhotos: [...prev.sitePhotos, photoDataUrl]
+        }));
+      }
       
       // Stop camera after successful capture
       stopCamera();
@@ -451,19 +459,37 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
     }
   };
 
-  const resetPhoto = (photoType?: 'selfie' | 'site') => {
-    if (photoType) {
-      // Reset specific photo type
+  const resetPhoto = (photoType?: 'selfie' | 'site', photoIndex?: number) => {
+    if (photoType === 'selfie') {
       setCapturedPhotos(prev => ({
         ...prev,
-        [photoType]: null
+        selfie: null
+      }));
+    } else if (photoType === 'site' && photoIndex !== undefined) {
+      // Remove specific site photo by index
+      setCapturedPhotos(prev => ({
+        ...prev,
+        sitePhotos: prev.sitePhotos.filter((_, index) => index !== photoIndex)
+      }));
+    } else if (photoType === 'site') {
+      // Clear all site photos
+      setCapturedPhotos(prev => ({
+        ...prev,
+        sitePhotos: []
       }));
     } else {
       // Reset current photo type
-      setCapturedPhotos(prev => ({
-        ...prev,
-        [currentPhotoType]: null
-      }));
+      if (currentPhotoType === 'selfie') {
+        setCapturedPhotos(prev => ({
+          ...prev,
+          selfie: null
+        }));
+      } else {
+        setCapturedPhotos(prev => ({
+          ...prev,
+          sitePhotos: []
+        }));
+      }
     }
     stopCamera();
   };
@@ -482,7 +508,7 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
       console.log("Current location:", currentLocation);
       console.log("Captured photos:", { 
         selfie: capturedPhotos.selfie ? 'present' : 'none',
-        site: capturedPhotos.site ? 'present' : 'none'
+        sitePhotos: capturedPhotos.sitePhotos.length
       });
       
       // Upload photos to Cloudinary if provided
@@ -519,33 +545,53 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
         }
       }
 
-      // Upload site photo
-      if (capturedPhotos.site) {
-        try {
-          console.log("Uploading site photo via server-side Cloudinary service...");
-          
-          const uploadResponse = await apiRequest('/api/attendance/upload-photo', 'POST', {
-            imageData: capturedPhotos.site, // Already base64 encoded
-            userId: `site_visit_site_${Date.now()}`, // Unique ID for site visit site photos
-            attendanceType: 'site_visit_site'
-          });
+      // Upload site photos
+      const sitePhotoUrls: Array<{
+        url: string;
+        location: any;
+        timestamp: Date;
+        description: string;
+      }> = [];
+      
+      if (capturedPhotos.sitePhotos.length > 0) {
+        for (let i = 0; i < capturedPhotos.sitePhotos.length; i++) {
+          const sitePhoto = capturedPhotos.sitePhotos[i];
+          try {
+            console.log(`Uploading site photo ${i + 1}/${capturedPhotos.sitePhotos.length} via server-side Cloudinary service...`);
+            
+            const uploadResponse = await apiRequest('/api/attendance/upload-photo', 'POST', {
+              imageData: sitePhoto, // Already base64 encoded
+              userId: `site_visit_site_${Date.now()}_${i}`, // Unique ID for each site photo
+              attendanceType: 'site_visit_site'
+            });
 
-          if (!uploadResponse.ok) {
-            const errorData = await uploadResponse.json();
-            throw new Error(errorData.message || 'Site photo upload failed');
+            if (!uploadResponse.ok) {
+              const errorData = await uploadResponse.json();
+              throw new Error(errorData.message || `Site photo ${i + 1} upload failed`);
+            }
+
+            const uploadResult = await uploadResponse.json();
+            sitePhotoUrls.push({
+              url: uploadResult.url,
+              location: {
+                latitude: currentLocation?.latitude || 0,
+                longitude: currentLocation?.longitude || 0,
+                accuracy: currentLocation?.accuracy,
+                address: currentLocation?.formattedAddress || currentLocation?.address || 'Address not available'
+              },
+              timestamp: new Date(),
+              description: `Site photo ${i + 1} captured during check-in`
+            });
+            console.log(`Site photo ${i + 1} uploaded successfully:`, uploadResult.url);
+          } catch (error) {
+            console.error(`Site photo ${i + 1} upload failed:`, error);
+            toast({
+              title: "Site Photo Upload Failed",
+              description: error instanceof Error ? error.message : `Could not upload site photo ${i + 1}. Please try again.`,
+              variant: "destructive",
+            });
+            throw error; // Re-throw to stop the mutation
           }
-
-          const uploadResult = await uploadResponse.json();
-          sitePhotoUrl = uploadResult.url;
-          console.log("Site photo uploaded successfully:", sitePhotoUrl);
-        } catch (error) {
-          console.error('Site photo upload failed:', error);
-          toast({
-            title: "Site Photo Upload Failed",
-            description: error instanceof Error ? error.message : "Could not upload site photo. Please try again.",
-            variant: "destructive",
-          });
-          throw error; // Re-throw to stop the mutation
         }
       }
 
@@ -560,17 +606,7 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
           address: currentLocation?.formattedAddress || currentLocation?.address || 'Address not available'
         },
         ...(selfiePhotoUrl && { siteInPhotoUrl: selfiePhotoUrl }),
-        sitePhotos: sitePhotoUrl ? [{
-          url: sitePhotoUrl,
-          location: {
-            latitude: currentLocation?.latitude || 0,
-            longitude: currentLocation?.longitude || 0,
-            accuracy: currentLocation?.accuracy,
-            address: currentLocation?.formattedAddress || currentLocation?.address || 'Address not available'
-          },
-          timestamp: new Date(),
-          description: 'Site photo captured during check-in'
-        }] : [],
+        sitePhotos: sitePhotoUrls,
         customer: {
           ...data.customer,
           ebServiceNumber: data.customer.ebServiceNumber || '',
@@ -1069,18 +1105,65 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
                 </CardContent>
               </Card>
 
-              {/* Site Photo Section */}
+              {/* Site Photos Section */}
               <Card>
                 <CardHeader className="pb-3 sm:pb-6">
                   <CardTitle className="text-base sm:text-lg flex items-center gap-2 justify-center sm:justify-start">
                     <MapPin className="h-4 w-4 sm:h-5 sm:w-5" />
-                    Site Photo
-                    {capturedPhotos.site && <CheckCircle className="h-4 w-4 text-green-600" />}
+                    Site Photos
+                    {capturedPhotos.sitePhotos.length > 0 && <Badge variant="default" className="text-xs">{capturedPhotos.sitePhotos.length}</Badge>}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3 sm:space-y-4">
-                    {!capturedPhotos.site && (!isCameraActive || currentPhotoType !== 'site') && (
+                    {/* Photo Gallery */}
+                    {capturedPhotos.sitePhotos.length > 0 && (
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-2 gap-2">
+                          {capturedPhotos.sitePhotos.map((photo, index) => (
+                            <div key={index} className="relative group">
+                              <img
+                                src={photo}
+                                alt={`Site photo ${index + 1}`}
+                                className="w-full h-24 sm:h-32 object-cover rounded-lg"
+                              />
+                              <Badge className="absolute top-1 right-1 text-xs bg-green-600">
+                                {index + 1}
+                              </Badge>
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => resetPhoto('site', index)}
+                                className="absolute bottom-1 right-1 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                        
+                        {capturedPhotos.sitePhotos.length < 5 && (
+                          <Button 
+                            onClick={() => startCameraForPhoto('site')}
+                            variant="outline"
+                            className="w-full"
+                            size="sm"
+                          >
+                            <Camera className="h-4 w-4 mr-2" />
+                            Add Another Site Photo ({capturedPhotos.sitePhotos.length}/5)
+                          </Button>
+                        )}
+                        
+                        {capturedPhotos.sitePhotos.length >= 5 && (
+                          <div className="text-center p-2 bg-muted rounded-lg">
+                            <p className="text-xs text-muted-foreground">Maximum 5 photos reached</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Initial capture prompt */}
+                    {capturedPhotos.sitePhotos.length === 0 && (!isCameraActive || currentPhotoType !== 'site') && (
                       <div className="space-y-3">
                         <Button 
                           onClick={() => startCameraForPhoto('site')}
@@ -1088,18 +1171,19 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
                           className="w-full"
                         >
                           <Camera className="h-4 w-4 mr-2" />
-                          Capture Site
+                          Capture Site Photos
                         </Button>
                         <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-4 sm:p-8 text-center">
                           <MapPin className="h-8 w-8 sm:h-12 sm:w-12 mx-auto mb-2 sm:mb-4 text-muted-foreground" />
                           <p className="text-xs sm:text-sm text-muted-foreground">
-                            Take a photo of the site or work area
+                            Take photos of the site or work area (up to 5 photos)
                           </p>
                         </div>
                       </div>
                     )}
 
-                    {isCameraActive && currentPhotoType === 'site' && !capturedPhotos.site && (
+                    {/* Camera interface */}
+                    {isCameraActive && currentPhotoType === 'site' && (
                       <div className="space-y-3">
                         <div className="relative">
                           <video
@@ -1118,7 +1202,7 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
                             </div>
                           )}
                           <Badge className="absolute top-2 left-2 text-xs bg-orange-600">
-                            Site Mode
+                            Site Photo {capturedPhotos.sitePhotos.length + 1}/5
                           </Badge>
                         </div>
                         
@@ -1152,34 +1236,10 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
                               size="sm"
                             >
                               <Camera className="h-4 w-4 mr-2" />
-                              Capture Site
+                              Capture
                             </Button>
                           </div>
                         </div>
-                      </div>
-                    )}
-
-                    {capturedPhotos.site && (
-                      <div className="space-y-3">
-                        <div className="relative">
-                          <img
-                            src={capturedPhotos.site}
-                            alt="Captured site photo"
-                            className="w-full h-48 sm:h-64 object-cover rounded-lg"
-                          />
-                          <Badge className="absolute top-2 right-2 text-xs bg-green-600">
-                            Site Captured
-                          </Badge>
-                        </div>
-                        <Button
-                          variant="outline"
-                          onClick={() => resetPhoto('site')}
-                          className="w-full"
-                          size="sm"
-                        >
-                          <RotateCcw className="h-4 w-4 mr-2" />
-                          Retake Site Photo
-                        </Button>
                       </div>
                     )}
                   </div>
@@ -1218,8 +1278,8 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
                       <Badge variant={capturedPhotos.selfie ? "default" : "secondary"} className="text-xs">
                         Selfie {capturedPhotos.selfie ? '✓' : '✗'}
                       </Badge>
-                      <Badge variant={capturedPhotos.site ? "default" : "secondary"} className="text-xs">
-                        Site {capturedPhotos.site ? '✓' : '✗'}
+                      <Badge variant={capturedPhotos.sitePhotos.length > 0 ? "default" : "secondary"} className="text-xs">
+                        Site ({capturedPhotos.sitePhotos.length})
                       </Badge>
                     </div>
                   </div>
