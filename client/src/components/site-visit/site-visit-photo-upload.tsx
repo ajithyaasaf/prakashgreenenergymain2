@@ -42,27 +42,130 @@ export function SiteVisitPhotoUpload({ siteVisitId }: SiteVisitPhotoUploadProps)
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const handlePhotoSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files) return;
-
-    Array.from(files).forEach(file => {
-      if (file.type.startsWith('image/')) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          setPhotos(prev => [...prev, {
-            file,
-            preview: e.target?.result as string,
-            description: ''
-          }]);
+  // Camera functions
+  const startCamera = async () => {
+    try {
+      console.log('PHOTO_UPLOAD_CAMERA: Starting camera...');
+      
+      const constraints = {
+        video: {
+          facingMode: currentCamera === 'front' ? 'user' : 'environment',
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        },
+        audio: false
+      };
+      
+      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+      setStream(mediaStream);
+      setIsCameraActive(true);
+      setIsVideoReady(false);
+      
+      if (videoRef.current) {
+        const video = videoRef.current;
+        video.muted = true;
+        video.playsInline = true;
+        video.autoplay = true;
+        video.controls = false;
+        video.srcObject = mediaStream;
+        
+        video.onloadedmetadata = () => {
+          console.log('PHOTO_UPLOAD_CAMERA: Video metadata loaded');
+          setIsVideoReady(true);
         };
-        reader.readAsDataURL(file);
+        
+        setTimeout(async () => {
+          try {
+            await video.play();
+            console.log('PHOTO_UPLOAD_CAMERA: Video play successful');
+          } catch (playError) {
+            console.warn('PHOTO_UPLOAD_CAMERA: Auto-play failed:', playError);
+          }
+        }, 100);
       }
-    });
+      
+    } catch (error) {
+      console.error('PHOTO_UPLOAD_CAMERA: Access failed:', error);
+      setIsCameraActive(false);
+      setIsVideoReady(false);
+      
+      let errorMessage = "Unable to access camera. ";
+      if (error instanceof Error) {
+        if (error.name === 'NotAllowedError') {
+          errorMessage += "Please allow camera permissions and try again.";
+        } else if (error.name === 'NotFoundError') {
+          errorMessage += "No camera found on this device.";
+        } else if (error.name === 'NotReadableError') {
+          errorMessage += "Camera is being used by another application.";
+        } else {
+          errorMessage += error.message;
+        }
+      }
+      
+      toast({
+        title: "Camera Access Failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    }
+  };
 
-    // Reset the input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+  const capturePhoto = () => {
+    if (videoRef.current && canvasRef.current && isVideoReady) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      const context = canvas.getContext('2d');
+      
+      if (context && video.videoWidth > 0 && video.videoHeight > 0) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context.drawImage(video, 0, 0);
+        
+        const photoDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+        
+        // Add captured photo to the photos array
+        setPhotos(prev => [...prev, {
+          data: photoDataUrl,
+          preview: photoDataUrl,
+          description: ''
+        }]);
+        
+        // Stop camera after capture but keep it available for more photos
+        stopCamera();
+        
+        toast({
+          title: "Photo Captured",
+          description: "Photo added to your site visit collection",
+          variant: "default",
+        });
+      } else {
+        toast({
+          title: "Capture Failed",
+          description: "Please wait for camera to load completely",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  const stopCamera = () => {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      setStream(null);
+    }
+    setIsCameraActive(false);
+    setIsVideoReady(false);
+  };
+
+  const switchCamera = async () => {
+    const newCamera = currentCamera === 'front' ? 'back' : 'front';
+    setCurrentCamera(newCamera);
+    
+    if (isCameraActive) {
+      stopCamera();
+      setTimeout(() => {
+        startCamera();
+      }, 200);
     }
   };
 
@@ -83,18 +186,8 @@ export function SiteVisitPhotoUpload({ siteVisitId }: SiteVisitPhotoUploadProps)
       
       for (const photo of photos) {
         try {
-          // Convert file to base64 for server upload
-          const reader = new FileReader();
-          const base64Promise = new Promise<string>((resolve, reject) => {
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = reject;
-            reader.readAsDataURL(photo.file);
-          });
-          
-          const base64Data = await base64Promise;
-          
           const uploadResponse = await apiRequest('/api/attendance/upload-photo', 'POST', {
-            imageData: base64Data,
+            imageData: photo.data, // Already base64 encoded from camera capture
             userId: `site_visit_${siteVisitId}`, // Use site visit ID for organization
             attendanceType: 'site_visit_additional'
           });
@@ -166,24 +259,74 @@ export function SiteVisitPhotoUpload({ siteVisitId }: SiteVisitPhotoUploadProps)
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            multiple
-            onChange={handlePhotoSelect}
-            className="hidden"
-          />
-          <Button 
-            onClick={() => fileInputRef.current?.click()}
-            variant="outline"
-            className="w-full"
-          >
-            <Upload className="h-4 w-4 mr-2" />
-            Select Photos
-          </Button>
-        </div>
+        {!isCameraActive && (
+          <div className="space-y-3">
+            <Button 
+              onClick={startCamera}
+              variant="outline"
+              className="w-full"
+            >
+              <Camera className="h-4 w-4 mr-2" />
+              Take Photo
+            </Button>
+            <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
+              <Camera className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">
+                Capture photos during your site visit
+              </p>
+            </div>
+          </div>
+        )}
+
+        {isCameraActive && (
+          <div className="space-y-3">
+            <div className="relative">
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className="w-full h-64 object-cover rounded-lg bg-black"
+              />
+              {!isVideoReady && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-lg">
+                  <div className="text-white text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-2"></div>
+                    <p className="text-sm">Loading camera...</p>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <div className="flex justify-between">
+              <Button
+                variant="outline"
+                onClick={switchCamera}
+                disabled={!isVideoReady}
+              >
+                <RotateCcw className="h-4 w-4 mr-2" />
+                Switch to {currentCamera === 'front' ? 'Back' : 'Front'}
+              </Button>
+              
+              <div className="flex gap-2">
+                <Button
+                  variant="destructive"
+                  onClick={stopCamera}
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  Cancel
+                </Button>
+                <Button
+                  onClick={capturePhoto}
+                  disabled={!isVideoReady}
+                >
+                  <Camera className="h-4 w-4 mr-2" />
+                  Capture
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {photos.length > 0 && (
           <>
@@ -235,6 +378,9 @@ export function SiteVisitPhotoUpload({ siteVisitId }: SiteVisitPhotoUploadProps)
             </Button>
           </>
         )}
+
+        {/* Hidden canvas for photo capture */}
+        <canvas ref={canvasRef} style={{ display: 'none' }} />
       </CardContent>
     </Card>
   );
