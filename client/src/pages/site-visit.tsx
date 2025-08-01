@@ -253,25 +253,25 @@ export default function SiteVisitPage() {
 
   if (!hasAccess) {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto p-2 sm:p-4 lg:p-8">
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <MapPin className="h-6 w-6" />
+          <CardHeader className="text-center sm:text-left">
+            <CardTitle className="flex items-center gap-2 justify-center sm:justify-start text-lg sm:text-xl">
+              <MapPin className="h-5 w-5 sm:h-6 sm:w-6" />
               Site Visit Management
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-sm">
               Field operations management for Technical, Marketing, and Admin departments
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-center py-8">
-              <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">Access Restricted</h3>
-              <p className="text-muted-foreground mb-4">
+            <div className="text-center py-6 sm:py-8 px-4">
+              <AlertCircle className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mx-auto mb-3 sm:mb-4" />
+              <h3 className="text-base sm:text-lg font-semibold mb-2">Access Restricted</h3>
+              <p className="text-sm sm:text-base text-muted-foreground mb-4 max-w-md mx-auto">
                 Site Visit features are only available to Technical, Marketing, and Admin departments.
               </p>
-              <Badge variant="outline">
+              <Badge variant="outline" className="text-xs sm:text-sm">
                 Your Department: {user?.department || 'Not Assigned'}
               </Badge>
             </div>
@@ -282,16 +282,20 @@ export default function SiteVisitPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 space-y-6">
+    <div className="container mx-auto p-2 sm:p-4 lg:p-8 space-y-4 lg:space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">Site Visit Management</h1>
-          <p className="text-muted-foreground">
+      <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center">
+        <div className="space-y-1">
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold">Site Visit Management</h1>
+          <p className="text-sm text-muted-foreground">
             Manage field operations and site visits for {user?.department} department
           </p>
         </div>
-        <Button onClick={() => setIsStartModalOpen(true)} size="lg">
+        <Button 
+          onClick={() => setIsStartModalOpen(true)} 
+          size="default"
+          className="w-full sm:w-auto"
+        >
           <Plus className="h-4 w-4 mr-2" />
           Start Site Visit
         </Button>
@@ -299,50 +303,50 @@ export default function SiteVisitPage() {
 
       {/* Statistics Cards */}
       {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
           <Card>
-            <CardContent className="p-6">
+            <CardContent className="p-3 sm:p-4 lg:p-6">
               <div className="flex items-center">
-                <Activity className="h-8 w-8 text-blue-600" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-muted-foreground">Total Visits</p>
-                  <p className="text-2xl font-bold">{(stats as any)?.total || 0}</p>
+                <Activity className="h-6 w-6 sm:h-7 sm:w-7 lg:h-8 lg:w-8 text-blue-600 flex-shrink-0" />
+                <div className="ml-2 sm:ml-3 lg:ml-4 min-w-0">
+                  <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">Total Visits</p>
+                  <p className="text-lg sm:text-xl lg:text-2xl font-bold">{(stats as any)?.total || 0}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
           
           <Card>
-            <CardContent className="p-6">
+            <CardContent className="p-3 sm:p-4 lg:p-6">
               <div className="flex items-center">
-                <Clock className="h-8 w-8 text-orange-600" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-muted-foreground">In Progress</p>
-                  <p className="text-2xl font-bold">{(stats as any)?.inProgress || 0}</p>
+                <Clock className="h-6 w-6 sm:h-7 sm:w-7 lg:h-8 lg:w-8 text-orange-600 flex-shrink-0" />
+                <div className="ml-2 sm:ml-3 lg:ml-4 min-w-0">
+                  <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">In Progress</p>
+                  <p className="text-lg sm:text-xl lg:text-2xl font-bold">{(stats as any)?.inProgress || 0}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
           
           <Card>
-            <CardContent className="p-6">
+            <CardContent className="p-3 sm:p-4 lg:p-6">
               <div className="flex items-center">
-                <CheckCircle className="h-8 w-8 text-green-600" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-muted-foreground">Completed</p>
-                  <p className="text-2xl font-bold">{(stats as any)?.completed || 0}</p>
+                <CheckCircle className="h-6 w-6 sm:h-7 sm:w-7 lg:h-8 lg:w-8 text-green-600 flex-shrink-0" />
+                <div className="ml-2 sm:ml-3 lg:ml-4 min-w-0">
+                  <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">Completed</p>
+                  <p className="text-lg sm:text-xl lg:text-2xl font-bold">{(stats as any)?.completed || 0}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
           
           <Card>
-            <CardContent className="p-6">
+            <CardContent className="p-3 sm:p-4 lg:p-6">
               <div className="flex items-center">
-                <Users className="h-8 w-8 text-purple-600" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-muted-foreground">Department</p>
-                  <p className="text-2xl font-bold">{(stats as any)?.byDepartment?.[user?.department || ''] || 0}</p>
+                <Users className="h-6 w-6 sm:h-7 sm:w-7 lg:h-8 lg:w-8 text-purple-600 flex-shrink-0" />
+                <div className="ml-2 sm:ml-3 lg:ml-4 min-w-0">
+                  <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">Department</p>
+                  <p className="text-lg sm:text-xl lg:text-2xl font-bold">{(stats as any)?.byDepartment?.[user?.department || ''] || 0}</p>
                 </div>
               </div>
             </CardContent>
@@ -352,10 +356,10 @@ export default function SiteVisitPage() {
 
       {/* Site Visits Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="my-visits">My Visits</TabsTrigger>
-          <TabsTrigger value="active-visits">Active Visits</TabsTrigger>
-          <TabsTrigger value="team-visits">Team Visits</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-3 h-auto">
+          <TabsTrigger value="my-visits" className="text-xs sm:text-sm px-2 py-2">My Visits</TabsTrigger>
+          <TabsTrigger value="active-visits" className="text-xs sm:text-sm px-2 py-2">Active Visits</TabsTrigger>
+          <TabsTrigger value="team-visits" className="text-xs sm:text-sm px-2 py-2">Team Visits</TabsTrigger>
         </TabsList>
 
         {/* My Site Visits */}
@@ -373,13 +377,16 @@ export default function SiteVisitPage() {
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                 </div>
               ) : (mySiteVisits as any)?.data?.length === 0 ? (
-                <div className="text-center py-8">
-                  <MapPin className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No site visits yet</h3>
-                  <p className="text-muted-foreground mb-4">
+                <div className="text-center py-6 sm:py-8 px-4">
+                  <MapPin className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mx-auto mb-3 sm:mb-4" />
+                  <h3 className="text-base sm:text-lg font-semibold mb-2">No site visits yet</h3>
+                  <p className="text-sm sm:text-base text-muted-foreground mb-4 max-w-sm mx-auto">
                     Start your first site visit to begin tracking field operations
                   </p>
-                  <Button onClick={() => setIsStartModalOpen(true)}>
+                  <Button 
+                    onClick={() => setIsStartModalOpen(true)}
+                    className="w-full sm:w-auto"
+                  >
                     <Plus className="h-4 w-4 mr-2" />
                     Start Site Visit
                   </Button>
@@ -421,10 +428,10 @@ export default function SiteVisitPage() {
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                 </div>
               ) : (activeSiteVisits as SiteVisit[])?.length === 0 ? (
-                <div className="text-center py-8">
-                  <Activity className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No active site visits</h3>
-                  <p className="text-muted-foreground">
+                <div className="text-center py-6 sm:py-8 px-4">
+                  <Activity className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mx-auto mb-3 sm:mb-4" />
+                  <h3 className="text-base sm:text-lg font-semibold mb-2">No active site visits</h3>
+                  <p className="text-sm sm:text-base text-muted-foreground max-w-sm mx-auto">
                     All site visits have been completed
                   </p>
                 </div>
@@ -461,10 +468,10 @@ export default function SiteVisitPage() {
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                 </div>
               ) : (teamSiteVisits as any)?.data?.length === 0 ? (
-                <div className="text-center py-8">
-                  <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No team site visits</h3>
-                  <p className="text-muted-foreground">
+                <div className="text-center py-6 sm:py-8 px-4">
+                  <Users className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mx-auto mb-3 sm:mb-4" />
+                  <h3 className="text-base sm:text-lg font-semibold mb-2">No team site visits</h3>
+                  <p className="text-sm sm:text-base text-muted-foreground max-w-sm mx-auto">
                     No site visits from your department team yet
                   </p>
                 </div>
@@ -564,11 +571,11 @@ function UnifiedSiteVisitCard({ visitGroup, onView, onCheckout, onFollowUp, onDe
 
   return (
     <Card className="transition-all hover:shadow-md">
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-2">
-              <CardTitle className="text-lg">{visitGroup.customerName}</CardTitle>
+      <CardHeader className="pb-3 p-3 sm:p-4 lg:p-6">
+        <div className="flex flex-col space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+            <CardTitle className="text-base sm:text-lg truncate">{visitGroup.customerName}</CardTitle>
+            <div className="flex flex-wrap gap-1 sm:gap-2">
               <Badge className={getStatusColor(visitGroup.latestStatus)}>
                 {visitGroup.latestStatus.replace('_', ' ')}
               </Badge>
@@ -577,49 +584,52 @@ function UnifiedSiteVisitCard({ visitGroup, onView, onCheckout, onFollowUp, onDe
                   {visitGroup.totalVisits} visits
                 </Badge>
               )}
-              {visitGroup.followUps.length > 0 && (
-                <Badge variant="outline" className="text-xs">
-                  <RefreshCw className="h-3 w-3 mr-1" />
-                  {visitGroup.followUps.length} follow-up{visitGroup.followUps.length > 1 ? 's' : ''}
-                </Badge>
-              )}
             </div>
-            
-            <div className="text-sm text-muted-foreground space-y-1">
-              <div className="flex items-center gap-2">
-                <MapPin className="h-4 w-4" />
-                <span>{visitGroup.customerMobile}</span>
-              </div>
-              <div className="flex items-start gap-2">
-                <MapPin className="h-4 w-4 mt-0.5" />
-                <span className="flex-1">{visitGroup.customerAddress}</span>
-              </div>
+          </div>
+          
+          {visitGroup.followUps.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              <Badge variant="outline" className="text-xs">
+                <RefreshCw className="h-3 w-3 mr-1" />
+                {visitGroup.followUps.length} follow-up{visitGroup.followUps.length > 1 ? 's' : ''}
+              </Badge>
+            </div>
+          )}
+          
+          <div className="text-sm text-muted-foreground space-y-1">
+            <div className="flex items-center gap-2">
+              <MapPin className="h-4 w-4 flex-shrink-0" />
+              <span className="truncate sm:text-clip">{visitGroup.customerMobile}</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
+              <span className="flex-1 text-xs sm:text-sm line-clamp-2">{visitGroup.customerAddress}</span>
             </div>
           </div>
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-3 sm:space-y-4 p-3 sm:p-4 lg:p-6">
         {/* Primary Visit Display */}
-        <div className="border rounded-lg p-3 bg-gray-50">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
+        <div className="border rounded-lg p-2 sm:p-3 bg-gray-50">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
+            <div className="flex flex-wrap items-center gap-1 sm:gap-2">
               <Badge className={getDepartmentColor(visitGroup.primaryVisit.department)}>
                 {visitGroup.primaryVisit.department}
               </Badge>
-              <span className="text-sm font-medium">Latest Visit</span>
+              <span className="text-xs sm:text-sm font-medium">Latest Visit</span>
             </div>
             <span className="text-xs text-muted-foreground">
               {formatTime(visitGroup.primaryVisit.siteInTime)}
             </span>
           </div>
           
-          <div className="text-sm space-y-1">
-            <div><strong>Purpose:</strong> {visitGroup.primaryVisit.visitPurpose}</div>
+          <div className="text-xs sm:text-sm space-y-1">
+            <div><strong>Purpose:</strong> <span className="break-words">{visitGroup.primaryVisit.visitPurpose}</span></div>
             {visitGroup.primaryVisit.notes && (
-              <div><strong>Notes:</strong> {visitGroup.primaryVisit.notes}</div>
+              <div><strong>Notes:</strong> <span className="break-words">{visitGroup.primaryVisit.notes}</span></div>
             )}
-            <div className="flex items-center gap-4 text-xs text-muted-foreground">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-xs text-muted-foreground">
               <span>Check-in: {formatTime(visitGroup.primaryVisit.siteInTime)}</span>
               {visitGroup.primaryVisit.siteOutTime && (
                 <span>Check-out: {formatTime(visitGroup.primaryVisit.siteOutTime)}</span>
@@ -686,13 +696,14 @@ function UnifiedSiteVisitCard({ visitGroup, onView, onCheckout, onFollowUp, onDe
 
         {/* Action Buttons */}
         {showActions && (
-          <div className="flex gap-2 justify-end pt-2 border-t">
+          <div className="flex flex-col sm:flex-row gap-2 sm:justify-end pt-2 border-t">
             <Button
               variant="outline"
               size="sm"
               onClick={() => onView(visitGroup.primaryVisit)}
+              className="w-full sm:w-auto text-xs sm:text-sm"
             >
-              <Eye className="h-4 w-4 mr-1" />
+              <Eye className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
               View Details
             </Button>
             
@@ -700,9 +711,9 @@ function UnifiedSiteVisitCard({ visitGroup, onView, onCheckout, onFollowUp, onDe
               <Button
                 size="sm"
                 onClick={() => onCheckout(currentActiveVisit)}
-                className="bg-blue-600 hover:bg-blue-700"
+                className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-xs sm:text-sm"
               >
-                <LogOut className="h-4 w-4 mr-1" />
+                <LogOut className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
                 Check-out
               </Button>
             )}
@@ -712,8 +723,9 @@ function UnifiedSiteVisitCard({ visitGroup, onView, onCheckout, onFollowUp, onDe
                 variant="outline"
                 size="sm"
                 onClick={() => onFollowUp(visitGroup.primaryVisit)}
+                className="w-full sm:w-auto text-xs sm:text-sm"
               >
-                <RefreshCw className="h-4 w-4 mr-1" />
+                <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
                 Follow-up
               </Button>
             )}

@@ -127,74 +127,74 @@ export function SiteVisitDetailsModal({ isOpen, onClose, siteVisit }: SiteVisitD
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <MapPin className="h-5 w-5" />
+      <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+        <DialogHeader className="space-y-2">
+          <DialogTitle className="flex items-center gap-2 text-lg sm:text-xl">
+            <MapPin className="h-4 w-4 sm:h-5 sm:w-5" />
             Site Visit Details
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-sm">
             Complete information about the site visit
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {/* Header Info */}
-          <div className="flex items-start justify-between">
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+            <div className="space-y-2 flex-1">
+              <div className="flex flex-wrap gap-1 sm:gap-2">
                 <Badge className={getStatusColor(siteVisit.status)}>
                   {siteVisit.status.replace('_', ' ')}
                 </Badge>
                 <Badge variant="outline" className={getDepartmentColor(siteVisit.department)}>
                   {siteVisit.department}
                 </Badge>
-                <Badge variant="outline">
+                <Badge variant="outline" className="text-xs">
                   {siteVisit.visitPurpose}
                 </Badge>
               </div>
-              <h2 className="text-2xl font-bold">{siteVisit.customer.name}</h2>
+              <h2 className="text-lg sm:text-xl lg:text-2xl font-bold break-words">{siteVisit.customer.name}</h2>
             </div>
-            <div className="text-right text-sm text-muted-foreground">
+            <div className="text-left sm:text-right text-xs sm:text-sm text-muted-foreground bg-gray-50 p-2 rounded-lg sm:bg-transparent sm:p-0">
               <p>Visit ID: {siteVisit.id.slice(0, 8)}</p>
               <p>Created: {format(new Date(siteVisit.createdAt), 'PPP')}</p>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
             {/* Customer Information */}
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <User className="h-5 w-5" />
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                  <User className="h-4 w-4 sm:h-5 sm:w-5" />
                   Customer Information
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <User className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="font-medium">{siteVisit.customer.name}</p>
-                    <p className="text-sm text-muted-foreground capitalize">{siteVisit.customer.propertyType} Property</p>
+              <CardContent className="space-y-3 text-sm">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium truncate">{siteVisit.customer.name}</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground capitalize">{siteVisit.customer.propertyType} Property</p>
                   </div>
                 </div>
                 
-                <div className="flex items-center gap-3">
-                  <Phone className="h-4 w-4 text-muted-foreground" />
-                  <span>{siteVisit.customer.mobile}</span>
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <Phone className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <span className="break-all">{siteVisit.customer.mobile}</span>
                 </div>
                 
-                <div className="flex items-start gap-3">
-                  <Building className="h-4 w-4 text-muted-foreground mt-1" />
-                  <span className="text-sm">{siteVisit.customer.address}</span>
+                <div className="flex items-start gap-2 sm:gap-3">
+                  <Building className="h-4 w-4 text-muted-foreground mt-1 flex-shrink-0" />
+                  <span className="text-xs sm:text-sm break-words">{siteVisit.customer.address}</span>
                 </div>
 
                 {siteVisit.customer.ebServiceNumber && (
-                  <div className="flex items-center gap-3">
-                    <Zap className="h-4 w-4 text-muted-foreground" />
-                    <div>
-                      <p className="text-sm text-muted-foreground">EB Service Number</p>
-                      <p className="font-medium">{siteVisit.customer.ebServiceNumber}</p>
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <Zap className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs sm:text-sm text-muted-foreground">EB Service Number</p>
+                      <p className="font-medium break-all">{siteVisit.customer.ebServiceNumber}</p>
                     </div>
                   </div>
                 )}
@@ -203,41 +203,41 @@ export function SiteVisitDetailsModal({ isOpen, onClose, siteVisit }: SiteVisitD
 
             {/* Visit Timeline */}
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Clock className="h-5 w-5" />
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                  <Clock className="h-4 w-4 sm:h-5 sm:w-5" />
                   Visit Timeline
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Site In Time</p>
-                    <p className="font-medium">{format(new Date(siteVisit.siteInTime), 'PPP p')}</p>
+              <CardContent className="space-y-3 text-sm">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <Calendar className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs sm:text-sm text-muted-foreground">Site In Time</p>
+                    <p className="font-medium text-xs sm:text-sm break-words">{format(new Date(siteVisit.siteInTime), 'PPP p')}</p>
                   </div>
                 </div>
 
                 {siteVisit.siteOutTime && (
-                  <div className="flex items-center gap-3">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <div>
-                      <p className="text-sm text-muted-foreground">Site Out Time</p>
-                      <p className="font-medium">{format(new Date(siteVisit.siteOutTime), 'PPP p')}</p>
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <Calendar className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs sm:text-sm text-muted-foreground">Site Out Time</p>
+                      <p className="font-medium text-xs sm:text-sm break-words">{format(new Date(siteVisit.siteOutTime), 'PPP p')}</p>
                     </div>
                   </div>
                 )}
 
-                <div className="flex items-center gap-3">
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Duration</p>
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <Clock className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs sm:text-sm text-muted-foreground">Duration</p>
                     <p className="font-medium">{calculateDuration()}</p>
                   </div>
                 </div>
 
                 {siteVisit.status === 'in_progress' && (
-                  <Badge variant="outline" className="text-orange-600">
+                  <Badge variant="outline" className="text-orange-600 text-xs">
                     Visit in Progress
                   </Badge>
                 )}
