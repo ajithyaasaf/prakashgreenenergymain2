@@ -172,6 +172,10 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
     console.log('=== SITE_VISIT_CAMERA: START CAMERA CLICKED ===');
     console.log('SITE_VISIT_CAMERA: Function called at:', new Date().toISOString());
     
+    // First set camera active state to trigger video element rendering
+    setIsCameraActive(true);
+    setIsVideoReady(false);
+    
     try {
       console.log('SITE_VISIT_CAMERA: Starting camera...');
       console.log('SITE_VISIT_CAMERA: Navigator check:', !!navigator.mediaDevices);
@@ -246,40 +250,50 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
       console.log('SITE_VISIT_CAMERA: Video tracks:', mediaStream.getVideoTracks().length);
       
       setStream(mediaStream);
-      setIsCameraActive(true);
-      setIsVideoReady(false);
       
-      // Simplified approach - directly set stream and mark as ready
-      if (videoRef.current) {
-        const video = videoRef.current;
-        console.log('SITE_VISIT_CAMERA: Setting up video element...');
+      // Wait for video element to be available with retry mechanism
+      const setupVideoElement = async (stream: MediaStream, retryCount = 0): Promise<void> => {
+        const maxRetries = 10;
+        const retryDelay = 200; // 200ms delay between retries
         
-        // Set video properties
-        video.muted = true;
-        video.playsInline = true;
-        video.autoplay = true;
-        video.controls = false;
-        
-        // Directly set the stream
-        video.srcObject = mediaStream;
-        console.log('SITE_VISIT_CAMERA: Stream assigned to video element');
-        
-        // Immediately mark as ready and try to play
-        setIsVideoReady(true);
-        
-        try {
-          await video.play();
-          console.log('SITE_VISIT_CAMERA: Video play successful');
-        } catch (playError) {
-          console.warn('SITE_VISIT_CAMERA: Auto-play failed:', playError);
-          // Still mark as ready - user can click to play if needed
+        if (videoRef.current) {
+          const video = videoRef.current;
+          console.log('SITE_VISIT_CAMERA: Setting up video element...');
+          
+          // Set video properties
+          video.muted = true;
+          video.playsInline = true;
+          video.autoplay = true;
+          video.controls = false;
+          
+          // Directly set the stream
+          video.srcObject = stream;
+          console.log('SITE_VISIT_CAMERA: Stream assigned to video element');
+          
+          // Immediately mark as ready and try to play
+          setIsVideoReady(true);
+          
+          try {
+            await video.play();
+            console.log('SITE_VISIT_CAMERA: Video play successful');
+          } catch (playError) {
+            console.warn('SITE_VISIT_CAMERA: Auto-play failed:', playError);
+            // Still mark as ready - user can click to play if needed
+          }
+          
+          console.log('SITE_VISIT_CAMERA: Video setup complete');
+          return;
+        } else if (retryCount < maxRetries) {
+          console.log(`SITE_VISIT_CAMERA: Video element not ready, retry ${retryCount + 1}/${maxRetries}`);
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+          return setupVideoElement(stream, retryCount + 1);
+        } else {
+          console.error('SITE_VISIT_CAMERA: Video element not available after max retries');
+          throw new Error('Video element not found after waiting');
         }
-        
-        console.log('SITE_VISIT_CAMERA: Video setup complete');
-      } else {
-        console.error('SITE_VISIT_CAMERA: Video ref not available');
-        throw new Error('Video element not found');
-      }
+      };
+      
+      await setupVideoElement(mediaStream);
       
     } catch (error) {
       console.error('SITE_VISIT_CAMERA: Access failed:', error);
