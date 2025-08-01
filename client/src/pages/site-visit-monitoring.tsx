@@ -22,12 +22,8 @@ import { format } from "date-fns";
 interface SiteVisit {
   id: string;
   userId: string;
-  customerName: string;
-  customerPhone: string;
-  customerEmail?: string;
-  siteAddress: string;
   department: string;
-  visitType: string;
+  visitPurpose: string;
   siteInTime: Date;
   siteOutTime?: Date;
   status: 'in_progress' | 'completed' | 'cancelled';
@@ -37,11 +33,23 @@ interface SiteVisit {
     timestamp: Date;
   }[];
   notes?: string;
-  visitPurpose: string;
   userName: string;
   userDepartment: string;
-  latitude?: number;
-  longitude?: number;
+  // Customer data (nested object structure)
+  customer: {
+    name: string;
+    mobile: string;
+    address: string;
+    propertyType?: string;
+    ebServiceNumber?: string;
+  };
+  // Enhanced follow-up system
+  isFollowUp?: boolean;
+  followUpOf?: string;
+  followUpReason?: string;
+  followUpDescription?: string;
+  followUpCount?: number;
+  hasFollowUps?: boolean;
   // Department-specific data
   technicalData?: any;
   marketingData?: any;
@@ -61,10 +69,8 @@ interface SiteVisit {
   };
   siteInPhotoUrl?: string;
   siteOutPhotoUrl?: string;
-  customer?: {
-    ebServiceNumber?: string;
-    propertyType?: string;
-  };
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export default function SiteVisitMonitoring() {
@@ -81,6 +87,7 @@ export default function SiteVisitMonitoring() {
   const [dateFilter, setDateFilter] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [followUpFilter, setFollowUpFilter] = useState("all");
 
   // Force data refresh when filters change
   const refetchData = () => {
@@ -92,7 +99,7 @@ export default function SiteVisitMonitoring() {
 
   // Live site visits data with real-time updates
   const { data: siteVisits = [], isLoading, refetch } = useQuery({
-    queryKey: ["/api/site-visits/monitoring", statusFilter, departmentFilter, dateFilter],
+    queryKey: ["/api/site-visits/monitoring", statusFilter, departmentFilter, dateFilter, followUpFilter],
     queryFn: async () => {
       // Build query params
       const params = new URLSearchParams();
@@ -113,15 +120,24 @@ export default function SiteVisitMonitoring() {
       // The API returns { data: [...], filters: {}, count: number }
       const visits = responseData.data || responseData || [];
       
-      // Enrich with user information
+      // Enrich with user information and proper data mapping
       return visits.map((visit: any) => ({
         ...visit,
         siteInTime: new Date(visit.siteInTime),
         siteOutTime: visit.siteOutTime ? new Date(visit.siteOutTime) : null,
+        createdAt: visit.createdAt ? new Date(visit.createdAt) : new Date(visit.siteInTime),
+        updatedAt: visit.updatedAt ? new Date(visit.updatedAt) : new Date(),
         sitePhotos: visit.sitePhotos?.map((photo: any) => ({
           ...photo,
           timestamp: new Date(photo.timestamp)
-        })) || []
+        })) || [],
+        // Ensure customer data structure is consistent
+        customer: visit.customer || {
+          name: visit.customerName || 'Unknown Customer',
+          mobile: visit.customerPhone || '',
+          address: visit.siteAddress || '',
+          propertyType: visit.customer?.propertyType || 'unknown'
+        }
       }));
     },
     refetchInterval: 15000, // Live updates every 15 seconds
@@ -131,14 +147,16 @@ export default function SiteVisitMonitoring() {
   // Debug: Log all site visits data to understand the structure (can be removed after testing)
   console.log('SITE_VISITS_RAW_DATA:', siteVisits.map(visit => ({
     id: visit.id,
-    customerName: visit.customerName,
+    customerName: visit.customer?.name,
     status: visit.status,
     department: visit.department,
+    isFollowUp: visit.isFollowUp,
+    followUpCount: visit.followUpCount,
     siteInTime: visit.siteInTime,
     siteOutTime: visit.siteOutTime
   })));
 
-  // Dashboard statistics
+  // Enhanced dashboard statistics with follow-up metrics
   const stats = {
     total: siteVisits.length,
     inProgress: siteVisits.filter(v => v.status === 'in_progress').length,
@@ -147,17 +165,23 @@ export default function SiteVisitMonitoring() {
       const today = new Date();
       const visitDate = new Date(v.siteInTime);
       return visitDate.toDateString() === today.toDateString();
-    }).length
+    }).length,
+    // Enhanced follow-up metrics
+    followUps: siteVisits.filter(v => v.isFollowUp).length,
+    originalVisits: siteVisits.filter(v => !v.isFollowUp).length,
+    withFollowUps: siteVisits.filter(v => v.hasFollowUps).length,
+    totalFollowUpCount: siteVisits.reduce((sum, v) => sum + (v.followUpCount || 0), 0)
   };
   
   console.log('SITE_VISITS_STATS:', stats);
 
-  // Filtered data with debugging
+  // Enhanced filtered data with follow-up awareness
   const filteredVisits = siteVisits.filter(visit => {
     const matchesSearch = !searchQuery || 
-      visit.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      visit.siteAddress.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      visit.userName.toLowerCase().includes(searchQuery.toLowerCase());
+      visit.customer?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      visit.customer?.address?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      visit.userName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      visit.followUpReason?.toLowerCase().includes(searchQuery.toLowerCase());
     
     const matchesDate = !dateFilter || 
       format(visit.siteInTime, 'yyyy-MM-dd') === dateFilter;
@@ -167,20 +191,12 @@ export default function SiteVisitMonitoring() {
     
     const matchesStatus = !statusFilter || statusFilter === 'all' || visit.status === statusFilter;
     
-    // Debug logging for status filter issues (can be removed after testing)
-    if (statusFilter === 'completed') {
-      console.log('SITE_VISIT_FILTER_DEBUG:', {
-        visitId: visit.id,
-        customerName: visit.customerName,
-        status: visit.status,
-        statusFilter,
-        matchesStatus,
-        department: visit.department,
-        siteInTime: visit.siteInTime
-      });
-    }
+    const matchesFollowUp = !followUpFilter || followUpFilter === 'all' || 
+      (followUpFilter === 'original' && !visit.isFollowUp) ||
+      (followUpFilter === 'follow_up' && visit.isFollowUp) ||
+      (followUpFilter === 'with_follow_ups' && visit.hasFollowUps);
     
-    return matchesSearch && matchesDate && matchesDepartment && matchesStatus;
+    return matchesSearch && matchesDate && matchesDepartment && matchesStatus && matchesFollowUp;
   });
 
   // Export functionality
@@ -257,8 +273,8 @@ export default function SiteVisitMonitoring() {
         </div>
       </div>
 
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      {/* Enhanced Statistics Cards with Follow-up Metrics */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
         <Card>
           <CardContent className="py-3 sm:py-4">
             <div className="flex items-center justify-between">
@@ -299,10 +315,34 @@ export default function SiteVisitMonitoring() {
           <CardContent className="py-3 sm:py-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs sm:text-sm text-gray-600">Today's Visits</p>
+                <p className="text-xs sm:text-sm text-gray-600">Today</p>
                 <p className="text-lg sm:text-2xl font-bold text-purple-600">{stats.today}</p>
               </div>
               <Calendar className="h-6 w-6 sm:h-8 sm:w-8 text-purple-500" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="py-3 sm:py-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs sm:text-sm text-gray-600">Follow-ups</p>
+                <p className="text-lg sm:text-2xl font-bold text-indigo-600">{stats.followUps}</p>
+              </div>
+              <RefreshCw className="h-6 w-6 sm:h-8 sm:w-8 text-indigo-500" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="py-3 sm:py-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs sm:text-sm text-gray-600">Has Follow-ups</p>
+                <p className="text-lg sm:text-2xl font-bold text-teal-600">{stats.withFollowUps}</p>
+              </div>
+              <TrendingUp className="h-6 w-6 sm:h-8 sm:w-8 text-teal-500" />
             </div>
           </CardContent>
         </Card>
@@ -324,7 +364,7 @@ export default function SiteVisitMonitoring() {
               </div>
             </div>
             
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:flex sm:gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:flex sm:gap-4">
               <Input
                 type="date"
                 value={dateFilter}
@@ -359,9 +399,21 @@ export default function SiteVisitMonitoring() {
                   <SelectItem value="cancelled">Cancelled</SelectItem>
                 </SelectContent>
               </Select>
+
+              <Select value={followUpFilter} onValueChange={setFollowUpFilter}>
+                <SelectTrigger className="sm:w-40">
+                  <SelectValue placeholder="Follow-up Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Visits</SelectItem>
+                  <SelectItem value="original">Original Visits</SelectItem>
+                  <SelectItem value="follow_up">Follow-up Visits</SelectItem>
+                  <SelectItem value="with_follow_ups">Has Follow-ups</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
-            {(searchQuery || dateFilter || (departmentFilter && departmentFilter !== 'all') || (statusFilter && statusFilter !== 'all')) && (
+            {(searchQuery || dateFilter || (departmentFilter && departmentFilter !== 'all') || (statusFilter && statusFilter !== 'all') || (followUpFilter && followUpFilter !== 'all')) && (
               <Button 
                 variant="outline" 
                 size="sm"
@@ -371,6 +423,7 @@ export default function SiteVisitMonitoring() {
                   setDateFilter("");
                   setDepartmentFilter("all");
                   setStatusFilter("all");
+                  setFollowUpFilter("all");
                 }}
               >
                 Clear Filters
@@ -406,8 +459,8 @@ export default function SiteVisitMonitoring() {
                     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
                       <div className="flex-1">
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
-                          <h3 className="font-semibold text-base sm:text-lg">{visit.customerName}</h3>
-                          <div className="flex gap-2">
+                          <h3 className="font-semibold text-base sm:text-lg">{visit.customer?.name || visit.customerName || 'Unknown Customer'}</h3>
+                          <div className="flex flex-wrap gap-2">
                             <Badge 
                               variant={
                                 visit.status === 'completed' ? 'default' : 
@@ -419,9 +472,28 @@ export default function SiteVisitMonitoring() {
                                visit.status === 'completed' ? 'Completed' : 'Cancelled'}
                             </Badge>
                             <Badge variant="outline" className="capitalize text-xs">{visit.department}</Badge>
+                            {visit.isFollowUp && (
+                              <Badge variant="secondary" className="text-xs bg-purple-100 text-purple-700">
+                                <RefreshCw className="h-3 w-3 mr-1" />
+                                Follow-up
+                              </Badge>
+                            )}
+                            {visit.hasFollowUps && !visit.isFollowUp && (
+                              <Badge variant="outline" className="text-xs border-green-500 text-green-700">
+                                <TrendingUp className="h-3 w-3 mr-1" />
+                                {visit.followUpCount} Follow-up{visit.followUpCount !== 1 ? 's' : ''}
+                              </Badge>
+                            )}
                           </div>
                         </div>
-                        <p className="text-xs sm:text-sm text-muted-foreground">{visit.visitPurpose || 'Site Visit'}</p>
+                        <div className="flex flex-col gap-1">
+                          <p className="text-xs sm:text-sm text-muted-foreground">{visit.visitPurpose || 'Site Visit'}</p>
+                          {visit.isFollowUp && visit.followUpReason && (
+                            <p className="text-xs text-purple-600 font-medium">
+                              Reason: {visit.followUpReason.replace('_', ' ')}
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </div>
 
@@ -431,23 +503,25 @@ export default function SiteVisitMonitoring() {
                         <MapPin className="h-3 w-3 sm:h-4 sm:w-4 text-blue-500 mt-0.5 flex-shrink-0" />
                         <div className="flex-1">
                           <span className="font-medium">Address:</span>
-                          <span className="text-muted-foreground ml-1 break-words">{visit.siteAddress}</span>
+                          <span className="text-muted-foreground ml-1 break-words">
+                            {visit.customer?.address || visit.siteAddress || 'No address provided'}
+                          </span>
                         </div>
                       </div>
                       
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
-                        {visit.customerPhone && (
+                        {(visit.customer?.mobile || visit.customerPhone) && (
                           <div className="flex items-center gap-2 text-xs sm:text-sm">
                             <Phone className="h-3 w-3 sm:h-4 sm:w-4 text-green-500 flex-shrink-0" />
                             <span className="font-medium">Phone:</span>
-                            <span className="text-muted-foreground">{visit.customerPhone}</span>
+                            <span className="text-muted-foreground">{visit.customer?.mobile || visit.customerPhone}</span>
                           </div>
                         )}
-                        {visit.customerEmail && (
+                        {visit.customer?.propertyType && (
                           <div className="flex items-center gap-2 text-xs sm:text-sm">
-                            <Mail className="h-3 w-3 sm:h-4 sm:w-4 text-orange-500 flex-shrink-0" />
-                            <span className="font-medium">Email:</span>
-                            <span className="text-muted-foreground truncate">{visit.customerEmail}</span>
+                            <Building className="h-3 w-3 sm:h-4 sm:w-4 text-orange-500 flex-shrink-0" />
+                            <span className="font-medium">Property:</span>
+                            <span className="text-muted-foreground capitalize">{visit.customer.propertyType}</span>
                           </div>
                         )}
                         <div className="flex items-center gap-2 text-xs sm:text-sm">
@@ -510,7 +584,9 @@ export default function SiteVisitMonitoring() {
                         </DialogTrigger>
                         <DialogContent className="w-[95vw] max-w-4xl h-[90vh] sm:h-[90vh] overflow-y-auto">
                           <DialogHeader>
-                            <DialogTitle className="text-sm sm:text-base truncate">Site Visit Details - {visit.customerName}</DialogTitle>
+                            <DialogTitle className="text-sm sm:text-base truncate">
+                              Site Visit Details - {visit.customer?.name || visit.customerName || 'Unknown Customer'}
+                            </DialogTitle>
                           </DialogHeader>
                           
                           {selectedVisit && (
@@ -547,25 +623,53 @@ export default function SiteVisitMonitoring() {
                                       <div className="flex items-center gap-2 text-sm">
                                         <User className="h-3 w-3 sm:h-4 sm:w-4 text-blue-500 flex-shrink-0" />
                                         <span className="font-medium">Name:</span>
-                                        <span className="truncate">{selectedVisit.customerName}</span>
+                                        <span className="truncate">{selectedVisit.customer?.name || selectedVisit.customerName || 'Unknown'}</span>
                                       </div>
                                       <div className="flex items-center gap-2 text-sm">
                                         <Phone className="h-3 w-3 sm:h-4 sm:w-4 text-green-500 flex-shrink-0" />
                                         <span className="font-medium">Phone:</span>
-                                        <span>{selectedVisit.customerPhone}</span>
+                                        <span>{selectedVisit.customer?.mobile || selectedVisit.customerPhone || 'Not provided'}</span>
                                       </div>
-                                      {selectedVisit.customerEmail && (
+                                      {selectedVisit.customer?.propertyType && (
                                         <div className="flex items-center gap-2 text-sm">
-                                          <Mail className="h-3 w-3 sm:h-4 sm:w-4 text-orange-500 flex-shrink-0" />
-                                          <span className="font-medium">Email:</span>
-                                          <span className="truncate">{selectedVisit.customerEmail}</span>
+                                          <Building className="h-3 w-3 sm:h-4 sm:w-4 text-orange-500 flex-shrink-0" />
+                                          <span className="font-medium">Property Type:</span>
+                                          <span className="capitalize">{selectedVisit.customer.propertyType}</span>
                                         </div>
                                       )}
                                       <div className="flex items-start gap-2 text-sm">
                                         <MapPin className="h-3 w-3 sm:h-4 sm:w-4 text-red-500 mt-0.5 flex-shrink-0" />
                                         <span className="font-medium">Address:</span>
-                                        <span className="text-xs sm:text-sm break-words">{selectedVisit.siteAddress}</span>
+                                        <span className="text-xs sm:text-sm break-words">
+                                          {selectedVisit.customer?.address || selectedVisit.siteAddress || 'Not provided'}
+                                        </span>
                                       </div>
+                                      
+                                      {/* Follow-up Information */}
+                                      {selectedVisit.isFollowUp && (
+                                        <div className="pt-3 border-t">
+                                          <div className="flex items-center gap-2 text-sm mb-2">
+                                            <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4 text-purple-500 flex-shrink-0" />
+                                            <span className="font-medium text-purple-700">This is a Follow-up Visit</span>
+                                          </div>
+                                          {selectedVisit.followUpReason && (
+                                            <div className="text-sm text-purple-600 ml-5">
+                                              <span className="font-medium">Reason:</span> {selectedVisit.followUpReason.replace('_', ' ')}
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+                                      
+                                      {selectedVisit.hasFollowUps && !selectedVisit.isFollowUp && (
+                                        <div className="pt-3 border-t">
+                                          <div className="flex items-center gap-2 text-sm">
+                                            <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-green-500 flex-shrink-0" />
+                                            <span className="font-medium text-green-700">
+                                              Has {selectedVisit.followUpCount} Follow-up Visit{selectedVisit.followUpCount !== 1 ? 's' : ''}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      )}
                                       {selectedVisit.customer?.ebServiceNumber && (
                                         <div className="flex items-center gap-2">
                                           <Building className="h-4 w-4 text-purple-500" />
