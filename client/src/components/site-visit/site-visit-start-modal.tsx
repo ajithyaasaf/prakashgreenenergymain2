@@ -1119,13 +1119,13 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
                     {/* Photo Gallery */}
                     {capturedPhotos.sitePhotos.length > 0 && (
                       <div className="space-y-3">
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                           {capturedPhotos.sitePhotos.map((photo, index) => (
                             <div key={index} className="relative group">
                               <img
                                 src={photo}
                                 alt={`Site photo ${index + 1}`}
-                                className="w-full h-24 sm:h-32 object-cover rounded-lg"
+                                className="w-full h-20 sm:h-24 object-cover rounded-lg"
                               />
                               <Badge className="absolute top-1 right-1 text-xs bg-green-600">
                                 {index + 1}
@@ -1134,7 +1134,7 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
                                 variant="destructive"
                                 size="sm"
                                 onClick={() => resetPhoto('site', index)}
-                                className="absolute bottom-1 right-1 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                                className="absolute bottom-1 right-1 h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
                               >
                                 <X className="h-3 w-3" />
                               </Button>
@@ -1142,7 +1142,7 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
                           ))}
                         </div>
                         
-                        {capturedPhotos.sitePhotos.length < 5 && (
+                        {capturedPhotos.sitePhotos.length < 20 && (
                           <Button 
                             onClick={() => startCameraForPhoto('site')}
                             variant="outline"
@@ -1150,13 +1150,13 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
                             size="sm"
                           >
                             <Camera className="h-4 w-4 mr-2" />
-                            Add Another Site Photo ({capturedPhotos.sitePhotos.length}/5)
+                            Add Another Site Photo ({capturedPhotos.sitePhotos.length}/20)
                           </Button>
                         )}
                         
-                        {capturedPhotos.sitePhotos.length >= 5 && (
+                        {capturedPhotos.sitePhotos.length >= 20 && (
                           <div className="text-center p-2 bg-muted rounded-lg">
-                            <p className="text-xs text-muted-foreground">Maximum 5 photos reached</p>
+                            <p className="text-xs text-muted-foreground">Maximum 20 photos reached</p>
                           </div>
                         )}
                       </div>
@@ -1176,7 +1176,7 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
                         <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-4 sm:p-8 text-center">
                           <MapPin className="h-8 w-8 sm:h-12 sm:w-12 mx-auto mb-2 sm:mb-4 text-muted-foreground" />
                           <p className="text-xs sm:text-sm text-muted-foreground">
-                            Take photos of the site or work area (up to 5 photos)
+                            Take photos of the site or work area (up to 20 photos)
                           </p>
                         </div>
                       </div>
@@ -1202,7 +1202,7 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
                             </div>
                           )}
                           <Badge className="absolute top-2 left-2 text-xs bg-orange-600">
-                            Site Photo {capturedPhotos.sitePhotos.length + 1}/5
+                            Site Photo {capturedPhotos.sitePhotos.length + 1}/20
                           </Badge>
                         </div>
                         
