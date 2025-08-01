@@ -724,10 +724,26 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
                           onClick={(e) => {
                             try {
                               e.preventDefault();
+                              e.stopPropagation();
                               console.log('CHECKOUT_CAMERA: Selfie button clicked');
-                              startCameraForPhoto('selfie');
+                              console.log('CHECKOUT_CAMERA: Button event:', e);
+                              console.log('CHECKOUT_CAMERA: startCameraForPhoto function exists:', typeof startCameraForPhoto);
+                              console.log('CHECKOUT_CAMERA: About to call startCameraForPhoto with "selfie"');
+                              startCameraForPhoto('selfie').catch(err => {
+                                console.error('CHECKOUT_CAMERA: startCameraForPhoto promise rejected:', err);
+                                toast({
+                                  title: "Camera Error",
+                                  description: `Failed to start camera: ${err.message || err}`,
+                                  variant: "destructive",
+                                });
+                              });
                             } catch (error) {
                               console.error('CHECKOUT_CAMERA: Selfie button click error:', error);
+                              toast({
+                                title: "Button Error",
+                                description: `Button click failed: ${error instanceof Error ? error.message : error}`,
+                                variant: "destructive",
+                              });
                             }
                           }}
                           variant="outline"
@@ -904,10 +920,25 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
                           onClick={(e) => {
                             try {
                               e.preventDefault();
+                              e.stopPropagation();
                               console.log('CHECKOUT_CAMERA: Site photos button clicked');
-                              startCameraForPhoto('site');
+                              console.log('CHECKOUT_CAMERA: startCameraForPhoto function exists:', typeof startCameraForPhoto);
+                              console.log('CHECKOUT_CAMERA: About to call startCameraForPhoto with "site"');
+                              startCameraForPhoto('site').catch(err => {
+                                console.error('CHECKOUT_CAMERA: startCameraForPhoto promise rejected:', err);
+                                toast({
+                                  title: "Camera Error", 
+                                  description: `Failed to start camera: ${err.message || err}`,
+                                  variant: "destructive",
+                                });
+                              });
                             } catch (error) {
                               console.error('CHECKOUT_CAMERA: Site photos button click error:', error);
+                              toast({
+                                title: "Button Error",
+                                description: `Button click failed: ${error instanceof Error ? error.message : error}`,
+                                variant: "destructive",
+                              });
                             }
                           }}
                           variant="outline"
