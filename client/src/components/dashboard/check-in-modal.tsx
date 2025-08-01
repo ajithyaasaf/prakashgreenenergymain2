@@ -110,8 +110,7 @@ export function CheckInModal({ open, onOpenChange }: CheckInModalProps) {
         }
       });
       toast({
-        title: "Check-in Successful",
-        description: "You have successfully checked in for today.",
+        title: "Check in successfully",
         variant: "default",
       });
       onOpenChange(false);

@@ -314,8 +314,7 @@ export function EnterpriseAttendanceCheckIn({ isOpen, onClose, onSuccess }: Ente
       const indoorDetection = data.location?.validation?.indoorDetection ? ' (Indoor GPS)' : '';
       
       toast({
-        title: "Check-in Successful",
-        description: `${data.message} at ${currentAddress || 'current location'}`,
+        title: "Check in successfully",
         variant: "default",
       });
       
