@@ -106,7 +106,7 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
     adminData: null
   });
 
-  // Reset form when modal opens
+  // Reset form when modal opens (but not on camera errors)
   useEffect(() => {
     if (isOpen) {
       setStep(1);
@@ -117,12 +117,6 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
       setIsCameraActive(false);
       setIsVideoReady(false);
       setCurrentCamera('back');
-      
-      // Stop any existing camera stream
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-        setStream(null);
-      }
       
       setFormData({
         visitPurpose: '',
@@ -139,6 +133,20 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
         adminData: null
       });
     }
+  }, [isOpen]);
+
+  // Cleanup camera stream when modal closes or component unmounts
+  useEffect(() => {
+    if (!isOpen && stream) {
+      stream.getTracks().forEach(track => track.stop());
+      setStream(null);
+    }
+    
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+    };
   }, [isOpen, stream]);
 
   const handleLocationCaptured = (location: LocationData) => {
@@ -159,16 +167,21 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
     setLocationCaptured(false);
   };
 
-  // Camera functions
+  // Camera functions with better error handling
   const startCamera = async () => {
     try {
       console.log('SITE_VISIT_CAMERA: Starting camera...');
       
+      // Check if getUserMedia is supported
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Camera API not supported on this device');
+      }
+      
       const constraints = {
         video: {
           facingMode: currentCamera === 'front' ? 'user' : 'environment',
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
+          width: { ideal: 1280, max: 1920 },
+          height: { ideal: 720, max: 1080 }
         },
         audio: false
       };
@@ -186,25 +199,40 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
         video.controls = false;
         video.srcObject = mediaStream;
         
+        // Handle video events properly
         video.onloadedmetadata = () => {
-          console.log('SITE_VISIT_CAMERA: Video metadata loaded');
+          console.log('SITE_VISIT_CAMERA: Video metadata loaded, dimensions:', video.videoWidth, 'x', video.videoHeight);
           setIsVideoReady(true);
         };
         
-        setTimeout(async () => {
-          try {
-            await video.play();
+        video.onerror = (e) => {
+          console.error('SITE_VISIT_CAMERA: Video error:', e);
+          setIsVideoReady(false);
+        };
+        
+        // Try to play video
+        try {
+          const playPromise = video.play();
+          if (playPromise !== undefined) {
+            await playPromise;
             console.log('SITE_VISIT_CAMERA: Video play successful');
-          } catch (playError) {
-            console.warn('SITE_VISIT_CAMERA: Auto-play failed:', playError);
           }
-        }, 100);
+        } catch (playError) {
+          console.warn('SITE_VISIT_CAMERA: Auto-play failed:', playError);
+          // Don't throw here, just log the warning
+        }
       }
       
     } catch (error) {
       console.error('SITE_VISIT_CAMERA: Access failed:', error);
+      
+      // Clean up on error but don't reset the entire form
       setIsCameraActive(false);
       setIsVideoReady(false);
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        setStream(null);
+      }
       
       let errorMessage = "Unable to access camera. ";
       if (error instanceof Error) {
@@ -214,6 +242,8 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
           errorMessage += "No camera found on this device.";
         } else if (error.name === 'NotReadableError') {
           errorMessage += "Camera is being used by another application.";
+        } else if (error.name === 'NotSupportedError') {
+          errorMessage += "Camera constraints not supported.";
         } else {
           errorMessage += error.message;
         }
@@ -224,38 +254,89 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
         description: errorMessage,
         variant: "destructive",
       });
+      
+      // Don't throw the error to prevent form reset
+      return;
     }
   };
 
   const capturePhoto = () => {
-    if (videoRef.current && canvasRef.current && isVideoReady) {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      const context = canvas.getContext('2d');
+    console.log('SITE_VISIT_CAMERA: Attempting photo capture...');
+    
+    if (!videoRef.current || !canvasRef.current) {
+      console.error('SITE_VISIT_CAMERA: Video or canvas ref not available');
+      toast({
+        title: "Capture Failed",
+        description: "Camera not properly initialized. Please try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!isVideoReady) {
+      console.error('SITE_VISIT_CAMERA: Video not ready');
+      toast({
+        title: "Capture Failed",
+        description: "Please wait for camera to load completely",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    const context = canvas.getContext('2d');
+    
+    if (!context) {
+      console.error('SITE_VISIT_CAMERA: Cannot get canvas context');
+      toast({
+        title: "Capture Failed",
+        description: "Canvas not supported. Please try a different browser.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (video.videoWidth === 0 || video.videoHeight === 0) {
+      console.error('SITE_VISIT_CAMERA: Video dimensions invalid:', video.videoWidth, 'x', video.videoHeight);
+      toast({
+        title: "Capture Failed",
+        description: "Camera feed not ready. Please wait a moment and try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    try {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      context.drawImage(video, 0, 0);
       
-      if (context && video.videoWidth > 0 && video.videoHeight > 0) {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        context.drawImage(video, 0, 0);
-        
-        const photoDataUrl = canvas.toDataURL('image/jpeg', 0.8);
-        setCapturedPhoto(photoDataUrl);
-        
-        // Stop camera after capture
-        stopCamera();
-        
-        toast({
-          title: "Photo Captured",
-          description: "Site visit photo captured successfully",
-          variant: "default",
-        });
-      } else {
-        toast({
-          title: "Capture Failed",
-          description: "Please wait for camera to load completely",
-          variant: "destructive",
-        });
+      const photoDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+      
+      if (photoDataUrl.length < 100) {
+        throw new Error('Generated image data too small');
       }
+      
+      setCapturedPhoto(photoDataUrl);
+      
+      // Stop camera after successful capture
+      stopCamera();
+      
+      console.log('SITE_VISIT_CAMERA: Photo captured successfully, size:', photoDataUrl.length);
+      
+      toast({
+        title: "Photo Captured",
+        description: "Site visit photo captured successfully",
+        variant: "default",
+      });
+    } catch (error) {
+      console.error('SITE_VISIT_CAMERA: Photo capture error:', error);
+      toast({
+        title: "Capture Failed",
+        description: "Failed to capture photo. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -269,6 +350,7 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
   };
 
   const switchCamera = async () => {
+    console.log('SITE_VISIT_CAMERA: Switching camera from', currentCamera);
     const newCamera = currentCamera === 'front' ? 'back' : 'front';
     setCurrentCamera(newCamera);
     
@@ -277,7 +359,7 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
       // Small delay to ensure camera is properly stopped
       setTimeout(() => {
         startCamera();
-      }, 200);
+      }, 300);
     }
   };
 
