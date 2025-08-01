@@ -169,10 +169,14 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
 
   // Camera functions with better error handling
   const startCamera = async () => {
+    console.log('=== SITE_VISIT_CAMERA: START CAMERA CLICKED ===');
+    console.log('SITE_VISIT_CAMERA: Function called at:', new Date().toISOString());
+    
     try {
       console.log('SITE_VISIT_CAMERA: Starting camera...');
       console.log('SITE_VISIT_CAMERA: Navigator check:', !!navigator.mediaDevices);
       console.log('SITE_VISIT_CAMERA: getUserMedia check:', !!navigator.mediaDevices?.getUserMedia);
+      console.log('SITE_VISIT_CAMERA: Current camera state:', { isCameraActive, isVideoReady });
       
       // Check if getUserMedia is supported
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -272,6 +276,9 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
         }
         
         console.log('SITE_VISIT_CAMERA: Video setup complete');
+      } else {
+        console.error('SITE_VISIT_CAMERA: Video ref not available');
+        throw new Error('Video element not found');
       }
       
     } catch (error) {
