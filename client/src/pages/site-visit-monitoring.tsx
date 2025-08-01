@@ -15,7 +15,7 @@ import {
   MapPin, Search, Download, Eye, Calendar, Clock, Users, Building, 
   Camera, FileText, Filter, RefreshCw, TrendingUp, BarChart3,
   CheckCircle, XCircle, AlertTriangle, Navigation, Phone, Mail,
-  User, Zap
+  User, Zap, ChevronDown
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -73,6 +73,190 @@ interface SiteVisit {
   updatedAt?: Date;
 }
 
+interface CustomerVisitGroup {
+  customerMobile: string;
+  customerName: string;
+  customerAddress: string;
+  primaryVisit: SiteVisit;
+  followUps: SiteVisit[];
+  totalVisits: number;
+  latestStatus: string;
+  hasActiveVisit: boolean;
+  latestActivity: Date;
+}
+
+// Customer Visit Group Card Component
+const CustomerVisitGroupCard = ({ 
+  group, 
+  onViewDetails 
+}: { 
+  group: CustomerVisitGroup; 
+  onViewDetails: (visit: SiteVisit) => void;
+}) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  return (
+    <Card className="hover:shadow-md transition-shadow">
+      <CardContent className="p-3 sm:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
+          <div className="flex-1">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
+              <h3 className="font-semibold text-base sm:text-lg">{group.customerName}</h3>
+              <div className="flex flex-wrap gap-2">
+                <Badge 
+                  variant={
+                    group.latestStatus === 'completed' ? 'default' : 
+                    group.latestStatus === 'in_progress' ? 'secondary' : 'destructive'
+                  }
+                  className="capitalize text-xs"
+                >
+                  {group.latestStatus === 'in_progress' ? 'In Progress' : 
+                   group.latestStatus === 'completed' ? 'Completed' : 'Cancelled'}
+                </Badge>
+                <Badge variant="outline" className="capitalize text-xs">{group.primaryVisit.department}</Badge>
+                <Badge variant="outline" className="text-xs border-blue-500 text-blue-700">
+                  <Users className="h-3 w-3 mr-1" />
+                  {group.totalVisits} Visit{group.totalVisits !== 1 ? 's' : ''}
+                </Badge>
+                {group.followUps.length > 0 && (
+                  <Badge variant="outline" className="text-xs border-green-500 text-green-700">
+                    <TrendingUp className="h-3 w-3 mr-1" />
+                    {group.followUps.length} Follow-up{group.followUps.length !== 1 ? 's' : ''}
+                  </Badge>
+                )}
+              </div>
+            </div>
+            <div className="flex flex-col gap-1">
+              <p className="text-xs sm:text-sm text-muted-foreground">
+                Latest: {group.primaryVisit.visitPurpose || 'Site Visit'}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {format(group.latestActivity, 'MMM dd, yyyy HH:mm')}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Customer & Contact Info */}
+        <div className="space-y-3 mb-4">
+          <div className="flex items-start gap-2 text-xs sm:text-sm">
+            <MapPin className="h-3 w-3 sm:h-4 sm:w-4 text-blue-500 mt-0.5 flex-shrink-0" />
+            <div className="flex-1">
+              <span className="font-medium">Address:</span>
+              <span className="text-muted-foreground ml-1 break-words">{group.customerAddress}</span>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
+            <div className="flex items-center gap-2 text-xs sm:text-sm">
+              <Phone className="h-3 w-3 sm:h-4 sm:w-4 text-green-500 flex-shrink-0" />
+              <span className="font-medium">Phone:</span>
+              <span className="text-muted-foreground">{group.customerMobile}</span>
+            </div>
+            <div className="flex items-center gap-2 text-xs sm:text-sm">
+              <Users className="h-3 w-3 sm:h-4 sm:w-4 text-purple-500 flex-shrink-0" />
+              <span className="font-medium">Employee:</span>
+              <span className="text-muted-foreground">{group.primaryVisit.userName}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Action buttons and visit timeline toggle */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-3 border-t">
+          <div className="flex flex-wrap items-center gap-2">
+            {group.primaryVisit.siteInLocation && (
+              <Badge variant="secondary" className="flex items-center gap-1 text-xs">
+                <Navigation className="h-2 w-2 sm:h-3 sm:w-3" />
+                Location Tracked
+              </Badge>
+            )}
+            {group.primaryVisit.sitePhotos?.length > 0 && (
+              <Badge variant="outline" className="flex items-center gap-1 text-xs">
+                <Camera className="h-2 w-2 sm:h-3 sm:w-3" />
+                Photos
+              </Badge>
+            )}
+          </div>
+          
+          <div className="flex gap-2">
+            {group.totalVisits > 1 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="text-xs"
+              >
+                <ChevronDown className={`h-3 w-3 mr-1 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                {isExpanded ? 'Hide' : 'Show'} All ({group.totalVisits})
+              </Button>
+            )}
+            <Button 
+              variant="outline" 
+              size="sm"
+              className="w-full sm:w-auto"
+              onClick={() => onViewDetails(group.primaryVisit)}
+            >
+              <Eye className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
+              <span className="text-xs sm:text-sm">View Latest</span>
+            </Button>
+          </div>
+        </div>
+
+        {/* Expanded view showing all visits */}
+        {isExpanded && group.totalVisits > 1 && (
+          <div className="mt-4 pt-4 border-t space-y-3">
+            <h4 className="font-medium text-sm text-muted-foreground">All Visits ({group.totalVisits})</h4>
+            <div className="space-y-2">
+              {/* Primary Visit */}
+              <div className="bg-blue-50 p-3 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="default" className="text-xs">Latest</Badge>
+                    <span className="text-sm font-medium">{group.primaryVisit.visitPurpose}</span>
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    {format(new Date(group.primaryVisit.createdAt || group.primaryVisit.siteInTime), 'MMM dd, HH:mm')}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge className="text-xs">{group.primaryVisit.status}</Badge>
+                  <Badge variant="outline" className="text-xs">{group.primaryVisit.department}</Badge>
+                </div>
+              </div>
+              
+              {/* Follow-up Visits */}
+              {group.followUps.map((visit, index) => (
+                <div key={visit.id} className="bg-gray-50 p-3 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="text-xs">
+                        #{group.followUps.length - index}
+                      </Badge>
+                      <span className="text-sm font-medium">{visit.visitPurpose}</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground">
+                      {format(new Date(visit.createdAt || visit.siteInTime), 'MMM dd, HH:mm')}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge className="text-xs">{visit.status}</Badge>
+                    <Badge variant="outline" className="text-xs">{visit.department}</Badge>
+                    {visit.isFollowUp && (
+                      <Badge variant="secondary" className="text-xs bg-purple-100 text-purple-700">
+                        Follow-up
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
 export default function SiteVisitMonitoring() {
   const { user } = useAuthContext();
   const { toast } = useToast();
@@ -88,6 +272,7 @@ export default function SiteVisitMonitoring() {
   const [departmentFilter, setDepartmentFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [followUpFilter, setFollowUpFilter] = useState("all");
+  const [viewMode, setViewMode] = useState<"grouped" | "individual">("grouped");
 
   // Force data refresh when filters change
   const refetchData = () => {
@@ -175,6 +360,73 @@ export default function SiteVisitMonitoring() {
   
   console.log('SITE_VISITS_STATS:', stats);
 
+  // Group visits by customer function
+  const groupVisitsByCustomer = (visits: SiteVisit[]): CustomerVisitGroup[] => {
+    if (!visits || !Array.isArray(visits)) {
+      return [];
+    }
+
+    const groupMap = new Map<string, CustomerVisitGroup>();
+
+    visits.forEach(visit => {
+      const mobile = visit.customer?.mobile || visit.customerPhone || 'unknown';
+      
+      if (!groupMap.has(mobile)) {
+        // Initialize new group with this visit as primary
+        groupMap.set(mobile, {
+          customerMobile: mobile,
+          customerName: visit.customer?.name || visit.customerName || 'Unknown Customer',
+          customerAddress: visit.customer?.address || visit.siteAddress || '',
+          primaryVisit: visit,
+          followUps: [],
+          totalVisits: 1,
+          latestStatus: visit.status,
+          hasActiveVisit: visit.status === 'in_progress',
+          latestActivity: new Date(visit.createdAt || visit.siteInTime)
+        });
+      } else {
+        const group = groupMap.get(mobile)!;
+        
+        // If this visit is newer than current primary, swap them
+        const visitTime = new Date(visit.createdAt || visit.siteInTime);
+        const primaryTime = new Date(group.primaryVisit.createdAt || group.primaryVisit.siteInTime);
+        
+        if (visitTime > primaryTime) {
+          // Move current primary to follow-ups and set this as new primary
+          group.followUps.unshift(group.primaryVisit);
+          group.primaryVisit = visit;
+          group.latestActivity = visitTime;
+        } else {
+          // Add as follow-up (maintain chronological order)
+          group.followUps.push(visit);
+        }
+        
+        group.totalVisits++;
+        
+        // Update status to latest active status
+        if (visit.status === 'in_progress') {
+          group.hasActiveVisit = true;
+          group.latestStatus = 'in_progress';
+        } else if (group.latestStatus !== 'in_progress') {
+          group.latestStatus = visit.status;
+        }
+      }
+    });
+
+    // Sort follow-ups by date (newest first)
+    groupMap.forEach(group => {
+      group.followUps.sort((a, b) => 
+        new Date(b.createdAt || b.siteInTime).getTime() - 
+        new Date(a.createdAt || a.siteInTime).getTime()
+      );
+    });
+
+    // Convert to array and sort by latest activity
+    return Array.from(groupMap.values()).sort((a, b) => 
+      b.latestActivity.getTime() - a.latestActivity.getTime()
+    );
+  };
+
   // Enhanced filtered data with follow-up awareness
   const filteredVisits = siteVisits.filter(visit => {
     const matchesSearch = !searchQuery || 
@@ -195,6 +447,32 @@ export default function SiteVisitMonitoring() {
       (followUpFilter === 'original' && !visit.isFollowUp) ||
       (followUpFilter === 'follow_up' && visit.isFollowUp) ||
       (followUpFilter === 'with_follow_ups' && visit.hasFollowUps);
+    
+    return matchesSearch && matchesDate && matchesDepartment && matchesStatus && matchesFollowUp;
+  });
+
+  // Get grouped data
+  const groupedVisits = groupVisitsByCustomer(filteredVisits);
+
+  // Filter grouped visits based on filters
+  const filteredGroups = groupedVisits.filter(group => {
+    const matchesSearch = !searchQuery || 
+      group.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      group.customerAddress.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      group.primaryVisit.userName?.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesDate = !dateFilter || 
+      format(group.primaryVisit.siteInTime, 'yyyy-MM-dd') === dateFilter;
+    
+    const matchesDepartment = !departmentFilter || departmentFilter === 'all' || 
+      group.primaryVisit.department.toLowerCase() === departmentFilter.toLowerCase();
+    
+    const matchesStatus = !statusFilter || statusFilter === 'all' || group.latestStatus === statusFilter;
+    
+    const matchesFollowUp = !followUpFilter || followUpFilter === 'all' || 
+      (followUpFilter === 'original' && !group.primaryVisit.isFollowUp) ||
+      (followUpFilter === 'follow_up' && group.primaryVisit.isFollowUp) ||
+      (followUpFilter === 'with_follow_ups' && group.followUps.length > 0);
     
     return matchesSearch && matchesDate && matchesDepartment && matchesStatus && matchesFollowUp;
   });
@@ -262,6 +540,26 @@ export default function SiteVisitMonitoring() {
           <p className="text-sm sm:text-base text-gray-600">Live monitoring and reporting dashboard for all site visits</p>
         </div>
         <div className="flex gap-2">
+          <div className="flex bg-gray-100 rounded-lg p-1">
+            <Button
+              variant={viewMode === "grouped" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("grouped")}
+              className="h-8 px-3"
+            >
+              <Users className="h-4 w-4 mr-1" />
+              <span className="hidden sm:inline">Grouped</span>
+            </Button>
+            <Button
+              variant={viewMode === "individual" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("individual")}
+              className="h-8 px-3"
+            >
+              <FileText className="h-4 w-4 mr-1" />
+              <span className="hidden sm:inline">Individual</span>
+            </Button>
+          </div>
           <Button onClick={() => refetch()} variant="outline" size="sm" className="flex-1 sm:flex-initial">
             <RefreshCw className="h-4 w-4 mr-2" />
             <span className="hidden xs:inline">Refresh</span>
@@ -438,7 +736,7 @@ export default function SiteVisitMonitoring() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <MapPin className="h-5 w-5" />
-            Site Visits ({filteredVisits.length})
+            Site Visits ({viewMode === "grouped" ? filteredGroups.length : filteredVisits.length} {viewMode === "grouped" ? "customers" : "visits"})
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -447,13 +745,24 @@ export default function SiteVisitMonitoring() {
               <RefreshCw className="h-6 w-6 animate-spin mr-2" />
               Loading site visits...
             </div>
-          ) : filteredVisits.length === 0 ? (
+          ) : (viewMode === "grouped" ? filteredGroups.length === 0 : filteredVisits.length === 0) ? (
             <div className="text-center py-8 text-gray-500">
               No site visits found matching your criteria
             </div>
           ) : (
             <div className="space-y-4">
-              {filteredVisits.map((visit) => (
+              {viewMode === "grouped" ? (
+                // Grouped View - Customer Visit Groups
+                filteredGroups.map((group) => (
+                  <CustomerVisitGroupCard
+                    key={group.customerMobile}
+                    group={group}
+                    onViewDetails={setSelectedVisit}
+                  />
+                ))
+              ) : (
+                // Individual View - All visits separately  
+                filteredVisits.map((visit) => (
                 <Card key={visit.id} className="hover:shadow-md transition-shadow">
                   <CardContent className="p-3 sm:p-6">
                     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
@@ -1230,7 +1539,8 @@ export default function SiteVisitMonitoring() {
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+                ))
+              )}
             </div>
           )}
         </CardContent>
