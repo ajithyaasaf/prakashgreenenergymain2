@@ -133,14 +133,26 @@ export function FollowUpModal({ isOpen, onClose, originalVisit }: FollowUpModalP
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch visit history for the customer
+  // Fetch visit history for the customer  
   const { data: visitHistory } = useQuery({
     queryKey: ['/api/site-visits/customer-history', originalVisit?.customer.mobile],
     queryFn: async () => {
       if (!originalVisit?.customer.mobile) return [];
+      
+      // Get fresh token from Firebase Auth
+      const { getAuth } = await import('firebase/auth');
+      const auth = getAuth();
+      const currentUser = auth.currentUser;
+      
+      if (!currentUser) {
+        throw new Error('User not authenticated');
+      }
+      
+      const token = await currentUser.getIdToken(true); // Force refresh
+      
       const response = await fetch(`/api/site-visits/customer-history?mobile=${encodeURIComponent(originalVisit.customer.mobile)}`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
@@ -150,6 +162,7 @@ export function FollowUpModal({ isOpen, onClose, originalVisit }: FollowUpModalP
       return response.json();
     },
     enabled: isOpen && !!originalVisit?.customer.mobile,
+    retry: false, // Don't retry failed requests automatically
   });
 
   // Auto-detect location when modal opens and reset form

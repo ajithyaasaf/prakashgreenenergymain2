@@ -22,13 +22,13 @@ class LocationService {
   private apiKey: string;
 
   constructor() {
-    // Try multiple environment variable sources
+    // Try multiple environment variable sources, including the backend endpoint
     this.apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || 
                   import.meta.env.GOOGLE_MAPS_API_KEY || 
                   '';
     console.log('Google Maps API Key configured:', this.apiKey ? 'Yes' : 'No');
     if (!this.apiKey) {
-      console.warn('⚠️ Google Maps API key not found - using coordinate-based location');
+      console.warn('⚠️ Google Maps API key not found - will try to fetch from backend');
     }
   }
 
@@ -66,31 +66,21 @@ class LocationService {
         accuracy: position.coords.accuracy
       };
 
-      // Get human-readable address if API key is available
-      if (this.apiKey) {
-        try {
-          const address = await this.reverseGeocode(locationData.latitude, locationData.longitude);
-          locationData.address = address.address;
-          locationData.formattedAddress = address.formattedAddress;
-          
-          console.log('✅ Location detected successfully with address:', {
-            coords: `${locationData.latitude.toFixed(6)}, ${locationData.longitude.toFixed(6)}`,
-            accuracy: `${Math.round(locationData.accuracy)}m`,
-            address: locationData.address
-          });
-        } catch (error) {
-          console.warn('Address lookup failed, using coordinates only:', error);
-          locationData.address = `${locationData.latitude.toFixed(6)}, ${locationData.longitude.toFixed(6)}`;
-          locationData.formattedAddress = locationData.address;
-        }
-      } else {
-        // Fallback to coordinates when no API key
+      // Get human-readable address using reverse geocoding
+      try {
+        const address = await this.reverseGeocode(locationData.latitude, locationData.longitude);
+        locationData.address = address.address;
+        locationData.formattedAddress = address.formattedAddress;
+        
+        console.log('✅ Location detected successfully with address:', {
+          coords: `${locationData.latitude.toFixed(6)}, ${locationData.longitude.toFixed(6)}`,
+          accuracy: `${Math.round(locationData.accuracy)}m`,
+          address: locationData.address
+        });
+      } catch (error) {
+        console.warn('Address lookup failed, using coordinates only:', error);
         locationData.address = `${locationData.latitude.toFixed(6)}, ${locationData.longitude.toFixed(6)}`;
         locationData.formattedAddress = locationData.address;
-        console.log('✅ Location detected (coordinates only):', {
-          coords: locationData.address,
-          accuracy: `${Math.round(locationData.accuracy)}m`
-        });
       }
 
       return {
@@ -163,35 +153,75 @@ class LocationService {
   }
 
   /**
-   * Convert coordinates to address using the exact same approach as working example
+   * Convert coordinates to address using Google Maps Geocoding API
    */
   private async reverseGeocode(latitude: number, longitude: number): Promise<{
     address: string;
     formattedAddress: string;
   }> {
+    // Try to get API key from backend endpoint if not available locally
+    let apiKey = this.apiKey;
+    if (!apiKey) {
+      try {
+        // Get fresh token from Firebase Auth
+        const { getAuth } = await import('firebase/auth');
+        const auth = getAuth();
+        const currentUser = auth.currentUser;
+        
+        if (currentUser) {
+          const token = await currentUser.getIdToken(true); // Force refresh
+          
+          const response = await fetch('/api/google-maps-key', {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          if (response.ok) {
+            const data = await response.json();
+            apiKey = data.apiKey;
+            console.log('✅ Google Maps API key fetched from backend');
+          }
+        }
+      } catch (error) {
+        console.warn('Could not fetch API key from backend:', error);
+      }
+    }
+
+    if (!apiKey) {
+      throw new Error("Google Maps API key not available");
+    }
+
     try {
       const response = await fetch(
-        `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${this.apiKey}`
+        `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${apiKey}`
       );
       const data = await response.json();
       
-      if (data.status === "OK") {
-        const address = data.results[0]?.formatted_address || "Unknown location";
-        console.log('Address fetched successfully:', address);
+      if (data.status === "OK" && data.results && data.results.length > 0) {
+        const result = data.results[0];
+        const fullAddress = result.formatted_address || "Unknown location";
         
-        // Extract shorter address for display
-        const shortAddress = this.extractShortAddress(data.results[0]?.address_components || []);
+        console.log('✅ Google Maps Geocoding API Response:', {
+          status: data.status,
+          fullAddress: fullAddress,
+          coordinates: `${latitude}, ${longitude}`
+        });
+        
+        // Extract shorter, more readable address for display
+        const shortAddress = this.extractShortAddress(result.address_components || []);
         
         return {
-          address: shortAddress || address,
-          formattedAddress: address
+          address: shortAddress || fullAddress,
+          formattedAddress: fullAddress
         };
       } else {
-        throw new Error("Unable to fetch address");
+        console.warn('Google Maps API response:', data);
+        throw new Error(`Geocoding failed: ${data.status || 'Unknown error'}`);
       }
     } catch (err) {
-      console.error('Error fetching address:', err);
-      throw new Error("Error fetching address");
+      console.error('Error fetching address from Google Maps:', err);
+      throw new Error("Unable to fetch address from Google Maps");
     }
   }
 
