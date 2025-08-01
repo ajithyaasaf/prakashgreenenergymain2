@@ -993,7 +993,7 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
                 <CardHeader className="pb-3 sm:pb-6">
                   <CardTitle className="text-base sm:text-lg flex items-center gap-2 justify-center sm:justify-start">
                     <User className="h-4 w-4 sm:h-5 sm:w-5" />
-                    Selfie Photo
+                    Selfie Photo (Required)
                     {capturedPhotos.selfie && <CheckCircle className="h-4 w-4 text-green-600" />}
                   </CardTitle>
                 </CardHeader>
@@ -1012,7 +1012,7 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
                         <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-4 sm:p-8 text-center">
                           <User className="h-8 w-8 sm:h-12 sm:w-12 mx-auto mb-2 sm:mb-4 text-muted-foreground" />
                           <p className="text-xs sm:text-sm text-muted-foreground">
-                            Take a selfie to verify your presence at the site
+                            Take a selfie to verify your presence at the site (Required)
                           </p>
                         </div>
                       </div>
@@ -1285,6 +1285,15 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
                   </div>
                 </CardContent>
               </Card>
+
+              {!capturedPhotos.selfie && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+                  <div className="flex items-center gap-2 text-red-700">
+                    <AlertTriangle className="h-4 w-4" />
+                    <span className="text-sm font-medium">Selfie photo required to start site visit</span>
+                  </div>
+                </div>
+              )}
 
               <div className="flex flex-col sm:flex-row justify-between gap-2 sm:gap-0">
                 <Button 
