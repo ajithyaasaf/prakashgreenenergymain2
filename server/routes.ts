@@ -5859,27 +5859,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Google Maps API Key endpoint for frontend location services
-  app.get("/api/google-maps-key", verifyAuth, async (req, res) => {
-    try {
-      const user = await storage.getUser(req.user.uid);
-      if (!user) {
-        return res.status(401).json({ message: "User not found" });
-      }
-
-      // Only provide API key to authenticated users
-      const apiKey = process.env.GOOGLE_MAPS_API_KEY;
-      if (!apiKey) {
-        return res.status(500).json({ message: "Google Maps API key not configured" });
-      }
-
-      res.json({ apiKey });
-    } catch (error) {
-      console.error("Error providing Google Maps API key:", error);
-      res.status(500).json({ message: "Failed to provide API key" });
-    }
-  });
-
   const httpServer = createServer(app);
   return httpServer;
 }
