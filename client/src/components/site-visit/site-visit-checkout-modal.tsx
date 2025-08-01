@@ -3,7 +3,7 @@
  * Handles the site visit checkout process with location and photo verification
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,7 +20,9 @@ import {
   CheckCircle, 
   Clock,
   User,
-  AlertTriangle
+  AlertTriangle,
+  RotateCcw,
+  X
 } from "lucide-react";
 import { EnhancedLocationCapture } from "./enhanced-location-capture";
 import { LocationData } from "@/lib/location-service";
@@ -36,10 +38,17 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
   const [step, setStep] = useState(1);
   const [currentLocation, setCurrentLocation] = useState<LocationData | null>(null);
   const [locationCaptured, setLocationCaptured] = useState(false);
-  const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
   const [notes, setNotes] = useState('');
   const [lastErrorMessage, setLastErrorMessage] = useState<string>('');
+  
+  // Camera states
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const [isVideoReady, setIsVideoReady] = useState(false);
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const [currentCamera, setCurrentCamera] = useState<'front' | 'back'>('back');
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -50,12 +59,20 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
       setStep(1);
       setCurrentLocation(null);
       setLocationCaptured(false);
-      setSelectedPhoto(null);
-      setPhotoPreview(null);
+      setCapturedPhoto(null);
       setNotes('');
       setLastErrorMessage('');
+      setIsCameraActive(false);
+      setIsVideoReady(false);
+      setCurrentCamera('back');
+      
+      // Stop any existing camera stream
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        setStream(null);
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, stream]);
 
   const handleLocationCaptured = (location: LocationData) => {
     setCurrentLocation(location);
@@ -74,16 +91,130 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
     setLocationCaptured(false);
   };
 
-  const handlePhotoCapture = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setSelectedPhoto(file);
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setPhotoPreview(e.target?.result as string);
+  // Camera functions
+  const startCamera = async () => {
+    try {
+      console.log('CHECKOUT_CAMERA: Starting camera...');
+      
+      const constraints = {
+        video: {
+          facingMode: currentCamera === 'front' ? 'user' : 'environment',
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        },
+        audio: false
       };
-      reader.readAsDataURL(file);
+      
+      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+      setStream(mediaStream);
+      setIsCameraActive(true);
+      setIsVideoReady(false);
+      
+      if (videoRef.current) {
+        const video = videoRef.current;
+        video.muted = true;
+        video.playsInline = true;
+        video.autoplay = true;
+        video.controls = false;
+        video.srcObject = mediaStream;
+        
+        video.onloadedmetadata = () => {
+          console.log('CHECKOUT_CAMERA: Video metadata loaded');
+          setIsVideoReady(true);
+        };
+        
+        setTimeout(async () => {
+          try {
+            await video.play();
+            console.log('CHECKOUT_CAMERA: Video play successful');
+          } catch (playError) {
+            console.warn('CHECKOUT_CAMERA: Auto-play failed:', playError);
+          }
+        }, 100);
+      }
+      
+    } catch (error) {
+      console.error('CHECKOUT_CAMERA: Access failed:', error);
+      setIsCameraActive(false);
+      setIsVideoReady(false);
+      
+      let errorMessage = "Unable to access camera. ";
+      if (error instanceof Error) {
+        if (error.name === 'NotAllowedError') {
+          errorMessage += "Please allow camera permissions and try again.";
+        } else if (error.name === 'NotFoundError') {
+          errorMessage += "No camera found on this device.";
+        } else if (error.name === 'NotReadableError') {
+          errorMessage += "Camera is being used by another application.";
+        } else {
+          errorMessage += error.message;
+        }
+      }
+      
+      toast({
+        title: "Camera Access Failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
     }
+  };
+
+  const capturePhoto = () => {
+    if (videoRef.current && canvasRef.current && isVideoReady) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      const context = canvas.getContext('2d');
+      
+      if (context && video.videoWidth > 0 && video.videoHeight > 0) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context.drawImage(video, 0, 0);
+        
+        const photoDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+        setCapturedPhoto(photoDataUrl);
+        
+        // Stop camera after capture
+        stopCamera();
+        
+        toast({
+          title: "Photo Captured",
+          description: "Site checkout photo captured successfully",
+          variant: "default",
+        });
+      } else {
+        toast({
+          title: "Capture Failed",
+          description: "Please wait for camera to load completely",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  const stopCamera = () => {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      setStream(null);
+    }
+    setIsCameraActive(false);
+    setIsVideoReady(false);
+  };
+
+  const switchCamera = async () => {
+    const newCamera = currentCamera === 'front' ? 'back' : 'front';
+    setCurrentCamera(newCamera);
+    
+    if (isCameraActive) {
+      stopCamera();
+      setTimeout(() => {
+        startCamera();
+      }, 200);
+    }
+  };
+
+  const resetPhoto = () => {
+    setCapturedPhoto(null);
+    stopCamera();
   };
 
   const checkoutMutation = useMutation({
@@ -91,22 +222,12 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
       // Upload photo to Cloudinary if provided
       let photoUrl = 'https://via.placeholder.com/400x300.jpg?text=No+Photo';
       
-      if (selectedPhoto) {
+      if (capturedPhoto) {
         try {
           console.log("Uploading checkout photo via server-side Cloudinary service...");
           
-          // Convert file to base64 for server upload
-          const reader = new FileReader();
-          const base64Promise = new Promise<string>((resolve, reject) => {
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = reject;
-            reader.readAsDataURL(selectedPhoto);
-          });
-          
-          const base64Data = await base64Promise;
-          
           const uploadResponse = await apiRequest('/api/attendance/upload-photo', 'POST', {
-            imageData: base64Data,
+            imageData: capturedPhoto, // Already base64 encoded
             userId: 'site_visit_checkout', // Temporary user ID for site visit checkouts
             attendanceType: 'site_visit_checkout'
           });
@@ -300,45 +421,108 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
             <div className="space-y-4">
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Site Out Photo</CardTitle>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Camera className="h-5 w-5" />
+                    Site Out Photo (Optional)
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="checkoutPhoto">Take Final Site Photo (Optional)</Label>
-                      <Input
-                        id="checkoutPhoto"
-                        type="file"
-                        accept="image/*"
-                        capture="environment"
-                        onChange={handlePhotoCapture}
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Photo is optional - you can complete checkout without taking a photo
-                      </p>
-                    </div>
-
-                    {photoPreview && (
-                      <div className="relative">
-                        <img
-                          src={photoPreview}
-                          alt="Checkout photo preview"
-                          className="w-full h-48 object-cover rounded-lg"
-                        />
-                        <Badge className="absolute top-2 right-2">
-                          Preview
-                        </Badge>
+                    {!capturedPhoto && !isCameraActive && (
+                      <div className="space-y-3">
+                        <Button 
+                          onClick={startCamera}
+                          variant="outline"
+                          className="w-full"
+                        >
+                          <Camera className="h-4 w-4 mr-2" />
+                          Take Site Photo (Optional)
+                        </Button>
+                        <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center">
+                          <Camera className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                          <p className="text-sm text-muted-foreground">
+                            Optional: Take a final photo to document site completion
+                          </p>
+                        </div>
                       </div>
                     )}
 
-                    {!photoPreview && (
-                      <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center">
-                        <Camera className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                        <p className="text-sm text-muted-foreground">
-                          Optional: Take a final photo to document site completion
-                        </p>
+                    {isCameraActive && !capturedPhoto && (
+                      <div className="space-y-3">
+                        <div className="relative">
+                          <video
+                            ref={videoRef}
+                            autoPlay
+                            playsInline
+                            muted
+                            className="w-full h-64 object-cover rounded-lg bg-black"
+                          />
+                          {!isVideoReady && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-lg">
+                              <div className="text-white text-center">
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-2"></div>
+                                <p className="text-sm">Loading camera...</p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div className="flex justify-between">
+                          <Button
+                            variant="outline"
+                            onClick={switchCamera}
+                            disabled={!isVideoReady}
+                          >
+                            <RotateCcw className="h-4 w-4 mr-2" />
+                            Switch to {currentCamera === 'front' ? 'Back' : 'Front'}
+                          </Button>
+                          
+                          <div className="flex gap-2">
+                            <Button
+                              variant="destructive"
+                              onClick={stopCamera}
+                            >
+                              <X className="h-4 w-4 mr-2" />
+                              Cancel
+                            </Button>
+                            <Button
+                              onClick={capturePhoto}
+                              disabled={!isVideoReady}
+                            >
+                              <Camera className="h-4 w-4 mr-2" />
+                              Capture
+                            </Button>
+                          </div>
+                        </div>
                       </div>
                     )}
+
+                    {capturedPhoto && (
+                      <div className="space-y-3">
+                        <div className="relative">
+                          <img
+                            src={capturedPhoto}
+                            alt="Captured checkout photo"
+                            className="w-full h-64 object-cover rounded-lg"
+                          />
+                          <Badge className="absolute top-2 right-2">
+                            Captured
+                          </Badge>
+                        </div>
+                        <Button
+                          variant="outline"
+                          onClick={resetPhoto}
+                          className="w-full"
+                        >
+                          <RotateCcw className="h-4 w-4 mr-2" />
+                          Retake Photo
+                        </Button>
+                      </div>
+                    )}
+                    
+                    <p className="text-xs text-muted-foreground">
+                      Photo is optional - you can complete checkout without taking a photo
+                    </p>
                   </div>
                 </CardContent>
               </Card>
@@ -382,6 +566,9 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
             </div>
           )}
         </div>
+
+        {/* Hidden canvas for photo capture */}
+        <canvas ref={canvasRef} style={{ display: 'none' }} />
       </DialogContent>
     </Dialog>
   );

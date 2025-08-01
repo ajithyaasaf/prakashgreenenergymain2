@@ -3,7 +3,7 @@
  * Handles the initial site visit creation workflow
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,7 +24,9 @@ import {
   ArrowRight,
   Users,
   Building,
-  Zap
+  Zap,
+  RotateCcw,
+  X
 } from "lucide-react";
 import { TechnicalSiteVisitForm } from "./technical-site-visit-form";
 import { MarketingSiteVisitForm } from "./marketing-site-visit-form";
@@ -65,9 +67,16 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
   const [step, setStep] = useState(1);
   const [currentLocation, setCurrentLocation] = useState<LocationData | null>(null);
   const [locationCaptured, setLocationCaptured] = useState(false);
-  const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
   const [lastErrorMessage, setLastErrorMessage] = useState<string>('');
+  
+  // Camera states
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const [isVideoReady, setIsVideoReady] = useState(false);
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const [currentCamera, setCurrentCamera] = useState<'front' | 'back'>('back');
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   
   const [formData, setFormData] = useState<{
     visitPurpose: string;
@@ -103,9 +112,18 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
       setStep(1);
       setCurrentLocation(null);
       setLocationCaptured(false);
-      setSelectedPhoto(null);
-      setPhotoPreview(null);
-      setLastErrorMessage(''); // Clear previous error message
+      setCapturedPhoto(null);
+      setLastErrorMessage('');
+      setIsCameraActive(false);
+      setIsVideoReady(false);
+      setCurrentCamera('back');
+      
+      // Stop any existing camera stream
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        setStream(null);
+      }
+      
       setFormData({
         visitPurpose: '',
         customer: {
@@ -121,7 +139,7 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
         adminData: null
       });
     }
-  }, [isOpen]);
+  }, [isOpen, stream]);
 
   const handleLocationCaptured = (location: LocationData) => {
     setCurrentLocation(location);
@@ -141,16 +159,131 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
     setLocationCaptured(false);
   };
 
-  const handlePhotoCapture = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setSelectedPhoto(file);
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setPhotoPreview(e.target?.result as string);
+  // Camera functions
+  const startCamera = async () => {
+    try {
+      console.log('SITE_VISIT_CAMERA: Starting camera...');
+      
+      const constraints = {
+        video: {
+          facingMode: currentCamera === 'front' ? 'user' : 'environment',
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        },
+        audio: false
       };
-      reader.readAsDataURL(file);
+      
+      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+      setStream(mediaStream);
+      setIsCameraActive(true);
+      setIsVideoReady(false);
+      
+      if (videoRef.current) {
+        const video = videoRef.current;
+        video.muted = true;
+        video.playsInline = true;
+        video.autoplay = true;
+        video.controls = false;
+        video.srcObject = mediaStream;
+        
+        video.onloadedmetadata = () => {
+          console.log('SITE_VISIT_CAMERA: Video metadata loaded');
+          setIsVideoReady(true);
+        };
+        
+        setTimeout(async () => {
+          try {
+            await video.play();
+            console.log('SITE_VISIT_CAMERA: Video play successful');
+          } catch (playError) {
+            console.warn('SITE_VISIT_CAMERA: Auto-play failed:', playError);
+          }
+        }, 100);
+      }
+      
+    } catch (error) {
+      console.error('SITE_VISIT_CAMERA: Access failed:', error);
+      setIsCameraActive(false);
+      setIsVideoReady(false);
+      
+      let errorMessage = "Unable to access camera. ";
+      if (error instanceof Error) {
+        if (error.name === 'NotAllowedError') {
+          errorMessage += "Please allow camera permissions and try again.";
+        } else if (error.name === 'NotFoundError') {
+          errorMessage += "No camera found on this device.";
+        } else if (error.name === 'NotReadableError') {
+          errorMessage += "Camera is being used by another application.";
+        } else {
+          errorMessage += error.message;
+        }
+      }
+      
+      toast({
+        title: "Camera Access Failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
     }
+  };
+
+  const capturePhoto = () => {
+    if (videoRef.current && canvasRef.current && isVideoReady) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      const context = canvas.getContext('2d');
+      
+      if (context && video.videoWidth > 0 && video.videoHeight > 0) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context.drawImage(video, 0, 0);
+        
+        const photoDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+        setCapturedPhoto(photoDataUrl);
+        
+        // Stop camera after capture
+        stopCamera();
+        
+        toast({
+          title: "Photo Captured",
+          description: "Site visit photo captured successfully",
+          variant: "default",
+        });
+      } else {
+        toast({
+          title: "Capture Failed",
+          description: "Please wait for camera to load completely",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  const stopCamera = () => {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      setStream(null);
+    }
+    setIsCameraActive(false);
+    setIsVideoReady(false);
+  };
+
+  const switchCamera = async () => {
+    const newCamera = currentCamera === 'front' ? 'back' : 'front';
+    setCurrentCamera(newCamera);
+    
+    if (isCameraActive) {
+      stopCamera();
+      // Small delay to ensure camera is properly stopped
+      setTimeout(() => {
+        startCamera();
+      }, 200);
+    }
+  };
+
+  const resetPhoto = () => {
+    setCapturedPhoto(null);
+    stopCamera();
   };
 
   const createSiteVisitMutation = useMutation({
@@ -158,27 +291,17 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
       console.log("=== MUTATION STARTED ===");
       console.log("Input data:", JSON.stringify(data, null, 2));
       console.log("Current location:", currentLocation);
-      console.log("Selected photo:", selectedPhoto ? selectedPhoto.name : 'none');
+      console.log("Captured photo:", capturedPhoto ? 'present' : 'none');
       
       // Upload photo to Cloudinary if provided
       let photoUrl: string | undefined = undefined;
       
-      if (selectedPhoto) {
+      if (capturedPhoto) {
         try {
           console.log("Uploading photo via server-side Cloudinary service...");
           
-          // Convert file to base64 for server upload
-          const reader = new FileReader();
-          const base64Promise = new Promise<string>((resolve, reject) => {
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = reject;
-            reader.readAsDataURL(selectedPhoto);
-          });
-          
-          const base64Data = await base64Promise;
-          
           const uploadResponse = await apiRequest('/api/attendance/upload-photo', 'POST', {
-            imageData: base64Data,
+            imageData: capturedPhoto, // Already base64 encoded
             userId: `site_visit_start_${Date.now()}`, // Unique ID for site visit start photos
             attendanceType: 'site_visit'
           });
@@ -573,40 +696,102 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
             <div className="space-y-4">
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Site In Photo</CardTitle>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Camera className="h-5 w-5" />
+                    Site In Photo
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="sitePhoto">Take Site Photo</Label>
-                      <Input
-                        id="sitePhoto"
-                        type="file"
-                        accept="image/*"
-                        capture="environment"
-                        onChange={handlePhotoCapture}
-                      />
-                    </div>
-
-                    {photoPreview && (
-                      <div className="relative">
-                        <img
-                          src={photoPreview}
-                          alt="Site photo preview"
-                          className="w-full h-48 object-cover rounded-lg"
-                        />
-                        <Badge className="absolute top-2 right-2">
-                          Preview
-                        </Badge>
+                    {!capturedPhoto && !isCameraActive && (
+                      <div className="space-y-3">
+                        <Button 
+                          onClick={startCamera}
+                          variant="outline"
+                          className="w-full"
+                        >
+                          <Camera className="h-4 w-4 mr-2" />
+                          Start Camera
+                        </Button>
+                        <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center">
+                          <Camera className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                          <p className="text-sm text-muted-foreground">
+                            Take a live photo of the site with location and timestamp
+                          </p>
+                        </div>
                       </div>
                     )}
 
-                    {!photoPreview && (
-                      <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center">
-                        <Camera className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                        <p className="text-sm text-muted-foreground">
-                          Photo will be taken with location and timestamp
-                        </p>
+                    {isCameraActive && !capturedPhoto && (
+                      <div className="space-y-3">
+                        <div className="relative">
+                          <video
+                            ref={videoRef}
+                            autoPlay
+                            playsInline
+                            muted
+                            className="w-full h-64 object-cover rounded-lg bg-black"
+                          />
+                          {!isVideoReady && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-lg">
+                              <div className="text-white text-center">
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-2"></div>
+                                <p className="text-sm">Loading camera...</p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div className="flex justify-between">
+                          <Button
+                            variant="outline"
+                            onClick={switchCamera}
+                            disabled={!isVideoReady}
+                          >
+                            <RotateCcw className="h-4 w-4 mr-2" />
+                            Switch to {currentCamera === 'front' ? 'Back' : 'Front'}
+                          </Button>
+                          
+                          <div className="flex gap-2">
+                            <Button
+                              variant="destructive"
+                              onClick={stopCamera}
+                            >
+                              <X className="h-4 w-4 mr-2" />
+                              Cancel
+                            </Button>
+                            <Button
+                              onClick={capturePhoto}
+                              disabled={!isVideoReady}
+                            >
+                              <Camera className="h-4 w-4 mr-2" />
+                              Capture
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {capturedPhoto && (
+                      <div className="space-y-3">
+                        <div className="relative">
+                          <img
+                            src={capturedPhoto}
+                            alt="Captured site photo"
+                            className="w-full h-64 object-cover rounded-lg"
+                          />
+                          <Badge className="absolute top-2 right-2">
+                            Captured
+                          </Badge>
+                        </div>
+                        <Button
+                          variant="outline"
+                          onClick={resetPhoto}
+                          className="w-full"
+                        >
+                          <RotateCcw className="h-4 w-4 mr-2" />
+                          Retake Photo
+                        </Button>
                       </div>
                     )}
                   </div>
@@ -666,6 +851,9 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
             </div>
           )}
         </div>
+
+        {/* Hidden canvas for photo capture */}
+        <canvas ref={canvasRef} style={{ display: 'none' }} />
       </DialogContent>
     </Dialog>
   );

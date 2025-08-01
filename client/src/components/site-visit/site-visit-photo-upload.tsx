@@ -14,11 +14,12 @@ import {
   Camera, 
   Upload,
   X,
-  CheckCircle
+  CheckCircle,
+  RotateCcw
 } from "lucide-react";
 
 interface PhotoUpload {
-  file: File;
+  data: string; // base64 data instead of File
   preview: string;
   description: string;
 }
@@ -30,9 +31,16 @@ interface SiteVisitPhotoUploadProps {
 export function SiteVisitPhotoUpload({ siteVisitId }: SiteVisitPhotoUploadProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [photos, setPhotos] = useState<PhotoUpload[]>([]);
+  
+  // Camera states
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const [isVideoReady, setIsVideoReady] = useState(false);
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const [currentCamera, setCurrentCamera] = useState<'front' | 'back'>('back');
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const handlePhotoSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
