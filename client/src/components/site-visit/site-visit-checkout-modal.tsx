@@ -721,29 +721,16 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
                     {!capturedPhotos.selfie && (!isCameraActive || currentPhotoType !== 'selfie') && (
                       <div className="space-y-3">
                         <Button 
-                          onClick={(e) => {
+                          onClick={() => {
+                            console.log('=== BUTTON CLICK TEST ===');
+                            alert('Button clicked!');
+                            console.log('CHECKOUT_CAMERA: Selfie button clicked');
                             try {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              console.log('CHECKOUT_CAMERA: Selfie button clicked');
-                              console.log('CHECKOUT_CAMERA: Button event:', e);
                               console.log('CHECKOUT_CAMERA: startCameraForPhoto function exists:', typeof startCameraForPhoto);
-                              console.log('CHECKOUT_CAMERA: About to call startCameraForPhoto with "selfie"');
-                              startCameraForPhoto('selfie').catch(err => {
-                                console.error('CHECKOUT_CAMERA: startCameraForPhoto promise rejected:', err);
-                                toast({
-                                  title: "Camera Error",
-                                  description: `Failed to start camera: ${err.message || err}`,
-                                  variant: "destructive",
-                                });
-                              });
+                              startCameraForPhoto('selfie');
                             } catch (error) {
-                              console.error('CHECKOUT_CAMERA: Selfie button click error:', error);
-                              toast({
-                                title: "Button Error",
-                                description: `Button click failed: ${error instanceof Error ? error.message : error}`,
-                                variant: "destructive",
-                              });
+                              console.error('CHECKOUT_CAMERA: Error starting camera:', error);
+                              alert(`Error: ${error}`);
                             }
                           }}
                           variant="outline"
