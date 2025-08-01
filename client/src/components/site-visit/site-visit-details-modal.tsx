@@ -696,64 +696,111 @@ export function SiteVisitDetailsModal({ isOpen, onClose, siteVisit }: SiteVisitD
                   </div>
                 )}
 
-                {/* Additional Site Photos */}
+                {/* Site Photos Gallery - Enhanced for Multiple Photos */}
                 {siteVisit.sitePhotos.length > 0 && (
                   <div>
-                    <h4 className="font-medium text-sm text-blue-700 mb-2 flex items-center gap-2">
-                      <Camera className="h-4 w-4" />
-                      Additional Site Photos ({siteVisit.sitePhotos.length})
-                    </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {siteVisit.sitePhotos.map((photo, index) => (
-                    <div key={index} className="space-y-2">
-                      <div className="relative group">
-                        <img
-                          src={photo.url}
-                          alt={`Site photo ${index + 1}`}
-                          className="w-full h-48 object-cover rounded-lg transition-transform hover:scale-105 cursor-pointer"
-                          onClick={() => window.open(photo.url, '_blank')}
-                        />
-                        <Badge className="absolute top-2 right-2 text-xs bg-black/70 text-white">
-                          {format(new Date(photo.timestamp), 'MMM d, HH:mm')}
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="font-medium text-sm text-blue-700 flex items-center gap-2">
+                        <Camera className="h-4 w-4" />
+                        Site Photos ({siteVisit.sitePhotos.length}/20)
+                      </h4>
+                      {siteVisit.sitePhotos.length > 6 && (
+                        <Badge variant="outline" className="text-xs">
+                          {siteVisit.sitePhotos.length > 12 ? 'Comprehensive Documentation' : 'Good Coverage'}
                         </Badge>
-                        
-                        {/* Eye icon overlay for viewing */}
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-lg flex items-center justify-center">
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            className="bg-white/90 hover:bg-white text-black"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              window.open(photo.url, '_blank');
-                            }}
-                          >
-                            <Eye className="h-4 w-4 mr-2" />
-                            View Full Size
-                          </Button>
-                        </div>
-                        
-                        {/* Quick view eye icon */}
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          className="absolute bottom-2 right-2 h-8 w-8 p-0 bg-white/90 hover:bg-white text-black opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            window.open(photo.url, '_blank');
-                          }}
-                        >
-                          <ExternalLink className="h-3 w-3" />
-                        </Button>
-                      </div>
-                      {photo.description && (
-                        <p className="text-sm text-muted-foreground bg-gray-50 p-2 rounded">
-                          <span className="font-medium">Description:</span> {photo.description}
-                        </p>
                       )}
                     </div>
-                  ))}
-                </div>
+                    
+                    {/* Enhanced Grid Layout for Multiple Photos */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                      {siteVisit.sitePhotos.map((photo, index) => (
+                        <div key={index} className="space-y-2">
+                          <div className="relative group">
+                            <img
+                              src={photo.url}
+                              alt={`Site photo ${index + 1}`}
+                              className="w-full h-32 sm:h-36 object-cover rounded-lg transition-all duration-200 hover:scale-105 cursor-pointer border-2 border-transparent hover:border-blue-300"
+                              onClick={() => window.open(photo.url, '_blank')}
+                            />
+                            
+                            {/* Photo Number Badge */}
+                            <Badge className="absolute top-1 left-1 text-xs bg-blue-600 text-white h-5 w-5 p-0 flex items-center justify-center rounded-full">
+                              {index + 1}
+                            </Badge>
+                            
+                            {/* Timestamp Badge */}
+                            <Badge className="absolute top-1 right-1 text-xs bg-black/70 text-white">
+                              {format(new Date(photo.timestamp), 'HH:mm')}
+                            </Badge>
+                            
+                            {/* Hover Overlay */}
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-lg flex items-center justify-center">
+                              <div className="flex flex-col items-center gap-2">
+                                <Button
+                                  variant="secondary"
+                                  size="sm"
+                                  className="bg-white/90 hover:bg-white text-black text-xs h-7"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    window.open(photo.url, '_blank');
+                                  }}
+                                >
+                                  <Eye className="h-3 w-3 mr-1" />
+                                  View
+                                </Button>
+                                <Badge variant="secondary" className="text-xs bg-white/90 text-black">
+                                  {format(new Date(photo.timestamp), 'MMM d')}
+                                </Badge>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Description (only for first few photos to avoid clutter) */}
+                          {photo.description && index < 3 && (
+                            <p className="text-xs text-muted-foreground bg-gray-50 p-1.5 rounded truncate" title={photo.description}>
+                              {photo.description}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    
+                    {/* Photo Summary Info */}
+                    {siteVisit.sitePhotos.length > 0 && (
+                      <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                        <div className="flex items-center justify-between text-sm">
+                          <div className="flex items-center gap-4">
+                            <span className="text-blue-700 font-medium">
+                              📸 {siteVisit.sitePhotos.length} Photos Captured
+                            </span>
+                            <span className="text-blue-600 text-xs">
+                              First: {format(new Date(siteVisit.sitePhotos[0]?.timestamp), 'HH:mm')}
+                            </span>
+                            {siteVisit.sitePhotos.length > 1 && (
+                              <span className="text-blue-600 text-xs">
+                                Last: {format(new Date(siteVisit.sitePhotos[siteVisit.sitePhotos.length - 1]?.timestamp), 'HH:mm')}
+                              </span>
+                            )}
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-xs text-blue-700 border-blue-300 hover:bg-blue-100"
+                            onClick={() => {
+                              // Open all photos in separate tabs (limited to first 10 to avoid overwhelming)
+                              const photosToOpen = siteVisit.sitePhotos.slice(0, 10);
+                              photosToOpen.forEach(photo => window.open(photo.url, '_blank'));
+                              if (siteVisit.sitePhotos.length > 10) {
+                                alert(`Opened first 10 photos. ${siteVisit.sitePhotos.length - 10} more available - click individual photos to view.`);
+                              }
+                            }}
+                          >
+                            <ExternalLink className="h-3 w-3 mr-1" />
+                            View All
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
                 

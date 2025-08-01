@@ -806,7 +806,12 @@ function SiteVisitCard({ siteVisit, onView, onCheckout, onFollowUp, onDelete, sh
               {siteVisit.sitePhotos.length > 0 && (
                 <div className="flex items-center gap-1">
                   <Camera className="h-4 w-4" />
-                  <span>{siteVisit.sitePhotos.length} photos</span>
+                  <span>{siteVisit.sitePhotos.length} photo{siteVisit.sitePhotos.length !== 1 ? 's' : ''}</span>
+                  {siteVisit.sitePhotos.length > 5 && (
+                    <Badge variant="secondary" className="text-xs ml-1">
+                      {siteVisit.sitePhotos.length > 15 ? 'Comprehensive' : 'Good Coverage'}
+                    </Badge>
+                  )}
                 </div>
               )}
             </div>
