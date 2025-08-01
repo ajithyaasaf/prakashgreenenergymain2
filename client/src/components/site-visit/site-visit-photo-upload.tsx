@@ -75,23 +75,30 @@ export function SiteVisitPhotoUpload({ siteVisitId }: SiteVisitPhotoUploadProps)
       
       for (const photo of photos) {
         try {
-          const formData = new FormData();
-          formData.append('file', photo.file);
-          formData.append('upload_preset', 'attendance_photos');
-          formData.append('folder', 'site_visits');
-
-          const response = await fetch('https://api.cloudinary.com/v1_1/dpmcthtrb/image/upload', {
-            method: 'POST',
-            body: formData,
+          // Convert file to base64 for server upload
+          const reader = new FileReader();
+          const base64Promise = new Promise<string>((resolve, reject) => {
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(photo.file);
+          });
+          
+          const base64Data = await base64Promise;
+          
+          const uploadResponse = await apiRequest('/api/attendance/upload-photo', 'POST', {
+            imageData: base64Data,
+            userId: `site_visit_${siteVisitId}`, // Use site visit ID for organization
+            attendanceType: 'site_visit_additional'
           });
 
-          if (!response.ok) {
-            throw new Error(`Photo upload failed: ${response.statusText}`);
+          if (!uploadResponse.ok) {
+            const errorData = await uploadResponse.json();
+            throw new Error(errorData.message || 'Photo upload failed');
           }
 
-          const result = await response.json();
+          const uploadResult = await uploadResponse.json();
           uploadedPhotos.push({
-            url: result.secure_url,
+            url: uploadResult.url,
             timestamp: new Date(),
             description: photo.description || 'Site visit photo'
           });

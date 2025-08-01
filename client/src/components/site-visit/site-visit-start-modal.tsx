@@ -165,29 +165,37 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
       
       if (selectedPhoto) {
         try {
-          console.log("Uploading photo to Cloudinary...");
-          const formData = new FormData();
-          formData.append('file', selectedPhoto);
-          formData.append('upload_preset', 'attendance_photos');
-          formData.append('folder', 'site_visits');
-
-          const response = await fetch('https://api.cloudinary.com/v1_1/dpmcthtrb/image/upload', {
-            method: 'POST',
-            body: formData,
+          console.log("Uploading photo via server-side Cloudinary service...");
+          
+          // Convert file to base64 for server upload
+          const reader = new FileReader();
+          const base64Promise = new Promise<string>((resolve, reject) => {
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(selectedPhoto);
+          });
+          
+          const base64Data = await base64Promise;
+          
+          const uploadResponse = await apiRequest('/api/attendance/upload-photo', 'POST', {
+            imageData: base64Data,
+            userId: `site_visit_start_${Date.now()}`, // Unique ID for site visit start photos
+            attendanceType: 'site_visit'
           });
 
-          if (!response.ok) {
-            throw new Error(`Photo upload failed: ${response.statusText}`);
+          if (!uploadResponse.ok) {
+            const errorData = await uploadResponse.json();
+            throw new Error(errorData.message || 'Photo upload failed');
           }
 
-          const result = await response.json();
-          photoUrl = result.secure_url;
+          const uploadResult = await uploadResponse.json();
+          photoUrl = uploadResult.url;
           console.log("Photo uploaded successfully:", photoUrl);
         } catch (error) {
           console.error('Photo upload failed:', error);
           toast({
             title: "Photo Upload Failed",
-            description: "Could not upload photo. Please try again.",
+            description: error instanceof Error ? error.message : "Could not upload photo. Please try again.",
             variant: "destructive",
           });
           throw error; // Re-throw to stop the mutation

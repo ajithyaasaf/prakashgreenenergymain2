@@ -1110,15 +1110,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { imageData, userId, attendanceType } = req.body;
 
       // Validate request
-      if (!imageData || !userId || userId !== req.user.uid) {
+      if (!imageData || !userId) {
         return res.status(400).json({ 
           message: "Invalid request - image data and user ID required" 
         });
       }
 
+      // For site visit uploads, allow temporary user IDs
+      const isSiteVisitUpload = userId.startsWith('site_visit');
+      if (!isSiteVisitUpload && userId !== req.user.uid) {
+        return res.status(400).json({ 
+          message: "Invalid request - user ID mismatch" 
+        });
+      }
+
       if (!attendanceType) {
         return res.status(400).json({ 
-          message: "Attendance type is required for photo upload" 
+          message: "Photo type is required for photo upload" 
         });
       }
 
@@ -1135,7 +1143,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Import and use Cloudinary service
       const { CloudinaryService } = await import('./services/cloudinary-service');
       
-      // Upload to Cloudinary
+      // Upload to Cloudinary with appropriate context
       const uploadResult = await CloudinaryService.uploadAttendancePhoto(
         imageData, 
         userId, 
@@ -1152,17 +1160,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log('SERVER: Photo uploaded successfully to:', uploadResult.url);
 
-      // Log the photo upload activity
-      const user = await storage.getUser(userId);
-      if (user) {
-        await storage.createActivityLog({
-          type: 'attendance',
-          title: 'Attendance Photo Uploaded',
-          description: `${user.displayName} uploaded photo for ${attendanceType} attendance`,
-          entityId: uploadResult.publicId || 'unknown',
-          entityType: 'cloudinary_image',
-          userId: user.uid
-        });
+      // Log the photo upload activity (skip for site visit temp uploads)
+      if (!userId.startsWith('site_visit')) {
+        const user = await storage.getUser(userId);
+        if (user) {
+          await storage.createActivityLog({
+            type: attendanceType.includes('site_visit') ? 'site_visit' : 'attendance',
+            title: attendanceType.includes('site_visit') ? 'Site Visit Photo Uploaded' : 'Attendance Photo Uploaded',
+            description: `${user.displayName} uploaded photo for ${attendanceType}`,
+            entityId: uploadResult.publicId || 'unknown',
+            entityType: 'cloudinary_image',
+            userId: user.uid
+          });
+        }
       }
 
       res.json({
