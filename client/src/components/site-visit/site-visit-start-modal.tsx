@@ -171,10 +171,25 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
   const startCamera = async () => {
     try {
       console.log('SITE_VISIT_CAMERA: Starting camera...');
+      console.log('SITE_VISIT_CAMERA: Navigator check:', !!navigator.mediaDevices);
+      console.log('SITE_VISIT_CAMERA: getUserMedia check:', !!navigator.mediaDevices?.getUserMedia);
       
       // Check if getUserMedia is supported
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error('Camera API not supported on this device');
+      }
+
+      // First, check available devices
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices.filter(device => device.kind === 'videoinput');
+        console.log('SITE_VISIT_CAMERA: Available video devices:', videoDevices.length);
+        
+        if (videoDevices.length === 0) {
+          throw new Error('No camera devices found');
+        }
+      } catch (deviceError) {
+        console.warn('SITE_VISIT_CAMERA: Could not enumerate devices:', deviceError);
       }
       
       // Try with specific constraints first, then fall back to basic ones
@@ -194,6 +209,7 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
         
         console.log('SITE_VISIT_CAMERA: Trying preferred constraints:', preferredConstraints);
         mediaStream = await navigator.mediaDevices.getUserMedia(preferredConstraints);
+        console.log('SITE_VISIT_CAMERA: Preferred constraints SUCCESS');
       } catch (preferredError) {
         console.warn('SITE_VISIT_CAMERA: Preferred constraints failed, trying basic:', preferredError);
         
@@ -207,6 +223,7 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
           };
           
           mediaStream = await navigator.mediaDevices.getUserMedia(basicConstraints);
+          console.log('SITE_VISIT_CAMERA: Basic constraints SUCCESS');
         } catch (basicError) {
           console.warn('SITE_VISIT_CAMERA: Basic constraints failed, trying minimal:', basicError);
           
@@ -217,19 +234,21 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
           };
           
           mediaStream = await navigator.mediaDevices.getUserMedia(minimalConstraints);
+          console.log('SITE_VISIT_CAMERA: Minimal constraints SUCCESS');
         }
       }
+      console.log('SITE_VISIT_CAMERA: MediaStream obtained:', !!mediaStream);
+      console.log('SITE_VISIT_CAMERA: Stream active:', mediaStream.active);
+      console.log('SITE_VISIT_CAMERA: Video tracks:', mediaStream.getVideoTracks().length);
+      
       setStream(mediaStream);
       setIsCameraActive(true);
       setIsVideoReady(false);
       
+      // Simplified approach - directly set stream and mark as ready
       if (videoRef.current) {
         const video = videoRef.current;
-        
-        // Clear any existing event handlers
-        video.onloadedmetadata = null;
-        video.onerror = null;
-        video.oncanplay = null;
+        console.log('SITE_VISIT_CAMERA: Setting up video element...');
         
         // Set video properties
         video.muted = true;
@@ -237,84 +256,22 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
         video.autoplay = true;
         video.controls = false;
         
-        // Handle video events with promises for better control
-        const setupVideo = () => {
-          return new Promise<void>((resolve, reject) => {
-            const timeoutId = setTimeout(() => {
-              console.warn('SITE_VISIT_CAMERA: Video setup timeout, forcing ready state');
-              // Force ready state after timeout
-              setIsVideoReady(true);
-              resolve();
-            }, 5000); // 5 second timeout
-            
-            video.onloadedmetadata = () => {
-              clearTimeout(timeoutId);
-              console.log('SITE_VISIT_CAMERA: Video metadata loaded, dimensions:', video.videoWidth, 'x', video.videoHeight);
-              
-              // Additional check - sometimes dimensions are 0 initially
-              if (video.videoWidth > 0 && video.videoHeight > 0) {
-                setIsVideoReady(true);
-                resolve();
-              } else {
-                // Wait a bit more for dimensions
-                setTimeout(() => {
-                  if (video.videoWidth > 0 && video.videoHeight > 0) {
-                    setIsVideoReady(true);
-                    resolve();
-                  } else {
-                    reject(new Error('Video dimensions invalid'));
-                  }
-                }, 1000);
-              }
-            };
-            
-            video.onerror = (e) => {
-              clearTimeout(timeoutId);
-              console.error('SITE_VISIT_CAMERA: Video error:', e);
-              reject(e);
-            };
-            
-            video.oncanplay = () => {
-              console.log('SITE_VISIT_CAMERA: Video can play');
-              // Sometimes onloadedmetadata doesn't fire, so try here too
-              if (video.videoWidth > 0 && video.videoHeight > 0 && !isVideoReady) {
-                clearTimeout(timeoutId);
-                setIsVideoReady(true);
-                resolve();
-              }
-            };
-            
-            // Set the stream
-            video.srcObject = mediaStream;
-            
-            // Additional fallback - check if video is working after a short delay
-            setTimeout(() => {
-              if (video.readyState >= 2 && !isVideoReady) { // HAVE_CURRENT_DATA or higher
-                console.log('SITE_VISIT_CAMERA: Fallback activation - video appears ready');
-                clearTimeout(timeoutId);
-                setIsVideoReady(true);
-                resolve();
-              }
-            }, 2000);
-          });
-        };
+        // Directly set the stream
+        video.srcObject = mediaStream;
+        console.log('SITE_VISIT_CAMERA: Stream assigned to video element');
+        
+        // Immediately mark as ready and try to play
+        setIsVideoReady(true);
         
         try {
-          await setupVideo();
-          
-          // Try to play video after setup
-          try {
-            await video.play();
-            console.log('SITE_VISIT_CAMERA: Video play successful');
-          } catch (playError) {
-            console.warn('SITE_VISIT_CAMERA: Auto-play failed, but continuing:', playError);
-            // Set ready anyway since the stream is working
-            setIsVideoReady(true);
-          }
-        } catch (setupError) {
-          console.error('SITE_VISIT_CAMERA: Video setup failed:', setupError);
-          throw setupError;
+          await video.play();
+          console.log('SITE_VISIT_CAMERA: Video play successful');
+        } catch (playError) {
+          console.warn('SITE_VISIT_CAMERA: Auto-play failed:', playError);
+          // Still mark as ready - user can click to play if needed
         }
+        
+        console.log('SITE_VISIT_CAMERA: Video setup complete');
       }
       
     } catch (error) {
