@@ -66,28 +66,29 @@ class LocationService {
         accuracy: position.coords.accuracy
       };
 
-      // Get human-readable address if API key is available
-      if (this.apiKey) {
-        try {
-          const address = await this.reverseGeocode(locationData.latitude, locationData.longitude);
-          locationData.address = address.address;
-          locationData.formattedAddress = address.formattedAddress;
-          
-          console.log('✅ Location detected successfully with address:', {
-            coords: `${locationData.latitude.toFixed(6)}, ${locationData.longitude.toFixed(6)}`,
-            accuracy: `${Math.round(locationData.accuracy)}m`,
-            address: locationData.address
-          });
-        } catch (error) {
-          console.warn('Address lookup failed, using coordinates only:', error);
-          locationData.address = `${locationData.latitude.toFixed(6)}, ${locationData.longitude.toFixed(6)}`;
-          locationData.formattedAddress = locationData.address;
-        }
-      } else {
-        // Fallback to coordinates when no API key
+      // Always attempt reverse geocoding (will fetch API key from backend if needed)
+      try {
+        console.log('🔍 Attempting reverse geocoding for coordinates:', {
+          lat: locationData.latitude.toFixed(6),
+          lng: locationData.longitude.toFixed(6)
+        });
+        
+        const address = await this.reverseGeocode(locationData.latitude, locationData.longitude);
+        locationData.address = address.address;
+        locationData.formattedAddress = address.formattedAddress;
+        
+        console.log('✅ Location detected successfully with address:', {
+          coords: `${locationData.latitude.toFixed(6)}, ${locationData.longitude.toFixed(6)}`,
+          accuracy: `${Math.round(locationData.accuracy)}m`,
+          address: locationData.address,
+          formattedAddress: locationData.formattedAddress
+        });
+      } catch (error) {
+        console.warn('⚠️ Address lookup failed, using coordinates only:', error);
         locationData.address = `${locationData.latitude.toFixed(6)}, ${locationData.longitude.toFixed(6)}`;
         locationData.formattedAddress = locationData.address;
-        console.log('✅ Location detected (coordinates only):', {
+        
+        console.log('📍 Location detected with coordinates only:', {
           coords: locationData.address,
           accuracy: `${Math.round(locationData.accuracy)}m`
         });
@@ -163,21 +164,60 @@ class LocationService {
   }
 
   /**
-   * Convert coordinates to address using the exact same approach as working example
+   * Convert coordinates to address using Google Maps reverse geocoding
    */
   private async reverseGeocode(latitude: number, longitude: number): Promise<{
     address: string;
     formattedAddress: string;
   }> {
+    let apiKey = this.apiKey;
+    
+    // If no API key, try to fetch from backend
+    if (!apiKey) {
+      try {
+        console.log('🔑 Fetching Google Maps API key from backend...');
+        
+        // Get fresh token from Firebase Auth for better authentication
+        const { getAuth } = await import('firebase/auth');
+        const auth = getAuth();
+        const currentUser = auth.currentUser;
+        
+        let token = localStorage.getItem('token');
+        if (currentUser) {
+          token = await currentUser.getIdToken(true); // Force refresh
+        }
+        
+        const response = await fetch('/api/google-maps-key', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          apiKey = data.apiKey;
+          console.log('✅ API key fetched from backend successfully');
+        } else {
+          console.warn('❌ Failed to fetch API key from backend:', response.status);
+          throw new Error('Google Maps API key not available');
+        }
+      } catch (error) {
+        console.error('❌ Error fetching API key:', error);
+        throw new Error('Google Maps API key not available');
+      }
+    }
+    
     try {
+      console.log('🌍 Making reverse geocoding request...');
       const response = await fetch(
-        `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${this.apiKey}`
+        `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${apiKey}`
       );
       const data = await response.json();
       
       if (data.status === "OK") {
         const address = data.results[0]?.formatted_address || "Unknown location";
-        console.log('Address fetched successfully:', address);
+        console.log('✅ Address fetched successfully:', address);
         
         // Extract shorter address for display
         const shortAddress = this.extractShortAddress(data.results[0]?.address_components || []);
@@ -187,10 +227,11 @@ class LocationService {
           formattedAddress: address
         };
       } else {
-        throw new Error("Unable to fetch address");
+        console.warn('❌ Geocoding failed:', data.status, data.error_message);
+        throw new Error(`Geocoding failed: ${data.status}`);
       }
     } catch (err) {
-      console.error('Error fetching address:', err);
+      console.error('❌ Error fetching address:', err);
       throw new Error("Error fetching address");
     }
   }

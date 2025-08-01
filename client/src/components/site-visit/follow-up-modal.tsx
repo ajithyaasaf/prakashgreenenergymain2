@@ -192,24 +192,25 @@ export function FollowUpModal({ isOpen, onClose, originalVisit }: FollowUpModalP
     setLocationStatus({ status: 'detecting', location: null });
     
     try {
-      const result = await locationService.getCurrentLocation();
+      console.log('🔍 Starting location detection for follow-up...');
+      const result = await locationService.detectLocation();
       
-      if (result.success && result.location) {
-        console.log('✅ Follow-up location detected:', {
+      console.log('📍 Location detection result:', result);
+      
+      if (result.status === 'granted' && result.location) {
+        console.log('✅ Follow-up location detected successfully:', {
           address: result.location.address,
           formattedAddress: result.location.formattedAddress,
           coordinates: `${result.location.latitude}, ${result.location.longitude}`,
           accuracy: result.location.accuracy
         });
         
-        setLocationStatus({ 
-          status: 'granted', 
-          location: result.location 
-        });
+        setLocationStatus(result);
       } else {
         console.error('❌ Location detection failed:', result.error);
         setLocationStatus({ 
-          status: result.error === 'Permission denied' ? 'denied' : 'error',
+          status: result.status,
+          location: null,
           error: result.error || 'Location detection failed'
         });
       }
@@ -217,6 +218,7 @@ export function FollowUpModal({ isOpen, onClose, originalVisit }: FollowUpModalP
       console.error('❌ Location service error:', error);
       setLocationStatus({ 
         status: 'error',
+        location: null,
         error: 'Location service unavailable'
       });
     }
