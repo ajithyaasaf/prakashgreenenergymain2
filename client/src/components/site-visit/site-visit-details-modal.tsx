@@ -322,6 +322,10 @@ export function SiteVisitDetailsModal({ isOpen, onClose, siteVisit }: SiteVisitD
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* DEBUG: Show what marketing data is available */}
+                <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
+                  Debug: Available marketing data keys: {Object.keys(siteVisit.marketingData).join(', ')}
+                </div>
                 <div className="flex items-center gap-4">
                   <div>
                     <p className="text-sm text-muted-foreground">Update Requirements</p>
@@ -339,6 +343,26 @@ export function SiteVisitDetailsModal({ isOpen, onClose, siteVisit }: SiteVisitD
                     </div>
                   )}
                 </div>
+
+                {/* Show message when no detailed project data is available */}
+                {!siteVisit.marketingData.onGridConfig && 
+                 !siteVisit.marketingData.offGridConfig && 
+                 !siteVisit.marketingData.hybridConfig &&
+                 !siteVisit.marketingData.waterHeaterConfig &&
+                 !siteVisit.marketingData.waterPumpConfig && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-center gap-2 text-blue-700 mb-2">
+                      <Building className="h-4 w-4" />
+                      <span className="font-medium">Project Requirements Update</span>
+                    </div>
+                    <p className="text-sm text-blue-600">
+                      {siteVisit.marketingData.updateRequirements 
+                        ? "The customer indicated they want to update requirements, but no detailed project configuration was recorded during this visit."
+                        : "The customer indicated they do not need to update project requirements at this time."
+                      }
+                    </p>
+                  </div>
+                )}
 
                 {/* On-Grid Configuration Details */}
                 {siteVisit.marketingData.onGridConfig && (
