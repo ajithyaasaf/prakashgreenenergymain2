@@ -41,9 +41,31 @@ export function FollowUpDetailsModal({
   });
 
   const followUp = (followUpData as any)?.data;
+  
+  console.log("FOLLOW_UP_MODAL_DEBUG:", {
+    followUpId,
+    followUpData,
+    followUp,
+    department: followUp?.department,
+    status: followUp?.status
+  });
 
-  const formatTime = (timeString: string) => {
+  const formatTime = (timeString: string | undefined) => {
+    if (!timeString) {
+      return {
+        date: 'Not available',
+        time: 'Not available'
+      };
+    }
+    
     const date = new Date(timeString);
+    if (isNaN(date.getTime())) {
+      return {
+        date: 'Invalid date',
+        time: 'Invalid time'
+      };
+    }
+    
     return {
       date: format(date, 'MMM dd, yyyy'),
       time: format(date, 'h:mm a')
@@ -123,11 +145,11 @@ export function FollowUpDetailsModal({
         <div className="space-y-6">
           {/* Status and Department */}
           <div className="flex items-center gap-2">
-            <Badge className={departmentColors[followUp.department as keyof typeof departmentColors]}>
-              {followUp.department.charAt(0).toUpperCase() + followUp.department.slice(1)}
+            <Badge className={departmentColors[followUp.department as keyof typeof departmentColors] || "bg-gray-100 text-gray-800"}>
+              {followUp.department ? followUp.department.charAt(0).toUpperCase() + followUp.department.slice(1) : 'Unknown'}
             </Badge>
-            <Badge className={statusColors[followUp.status as keyof typeof statusColors]}>
-              {followUp.status.replace('_', ' ')}
+            <Badge className={statusColors[followUp.status as keyof typeof statusColors] || "bg-gray-100 text-gray-800"}>
+              {followUp.status ? followUp.status.replace('_', ' ') : 'Unknown'}
             </Badge>
           </div>
 
@@ -173,12 +195,12 @@ export function FollowUpDetailsModal({
               <div>
                 <p className="text-sm text-muted-foreground">Reason</p>
                 <p className="font-medium">
-                  {followUpReasons[followUp.followUpReason as keyof typeof followUpReasons] || followUp.followUpReason}
+                  {followUp.followUpReason ? (followUpReasons[followUp.followUpReason as keyof typeof followUpReasons] || followUp.followUpReason) : 'Not specified'}
                 </p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Description</p>
-                <p className="font-medium">{followUp.description}</p>
+                <p className="font-medium">{followUp.description || 'No description provided'}</p>
               </div>
               {followUp.notes && (
                 <div>

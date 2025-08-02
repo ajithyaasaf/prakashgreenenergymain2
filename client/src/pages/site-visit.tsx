@@ -499,7 +499,10 @@ export default function SiteVisitPage() {
                 <div className="flex justify-center py-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                 </div>
-              ) : (mySiteVisits as any)?.data?.length === 0 ? (
+              ) : (() => {
+                const combinedVisits = combineVisitsAndFollowUps(mySiteVisits, myFollowUps);
+                return combinedVisits.length === 0;
+              })() ? (
                 <div className="text-center py-6 sm:py-8 px-4">
                   <MapPin className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mx-auto mb-3 sm:mb-4" />
                   <h3 className="text-base sm:text-lg font-semibold mb-2">No site visits yet</h3>
