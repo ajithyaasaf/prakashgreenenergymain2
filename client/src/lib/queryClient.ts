@@ -3,8 +3,13 @@ import { getAuth } from "firebase/auth";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
-    const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
+    try {
+      const text = await res.text();
+      throw new Error(`${res.status}: ${text || res.statusText}`);
+    } catch (error) {
+      // If we can't read the response text, just use status
+      throw new Error(`${res.status}: ${res.statusText}`);
+    }
   }
 }
 
