@@ -27,14 +27,23 @@ export class FollowUpService {
       // Validate data
       const validatedData = insertFollowUpSiteVisitSchema.parse(data);
       
-      // Convert dates to Firestore timestamps
-      const firestoreData = {
+      // Convert dates to Firestore timestamps and filter out undefined values
+      const firestoreData: any = {
         ...validatedData,
         siteInTime: Timestamp.fromDate(validatedData.siteInTime),
         siteOutTime: validatedData.siteOutTime ? Timestamp.fromDate(validatedData.siteOutTime) : null,
         createdAt: Timestamp.fromDate(validatedData.createdAt || new Date()),
         updatedAt: Timestamp.fromDate(validatedData.updatedAt || new Date())
       };
+
+      // Remove undefined values to prevent Firestore errors
+      Object.keys(firestoreData).forEach(key => {
+        if (firestoreData[key] === undefined) {
+          delete firestoreData[key];
+        }
+      });
+
+      console.log("FOLLOW_UP_SERVICE: Cleaned data for Firestore:", JSON.stringify(firestoreData, null, 2));
 
       console.log("FOLLOW_UP_SERVICE: Prepared data for Firestore:", JSON.stringify(firestoreData, null, 2));
 
@@ -90,6 +99,13 @@ export class FollowUpService {
       if (updates.siteOutTime) {
         firestoreUpdates.siteOutTime = Timestamp.fromDate(updates.siteOutTime);
       }
+
+      // Remove undefined values to prevent Firestore errors
+      Object.keys(firestoreUpdates).forEach(key => {
+        if (firestoreUpdates[key] === undefined) {
+          delete firestoreUpdates[key];
+        }
+      });
 
       await docRef.update(firestoreUpdates);
       

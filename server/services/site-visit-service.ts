@@ -31,7 +31,7 @@ export class SiteVisitService {
       const validatedData = data;
       
       // Convert dates to Firestore timestamps
-      const firestoreData = {
+      const firestoreData: any = {
         ...validatedData,
         siteInTime: Timestamp.fromDate(validatedData.siteInTime),
         siteOutTime: validatedData.siteOutTime ? Timestamp.fromDate(validatedData.siteOutTime) : null,
@@ -42,6 +42,13 @@ export class SiteVisitService {
           timestamp: Timestamp.fromDate(photo.timestamp)
         })) || []
       };
+
+      // Remove undefined values to prevent Firestore errors
+      Object.keys(firestoreData).forEach(key => {
+        if (firestoreData[key] === undefined) {
+          delete firestoreData[key];
+        }
+      });
 
       console.log("SITE_VISIT_SERVICE: Prepared data for Firestore:", JSON.stringify(firestoreData, null, 2));
 
@@ -93,6 +100,13 @@ export class SiteVisitService {
       if (updates.updatedAt && updates.updatedAt instanceof Date) {
         firestoreUpdates.updatedAt = Timestamp.fromDate(updates.updatedAt);
       }
+
+      // Remove undefined values to prevent Firestore errors
+      Object.keys(firestoreUpdates).forEach(key => {
+        if (firestoreUpdates[key] === undefined) {
+          delete firestoreUpdates[key];
+        }
+      });
 
       console.log("=== FIRESTORE UPDATE PAYLOAD ===");
       console.log("Updates being sent to Firestore:", JSON.stringify({
