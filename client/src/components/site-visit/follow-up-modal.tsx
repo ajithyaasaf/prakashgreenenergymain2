@@ -3,7 +3,7 @@
  * Advanced follow-up system with timeline view and better UX
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,7 +19,8 @@ import { locationService, LocationStatus } from "@/lib/location-service";
 import { 
   MapPin, Camera, User, Phone, MapPinIcon, Clock, RefreshCw, Upload,
   ArrowRight, History, AlertCircle, CheckCircle, Calendar, 
-  FileText, Building, Zap, Users
+  FileText, Building, Zap, Users, SwitchCamera, RotateCcw, Loader2, X, 
+  ChevronLeft, ChevronRight, Image
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 
@@ -118,13 +119,34 @@ const followUpTemplates = {
 };
 
 export function FollowUpModal({ isOpen, onClose, originalVisit }: FollowUpModalProps) {
+  // Step management for 4-step process
   const [currentStep, setCurrentStep] = useState(1);
+  
+  // Location state
   const [locationStatus, setLocationStatus] = useState<LocationStatus>({
     status: 'detecting',
     location: null
   });
-  const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  
+  // Photo capture states - Enhanced for selfie and site photos
+  const [capturedPhotos, setCapturedPhotos] = useState<{
+    selfie: string | null;
+    sitePhotos: string[];
+  }>({
+    selfie: null,
+    sitePhotos: []
+  });
+  const [currentPhotoType, setCurrentPhotoType] = useState<'selfie' | 'site'>('selfie');
+  
+  // Camera states
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const [isVideoReady, setIsVideoReady] = useState(false);
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const [currentCamera, setCurrentCamera] = useState<'front' | 'back'>('back');
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  
+  // Form data
   const [followUpReason, setFollowUpReason] = useState<string>("");
   const [description, setDescription] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -174,19 +196,45 @@ export function FollowUpModal({ isOpen, onClose, originalVisit }: FollowUpModalP
     retry: false, // Don't retry failed requests automatically
   });
 
-  // Auto-detect location when modal opens and reset form
+  // Reset form when modal opens/closes
   useEffect(() => {
     if (isOpen && originalVisit) {
-      detectLocation();
       // Reset form state
       setCurrentStep(1);
+      setLocationStatus({ status: 'detecting', location: null });
+      setCapturedPhotos({ selfie: null, sitePhotos: [] });
+      setCurrentPhotoType('selfie');
       setFollowUpReason("");
       setDescription("");
       setSelectedTemplate("");
-      setSelectedPhoto(null);
-      setPhotoPreview(null);
+      setIsCameraActive(false);
+      setIsVideoReady(false);
+      setCurrentCamera('back');
+      
+      // Auto-detect location
+      detectLocation();
+      
+      // Stop any existing camera stream on modal open
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        setStream(null);
+      }
     }
   }, [isOpen, originalVisit]);
+
+  // Cleanup camera stream when modal closes or component unmounts
+  useEffect(() => {
+    if (!isOpen && stream) {
+      stream.getTracks().forEach(track => track.stop());
+      setStream(null);
+    }
+    
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [isOpen, stream]);
 
   const detectLocation = async () => {
     setLocationStatus({ status: 'detecting', location: null });
@@ -224,19 +272,126 @@ export function FollowUpModal({ isOpen, onClose, originalVisit }: FollowUpModalP
     }
   };
 
-  const handlePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setSelectedPhoto(file);
-      const reader = new FileReader();
-      reader.onload = (e) => setPhotoPreview(e.target?.result as string);
-      reader.readAsDataURL(file);
+  // Camera functions with better error handling
+  const startCamera = async () => {
+    try {
+      setIsCameraActive(true);
+      setIsVideoReady(false);
+
+      const constraints = {
+        video: {
+          facingMode: currentCamera === 'front' ? 'user' : 'environment',
+          width: { ideal: 1920, max: 1920 },
+          height: { ideal: 1080, max: 1080 }
+        },
+        audio: false
+      };
+
+      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+      setStream(mediaStream);
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream;
+        videoRef.current.onloadedmetadata = () => {
+          setIsVideoReady(true);
+        };
+      }
+    } catch (error) {
+      console.error('Camera access failed:', error);
+      toast({
+        title: "Camera Error",
+        description: "Unable to access camera. Please check permissions.",
+        variant: "destructive",
+      });
+      setIsCameraActive(false);
     }
   };
 
-  const removePhoto = () => {
-    setSelectedPhoto(null);
-    setPhotoPreview(null);
+  const stopCamera = () => {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      setStream(null);
+    }
+    setIsCameraActive(false);
+    setIsVideoReady(false);
+  };
+
+  const switchCamera = async () => {
+    const newCamera = currentCamera === 'front' ? 'back' : 'front';
+    setCurrentCamera(newCamera);
+    
+    if (stream) {
+      stopCamera();
+      setTimeout(() => {
+        setCurrentCamera(newCamera);
+        startCamera();
+      }, 100);
+    }
+  };
+
+  const capturePhoto = () => {
+    if (!videoRef.current || !canvasRef.current || !isVideoReady) {
+      toast({
+        title: "Camera Not Ready",
+        description: "Please wait for camera to initialize",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    const context = canvas.getContext('2d');
+
+    if (!context) return;
+
+    // Set canvas dimensions to match video
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    // Draw the video frame to canvas
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    // Convert to base64
+    const photoDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+
+    // Store the photo based on current type
+    if (currentPhotoType === 'selfie') {
+      setCapturedPhotos(prev => ({ ...prev, selfie: photoDataUrl }));
+      setCurrentPhotoType('site'); // Switch to site photo after selfie
+    } else {
+      setCapturedPhotos(prev => ({ 
+        ...prev, 
+        sitePhotos: [...prev.sitePhotos, photoDataUrl] 
+      }));
+    }
+
+    // Stop camera after capture
+    stopCamera();
+
+    toast({
+      title: "Photo Captured",
+      description: `${currentPhotoType === 'selfie' ? 'Selfie' : 'Site photo'} captured successfully`,
+    });
+  };
+
+  const retakePhoto = (type: 'selfie' | 'site', index?: number) => {
+    if (type === 'selfie') {
+      setCapturedPhotos(prev => ({ ...prev, selfie: null }));
+      setCurrentPhotoType('selfie');
+    } else if (index !== undefined) {
+      setCapturedPhotos(prev => ({
+        ...prev,
+        sitePhotos: prev.sitePhotos.filter((_, i) => i !== index)
+      }));
+      setCurrentPhotoType('site');
+    }
+    startCamera();
+  };
+
+  const addMoreSitePhotos = () => {
+    setCurrentPhotoType('site');
+    startCamera();
   };
 
   // Handle template selection
@@ -275,13 +430,14 @@ export function FollowUpModal({ isOpen, onClose, originalVisit }: FollowUpModalP
 
   const createFollowUpMutation = useMutation({
     mutationFn: async (data: any) => {
-      // Upload photo to Cloudinary if provided
-      let photoUrl: string | undefined = undefined;
+      const uploadedPhotos: { selfie?: string; sitePhotos: string[] } = { sitePhotos: [] };
       
-      if (selectedPhoto) {
-        try {
+      try {
+        // Upload selfie if captured
+        if (capturedPhotos.selfie) {
           const formData = new FormData();
-          formData.append('file', selectedPhoto);
+          const blob = await fetch(capturedPhotos.selfie).then(r => r.blob());
+          formData.append('file', blob, 'follow-up-selfie.jpg');
           formData.append('upload_preset', 'attendance_photos');
           formData.append('folder', 'site_visits/follow_ups');
 
@@ -290,22 +446,40 @@ export function FollowUpModal({ isOpen, onClose, originalVisit }: FollowUpModalP
             body: formData,
           });
 
-          if (!response.ok) {
-            throw new Error(`Photo upload failed: ${response.statusText}`);
+          if (response.ok) {
+            const result = await response.json();
+            uploadedPhotos.selfie = result.secure_url;
           }
-
-          const result = await response.json();
-          photoUrl = result.secure_url;
-        } catch (error) {
-          console.error('Photo upload failed:', error);
-          throw new Error('Failed to upload photo');
         }
+
+        // Upload site photos if captured
+        for (const [index, sitePhoto] of capturedPhotos.sitePhotos.entries()) {
+          const formData = new FormData();
+          const blob = await fetch(sitePhoto).then(r => r.blob());
+          formData.append('file', blob, `follow-up-site-${index + 1}.jpg`);
+          formData.append('upload_preset', 'attendance_photos');
+          formData.append('folder', 'site_visits/follow_ups');
+
+          const response = await fetch('https://api.cloudinary.com/v1_1/dpmcthtrb/image/upload', {
+            method: 'POST',
+            body: formData,
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            uploadedPhotos.sitePhotos.push(result.secure_url);
+          }
+        }
+      } catch (error) {
+        console.error('Photo upload failed:', error);
+        // Continue without photos rather than failing completely
       }
 
       return apiRequest('/api/site-visits/follow-up', 'POST', {
         originalVisitId: originalVisit!.id,
         siteInLocation: locationStatus.location,
-        siteInPhotoUrl: photoUrl,
+        siteInPhotoUrl: uploadedPhotos.selfie, // Keep backward compatibility
+        sitePhotos: uploadedPhotos.sitePhotos,
         followUpReason,
         description
       });
@@ -368,31 +542,104 @@ export function FollowUpModal({ isOpen, onClose, originalVisit }: FollowUpModalP
     }
   };
 
+  // Step navigation functions
+  const nextStep = () => {
+    if (currentStep < 4) {
+      setCurrentStep(currentStep + 1);
+    }
+  };
+
+  const prevStep = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
+
+  const goToStep = (step: number) => {
+    if (step >= 1 && step <= 4) {
+      setCurrentStep(step);
+    }
+  };
+
+  // Validation for each step
+  const canProceedFromStep = (step: number): boolean => {
+    switch (step) {
+      case 1: // Follow-up reason
+        return !!followUpReason;
+      case 2: // Location
+        return locationStatus.status === 'granted' && !!locationStatus.location;
+      case 3: // Description
+        return description.length >= 10;
+      case 4: // Photos - at least selfie required
+        return !!capturedPhotos.selfie;
+      default:
+        return false;
+    }
+  };
+
   const handleClose = () => {
     setCurrentStep(1);
     setLocationStatus({ status: 'detecting', location: null });
-    setSelectedPhoto(null);
-    setPhotoPreview(null);
+    setCapturedPhotos({ selfie: null, sitePhotos: [] });
+    setCurrentPhotoType('selfie');
     setFollowUpReason("");
     setDescription("");
     setIsSubmitting(false);
+    setIsCameraActive(false);
+    setIsVideoReady(false);
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      setStream(null);
+    }
     onClose();
   };
 
   if (!originalVisit) return null;
 
+  // Step progress indicator component
+  const StepIndicator = ({ step, currentStep, label, isCompleted }: { 
+    step: number; 
+    currentStep: number; 
+    label: string; 
+    isCompleted: boolean;
+  }) => (
+    <div className="flex items-center">
+      <div className={`
+        w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium
+        ${step === currentStep ? 'bg-blue-600 text-white' : 
+          isCompleted ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-600'}
+      `}>
+        {isCompleted ? <CheckCircle className="h-4 w-4" /> : step}
+      </div>
+      <div className={`ml-2 text-sm ${step === currentStep ? 'font-medium' : 'text-muted-foreground'}`}>
+        {label}
+      </div>
+    </div>
+  );
+
   return (
     <Dialog open={isOpen} onOpenChange={handleCloseWithConfirmation}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <RefreshCw className="h-5 w-5 text-blue-600" />
-            Follow-up Visit
+            Follow-up Visit - Step {currentStep} of 4
           </DialogTitle>
         </DialogHeader>
 
+        {/* Step Progress Indicator */}
+        <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg mb-6">
+          <StepIndicator step={1} currentStep={currentStep} label="Reason" isCompleted={canProceedFromStep(1)} />
+          <div className="flex-1 h-px bg-gray-300 mx-2" />
+          <StepIndicator step={2} currentStep={currentStep} label="Location" isCompleted={canProceedFromStep(2)} />
+          <div className="flex-1 h-px bg-gray-300 mx-2" />
+          <StepIndicator step={3} currentStep={currentStep} label="Details" isCompleted={canProceedFromStep(3)} />
+          <div className="flex-1 h-px bg-gray-300 mx-2" />
+          <StepIndicator step={4} currentStep={currentStep} label="Photos" isCompleted={canProceedFromStep(4)} />
+        </div>
+
         <div className="space-y-6">
-          {/* Original Visit Info */}
+          {/* Original Visit Info - Always visible */}
           <Card>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
@@ -426,250 +673,455 @@ export function FollowUpModal({ isOpen, onClose, originalVisit }: FollowUpModalP
             </CardContent>
           </Card>
 
-          {/* Location Detection */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span>Current Location</span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={detectLocation}
-                  disabled={locationStatus.status === 'detecting'}
-                >
-                  <MapPin className="h-4 w-4 mr-2" />
-                  {locationStatus.status === 'detecting' ? 'Detecting...' : 'Get Location'}
-                </Button>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {locationStatus.status === 'detecting' && (
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
-                  <span>Detecting your current location...</span>
-                </div>
+          {/* Step 1: Follow-up Reason */}
+          {currentStep === 1 && (
+            <div className="space-y-6">
+              {/* Visit Timeline */}
+              {visitHistory && visitHistory.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <History className="h-5 w-5" />
+                      Visit History
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ScrollArea className="h-32">
+                      <div className="space-y-2">
+                        {visitHistory.map((visit: any, index: number) => (
+                          <div key={visit.id} className="flex items-center gap-3 p-2 rounded border">
+                            <div className={`w-2 h-2 rounded-full ${
+                              visit.status === 'completed' ? 'bg-green-500' : 
+                              visit.status === 'in_progress' ? 'bg-blue-500' : 'bg-gray-400'
+                            }`} />
+                            <div className="flex-1">
+                              <div className="flex justify-between items-start">
+                                <span className="font-medium text-sm">
+                                  {visit.isFollowUp ? 'Follow-up' : 'Original'} - {visit.visitPurpose}
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                  {formatVisitTime(visit.siteInTime).relative}
+                                </span>
+                              </div>
+                              {visit.followUpReason && (
+                                <span className="text-xs text-muted-foreground">
+                                  Reason: {visit.followUpReason.replace('_', ' ')}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </CardContent>
+                </Card>
               )}
-              
-              {locationStatus.status === 'granted' && locationStatus.location && (
-                <div className="space-y-2">
-                  <div className="flex items-start gap-2">
-                    <MapPin className="h-4 w-4 text-green-600 mt-1 flex-shrink-0" />
-                    <div className="flex-1">
-                      <p className="font-medium text-sm">
-                        {locationStatus.location.formattedAddress || locationStatus.location.address}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              {locationStatus.status === 'denied' && (
-                <div className="text-red-600 text-sm">
-                  <p>{locationStatus.error}</p>
-                </div>
-              )}
-              
-              {locationStatus.status === 'error' && (
-                <div className="text-amber-600 text-sm">
-                  <p>{locationStatus.error}</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
 
-          {/* Visit Timeline */}
-          {visitHistory && visitHistory.length > 0 && (
+              {/* Quick Templates */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Quick Templates</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Select a template to quickly fill follow-up details for {originalVisit.department} department
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 gap-2">
+                    {getDepartmentTemplates().map((template) => (
+                      <Button
+                        key={template.reason}
+                        variant={selectedTemplate === template.reason ? "default" : "outline"}
+                        className="justify-start h-auto p-3"
+                        onClick={() => handleTemplateSelect(template)}
+                      >
+                        <div className="text-left">
+                          <div className="font-medium">
+                            {followUpReasons.find(r => r.value === template.reason)?.label}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {template.description}
+                          </div>
+                        </div>
+                      </Button>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Reason Selection */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Follow-up Reason</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Select a reason for follow-up *</label>
+                    <Select value={followUpReason} onValueChange={setFollowUpReason}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choose follow-up reason" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {followUpReasons.map((reason) => {
+                          const IconComponent = reason.icon;
+                          return (
+                            <SelectItem key={reason.value} value={reason.value}>
+                              <div className="flex items-center gap-2">
+                                <IconComponent className="h-4 w-4" />
+                                <div>
+                                  <div className="font-medium">{reason.label}</div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {reason.description}
+                                  </div>
+                                </div>
+                              </div>
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* Step 2: Location Detection */}
+          {currentStep === 2 && (
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <History className="h-5 w-5" />
-                  Visit History
+                <CardTitle className="flex items-center justify-between">
+                  <span>Current Location</span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={detectLocation}
+                    disabled={locationStatus.status === 'detecting'}
+                  >
+                    <MapPin className="h-4 w-4 mr-2" />
+                    {locationStatus.status === 'detecting' ? 'Detecting...' : 'Detect Location'}
+                  </Button>
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <ScrollArea className="h-32">
-                  <div className="space-y-2">
-                    {visitHistory.map((visit: any, index: number) => (
-                      <div key={visit.id} className="flex items-center gap-3 p-2 rounded border">
-                        <div className={`w-2 h-2 rounded-full ${
-                          visit.status === 'completed' ? 'bg-green-500' : 
-                          visit.status === 'in_progress' ? 'bg-blue-500' : 'bg-gray-400'
-                        }`} />
-                        <div className="flex-1">
-                          <div className="flex justify-between items-start">
-                            <span className="font-medium text-sm">
-                              {visit.isFollowUp ? 'Follow-up' : 'Original'} - {visit.visitPurpose}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              {formatVisitTime(visit.siteInTime).relative}
-                            </span>
-                          </div>
-                          {visit.followUpReason && (
-                            <span className="text-xs text-muted-foreground">
-                              Reason: {visit.followUpReason.replace('_', ' ')}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
+                {locationStatus.status === 'detecting' && (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Detecting your current location...</span>
                   </div>
-                </ScrollArea>
+                )}
+                
+                {locationStatus.status === 'granted' && locationStatus.location && (
+                  <div className="space-y-2">
+                    <div className="flex items-start gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-600 mt-1 flex-shrink-0" />
+                      <div className="flex-1">
+                        <p className="font-medium text-sm">Location Detected</p>
+                        <p className="text-sm text-muted-foreground">
+                          {locationStatus.location.formattedAddress || locationStatus.location.address}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Accuracy: {Math.round(locationStatus.location.accuracy)}m
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {locationStatus.status === 'denied' && (
+                  <div className="flex items-start gap-2 text-red-600">
+                    <AlertCircle className="h-4 w-4 mt-1 flex-shrink-0" />
+                    <div>
+                      <p className="font-medium">Location Access Denied</p>
+                      <p className="text-sm">{locationStatus.error}</p>
+                    </div>
+                  </div>
+                )}
+                
+                {locationStatus.status === 'error' && (
+                  <div className="flex items-start gap-2 text-amber-600">
+                    <AlertCircle className="h-4 w-4 mt-1 flex-shrink-0" />
+                    <div>
+                      <p className="font-medium">Location Error</p>
+                      <p className="text-sm">{locationStatus.error}</p>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
 
-          {/* Quick Templates */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Quick Templates</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Select a template to quickly fill follow-up details for {originalVisit.department} department
-              </p>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 gap-2">
-                {getDepartmentTemplates().map((template) => (
-                  <Button
-                    key={template.reason}
-                    variant={selectedTemplate === template.reason ? "default" : "outline"}
-                    className="justify-start h-auto p-3"
-                    onClick={() => handleTemplateSelect(template)}
-                  >
-                    <div className="text-left">
-                      <div className="font-medium">
-                        {followUpReasons.find(r => r.value === template.reason)?.label}
+          {/* Step 3: Description */}
+          {currentStep === 3 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Follow-up Details</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">
+                    Description * 
+                    <span className="text-muted-foreground">
+                      ({description.length}/200 characters)
+                    </span>
+                  </label>
+                  <Textarea
+                    placeholder="Describe the reason for this follow-up visit in detail..."
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    maxLength={200}
+                    rows={4}
+                    className={description.length < 10 ? "border-red-300" : ""}
+                  />
+                  {description.length < 10 && description.length > 0 && (
+                    <p className="text-xs text-red-600">
+                      Description must be at least 10 characters
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Provide detailed information about what needs to be done during this follow-up visit.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Step 4: Photo Capture */}
+          {currentStep === 4 && (
+            <div className="space-y-6">
+              {!isCameraActive && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Camera className="h-5 w-5" />
+                      Photo Documentation
+                    </CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                      Capture a selfie and site photos to document your follow-up visit
+                    </p>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Selfie Section */}
+                      <div className="space-y-3">
+                        <h4 className="font-medium flex items-center gap-2">
+                          <User className="h-4 w-4" />
+                          Selfie {!capturedPhotos.selfie && <span className="text-red-500">*</span>}
+                        </h4>
+                        {!capturedPhotos.selfie ? (
+                          <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
+                            <Camera className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                            <p className="text-sm text-muted-foreground mb-3">
+                              Take a selfie to verify your presence
+                            </p>
+                            <Button
+                              onClick={() => {
+                                setCurrentPhotoType('selfie');
+                                setCurrentCamera('front');
+                                startCamera();
+                              }}
+                              className="w-full"
+                            >
+                              <Camera className="h-4 w-4 mr-2" />
+                              Take Selfie
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            <div className="relative">
+                              <img
+                                src={capturedPhotos.selfie}
+                                alt="Captured selfie"
+                                className="w-full h-48 object-cover rounded-lg"
+                              />
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                className="absolute top-2 right-2"
+                                onClick={() => retakePhoto('selfie')}
+                              >
+                                <RotateCcw className="h-4 w-4" />
+                              </Button>
+                            </div>
+                            <p className="text-xs text-green-600 text-center">✓ Selfie captured</p>
+                          </div>
+                        )}
                       </div>
-                      <div className="text-xs text-muted-foreground">
-                        {template.description}
+
+                      {/* Site Photos Section */}
+                      <div className="space-y-3">
+                        <h4 className="font-medium flex items-center gap-2">
+                          <Image className="h-4 w-4" />
+                          Site Photos ({capturedPhotos.sitePhotos.length})
+                        </h4>
+                        {capturedPhotos.sitePhotos.length === 0 ? (
+                          <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
+                            <Camera className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                            <p className="text-sm text-muted-foreground mb-3">
+                              Capture site photos for documentation
+                            </p>
+                            <Button
+                              onClick={() => {
+                                setCurrentPhotoType('site');
+                                setCurrentCamera('back');
+                                startCamera();
+                              }}
+                              variant="outline"
+                              className="w-full"
+                            >
+                              <Camera className="h-4 w-4 mr-2" />
+                              Take Site Photo
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            <div className="grid grid-cols-2 gap-2">
+                              {capturedPhotos.sitePhotos.map((photo, index) => (
+                                <div key={index} className="relative">
+                                  <img
+                                    src={photo}
+                                    alt={`Site photo ${index + 1}`}
+                                    className="w-full h-24 object-cover rounded"
+                                  />
+                                  <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    className="absolute top-1 right-1 h-6 w-6 p-0"
+                                    onClick={() => retakePhoto('site', index)}
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                            {capturedPhotos.sitePhotos.length < 5 && (
+                              <Button
+                                onClick={addMoreSitePhotos}
+                                variant="outline"
+                                size="sm"
+                                className="w-full"
+                              >
+                                <Camera className="h-4 w-4 mr-2" />
+                                Add More Photos
+                              </Button>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
-                  </Button>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Follow-up Details */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Follow-up Details</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Reason Selection */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Follow-up Reason *</label>
-                <Select value={followUpReason} onValueChange={setFollowUpReason}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a reason for follow-up" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {followUpReasons.map((reason) => {
-                      const IconComponent = reason.icon;
-                      return (
-                        <SelectItem key={reason.value} value={reason.value}>
-                          <div className="flex items-center gap-2">
-                            <IconComponent className="h-4 w-4" />
-                            <div>
-                              <div className="font-medium">{reason.label}</div>
-                              <div className="text-xs text-muted-foreground">
-                                {reason.description}
-                              </div>
-                            </div>
-                          </div>
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Description */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">
-                  Description * 
-                  <span className="text-muted-foreground">
-                    ({description.length}/100 characters)
-                  </span>
-                </label>
-                <Textarea
-                  placeholder="Describe the reason for this follow-up visit..."
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  maxLength={100}
-                  rows={3}
-                  className={description.length < 10 ? "border-red-300" : ""}
-                />
-                {description.length < 10 && description.length > 0 && (
-                  <p className="text-xs text-red-600">
-                    Description must be at least 10 characters
-                  </p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Photo Upload (Optional) */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Photo (Optional)</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {!selectedPhoto ? (
-                <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
-                  <Camera className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground mb-3">
-                    Upload a photo for this follow-up visit
-                  </p>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handlePhotoChange}
-                    className="hidden"
-                    id="photo-upload"
-                  />
-                  <label htmlFor="photo-upload">
-                    <Button variant="outline" size="sm" asChild>
-                      <span>
-                        <Upload className="h-4 w-4 mr-2" />
-                        Choose Photo
-                      </span>
-                    </Button>
-                  </label>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="relative">
-                    <img
-                      src={photoPreview!}
-                      alt="Selected photo"
-                      className="w-full h-48 object-cover rounded-lg"
-                    />
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      className="absolute top-2 right-2"
-                      onClick={removePhoto}
-                    >
-                      Remove
-                    </Button>
-                  </div>
-                </div>
+                  </CardContent>
+                </Card>
               )}
-            </CardContent>
-          </Card>
 
-          {/* Actions */}
+              {/* Camera Interface */}
+              {isCameraActive && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                      <span>
+                        Camera - {currentPhotoType === 'selfie' ? 'Selfie' : 'Site Photo'}
+                      </span>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={switchCamera}
+                          disabled={!isVideoReady}
+                        >
+                          <SwitchCamera className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={stopCamera}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="relative bg-black rounded-lg overflow-hidden">
+                        <video
+                          ref={videoRef}
+                          autoPlay
+                          playsInline
+                          muted
+                          className="w-full h-64 object-cover"
+                        />
+                        {!isVideoReady && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                            <Loader2 className="h-8 w-8 animate-spin text-white" />
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="flex justify-center">
+                        <Button
+                          onClick={capturePhoto}
+                          disabled={!isVideoReady}
+                          size="lg"
+                          className="bg-blue-600 hover:bg-blue-700"
+                        >
+                          <Camera className="h-5 w-5 mr-2" />
+                          Capture Photo
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Hidden canvas for photo capture */}
+              <canvas ref={canvasRef} className="hidden" />
+            </div>
+          )}
+
+          {/* Navigation Buttons */}
           <div className="flex justify-between pt-4">
-            <Button variant="outline" onClick={handleCloseWithConfirmation}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSubmit}
-              disabled={isSubmitting || !locationStatus.location || !followUpReason || description.length < 10}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              {isSubmitting ? 'Creating Follow-up...' : 'Start Follow-up Visit'}
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handleCloseWithConfirmation}>
+                Cancel
+              </Button>
+              {currentStep > 1 && (
+                <Button
+                  variant="outline"
+                  onClick={prevStep}
+                  disabled={isCameraActive}
+                >
+                  <ChevronLeft className="h-4 w-4 mr-2" />
+                  Previous
+                </Button>
+              )}
+            </div>
+            
+            <div className="flex gap-2">
+              {currentStep < 4 ? (
+                <Button
+                  onClick={nextStep}
+                  disabled={!canProceedFromStep(currentStep) || isCameraActive}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4 ml-2" />
+                </Button>
+              ) : (
+                <Button
+                  onClick={handleSubmit}
+                  disabled={isSubmitting || !canProceedFromStep(4)}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Creating Follow-up...
+                    </>
+                  ) : (
+                    'Start Follow-up Visit'
+                  )}
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       </DialogContent>
