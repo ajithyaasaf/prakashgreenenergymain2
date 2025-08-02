@@ -159,33 +159,37 @@ export function FollowUpDetailsModal({
               <User className="h-4 w-4" />
               Customer Information
             </h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Name</p>
-                <p className="font-medium">{followUp.customer.name}</p>
+            {followUp.customer ? (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Name</p>
+                  <p className="font-medium">{followUp.customer.name || 'Not available'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Mobile</p>
+                  <p className="font-medium flex items-center gap-1">
+                    <Phone className="h-3 w-3" />
+                    {followUp.customer.mobile || 'Not available'}
+                  </p>
+                </div>
+                <div className="col-span-2">
+                  <p className="text-sm text-muted-foreground">Address</p>
+                  <p className="font-medium flex items-start gap-1">
+                    <MapPin className="h-3 w-3 mt-1 flex-shrink-0" />
+                    {followUp.customer.address || 'Not available'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Property Type</p>
+                  <p className="font-medium flex items-center gap-1">
+                    <Building className="h-3 w-3" />
+                    {followUp.customer.propertyType || 'Not specified'}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Mobile</p>
-                <p className="font-medium flex items-center gap-1">
-                  <Phone className="h-3 w-3" />
-                  {followUp.customer.mobile}
-                </p>
-              </div>
-              <div className="col-span-2">
-                <p className="text-sm text-muted-foreground">Address</p>
-                <p className="font-medium flex items-start gap-1">
-                  <MapPin className="h-3 w-3 mt-1 flex-shrink-0" />
-                  {followUp.customer.address}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Property Type</p>
-                <p className="font-medium flex items-center gap-1">
-                  <Building className="h-3 w-3" />
-                  {followUp.customer.propertyType}
-                </p>
-              </div>
-            </div>
+            ) : (
+              <p className="text-muted-foreground">Customer information not available</p>
+            )}
           </div>
 
           {/* Follow-up Information */}
