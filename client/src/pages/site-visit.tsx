@@ -182,6 +182,17 @@ export default function SiteVisitPage() {
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 
+  // Fetch user's follow-up visits
+  const { data: myFollowUps, isLoading: isLoadingMyFollowUps } = useQuery({
+    queryKey: ['/api/follow-ups', { userId: user?.uid }],
+    queryFn: async () => {
+      const response = await apiRequest(`/api/follow-ups?userId=${user?.uid}`, 'GET');
+      return await response.json();
+    },
+    enabled: Boolean(hasAccess && user?.uid && activeTab === 'my-visits'),
+    refetchInterval: 30000,
+  });
+
   // Fetch team/all site visits based on permissions
   const { data: teamSiteVisits, isLoading: isLoadingTeam } = useQuery({
     queryKey: ['/api/site-visits', { department: user?.department }],
@@ -237,6 +248,47 @@ export default function SiteVisitPage() {
     if (confirm("Are you sure you want to delete this site visit?")) {
       deleteMutation.mutate(id);
     }
+  };
+
+  // Convert follow-ups to site visit format for display
+  const convertFollowUpToSiteVisit = (followUp: any): SiteVisit => {
+    return {
+      id: followUp.id,
+      userId: followUp.userId,
+      department: followUp.department,
+      customer: followUp.customer,
+      visitPurpose: `Follow-up: ${followUp.followUpReason?.replace(/_/g, ' ')}`,
+      siteInTime: followUp.siteInTime,
+      siteOutTime: followUp.siteOutTime,
+      siteInLocation: followUp.siteInLocation,
+      siteOutLocation: followUp.siteOutLocation,
+      siteInPhotoUrl: followUp.siteInPhotoUrl,
+      siteOutPhotoUrl: followUp.siteOutPhotoUrl,
+      status: followUp.status,
+      notes: followUp.notes || followUp.description,
+      isFollowUp: true,
+      followUpOf: followUp.originalVisitId,
+      followUpReason: followUp.followUpReason,
+      createdAt: followUp.createdAt,
+      updatedAt: followUp.updatedAt,
+      sitePhotos: followUp.sitePhotos || []
+    };
+  };
+
+  // Combine site visits and follow-ups for display
+  const combineVisitsAndFollowUps = (visits: any[], followUps: any[]) => {
+    const siteVisits = visits?.data || [];
+    const followUpVisits = followUps?.data || [];
+    
+    const convertedFollowUps = followUpVisits.map(convertFollowUpToSiteVisit);
+    const combined = [...siteVisits, ...convertedFollowUps];
+    
+    // Sort by creation time (most recent first)
+    return combined.sort((a, b) => {
+      const aTime = new Date(a.createdAt || a.siteInTime).getTime();
+      const bTime = new Date(b.createdAt || b.siteInTime).getTime();
+      return bTime - aTime;
+    });
   };
 
   const handleViewDetails = (siteVisit: SiteVisit) => {
@@ -435,7 +487,7 @@ export default function SiteVisitPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {isLoadingMy ? (
+              {(isLoadingMy || isLoadingMyFollowUps) ? (
                 <div className="flex justify-center py-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                 </div>
@@ -457,8 +509,8 @@ export default function SiteVisitPage() {
               ) : (
                 <div className="space-y-4">
                   {(() => {
-                    const data = (mySiteVisits as any)?.data || [];
-                    return groupVisitsByCustomer(data);
+                    const combinedVisits = combineVisitsAndFollowUps(mySiteVisits, myFollowUps);
+                    return groupVisitsByCustomer(combinedVisits);
                   })().map((group: CustomerVisitGroup, index: number) => (
                     <UnifiedSiteVisitCard
                       key={`${group.customerMobile}_${group.customerName}_${index}`}

@@ -490,8 +490,9 @@ export function FollowUpModal({ isOpen, onClose, originalVisit }: FollowUpModalP
         description: `Follow-up visit started for ${originalVisit?.customer.name}`,
       });
       
-      // Invalidate queries to refresh the site visits list
+      // Invalidate queries to refresh the site visits list and follow-ups
       queryClient.invalidateQueries({ queryKey: ['/api/site-visits'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/follow-ups'] });
       queryClient.invalidateQueries({ queryKey: ['/api/site-visits/stats'] });
       
       handleClose();

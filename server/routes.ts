@@ -5727,6 +5727,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all follow-ups for a user (to include in main site visit listing)
+  app.get("/api/follow-ups", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      const hasPermission = user ? await checkSiteVisitPermission(user, 'view_own') : false;
+      
+      if (!user || !hasPermission) {
+        return res.status(403).json({ 
+          message: "Access denied. Site Visit access is limited to Technical, Marketing, and Admin departments." 
+        });
+      }
+
+      const { followUpService } = await import("./services/follow-up-service");
+      
+      // Get follow-ups by user
+      const { userId, department, status } = req.query;
+      
+      let followUps = [];
+      if (userId && userId === user.uid) {
+        followUps = await followUpService.getFollowUpsByUser(
+          userId as string,
+          department as string,
+          status as string
+        );
+      } else if (await checkSiteVisitPermission(user, 'view_all') || user.role === 'master_admin') {
+        // Allow viewing all follow-ups for admins
+        followUps = await followUpService.getFollowUpsByUser(
+          userId as string || user.uid,
+          department as string,
+          status as string
+        );
+      } else {
+        // Default to own follow-ups
+        followUps = await followUpService.getFollowUpsByUser(user.uid);
+      }
+      
+      res.json({ data: followUps });
+    } catch (error) {
+      console.error("Error fetching follow-ups:", error);
+      res.status(500).json({ message: "Failed to fetch follow-ups" });
+    }
+  });
+
   // Get follow-up visit by ID
   app.get("/api/follow-ups/:id", verifyAuth, async (req, res) => {
     try {
@@ -5796,6 +5839,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error getting follow-ups for original visit:", error);
       res.status(500).json({ message: "Failed to get follow-ups" });
+    }
+  });
+
+  // Update follow-up visit (general update)
+  app.patch("/api/follow-ups/:id", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      const hasPermission = user ? await checkSiteVisitPermission(user, 'edit') : false;
+      
+      if (!user || !hasPermission) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const { followUpService } = await import("./services/follow-up-service");
+      
+      // Get existing follow-up to check ownership
+      const existingFollowUp = await followUpService.getFollowUpById(req.params.id);
+      if (!existingFollowUp) {
+        return res.status(404).json({ message: "Follow-up visit not found" });
+      }
+
+      // Check if user can edit this follow-up
+      const canEdit = existingFollowUp.userId === user.uid || 
+                     await checkSiteVisitPermission(user, 'view_all') ||
+                     user.role === 'master_admin';
+      
+      if (!canEdit) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // Validate update fields
+      const allowedFields = [
+        'status', 'siteOutTime', 'siteOutLocation', 'siteOutPhotoUrl', 
+        'notes', 'updatedAt', 'sitePhotos'
+      ];
+
+      const updateData: any = {};
+      Object.keys(req.body).forEach(key => {
+        if (allowedFields.includes(key)) {
+          updateData[key] = req.body[key];
+        }
+      });
+
+      // Handle time conversion
+      if (updateData.siteOutTime) {
+        updateData.siteOutTime = new Date(updateData.siteOutTime);
+      }
+
+      updateData.updatedAt = new Date();
+
+      console.log("=== FOLLOW-UP UPDATE DEBUG ===");
+      console.log("Follow-up ID:", req.params.id);
+      console.log("Update payload:", JSON.stringify(updateData, null, 2));
+
+      const updatedFollowUp = await followUpService.updateFollowUp(req.params.id, updateData);
+
+      res.json({
+        message: "Follow-up visit updated successfully",
+        data: updatedFollowUp
+      });
+    } catch (error) {
+      console.error("Error updating follow-up visit:", error);
+      res.status(500).json({ message: "Failed to update follow-up visit" });
     }
   });
 
