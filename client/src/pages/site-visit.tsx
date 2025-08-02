@@ -32,6 +32,7 @@ import { SiteVisitStartModal } from "@/components/site-visit/site-visit-start-mo
 import { SiteVisitDetailsModal } from "@/components/site-visit/site-visit-details-modal";
 import { SiteVisitCheckoutModal } from "@/components/site-visit/site-visit-checkout-modal";
 import { FollowUpModal } from "@/components/site-visit/follow-up-modal";
+import { FollowUpDetailsModal } from "@/components/site-visit/follow-up-details-modal";
 import { formatDistanceToNow } from "date-fns";
 
 interface SiteVisit {
@@ -163,6 +164,8 @@ export default function SiteVisitPage() {
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
   const [isFollowUpModalOpen, setIsFollowUpModalOpen] = useState(false);
+  const [isFollowUpDetailsModalOpen, setIsFollowUpDetailsModalOpen] = useState(false);
+  const [selectedFollowUpId, setSelectedFollowUpId] = useState<string>("");
   const [activeTab, setActiveTab] = useState("my-visits");
 
   // Check if user has access to Site Visit features
@@ -237,18 +240,78 @@ export default function SiteVisitPage() {
   };
 
   const handleViewDetails = (siteVisit: SiteVisit) => {
-    setSelectedSiteVisit(siteVisit);
-    setIsDetailsModalOpen(true);
+    // Check if this is a follow-up visit stored in the separate collection
+    if (siteVisit.isFollowUp && siteVisit.id) {
+      // This is a follow-up visit - use the follow-up details modal
+      setSelectedFollowUpId(siteVisit.id);
+      setIsFollowUpDetailsModalOpen(true);
+    } else {
+      // This is a regular site visit - use the regular details modal
+      setSelectedSiteVisit(siteVisit);
+      setIsDetailsModalOpen(true);
+    }
   };
 
   const handleCheckoutSiteVisit = (siteVisit: SiteVisit) => {
-    setSelectedSiteVisit(siteVisit);
-    setIsCheckoutModalOpen(true);
+    // For follow-ups, we need to use the follow-up checkout endpoint
+    if (siteVisit.isFollowUp && siteVisit.id) {
+      // Set up for follow-up checkout
+      setSelectedFollowUpId(siteVisit.id);
+      setSelectedSiteVisit(siteVisit); // Still need this for the checkout modal
+      setIsCheckoutModalOpen(true);
+    } else {
+      // Regular site visit checkout
+      setSelectedSiteVisit(siteVisit);
+      setIsCheckoutModalOpen(true);
+    }
   };
 
   const handleFollowUpVisit = (siteVisit: SiteVisit) => {
     setSelectedSiteVisit(siteVisit);
     setIsFollowUpModalOpen(true);
+  };
+
+  // Follow-up checkout mutation
+  const followUpCheckoutMutation = useMutation({
+    mutationFn: async ({ followUpId, checkoutData }: { followUpId: string; checkoutData: any }) => {
+      return apiRequest(`/api/follow-ups/${followUpId}/checkout`, 'PATCH', checkoutData);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Follow-up checkout completed successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/site-visits'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/follow-ups'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to checkout follow-up visit",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const handleFollowUpCheckout = async (followUpId: string) => {
+    try {
+      // For now, just invalidate queries and show success
+      // In a real implementation, you'd want to capture location and photo first
+      followUpCheckoutMutation.mutate({
+        followUpId,
+        checkoutData: {
+          siteOutLocation: null, // Would come from location capture
+          siteOutPhotoUrl: null, // Would come from photo capture
+          notes: "Follow-up completed"
+        }
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error", 
+        description: error.message || "Failed to checkout follow-up visit",
+        variant: "destructive",
+      });
+    }
   };
 
   if (!hasAccess) {
@@ -519,6 +582,13 @@ export default function SiteVisitPage() {
         isOpen={isFollowUpModalOpen}
         onClose={() => setIsFollowUpModalOpen(false)}
         originalVisit={selectedSiteVisit}
+      />
+
+      <FollowUpDetailsModal
+        isOpen={isFollowUpDetailsModalOpen}
+        onClose={() => setIsFollowUpDetailsModalOpen(false)}
+        followUpId={selectedFollowUpId}
+        onCheckout={handleFollowUpCheckout}
       />
     </div>
   );

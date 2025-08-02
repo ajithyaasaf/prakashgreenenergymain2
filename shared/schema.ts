@@ -365,10 +365,17 @@ export const insertSiteVisitSchema = z.object({
 export const insertFollowUpSiteVisitSchema = z.object({
   originalVisitId: z.string().min(1, "Original visit ID is required"),
   
-  // Essential fields only for follow-ups
+  // Essential fields for follow-ups
+  userId: z.string(),
+  department: z.enum(["technical", "marketing", "admin"]),
   siteInTime: z.date().default(() => new Date()),
   siteInLocation: locationSchema,
   siteInPhotoUrl: z.string().url().optional(),
+  siteOutTime: z.date().optional(),
+  siteOutLocation: locationSchema.optional(),
+  siteOutPhotoUrl: z.string().url().optional(),
+  
+  // Follow-up specific data
   followUpReason: z.enum([
     "additional_work_required",
     "issue_resolution", 
@@ -379,11 +386,25 @@ export const insertFollowUpSiteVisitSchema = z.object({
   ]).default("additional_work_required"),
   description: z.string().min(10, "Description must be at least 10 characters"),
   
-  // Auto-filled from original visit (readonly in UI)
-  userId: z.string().optional(),
-  department: z.enum(["technical", "marketing", "admin"]).optional(),
-  customer: customerDetailsSchema.optional(),
+  // Photo documentation for follow-ups
+  sitePhotos: z.array(z.string().url()).max(10).default([]), // Array of photo URLs
+  
+  // Status and metadata
+  status: z.enum(["in_progress", "completed", "cancelled"]).default("in_progress"),
+  notes: z.string().optional(),
+  createdAt: z.date().default(() => new Date()),
+  updatedAt: z.date().default(() => new Date()),
+  
+  // Customer info (copied from original)
+  customer: customerDetailsSchema,
 });
+
+// Follow-up visit interface
+export type InsertFollowUpSiteVisit = z.infer<typeof insertFollowUpSiteVisitSchema>;
+
+export interface FollowUpSiteVisit extends InsertFollowUpSiteVisit {
+  id: string;
+}
 
 // Type definitions
 export type SiteVisitPurpose = typeof siteVisitPurposes[number];
@@ -415,7 +436,6 @@ export type MarketingSiteVisit = z.infer<typeof marketingSiteVisitSchema>;
 export type AdminSiteVisit = z.infer<typeof adminSiteVisitSchema>;
 export type SitePhoto = z.infer<typeof sitePhotoSchema>;
 export type InsertSiteVisit = z.infer<typeof insertSiteVisitSchema>;
-export type InsertFollowUpSiteVisit = z.infer<typeof insertFollowUpSiteVisitSchema>;
 
 export interface SiteVisit extends InsertSiteVisit {
   id: string;

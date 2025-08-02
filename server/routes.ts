@@ -5659,14 +5659,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const { insertFollowUpSiteVisitSchema } = await import("@shared/schema");
+      const { followUpService } = await import("./services/follow-up-service");
       const { siteVisitService } = await import("./services/site-visit-service");
 
-      // Validate follow-up data
-      const followUpData = insertFollowUpSiteVisitSchema.parse(req.body);
-      
       // Get original visit to copy customer data and verify ownership
-      const originalVisit = await siteVisitService.getSiteVisitById(followUpData.originalVisitId);
+      const originalVisit = await siteVisitService.getSiteVisitById(req.body.originalVisitId);
       if (!originalVisit) {
         return res.status(404).json({ message: "Original site visit not found" });
       }
@@ -5683,7 +5680,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Map user department to site visit schema department
       const departmentMapping: Record<string, string> = {
         'admin': 'admin',
-        'administration': 'admin',
+        'administration': 'admin', 
         'operations': 'admin',
         'technical': 'technical',
         'marketing': 'marketing'
@@ -5691,68 +5688,170 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const mappedDepartment = departmentMapping[user.department?.toLowerCase() || ''] || user.department;
 
-      // Create follow-up site visit with data from original visit
-      const followUpSiteVisit = {
+      // Prepare follow-up data
+      const followUpData = {
+        originalVisitId: req.body.originalVisitId,
         userId: user.uid,
-        department: mappedDepartment,
-        visitPurpose: 'visit', // Default purpose for follow-ups
-        
-        // Current location and time
-        siteInTime: followUpData.siteInTime || new Date(),
-        siteInLocation: followUpData.siteInLocation,
-        ...(followUpData.siteInPhotoUrl && { siteInPhotoUrl: followUpData.siteInPhotoUrl }),
-        
-        // Copy customer data from original visit
+        department: mappedDepartment as "technical" | "marketing" | "admin",
+        siteInTime: req.body.siteInTime ? new Date(req.body.siteInTime) : new Date(),
+        siteInLocation: req.body.siteInLocation,
+        siteInPhotoUrl: req.body.siteInPhotoUrl,
+        followUpReason: req.body.followUpReason || 'additional_work_required',
+        description: req.body.description,
+        sitePhotos: req.body.sitePhotos || [],
         customer: originalVisit.customer,
-        
-        // Follow-up specific fields
-        isFollowUp: true,
-        followUpOf: followUpData.originalVisitId,
-        followUpReason: followUpData.followUpReason,
-        followUpDescription: followUpData.description,
-        
-        // Default values
-        sitePhotos: [],
         status: 'in_progress' as const,
-        notes: followUpData.description || '',
+        notes: req.body.description || '',
         createdAt: new Date(),
         updatedAt: new Date()
       };
 
-      console.log("=== FOLLOW-UP SITE VISIT CREATION ===");
-      console.log("Original Visit ID:", followUpData.originalVisitId);
-      console.log("Follow-up reason:", followUpData.followUpReason);
+      console.log("=== FOLLOW-UP VISIT CREATION (SEPARATE COLLECTION) ===");
+      console.log("Original Visit ID:", req.body.originalVisitId);
+      console.log("Follow-up reason:", req.body.followUpReason);
       console.log("User:", user.uid, user.displayName);
       console.log("Customer:", originalVisit.customer.name);
-      console.log("=====================================");
+      console.log("======================================================");
 
-      const newFollowUpVisit = await siteVisitService.createSiteVisit(followUpSiteVisit);
-      
-      // Update original visit to mark it has follow-ups and increment count
-      await siteVisitService.updateSiteVisit(followUpData.originalVisitId, {
-        hasFollowUps: true,
-        followUpCount: (originalVisit.followUpCount || 0) + 1,
-        updatedAt: new Date()
+      // Create follow-up in separate collection
+      const createdFollowUp = await followUpService.createFollowUp(followUpData);
+
+      res.status(201).json({ 
+        data: createdFollowUp,
+        message: "Follow-up visit created successfully"
       });
 
-      res.status(201).json({
-        message: "Follow-up visit created successfully",
-        siteVisit: newFollowUpVisit,
-        originalVisit: {
-          id: originalVisit.id,
-          customer: originalVisit.customer.name
-        }
-      });
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        console.error("Follow-up validation errors:", JSON.stringify(error.errors, null, 2));
-        return res.status(400).json({ 
-          message: "Validation error",
-          errors: error.errors 
+      console.error("FOLLOW_UP_CREATE: Error creating follow-up:", error);
+      res.status(500).json({ message: "Failed to create follow-up visit" });
+    }
+  });
+
+  // Get follow-up visit by ID
+  app.get("/api/follow-ups/:id", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      const hasPermission = user ? await checkSiteVisitPermission(user, 'view_own') : false;
+      
+      if (!user || !hasPermission) {
+        return res.status(403).json({ 
+          message: "Access denied. Site Visit access is limited to Technical, Marketing, and Admin departments." 
         });
       }
-      console.error("Error creating follow-up site visit:", error);
-      res.status(500).json({ message: "Failed to create follow-up site visit" });
+
+      const { followUpService } = await import("./services/follow-up-service");
+      const followUp = await followUpService.getFollowUpById(req.params.id);
+      
+      if (!followUp) {
+        return res.status(404).json({ message: "Follow-up visit not found" });
+      }
+
+      // Check if user can view this follow-up
+      const canView = followUp.userId === user.uid || 
+                     await checkSiteVisitPermission(user, 'view_all') ||
+                     user.role === 'master_admin';
+      
+      if (!canView) {
+        return res.status(403).json({ message: "Access denied. You can only view your own follow-ups." });
+      }
+
+      res.json({ data: followUp });
+    } catch (error) {
+      console.error("Error getting follow-up:", error);
+      res.status(500).json({ message: "Failed to get follow-up visit" });
+    }
+  });
+
+  // Get follow-ups for original visit
+  app.get("/api/follow-ups/original/:originalVisitId", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      const hasPermission = user ? await checkSiteVisitPermission(user, 'view_own') : false;
+      
+      if (!user || !hasPermission) {
+        return res.status(403).json({ 
+          message: "Access denied. Site Visit access is limited to Technical, Marketing, and Admin departments." 
+        });
+      }
+
+      const { followUpService } = await import("./services/follow-up-service");
+      const { siteVisitService } = await import("./services/site-visit-service");
+
+      // Verify user can view the original visit
+      const originalVisit = await siteVisitService.getSiteVisitById(req.params.originalVisitId);
+      if (!originalVisit) {
+        return res.status(404).json({ message: "Original site visit not found" });
+      }
+
+      const canView = originalVisit.userId === user.uid || 
+                     await checkSiteVisitPermission(user, 'view_all') ||
+                     user.role === 'master_admin';
+      
+      if (!canView) {
+        return res.status(403).json({ message: "Access denied." });
+      }
+
+      const followUps = await followUpService.getFollowUpsByOriginalVisit(req.params.originalVisitId);
+      res.json({ data: followUps });
+    } catch (error) {
+      console.error("Error getting follow-ups for original visit:", error);
+      res.status(500).json({ message: "Failed to get follow-ups" });
+    }
+  });
+
+  // Update follow-up (checkout)
+  app.patch("/api/follow-ups/:id/checkout", verifyAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.uid);
+      const hasPermission = user ? await checkSiteVisitPermission(user, 'edit') : false;
+      
+      if (!user || !hasPermission) {
+        return res.status(403).json({ 
+          message: "Access denied. Site Visit access is limited to Technical, Marketing, and Admin departments." 
+        });
+      }
+
+      const { followUpService } = await import("./services/follow-up-service");
+      const followUp = await followUpService.getFollowUpById(req.params.id);
+      
+      if (!followUp) {
+        return res.status(404).json({ message: "Follow-up visit not found" });
+      }
+
+      // Check if user can checkout this follow-up
+      const canCheckout = followUp.userId === user.uid || 
+                         await checkSiteVisitPermission(user, 'view_all') ||
+                         user.role === 'master_admin';
+      
+      if (!canCheckout) {
+        return res.status(403).json({ message: "Access denied. You can only checkout your own follow-ups." });
+      }
+
+      // Prepare checkout data
+      const checkoutData = {
+        siteOutTime: new Date(),
+        siteOutLocation: req.body.siteOutLocation,
+        siteOutPhotoUrl: req.body.siteOutPhotoUrl,
+        status: 'completed' as const,
+        notes: req.body.notes || followUp.notes,
+        updatedAt: new Date()
+      };
+
+      const updatedFollowUp = await followUpService.updateFollowUp(req.params.id, checkoutData);
+
+      console.log("=== FOLLOW-UP CHECKOUT COMPLETED ===");
+      console.log("Follow-up ID:", req.params.id);
+      console.log("User:", user.uid, user.displayName);
+      console.log("Customer:", followUp.customer.name);
+      console.log("====================================");
+
+      res.json({ 
+        data: updatedFollowUp,
+        message: "Follow-up checkout completed successfully"
+      });
+    } catch (error) {
+      console.error("Error checking out follow-up:", error);
+      res.status(500).json({ message: "Failed to checkout follow-up visit" });
     }
   });
 
