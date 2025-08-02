@@ -151,13 +151,18 @@ export class FollowUpService {
     try {
       const snapshot = await this.collection
         .where('originalVisitId', '==', originalVisitId)
-        .orderBy('createdAt', 'desc')
         .get();
 
-      return snapshot.docs.map(doc => ({
+      const docs = snapshot.docs.map(doc => ({
         id: doc.id,
         ...this.convertFirestoreToFollowUp(doc.data())
       }));
+
+      return docs.sort((a, b) => {
+        const aTime = new Date(a.createdAt).getTime();
+        const bTime = new Date(b.createdAt).getTime();
+        return bTime - aTime; // Most recent first
+      });
     } catch (error) {
       console.error('FOLLOW_UP_SERVICE: Error getting follow-ups for original visit:', error);
       return [];
@@ -173,24 +178,32 @@ export class FollowUpService {
     status?: string
   ): Promise<FollowUpSiteVisit[]> {
     try {
-      let query = this.collection.where('userId', '==', userId);
-
-      if (department) {
-        query = query.where('department', '==', department);
-      }
-
-      if (status) {
-        query = query.where('status', '==', status);
-      }
-
-      const snapshot = await query
-        .orderBy('createdAt', 'desc')
-        .get();
-
-      return snapshot.docs.map(doc => ({
+      console.log("FOLLOW_UP_SERVICE: Getting follow-ups for user:", userId);
+      
+      // Simple query to avoid index issues
+      const snapshot = await this.collection.where('userId', '==', userId).get();
+      
+      console.log("FOLLOW_UP_SERVICE: Found", snapshot.size, "documents");
+      
+      // Filter and map in memory
+      const docs = snapshot.docs.map(doc => ({
         id: doc.id,
         ...this.convertFirestoreToFollowUp(doc.data())
-      }));
+      })).filter(doc => {
+        // Apply additional filters in memory
+        if (department && doc.department !== department) return false;
+        if (status && doc.status !== status) return false;
+        return true;
+      });
+
+      console.log("FOLLOW_UP_SERVICE: After filtering:", docs.length, "documents");
+      console.log("FOLLOW_UP_SERVICE: Documents:", docs);
+
+      return docs.sort((a, b) => {
+        const aTime = new Date(a.createdAt).getTime();
+        const bTime = new Date(b.createdAt).getTime();
+        return bTime - aTime; // Most recent first
+      });
     } catch (error) {
       console.error('FOLLOW_UP_SERVICE: Error getting follow-ups by user:', error);
       return [];

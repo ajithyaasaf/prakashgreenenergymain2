@@ -276,12 +276,20 @@ export default function SiteVisitPage() {
   };
 
   // Combine site visits and follow-ups for display
-  const combineVisitsAndFollowUps = (visits: any[], followUps: any[]) => {
+  const combineVisitsAndFollowUps = (visits: any, followUps: any) => {
     const siteVisits = visits?.data || [];
     const followUpVisits = followUps?.data || [];
     
+    console.log("=== COMBINE VISITS DEBUG ===");
+    console.log("Site visits count:", siteVisits.length);
+    console.log("Follow-ups count:", followUpVisits.length);
+    console.log("Follow-ups data:", followUpVisits);
+    
     const convertedFollowUps = followUpVisits.map(convertFollowUpToSiteVisit);
     const combined = [...siteVisits, ...convertedFollowUps];
+    
+    console.log("Combined visits count:", combined.length);
+    console.log("Combined data:", combined);
     
     // Sort by creation time (most recent first)
     return combined.sort((a, b) => {
