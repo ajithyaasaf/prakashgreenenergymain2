@@ -18,7 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
   MapPin, Clock, User, Phone, Building, 
   RefreshCw, FileText, AlertCircle, CheckCircle,
-  Camera, Eye, ExternalLink
+  Camera, Eye, ExternalLink, Zap, Calendar, Settings
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -194,30 +194,7 @@ export function FollowUpDetailsModal({
             )}
           </div>
 
-          {/* Follow-up Information */}
-          <div>
-            <h3 className="font-semibold mb-3">Follow-up Details</h3>
-            <div className="space-y-3">
-              <div>
-                <p className="text-sm text-muted-foreground">Reason</p>
-                <p className="font-medium">
-                  {followUp.followUpReason ? (followUpReasons[followUp.followUpReason as keyof typeof followUpReasons] || followUp.followUpReason) : 'Not specified'}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Description</p>
-                <p className="font-medium">{followUp.description || 'No description provided'}</p>
-              </div>
-              {followUp.notes && (
-                <div>
-                  <p className="text-sm text-muted-foreground">Notes</p>
-                  <p className="font-medium">{followUp.notes}</p>
-                </div>
-              )}
-            </div>
-          </div>
 
-          <Separator />
 
           {/* Visit Timeline */}
           <div>
@@ -277,6 +254,108 @@ export function FollowUpDetailsModal({
               )}
             </div>
           </div>
+
+          {/* Department-Specific Information */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                {followUp.department === 'technical' && <Zap className="h-5 w-5" />}
+                {followUp.department === 'marketing' && <Building className="h-5 w-5" />}
+                {followUp.department === 'admin' && <FileText className="h-5 w-5" />}
+                {followUp.department.charAt(0).toUpperCase() + followUp.department.slice(1)} Follow-up
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Department</p>
+                  <Badge variant="outline" className="capitalize">
+                    {followUp.department}
+                  </Badge>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Visit Type</p>
+                  <Badge variant="secondary">
+                    Follow-up Visit
+                  </Badge>
+                </div>
+              </div>
+
+              {/* Department-Specific Context */}
+              {followUp.department === 'technical' && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-center gap-2 text-blue-700 mb-2">
+                    <Zap className="h-4 w-4" />
+                    <span className="font-medium">Technical Follow-up</span>
+                  </div>
+                  <p className="text-sm text-blue-600">
+                    This follow-up visit focuses on technical work completion, issue resolution, 
+                    or equipment maintenance and installation verification.
+                  </p>
+                </div>
+              )}
+
+              {followUp.department === 'marketing' && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="flex items-center gap-2 text-green-700 mb-2">
+                    <Building className="h-4 w-4" />
+                    <span className="font-medium">Marketing Follow-up</span>
+                  </div>
+                  <p className="text-sm text-green-600">
+                    This follow-up visit addresses customer requirements updates, project discussions, 
+                    or additional marketing support and consultations.
+                  </p>
+                </div>
+              )}
+
+              {followUp.department === 'admin' && (
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                  <div className="flex items-center gap-2 text-purple-700 mb-2">
+                    <FileText className="h-4 w-4" />
+                    <span className="font-medium">Administrative Follow-up</span>
+                  </div>
+                  <p className="text-sm text-purple-600">
+                    This follow-up visit handles documentation, paperwork completion, 
+                    regulatory processes, or administrative support requirements.
+                  </p>
+                </div>
+              )}
+
+              {/* Enhanced Follow-up Reason Display */}
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Follow-up Reason</p>
+                <div className="flex items-center gap-2">
+                  {followUp.followUpReason === 'maintenance' && <Settings className="h-4 w-4 text-orange-600" />}
+                  {followUp.followUpReason === 'additional_work_required' && <RefreshCw className="h-4 w-4 text-blue-600" />}
+                  {followUp.followUpReason === 'issue_resolution' && <AlertCircle className="h-4 w-4 text-red-600" />}
+                  {followUp.followUpReason === 'status_check' && <CheckCircle className="h-4 w-4 text-green-600" />}
+                  {followUp.followUpReason === 'customer_request' && <User className="h-4 w-4 text-purple-600" />}
+                  <Badge variant="outline" className="capitalize">
+                    {followUp.followUpReason ? (followUpReasons[followUp.followUpReason as keyof typeof followUpReasons] || followUp.followUpReason.replace('_', ' ')) : 'Not specified'}
+                  </Badge>
+                </div>
+              </div>
+
+              {/* Work Details */}
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Work Description</p>
+                <div className="bg-gray-50 border rounded-lg p-3">
+                  <p className="text-sm">
+                    {followUp.description || 'No detailed description provided for this follow-up visit.'}
+                  </p>
+                </div>
+              </div>
+
+              {followUp.notes && (
+                <div>
+                  <p className="text-sm text-muted-foreground mb-2">Additional Notes</p>
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                    <p className="text-sm text-yellow-800">{followUp.notes}</p>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Enhanced Site Photos - Check-in, Check-out, and Additional Photos */}
           {(followUp.siteInPhotoUrl || followUp.siteOutPhotoUrl || (followUp.sitePhotos && followUp.sitePhotos.length > 0)) && (
