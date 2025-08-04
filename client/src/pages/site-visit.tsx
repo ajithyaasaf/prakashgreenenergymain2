@@ -781,9 +781,9 @@ function UnifiedSiteVisitCard({ visitGroup, onView, onCheckout, onFollowUp, onDe
           
           {/* Create chronological list of ALL visits */}
           {(() => {
-            // Combine primary visit and follow-ups into chronological order
+            // Combine primary visit and follow-ups in reverse chronological order (latest first)
             const allVisits = [visitGroup.primaryVisit, ...visitGroup.followUps]
-              .sort((a, b) => new Date(a.siteInTime || a.createdAt).getTime() - new Date(b.siteInTime || b.createdAt).getTime());
+              .sort((a, b) => new Date(b.siteInTime || b.createdAt).getTime() - new Date(a.siteInTime || a.createdAt).getTime());
             
             return (
               <div className="space-y-3 max-h-80 overflow-y-auto">

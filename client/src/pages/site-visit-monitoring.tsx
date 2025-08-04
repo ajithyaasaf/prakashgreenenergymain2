@@ -15,7 +15,7 @@ import {
   MapPin, Search, Download, Eye, Calendar, Clock, Users, Building, 
   Camera, FileText, Filter, RefreshCw, TrendingUp, BarChart3,
   CheckCircle, XCircle, AlertTriangle, Navigation, Phone, Mail,
-  User, Zap, ChevronDown
+  User, Zap, ChevronDown, History, LogOut, Plus
 } from "lucide-react";
 import { format } from "date-fns";
 import { SiteVisitDetailsModal } from "@/components/site-visit/site-visit-details-modal";
@@ -209,54 +209,124 @@ const CustomerVisitGroupCard = ({
           </div>
         </div>
 
-        {/* Expanded view showing all visits */}
+        {/* Visit Timeline - All Visits with Individual Actions */}
         {isExpanded && group.totalVisits > 1 && (
           <div className="mt-4 pt-4 border-t space-y-3">
-            <h4 className="font-medium text-sm text-muted-foreground">All Visits ({group.totalVisits})</h4>
-            <div className="space-y-2">
-              {/* Primary Visit */}
-              <div className="bg-blue-50 p-3 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="default" className="text-xs">Latest</Badge>
-                    <span className="text-sm font-medium">{group.primaryVisit.visitPurpose}</span>
-                  </div>
-                  <span className="text-xs text-muted-foreground">
-                    {format(new Date(group.primaryVisit.createdAt || group.primaryVisit.siteInTime), 'MMM dd, HH:mm')}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge className="text-xs">{group.primaryVisit.status}</Badge>
-                  <Badge variant="outline" className="text-xs">{group.primaryVisit.department}</Badge>
-                </div>
-              </div>
-              
-              {/* Follow-up Visits */}
-              {group.followUps.map((visit, index) => (
-                <div key={visit.id} className="bg-gray-50 p-3 rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary" className="text-xs">
-                        #{group.followUps.length - index}
-                      </Badge>
-                      <span className="text-sm font-medium">{visit.visitPurpose}</span>
-                    </div>
-                    <span className="text-xs text-muted-foreground">
-                      {format(new Date(visit.createdAt || visit.siteInTime), 'MMM dd, HH:mm')}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge className="text-xs">{visit.status}</Badge>
-                    <Badge variant="outline" className="text-xs">{visit.department}</Badge>
-                    {visit.isFollowUp && (
-                      <Badge variant="secondary" className="text-xs bg-purple-100 text-purple-700">
-                        Follow-up
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              ))}
+            <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+              <History className="h-4 w-4" />
+              <span>Visit Timeline ({group.totalVisits} visits)</span>
             </div>
+            
+            {/* Create chronological list of ALL visits - Latest First */}
+            {(() => {
+              const allVisits = [group.primaryVisit, ...group.followUps]
+                .sort((a, b) => new Date(b.siteInTime || b.createdAt).getTime() - new Date(a.siteInTime || a.createdAt).getTime());
+              
+              return (
+                <div className="space-y-3 max-h-80 overflow-y-auto">
+                  {allVisits.map((visit, index) => {
+                    const isOriginal = !visit.isFollowUp;
+                    const visitNumber = index + 1;
+                    const isLatest = index === 0; // Latest is first in sorted array
+                    
+                    return (
+                      <div key={visit.id} className={`border rounded-lg p-3 transition-all hover:shadow-sm ${
+                        isLatest ? 'bg-blue-50 border-blue-200' : 'bg-gray-50'
+                      }`}>
+                        {/* Visit Header */}
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Badge variant="outline" className="text-xs font-medium">
+                              {isOriginal ? `Original Visit` : `Follow-up #${allVisits.length - visitNumber}`}
+                            </Badge>
+                            <Badge className="text-xs bg-purple-100 text-purple-800">
+                              {visit.department}
+                            </Badge>
+                            <Badge className={`text-xs ${
+                              visit.status === 'completed' ? 'bg-green-100 text-green-800' :
+                              visit.status === 'in_progress' ? 'bg-orange-100 text-orange-800' : 
+                              'bg-red-100 text-red-800'
+                            }`}>
+                              {visit.status.replace('_', ' ')}
+                            </Badge>
+                            {isLatest && (
+                              <Badge className="bg-yellow-100 text-yellow-800 text-xs">
+                                Latest
+                              </Badge>
+                            )}
+                          </div>
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">
+                            {format(new Date(visit.siteInTime || visit.createdAt), 'MMM dd, HH:mm')}
+                          </span>
+                        </div>
+                        
+                        {/* Visit Details */}
+                        <div className="text-sm space-y-1 mb-3">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">Purpose:</span> 
+                            <span>{visit.visitPurpose}</span>
+                          </div>
+                          
+                          {visit.followUpReason && (
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">Reason:</span> 
+                              <span className="capitalize">{visit.followUpReason.replace(/_/g, ' ')}</span>
+                            </div>
+                          )}
+                          
+                          {visit.notes && (
+                            <div className="flex items-start gap-2">
+                              <span className="font-medium">Notes:</span> 
+                              <span className="text-muted-foreground text-xs">{visit.notes.substring(0, 100)}{visit.notes.length > 100 ? '...' : ''}</span>
+                            </div>
+                          )}
+                          
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">Employee:</span> 
+                            <span className="text-muted-foreground text-xs">{visit.userName}</span>
+                          </div>
+                          
+                          {/* Timing Info */}
+                          <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                            <span>Check-in: {format(new Date(visit.siteInTime || visit.createdAt), 'MMM dd, HH:mm')}</span>
+                            {visit.siteOutTime && (
+                              <span>Check-out: {format(new Date(visit.siteOutTime), 'MMM dd, HH:mm')}</span>
+                            )}
+                          </div>
+                        </div>
+                        
+                        {/* Individual Visit Actions */}
+                        <div className="flex items-center gap-2 pt-2 border-t border-gray-200">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => onViewDetails(visit)}
+                            className="text-xs h-7 px-3"
+                          >
+                            <Eye className="h-3 w-3 mr-1" />
+                            View Details
+                          </Button>
+                          
+                          {visit.siteInLocation && (
+                            <Badge variant="secondary" className="flex items-center gap-1 text-xs">
+                              <Navigation className="h-2 w-2" />
+                              Located
+                            </Badge>
+                          )}
+                          
+                          {visit.sitePhotos?.length > 0 && (
+                            <Badge variant="outline" className="flex items-center gap-1 text-xs">
+                              <Camera className="h-2 w-2" />
+                              {visit.sitePhotos.length} Photos
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </div>
         )}
       </CardContent>
