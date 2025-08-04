@@ -14,9 +14,11 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
   MapPin, Clock, User, Phone, Building, 
-  RefreshCw, FileText, AlertCircle, CheckCircle
+  RefreshCw, FileText, AlertCircle, CheckCircle,
+  Camera, Eye, ExternalLink
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -276,50 +278,169 @@ export function FollowUpDetailsModal({
             </div>
           </div>
 
-          {/* Photos */}
-          {(followUp.siteInPhotoUrl || followUp.siteOutPhotoUrl) && (
-            <div>
-              <h3 className="font-semibold mb-3">Photos</h3>
-              <div className="grid grid-cols-2 gap-4">
+          {/* Enhanced Site Photos - Check-in, Check-out, and Additional Photos */}
+          {(followUp.siteInPhotoUrl || followUp.siteOutPhotoUrl || (followUp.sitePhotos && followUp.sitePhotos.length > 0)) && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Camera className="h-5 w-5" />
+                  Follow-up Photos ({(followUp.siteInPhotoUrl ? 1 : 0) + (followUp.siteOutPhotoUrl ? 1 : 0) + (followUp.sitePhotos?.length || 0)})
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                
+                {/* Check-in Photo */}
                 {followUp.siteInPhotoUrl && (
                   <div>
-                    <p className="text-sm text-muted-foreground mb-2">Check-in Photo</p>
-                    <img 
-                      src={followUp.siteInPhotoUrl} 
-                      alt="Check-in photo"
-                      className="w-full h-40 object-cover rounded-lg border"
-                    />
+                    <h4 className="font-medium text-sm text-green-700 mb-2 flex items-center gap-2">
+                      <Camera className="h-4 w-4" />
+                      Check-in Photo
+                    </h4>
+                    <div className="relative group">
+                      <img
+                        src={followUp.siteInPhotoUrl}
+                        alt="Follow-up check-in photo"
+                        className="w-full max-w-md h-48 object-cover rounded-lg border transition-transform hover:scale-105 cursor-pointer"
+                        onClick={() => window.open(followUp.siteInPhotoUrl, '_blank')}
+                      />
+                      <Badge className="absolute top-2 right-2 text-xs bg-green-600 text-white">
+                        Check-in
+                      </Badge>
+                      
+                      {/* Eye icon overlay for viewing */}
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-lg flex items-center justify-center">
+                        <Eye className="h-8 w-8 text-white" />
+                      </div>
+                    </div>
                   </div>
                 )}
+
+                {/* Check-out Photo */}
                 {followUp.siteOutPhotoUrl && (
                   <div>
-                    <p className="text-sm text-muted-foreground mb-2">Check-out Photo</p>
-                    <img 
-                      src={followUp.siteOutPhotoUrl} 
-                      alt="Check-out photo"
-                      className="w-full h-40 object-cover rounded-lg border"
-                    />
+                    <h4 className="font-medium text-sm text-red-700 mb-2 flex items-center gap-2">
+                      <Camera className="h-4 w-4" />
+                      Check-out Photo
+                    </h4>
+                    <div className="relative group">
+                      <img
+                        src={followUp.siteOutPhotoUrl}
+                        alt="Follow-up check-out photo"
+                        className="w-full max-w-md h-48 object-cover rounded-lg border transition-transform hover:scale-105 cursor-pointer"
+                        onClick={() => window.open(followUp.siteOutPhotoUrl, '_blank')}
+                      />
+                      <Badge className="absolute top-2 right-2 text-xs bg-red-600 text-white">
+                        Check-out
+                      </Badge>
+                      
+                      {/* Eye icon overlay for viewing */}
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-lg flex items-center justify-center">
+                        <Eye className="h-8 w-8 text-white" />
+                      </div>
+                    </div>
                   </div>
                 )}
-              </div>
-            </div>
-          )}
 
-          {/* Site Photos */}
-          {followUp.sitePhotos && followUp.sitePhotos.length > 0 && (
-            <div>
-              <h3 className="font-semibold mb-3">Site Documentation Photos</h3>
-              <div className="grid grid-cols-3 gap-3">
-                {followUp.sitePhotos.map((photoUrl: string, index: number) => (
-                  <img 
-                    key={index}
-                    src={photoUrl} 
-                    alt={`Site photo ${index + 1}`}
-                    className="w-full h-32 object-cover rounded-lg border"
-                  />
-                ))}
-              </div>
-            </div>
+                {/* Site Photos Gallery - Enhanced for Multiple Photos */}
+                {followUp.sitePhotos && followUp.sitePhotos.length > 0 && (
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="font-medium text-sm text-blue-700 flex items-center gap-2">
+                        <Camera className="h-4 w-4" />
+                        Site Photos ({followUp.sitePhotos.length}/20)
+                      </h4>
+                      {followUp.sitePhotos.length > 6 && (
+                        <Badge variant="outline" className="text-xs">
+                          {followUp.sitePhotos.length > 12 ? 'Comprehensive Documentation' : 'Good Coverage'}
+                        </Badge>
+                      )}
+                    </div>
+                    
+                    {/* Enhanced Grid Layout for Multiple Photos */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                      {followUp.sitePhotos.map((photo: any, index: number) => {
+                        // Handle both string URLs and photo objects
+                        const photoUrl = typeof photo === 'string' ? photo : photo.url;
+                        const photoDescription = typeof photo === 'object' ? photo.description : null;
+                        const photoTimestamp = typeof photo === 'object' ? photo.timestamp : null;
+                        
+                        return (
+                          <div key={index} className="space-y-2">
+                            <div className="relative group">
+                              <img
+                                src={photoUrl}
+                                alt={`Follow-up site photo ${index + 1}`}
+                                className="w-full h-32 sm:h-36 object-cover rounded-lg transition-all duration-200 hover:scale-105 cursor-pointer border-2 border-transparent hover:border-blue-300"
+                                onClick={() => window.open(photoUrl, '_blank')}
+                              />
+                              <Badge className="absolute top-1 right-1 text-xs bg-blue-600/90 text-white px-1.5 py-0.5">
+                                {index + 1}
+                              </Badge>
+                              
+                              {/* Eye icon overlay */}
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-lg flex items-center justify-center">
+                                <Eye className="h-6 w-6 text-white" />
+                              </div>
+                            </div>
+                            
+                            {/* Description (only for first few photos to avoid clutter) */}
+                            {photoDescription && index < 3 && (
+                              <p className="text-xs text-muted-foreground bg-gray-50 p-1.5 rounded truncate" title={photoDescription}>
+                                {photoDescription}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    
+                    {/* Photo Summary Info */}
+                    {followUp.sitePhotos.length > 0 && (
+                      <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                        <div className="flex items-center justify-between text-sm">
+                          <div className="flex items-center gap-4">
+                            <span className="text-blue-700 font-medium">
+                              📸 {followUp.sitePhotos.length} Photos Captured
+                            </span>
+                            {followUp.sitePhotos[0] && typeof followUp.sitePhotos[0] === 'object' && followUp.sitePhotos[0].timestamp && (
+                              <span className="text-blue-600 text-xs">
+                                First: {format(new Date(followUp.sitePhotos[0].timestamp), 'HH:mm')}
+                              </span>
+                            )}
+                            {followUp.sitePhotos.length > 1 && followUp.sitePhotos[followUp.sitePhotos.length - 1] && 
+                             typeof followUp.sitePhotos[followUp.sitePhotos.length - 1] === 'object' && 
+                             followUp.sitePhotos[followUp.sitePhotos.length - 1].timestamp && (
+                              <span className="text-blue-600 text-xs">
+                                Last: {format(new Date(followUp.sitePhotos[followUp.sitePhotos.length - 1].timestamp), 'HH:mm')}
+                              </span>
+                            )}
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-xs text-blue-700 border-blue-300 hover:bg-blue-100"
+                            onClick={() => {
+                              // Open all photos in separate tabs (limited to first 10 to avoid overwhelming)
+                              const photosToOpen = followUp.sitePhotos.slice(0, 10);
+                              photosToOpen.forEach((photo: any) => {
+                                const photoUrl = typeof photo === 'string' ? photo : photo.url;
+                                window.open(photoUrl, '_blank');
+                              });
+                              if (followUp.sitePhotos.length > 10) {
+                                alert(`Opened first 10 photos. ${followUp.sitePhotos.length - 10} more available - click individual photos to view.`);
+                              }
+                            }}
+                          >
+                            <ExternalLink className="h-3 w-3 mr-1" />
+                            View All
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           )}
 
           {/* Action Buttons */}
