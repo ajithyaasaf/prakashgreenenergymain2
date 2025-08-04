@@ -551,11 +551,19 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
 
       console.log("=== FRONTEND CHECKOUT REQUEST ===");
       console.log("Site Visit ID:", siteVisit.id);
+      console.log("Is Follow-up:", !!siteVisit.isFollowUp);
       console.log("Checkout payload:", JSON.stringify(checkoutPayload, null, 2));
       console.log("================================");
       
+      // Use different endpoints for regular site visits vs follow-ups
+      const endpoint = siteVisit.isFollowUp 
+        ? `/api/follow-ups/${siteVisit.id}/checkout`
+        : `/api/site-visits/${siteVisit.id}`;
+      
+      console.log("Using endpoint:", endpoint);
+      
       const response = await apiRequest(
-        `/api/site-visits/${siteVisit.id}`,
+        endpoint,
         'PATCH',
         checkoutPayload
       );
@@ -573,7 +581,9 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
         description: "Site visit has been successfully completed.",
         variant: "default",
       });
+      // Invalidate both site visits and follow-ups queries
       queryClient.invalidateQueries({ queryKey: ['/api/site-visits'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/follow-ups'] });
       onClose();
     },
     onError: (error: any) => {

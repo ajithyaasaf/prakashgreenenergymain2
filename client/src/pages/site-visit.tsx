@@ -356,20 +356,31 @@ export default function SiteVisitPage() {
 
   const handleFollowUpCheckout = async (followUpId: string) => {
     try {
-      // For now, just invalidate queries and show success
-      // In a real implementation, you'd want to capture location and photo first
-      followUpCheckoutMutation.mutate({
-        followUpId,
-        checkoutData: {
-          siteOutLocation: null, // Would come from location capture
-          siteOutPhotoUrl: null, // Would come from photo capture
-          notes: "Follow-up completed"
-        }
-      });
+      // Fetch the follow-up data to get full details for checkout modal
+      const response = await apiRequest(`/api/follow-ups/${followUpId}`, 'GET');
+      const followUpData = await response.json();
+      const followUp = followUpData.data;
+      
+      if (followUp) {
+        // Set the isFollowUp flag and open the checkout modal with proper location/photo capture
+        const followUpForCheckout = {
+          ...followUp,
+          isFollowUp: true // Ensure this flag is set
+        };
+        
+        setSelectedSiteVisit(followUpForCheckout);
+        setIsCheckoutModalOpen(true);
+      } else {
+        toast({
+          title: "Error",
+          description: "Follow-up visit not found",
+          variant: "destructive",
+        });
+      }
     } catch (error: any) {
       toast({
         title: "Error", 
-        description: error.message || "Failed to checkout follow-up visit",
+        description: error.message || "Failed to load follow-up visit for checkout",
         variant: "destructive",
       });
     }
