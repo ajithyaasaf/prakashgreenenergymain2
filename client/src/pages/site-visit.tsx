@@ -26,7 +26,8 @@ import {
   Edit,
   Trash2,
   LogOut,
-  RefreshCw
+  RefreshCw,
+  History
 } from "lucide-react";
 import { SiteVisitStartModal } from "@/components/site-visit/site-visit-start-modal";
 import { SiteVisitDetailsModal } from "@/components/site-visit/site-visit-details-modal";
@@ -771,86 +772,129 @@ function UnifiedSiteVisitCard({ visitGroup, onView, onCheckout, onFollowUp, onDe
           </div>
         </div>
 
-        {/* Follow-ups Section */}
-        {visitGroup.followUps.length > 0 && (
-          <div className="space-y-2">
-            <Button
-              variant="ghost" 
-              size="sm" 
-              onClick={() => setIsExpanded(!isExpanded)}
-              className="w-full justify-between text-sm h-8"
-            >
-              <span>Follow-up History ({visitGroup.followUps.length})</span>
-              <RefreshCw className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-            </Button>
+        {/* Visit Timeline - All Visits Chronologically */}
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+            <History className="h-4 w-4" />
+            <span>Visit Timeline ({visitGroup.totalVisits} visits)</span>
+          </div>
+          
+          {/* Create chronological list of ALL visits */}
+          {(() => {
+            // Combine primary visit and follow-ups into chronological order
+            const allVisits = [visitGroup.primaryVisit, ...visitGroup.followUps]
+              .sort((a, b) => new Date(a.siteInTime || a.createdAt).getTime() - new Date(b.siteInTime || b.createdAt).getTime());
             
-            {isExpanded && (
-              <div className="space-y-2 pl-4 border-l-2 border-blue-200">
-                {visitGroup.followUps.map((followUp, index) => (
-                  <div key={followUp.id} className="border rounded-lg p-3 bg-blue-50">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <Badge className={getDepartmentColor(followUp.department)}>
-                          {followUp.department}
-                        </Badge>
-                        <Badge variant="outline" className="text-xs">
-                          Follow-up #{visitGroup.followUps.length - index}
-                        </Badge>
-                        <Badge className={getStatusColor(followUp.status)}>
-                          {followUp.status.replace('_', ' ')}
-                        </Badge>
+            return (
+              <div className="space-y-3 max-h-80 overflow-y-auto">
+                {allVisits.map((visit, index) => {
+                  const isOriginal = !visit.isFollowUp;
+                  const visitNumber = index + 1;
+                  const isLatest = index === allVisits.length - 1;
+                  
+                  return (
+                    <div key={visit.id} className={`border rounded-lg p-3 transition-all hover:shadow-sm ${
+                      isLatest ? 'bg-blue-50 border-blue-200' : 'bg-gray-50'
+                    }`}>
+                      {/* Visit Header */}
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Badge variant="outline" className="text-xs font-medium">
+                            {isOriginal ? `Original Visit` : `Follow-up #${visitNumber - 1}`}
+                          </Badge>
+                          <Badge className={getDepartmentColor(visit.department)}>
+                            {visit.department}
+                          </Badge>
+                          <Badge className={getStatusColor(visit.status)}>
+                            {visit.status.replace('_', ' ')}
+                          </Badge>
+                          {isLatest && (
+                            <Badge className="bg-yellow-100 text-yellow-800 text-xs">
+                              Latest
+                            </Badge>
+                          )}
+                        </div>
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">
+                          {formatTime(visit.siteInTime || visit.createdAt)}
+                        </span>
                       </div>
-                      <span className="text-xs text-muted-foreground">
-                        {formatTime(followUp.siteInTime)}
-                      </span>
-                    </div>
-                    
-                    <div className="text-sm space-y-1">
-                      {followUp.followUpReason && (
-                        <div><strong>Reason:</strong> {followUp.followUpReason.replace(/_/g, ' ')}</div>
-                      )}
-                      <div><strong>Purpose:</strong> {followUp.visitPurpose}</div>
-                      {followUp.notes && (
-                        <div><strong>Notes:</strong> {followUp.notes}</div>
-                      )}
-                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                        <span>Check-in: {formatTime(followUp.siteInTime)}</span>
-                        {followUp.siteOutTime && (
-                          <span>Check-out: {formatTime(followUp.siteOutTime)}</span>
+                      
+                      {/* Visit Details */}
+                      <div className="text-sm space-y-1 mb-3">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">Purpose:</span> 
+                          <span>{visit.visitPurpose}</span>
+                        </div>
+                        
+                        {visit.followUpReason && (
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">Reason:</span> 
+                            <span className="capitalize">{visit.followUpReason.replace(/_/g, ' ')}</span>
+                          </div>
+                        )}
+                        
+                        {visit.notes && (
+                          <div className="flex items-start gap-2">
+                            <span className="font-medium">Notes:</span> 
+                            <span className="text-muted-foreground text-xs">{visit.notes.substring(0, 100)}{visit.notes.length > 100 ? '...' : ''}</span>
+                          </div>
+                        )}
+                        
+                        {/* Timing Info */}
+                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                          <span>Check-in: {formatTime(visit.siteInTime || visit.createdAt)}</span>
+                          {visit.siteOutTime && (
+                            <span>Check-out: {formatTime(visit.siteOutTime)}</span>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Individual Visit Actions */}
+                      <div className="flex items-center gap-2 pt-2 border-t border-gray-200">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => onView(visit)}
+                          className="text-xs h-7 px-3"
+                        >
+                          <Eye className="h-3 w-3 mr-1" />
+                          View Details
+                        </Button>
+                        
+                        {visit.status === 'in_progress' && onCheckout && (
+                          <Button
+                            size="sm"
+                            onClick={() => onCheckout(visit)}
+                            className="text-xs h-7 px-3 bg-blue-600 hover:bg-blue-700"
+                          >
+                            <LogOut className="h-3 w-3 mr-1" />
+                            Check-out
+                          </Button>
+                        )}
+                        
+                        {visit.status === 'completed' && onFollowUp && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => onFollowUp(visit)}
+                            className="text-xs h-7 px-3"
+                          >
+                            <RefreshCw className="h-3 w-3 mr-1" />
+                            Create Follow-up
+                          </Button>
                         )}
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
-            )}
-          </div>
-        )}
+            );
+          })()}
+        </div>
 
-        {/* Action Buttons */}
+        {/* Quick Actions for Overall Customer */}
         {showActions && (
           <div className="flex flex-col sm:flex-row gap-2 sm:justify-end pt-2 border-t">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onView(visitGroup.primaryVisit)}
-              className="w-full sm:w-auto text-xs sm:text-sm"
-            >
-              <Eye className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-              View Details
-            </Button>
-            
-            {currentActiveVisit && onCheckout && (
-              <Button
-                size="sm"
-                onClick={() => onCheckout(currentActiveVisit)}
-                className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-xs sm:text-sm"
-              >
-                <LogOut className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-                Check-out
-              </Button>
-            )}
-            
             {onFollowUp && visitGroup.latestStatus !== 'cancelled' && (
               <Button
                 variant="outline"
@@ -858,8 +902,8 @@ function UnifiedSiteVisitCard({ visitGroup, onView, onCheckout, onFollowUp, onDe
                 onClick={() => onFollowUp(visitGroup.primaryVisit)}
                 className="w-full sm:w-auto text-xs sm:text-sm"
               >
-                <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-                Follow-up
+                <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                Start New Follow-up
               </Button>
             )}
           </div>
