@@ -430,6 +430,7 @@ export function FollowUpModal({ isOpen, onClose, originalVisit }: FollowUpModalP
 
   const createFollowUpMutation = useMutation({
     mutationFn: async (data: any) => {
+      console.log("FOLLOW_UP_CREATE: Starting follow-up creation process...");
       const uploadedPhotos: { selfie?: string; sitePhotos: string[] } = { sitePhotos: [] };
       
       try {
@@ -453,7 +454,8 @@ export function FollowUpModal({ isOpen, onClose, originalVisit }: FollowUpModalP
         }
 
         // Upload site photos if captured
-        for (const [index, sitePhoto] of capturedPhotos.sitePhotos.entries()) {
+        for (let index = 0; index < capturedPhotos.sitePhotos.length; index++) {
+          const sitePhoto = capturedPhotos.sitePhotos[index];
           const formData = new FormData();
           const blob = await fetch(sitePhoto).then(r => r.blob());
           formData.append('file', blob, `follow-up-site-${index + 1}.jpg`);
@@ -475,14 +477,18 @@ export function FollowUpModal({ isOpen, onClose, originalVisit }: FollowUpModalP
         // Continue without photos rather than failing completely
       }
 
-      return apiRequest('/api/site-visits/follow-up', 'POST', {
+      const followUpPayload = {
         originalVisitId: originalVisit!.id,
         siteInLocation: locationStatus.location,
         siteInPhotoUrl: uploadedPhotos.selfie, // Keep backward compatibility
         sitePhotos: uploadedPhotos.sitePhotos,
         followUpReason,
         description
-      });
+      };
+      
+      console.log("FOLLOW_UP_CREATE: Sending payload to server:", followUpPayload);
+      
+      return apiRequest('/api/site-visits/follow-up', 'POST', followUpPayload);
     },
     onSuccess: () => {
       toast({

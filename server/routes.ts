@@ -5663,10 +5663,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { siteVisitService } = await import("./services/site-visit-service");
 
       // Get original visit to copy customer data and verify ownership
+      console.log("FOLLOW_UP_CREATE: Looking for original visit:", req.body.originalVisitId);
       const originalVisit = await siteVisitService.getSiteVisitById(req.body.originalVisitId);
       if (!originalVisit) {
+        console.log("FOLLOW_UP_CREATE: Original site visit not found:", req.body.originalVisitId);
         return res.status(404).json({ message: "Original site visit not found" });
       }
+      console.log("FOLLOW_UP_CREATE: Found original visit:", originalVisit.id, "for customer:", originalVisit.customer.name);
 
       // Verify user can create follow-up for this visit (own visit or has permission)
       const canCreateFollowUp = originalVisit.userId === user.uid || 
