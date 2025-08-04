@@ -455,7 +455,7 @@ export function FollowUpModal({ isOpen, onClose, originalVisit }: FollowUpModalP
             if (currentUser) {
               const token = await currentUser.getIdToken(true);
               
-              const uploadResponse = await fetch('/api/upload-image', {
+              const uploadResponse = await fetch('/api/attendance/upload-photo', {
                 method: 'POST',
                 headers: {
                   'Authorization': `Bearer ${token}`,
@@ -463,15 +463,15 @@ export function FollowUpModal({ isOpen, onClose, originalVisit }: FollowUpModalP
                 },
                 body: JSON.stringify({
                   imageData: capturedPhotos.selfie,
-                  type: 'follow_up_selfie',
-                  folder: 'site_visits/follow_ups'
+                  userId: currentUser.uid,
+                  attendanceType: 'follow_up_selfie'
                 }),
               });
 
               if (uploadResponse.ok) {
                 const result = await uploadResponse.json();
-                uploadedPhotos.selfie = result.imageUrl;
-                console.log("FOLLOW_UP_CREATE: Selfie uploaded successfully:", result.imageUrl);
+                uploadedPhotos.selfie = result.url;
+                console.log("FOLLOW_UP_CREATE: Selfie uploaded successfully:", result.url);
               } else {
                 console.error("FOLLOW_UP_CREATE: Selfie upload failed:", uploadResponse.status, uploadResponse.statusText);
               }
@@ -498,7 +498,7 @@ export function FollowUpModal({ isOpen, onClose, originalVisit }: FollowUpModalP
             if (currentUser) {
               const token = await currentUser.getIdToken(true);
               
-              const uploadResponse = await fetch('/api/upload-image', {
+              const uploadResponse = await fetch('/api/attendance/upload-photo', {
                 method: 'POST',
                 headers: {
                   'Authorization': `Bearer ${token}`,
@@ -506,15 +506,15 @@ export function FollowUpModal({ isOpen, onClose, originalVisit }: FollowUpModalP
                 },
                 body: JSON.stringify({
                   imageData: sitePhoto,
-                  type: `follow_up_site_${index + 1}`,
-                  folder: 'site_visits/follow_ups'
+                  userId: currentUser.uid,
+                  attendanceType: `follow_up_site_${index + 1}`
                 }),
               });
 
               if (uploadResponse.ok) {
                 const result = await uploadResponse.json();
-                uploadedPhotos.sitePhotos.push(result.imageUrl);
-                console.log(`FOLLOW_UP_CREATE: Site photo ${index + 1} uploaded successfully:`, result.imageUrl);
+                uploadedPhotos.sitePhotos.push(result.url);
+                console.log(`FOLLOW_UP_CREATE: Site photo ${index + 1} uploaded successfully:`, result.url);
               } else {
                 console.error(`FOLLOW_UP_CREATE: Site photo ${index + 1} upload failed:`, uploadResponse.status, uploadResponse.statusText);
               }
