@@ -357,9 +357,11 @@ export function FollowUpModal({ isOpen, onClose, originalVisit }: FollowUpModalP
 
     // Store the photo based on current type
     if (currentPhotoType === 'selfie') {
+      console.log("FOLLOW_UP_CREATE: Storing selfie photo, length:", photoDataUrl.length);
       setCapturedPhotos(prev => ({ ...prev, selfie: photoDataUrl }));
       setCurrentPhotoType('site'); // Switch to site photo after selfie
     } else {
+      console.log("FOLLOW_UP_CREATE: Storing site photo, length:", photoDataUrl.length);
       setCapturedPhotos(prev => ({ 
         ...prev, 
         sitePhotos: [...prev.sitePhotos, photoDataUrl] 
@@ -440,54 +442,85 @@ export function FollowUpModal({ isOpen, onClose, originalVisit }: FollowUpModalP
           sitePhotosCount: capturedPhotos.sitePhotos.length
         });
         
-        // Upload selfie if captured
+        // Upload selfie if captured (using server-side upload)
         if (capturedPhotos.selfie) {
-          console.log("FOLLOW_UP_CREATE: Uploading selfie...");
-          const formData = new FormData();
-          const blob = await fetch(capturedPhotos.selfie).then(r => r.blob());
-          formData.append('file', blob, 'follow-up-selfie.jpg');
-          formData.append('upload_preset', 'attendance_photos');
-          formData.append('folder', 'site_visits/follow_ups');
+          console.log("FOLLOW_UP_CREATE: Uploading selfie via server...");
+          
+          try {
+            // Get fresh token from Firebase Auth
+            const { getAuth } = await import('firebase/auth');
+            const auth = getAuth();
+            const currentUser = auth.currentUser;
+            
+            if (currentUser) {
+              const token = await currentUser.getIdToken(true);
+              
+              const uploadResponse = await fetch('/api/upload-image', {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  imageData: capturedPhotos.selfie,
+                  type: 'follow_up_selfie',
+                  folder: 'site_visits/follow_ups'
+                }),
+              });
 
-          const response = await fetch('https://api.cloudinary.com/v1_1/dpmcthtrb/image/upload', {
-            method: 'POST',
-            body: formData,
-          });
-
-          if (response.ok) {
-            const result = await response.json();
-            uploadedPhotos.selfie = result.secure_url;
-            console.log("FOLLOW_UP_CREATE: Selfie uploaded successfully:", result.secure_url);
-          } else {
-            console.error("FOLLOW_UP_CREATE: Selfie upload failed:", response.status, response.statusText);
+              if (uploadResponse.ok) {
+                const result = await uploadResponse.json();
+                uploadedPhotos.selfie = result.imageUrl;
+                console.log("FOLLOW_UP_CREATE: Selfie uploaded successfully:", result.imageUrl);
+              } else {
+                console.error("FOLLOW_UP_CREATE: Selfie upload failed:", uploadResponse.status, uploadResponse.statusText);
+              }
+            }
+          } catch (error) {
+            console.error("FOLLOW_UP_CREATE: Selfie upload error:", error);
           }
         } else {
           console.log("FOLLOW_UP_CREATE: No selfie to upload");
         }
 
-        // Upload site photos if captured
+        // Upload site photos if captured (using server-side upload)
         console.log("FOLLOW_UP_CREATE: Starting site photos upload...");
         for (let index = 0; index < capturedPhotos.sitePhotos.length; index++) {
           const sitePhoto = capturedPhotos.sitePhotos[index];
           console.log(`FOLLOW_UP_CREATE: Uploading site photo ${index + 1}/${capturedPhotos.sitePhotos.length}`);
           
-          const formData = new FormData();
-          const blob = await fetch(sitePhoto).then(r => r.blob());
-          formData.append('file', blob, `follow-up-site-${index + 1}.jpg`);
-          formData.append('upload_preset', 'attendance_photos');
-          formData.append('folder', 'site_visits/follow_ups');
+          try {
+            // Get fresh token from Firebase Auth
+            const { getAuth } = await import('firebase/auth');
+            const auth = getAuth();
+            const currentUser = auth.currentUser;
+            
+            if (currentUser) {
+              const token = await currentUser.getIdToken(true);
+              
+              const uploadResponse = await fetch('/api/upload-image', {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  imageData: sitePhoto,
+                  type: `follow_up_site_${index + 1}`,
+                  folder: 'site_visits/follow_ups'
+                }),
+              });
 
-          const response = await fetch('https://api.cloudinary.com/v1_1/dpmcthtrb/image/upload', {
-            method: 'POST',
-            body: formData,
-          });
-
-          if (response.ok) {
-            const result = await response.json();
-            uploadedPhotos.sitePhotos.push(result.secure_url);
-            console.log(`FOLLOW_UP_CREATE: Site photo ${index + 1} uploaded successfully:`, result.secure_url);
-          } else {
-            console.error(`FOLLOW_UP_CREATE: Site photo ${index + 1} upload failed:`, response.status, response.statusText);
+              if (uploadResponse.ok) {
+                const result = await uploadResponse.json();
+                uploadedPhotos.sitePhotos.push(result.imageUrl);
+                console.log(`FOLLOW_UP_CREATE: Site photo ${index + 1} uploaded successfully:`, result.imageUrl);
+              } else {
+                console.error(`FOLLOW_UP_CREATE: Site photo ${index + 1} upload failed:`, uploadResponse.status, uploadResponse.statusText);
+              }
+            }
+          } catch (error) {
+            console.error(`FOLLOW_UP_CREATE: Site photo ${index + 1} upload error:`, error);
           }
         }
         
@@ -578,6 +611,15 @@ export function FollowUpModal({ isOpen, onClose, originalVisit }: FollowUpModalP
       });
       return;
     }
+
+    // Log pre-submission state
+    console.log("FOLLOW_UP_CREATE: Pre-submission validation passed");
+    console.log("FOLLOW_UP_CREATE: Current captured photos state:", {
+      hasSelfie: !!capturedPhotos.selfie,
+      selfieLength: capturedPhotos.selfie?.length,
+      sitePhotosCount: capturedPhotos.sitePhotos.length,
+      sitePhotosLengths: capturedPhotos.sitePhotos.map(p => p.length)
+    });
 
     setIsSubmitting(true);
     try {
