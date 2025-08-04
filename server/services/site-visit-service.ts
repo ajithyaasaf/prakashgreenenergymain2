@@ -96,6 +96,14 @@ export class SiteVisitService {
         }));
       }
 
+      // Handle checkout site photos (siteOutPhotos)
+      if (updates.siteOutPhotos) {
+        firestoreUpdates.siteOutPhotos = updates.siteOutPhotos.map((photo: any) => ({
+          ...photo,
+          timestamp: Timestamp.fromDate(photo.timestamp)
+        }));
+      }
+
       // Handle updatedAt conversion if it comes as Date object
       if (updates.updatedAt && updates.updatedAt instanceof Date) {
         firestoreUpdates.updatedAt = Timestamp.fromDate(updates.updatedAt);
@@ -289,7 +297,8 @@ export class SiteVisitService {
         console.log('- Has marketing data:', !!results[0].marketingData);
         console.log('- Has technical data:', !!results[0].technicalData);
         console.log('- Has admin data:', !!results[0].adminData);
-        console.log('- Has site photos:', !!results[0].sitePhotos && results[0].sitePhotos.length);
+        console.log('- Total site photos:', results[0].sitePhotos ? results[0].sitePhotos.length : 0);
+        console.log('- Checkout photos (siteOutPhotos):', results[0].siteOutPhotos ? results[0].siteOutPhotos.length : 0);
         console.log('- Has check-in photo:', !!results[0].siteInPhotoUrl);
         console.log('- Has check-out photo:', !!results[0].siteOutPhotoUrl);
         console.log('- Customer name:', results[0].customer?.name || results[0].customerName || 'N/A');
@@ -545,16 +554,29 @@ export class SiteVisitService {
    * Convert Firestore data to SiteVisit object
    */
   private convertFirestoreToSiteVisit(data: any): Omit<SiteVisit, 'id'> {
+    // Merge original site photos with checkout site photos
+    const originalPhotos = (data.sitePhotos || []).map((photo: any) => ({
+      ...photo,
+      timestamp: photo.timestamp?.toDate() || new Date()
+    }));
+    
+    const checkoutPhotos = (data.siteOutPhotos || []).map((photo: any) => ({
+      ...photo,
+      timestamp: photo.timestamp?.toDate() || new Date()
+    }));
+
+    // Combine both photo arrays, with checkout photos appearing after original photos
+    const allPhotos = [...originalPhotos, ...checkoutPhotos];
+
     return {
       ...data,
       siteInTime: data.siteInTime?.toDate() || new Date(),
       siteOutTime: data.siteOutTime?.toDate() || undefined,
       createdAt: data.createdAt?.toDate() || new Date(),
       updatedAt: data.updatedAt?.toDate() || new Date(),
-      sitePhotos: (data.sitePhotos || []).map((photo: any) => ({
-        ...photo,
-        timestamp: photo.timestamp?.toDate() || new Date()
-      }))
+      sitePhotos: allPhotos,
+      // Keep the original siteOutPhotos field for reference
+      siteOutPhotos: checkoutPhotos
     };
   }
 }

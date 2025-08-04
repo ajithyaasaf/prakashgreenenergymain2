@@ -346,6 +346,9 @@ export const insertSiteVisitSchema = z.object({
   // Site Photos (1-20 photos)
   sitePhotos: z.array(sitePhotoSchema).max(20).default([]),
   
+  // Checkout Site Photos (additional photos taken during checkout)
+  siteOutPhotos: z.array(sitePhotoSchema).max(20).default([]).optional(),
+  
   // Follow-up System Enhancement
   isFollowUp: z.boolean().default(false),
   followUpOf: z.string().optional(), // ID of original visit (if this is a follow-up)
