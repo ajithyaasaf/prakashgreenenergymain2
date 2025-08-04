@@ -262,7 +262,7 @@ export function FollowUpDetailsModal({
                 {followUp.department === 'technical' && <Zap className="h-5 w-5" />}
                 {followUp.department === 'marketing' && <Building className="h-5 w-5" />}
                 {followUp.department === 'admin' && <FileText className="h-5 w-5" />}
-                {followUp.department.charAt(0).toUpperCase() + followUp.department.slice(1)} Follow-up
+                {followUp.department ? (followUp.department.charAt(0).toUpperCase() + followUp.department.slice(1)) : 'Department'} Follow-up
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -270,7 +270,7 @@ export function FollowUpDetailsModal({
                 <div>
                   <p className="text-sm text-muted-foreground">Department</p>
                   <Badge variant="outline" className="capitalize">
-                    {followUp.department}
+                    {followUp.department || 'Unknown'}
                   </Badge>
                 </div>
                 <div>
