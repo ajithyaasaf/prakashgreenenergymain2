@@ -434,8 +434,15 @@ export function FollowUpModal({ isOpen, onClose, originalVisit }: FollowUpModalP
       const uploadedPhotos: { selfie?: string; sitePhotos: string[] } = { sitePhotos: [] };
       
       try {
+        console.log("FOLLOW_UP_CREATE: Photo upload starting...");
+        console.log("FOLLOW_UP_CREATE: Captured photos state:", {
+          hasSelfie: !!capturedPhotos.selfie,
+          sitePhotosCount: capturedPhotos.sitePhotos.length
+        });
+        
         // Upload selfie if captured
         if (capturedPhotos.selfie) {
+          console.log("FOLLOW_UP_CREATE: Uploading selfie...");
           const formData = new FormData();
           const blob = await fetch(capturedPhotos.selfie).then(r => r.blob());
           formData.append('file', blob, 'follow-up-selfie.jpg');
@@ -450,12 +457,20 @@ export function FollowUpModal({ isOpen, onClose, originalVisit }: FollowUpModalP
           if (response.ok) {
             const result = await response.json();
             uploadedPhotos.selfie = result.secure_url;
+            console.log("FOLLOW_UP_CREATE: Selfie uploaded successfully:", result.secure_url);
+          } else {
+            console.error("FOLLOW_UP_CREATE: Selfie upload failed:", response.status, response.statusText);
           }
+        } else {
+          console.log("FOLLOW_UP_CREATE: No selfie to upload");
         }
 
         // Upload site photos if captured
+        console.log("FOLLOW_UP_CREATE: Starting site photos upload...");
         for (let index = 0; index < capturedPhotos.sitePhotos.length; index++) {
           const sitePhoto = capturedPhotos.sitePhotos[index];
+          console.log(`FOLLOW_UP_CREATE: Uploading site photo ${index + 1}/${capturedPhotos.sitePhotos.length}`);
+          
           const formData = new FormData();
           const blob = await fetch(sitePhoto).then(r => r.blob());
           formData.append('file', blob, `follow-up-site-${index + 1}.jpg`);
@@ -470,8 +485,17 @@ export function FollowUpModal({ isOpen, onClose, originalVisit }: FollowUpModalP
           if (response.ok) {
             const result = await response.json();
             uploadedPhotos.sitePhotos.push(result.secure_url);
+            console.log(`FOLLOW_UP_CREATE: Site photo ${index + 1} uploaded successfully:`, result.secure_url);
+          } else {
+            console.error(`FOLLOW_UP_CREATE: Site photo ${index + 1} upload failed:`, response.status, response.statusText);
           }
         }
+        
+        console.log("FOLLOW_UP_CREATE: Photo upload completed. Final URLs:", {
+          selfie: uploadedPhotos.selfie,
+          sitePhotosCount: uploadedPhotos.sitePhotos.length,
+          sitePhotos: uploadedPhotos.sitePhotos
+        });
       } catch (error) {
         console.error('Photo upload failed:', error);
         // Continue without photos rather than failing completely
