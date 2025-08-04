@@ -477,14 +477,28 @@ export function FollowUpModal({ isOpen, onClose, originalVisit }: FollowUpModalP
         // Continue without photos rather than failing completely
       }
 
+      // Determine the correct original visit ID
+      // If the current visit is itself a follow-up, use its originalVisitId
+      // Otherwise, use the current visit's ID as the original
+      const actualOriginalVisitId = originalVisit!.isFollowUp && originalVisit!.followUpOf 
+        ? originalVisit!.followUpOf 
+        : originalVisit!.id;
+
       const followUpPayload = {
-        originalVisitId: originalVisit!.id,
+        originalVisitId: actualOriginalVisitId,
         siteInLocation: locationStatus.location,
         siteInPhotoUrl: uploadedPhotos.selfie, // Keep backward compatibility
         sitePhotos: uploadedPhotos.sitePhotos,
         followUpReason,
         description
       };
+
+      console.log("FOLLOW_UP_CREATE: Original visit check:", {
+        currentVisitId: originalVisit!.id,
+        isFollowUp: originalVisit!.isFollowUp,
+        followUpOf: originalVisit!.followUpOf,
+        actualOriginalVisitId: actualOriginalVisitId
+      });
       
       console.log("FOLLOW_UP_CREATE: Sending payload to server:", followUpPayload);
       

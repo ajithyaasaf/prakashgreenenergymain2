@@ -5691,7 +5691,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const mappedDepartment = departmentMapping[user.department?.toLowerCase() || ''] || user.department;
 
-      // Prepare follow-up data
+      // Prepare follow-up data with proper validation
       const followUpData = {
         originalVisitId: req.body.originalVisitId,
         userId: user.uid,
@@ -5700,14 +5700,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         siteInLocation: req.body.siteInLocation,
         siteInPhotoUrl: req.body.siteInPhotoUrl,
         followUpReason: req.body.followUpReason || 'additional_work_required',
-        description: req.body.description,
+        description: req.body.description || 'Follow-up visit for customer service',
         sitePhotos: req.body.sitePhotos || [],
         customer: originalVisit.customer,
         status: 'in_progress' as const,
-        notes: req.body.description || '',
+        notes: req.body.description || req.body.notes || '',
         createdAt: new Date(),
         updatedAt: new Date()
       };
+
+      console.log("FOLLOW_UP_CREATE: Prepared follow-up data:", JSON.stringify(followUpData, null, 2));
 
       console.log("=== FOLLOW-UP VISIT CREATION (SEPARATE COLLECTION) ===");
       console.log("Original Visit ID:", req.body.originalVisitId);
