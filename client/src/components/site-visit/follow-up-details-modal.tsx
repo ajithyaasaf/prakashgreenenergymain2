@@ -38,7 +38,7 @@ export function FollowUpDetailsModal({
   const [isCheckingOut, setIsCheckingOut] = useState(false);
 
   const { data: followUpData, isLoading } = useQuery({
-    queryKey: ['/api/follow-ups', followUpId],
+    queryKey: [`/api/follow-ups/${followUpId}`],
     enabled: isOpen && !!followUpId
   });
 
@@ -49,7 +49,11 @@ export function FollowUpDetailsModal({
     followUpData,
     followUp,
     department: followUp?.department,
-    status: followUp?.status
+    status: followUp?.status,
+    hasCheckInPhoto: !!followUp?.siteInPhotoUrl,
+    hasCheckOutPhoto: !!followUp?.siteOutPhotoUrl,
+    sitePhotosCount: followUp?.sitePhotos?.length || 0,
+    sitePhotosType: Array.isArray(followUp?.sitePhotos) ? (typeof followUp?.sitePhotos[0]) : 'not array'
   });
 
   const formatTime = (timeString: string | undefined) => {
