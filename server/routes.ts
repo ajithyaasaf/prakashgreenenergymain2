@@ -5949,6 +5949,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         updatedAt: new Date()
       };
 
+      console.log("=== FOLLOW-UP CHECKOUT DEBUG ===");
+      console.log("Follow-up ID:", req.params.id);
+      console.log("Request body keys:", Object.keys(req.body));
+      console.log("siteOutPhotos received:", req.body.siteOutPhotos);
+      console.log("siteOutPhotos type:", typeof req.body.siteOutPhotos);
+      console.log("siteOutPhotos length:", Array.isArray(req.body.siteOutPhotos) ? req.body.siteOutPhotos.length : 'not array');
+      console.log("Checkout data:", JSON.stringify(checkoutData, null, 2));
+      console.log("================================");
+
       const updatedFollowUp = await followUpService.updateFollowUp(req.params.id, checkoutData);
 
       console.log("=== FOLLOW-UP CHECKOUT COMPLETED ===");
