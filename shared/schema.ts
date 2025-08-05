@@ -390,7 +390,8 @@ export const insertFollowUpSiteVisitSchema = z.object({
   description: z.string().min(10, "Description must be at least 10 characters"),
   
   // Photo documentation for follow-ups
-  sitePhotos: z.array(z.string().url()).max(10).default([]), // Array of photo URLs
+  sitePhotos: z.array(z.string().url()).max(10).default([]), // Array of site "in" photo URLs
+  siteOutPhotos: z.array(z.string().url()).max(10).default([]), // Array of site "out" photo URLs (checkout photos)
   
   // Status and metadata
   status: z.enum(["in_progress", "completed", "cancelled"]).default("in_progress"),

@@ -522,6 +522,105 @@ export function FollowUpDetailsModal({
                     )}
                   </div>
                 )}
+
+                {/* Site Out Photos Gallery - Checkout Site Photos */}
+                {followUp.siteOutPhotos && followUp.siteOutPhotos.length > 0 && (
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="font-medium text-sm text-red-700 flex items-center gap-2">
+                        <Camera className="h-4 w-4" />
+                        Checkout Site Photos ({followUp.siteOutPhotos.length}/10)
+                      </h4>
+                      <Badge variant="outline" className="text-xs text-red-700 border-red-300">
+                        Check-out Documentation
+                      </Badge>
+                    </div>
+                    
+                    {/* Grid Layout for Checkout Site Photos */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                      {followUp.siteOutPhotos.map((photo: any, index: number) => {
+                        // Handle both string URLs and photo objects
+                        const photoUrl = typeof photo === 'string' ? photo : photo.url;
+                        const photoDescription = typeof photo === 'object' ? photo.description : null;
+                        const photoTimestamp = typeof photo === 'object' ? photo.timestamp : null;
+                        
+                        return (
+                          <div key={index} className="space-y-2">
+                            <div className="relative group">
+                              <img
+                                src={photoUrl}
+                                alt={`Checkout site photo ${index + 1}`}
+                                className="w-full h-20 object-cover rounded-lg border transition-transform hover:scale-105 cursor-pointer"
+                                onClick={() => window.open(photoUrl, '_blank')}
+                              />
+                              <Badge className="absolute top-1 right-1 text-xs bg-red-600 text-white">
+                                {index + 1}
+                              </Badge>
+                              
+                              {/* Eye icon overlay for viewing */}
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-lg flex items-center justify-center">
+                                <Eye className="h-6 w-6 text-white" />
+                              </div>
+                            </div>
+                            
+                            {/* Photo metadata */}
+                            {(photoDescription || photoTimestamp) && (
+                              <div className="px-1">
+                                {photoDescription && (
+                                  <p className="text-xs text-gray-600 mb-1 line-clamp-2">
+                                    {photoDescription}
+                                  </p>
+                                )}
+                                {photoTimestamp && (
+                                  <span className="text-red-600 text-xs">
+                                    {format(new Date(photoTimestamp), 'HH:mm')}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    
+                    {/* View All Button for Checkout Photos */}
+                    {followUp.siteOutPhotos.length > 5 && (
+                      <div className="mt-3 p-3 bg-red-50 rounded-lg border border-red-200">
+                        <div className="flex items-center justify-between">
+                          <div className="text-sm text-red-700">
+                            <span className="font-medium">{followUp.siteOutPhotos.length} checkout photos captured</span>
+                            {typeof followUp.siteOutPhotos[0] === 'object' && 
+                             followUp.siteOutPhotos[0].timestamp && 
+                             followUp.siteOutPhotos[followUp.siteOutPhotos.length - 1].timestamp && (
+                              <span className="text-red-600 text-xs">
+                                Last: {format(new Date(followUp.siteOutPhotos[followUp.siteOutPhotos.length - 1].timestamp), 'HH:mm')}
+                              </span>
+                            )}
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-xs text-red-700 border-red-300 hover:bg-red-100"
+                            onClick={() => {
+                              // Open all checkout photos in separate tabs (limited to first 10)
+                              const photosToOpen = followUp.siteOutPhotos.slice(0, 10);
+                              photosToOpen.forEach((photo: any) => {
+                                const photoUrl = typeof photo === 'string' ? photo : photo.url;
+                                window.open(photoUrl, '_blank');
+                              });
+                              if (followUp.siteOutPhotos.length > 10) {
+                                alert(`Opened first 10 checkout photos. ${followUp.siteOutPhotos.length - 10} more available - click individual photos to view.`);
+                              }
+                            }}
+                          >
+                            <ExternalLink className="h-3 w-3 mr-1" />
+                            View All Checkout Photos
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}

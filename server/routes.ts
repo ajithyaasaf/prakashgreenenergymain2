@@ -5877,7 +5877,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Validate update fields
       const allowedFields = [
         'status', 'siteOutTime', 'siteOutLocation', 'siteOutPhotoUrl', 
-        'notes', 'updatedAt', 'sitePhotos'
+        'notes', 'updatedAt', 'sitePhotos', 'siteOutPhotos'
       ];
 
       const updateData: any = {};
@@ -5943,6 +5943,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         siteOutTime: new Date(),
         siteOutLocation: req.body.siteOutLocation,
         siteOutPhotoUrl: req.body.siteOutPhotoUrl,
+        siteOutPhotos: req.body.siteOutPhotos, // Add missing checkout site photos
         status: 'completed' as const,
         notes: req.body.notes || followUp.notes,
         updatedAt: new Date()
