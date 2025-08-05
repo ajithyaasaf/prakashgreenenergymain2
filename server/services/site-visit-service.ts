@@ -82,31 +82,76 @@ export class SiteVisitService {
       };
 
       if (updates.siteOutTime) {
-        // Handle both Date objects and ISO strings
-        const siteOutDate = updates.siteOutTime instanceof Date 
-          ? updates.siteOutTime 
-          : new Date(updates.siteOutTime);
-        firestoreUpdates.siteOutTime = Timestamp.fromDate(siteOutDate);
+        // Handle both Date objects and ISO strings with error handling
+        try {
+          const siteOutDate = updates.siteOutTime instanceof Date 
+            ? updates.siteOutTime 
+            : new Date(updates.siteOutTime);
+          firestoreUpdates.siteOutTime = Timestamp.fromDate(siteOutDate);
+        } catch (error) {
+          console.warn('Failed to parse siteOutTime, using current time:', error);
+          firestoreUpdates.siteOutTime = Timestamp.fromDate(new Date());
+        }
       }
 
       if (updates.sitePhotos) {
-        firestoreUpdates.sitePhotos = updates.sitePhotos.map(photo => ({
-          ...photo,
-          timestamp: Timestamp.fromDate(photo.timestamp)
-        }));
+        firestoreUpdates.sitePhotos = updates.sitePhotos.map(photo => {
+          const processedPhoto: any = { ...photo };
+          
+          // Handle timestamp conversion safely with try-catch
+          if (photo.timestamp) {
+            try {
+              processedPhoto.timestamp = photo.timestamp instanceof Date 
+                ? Timestamp.fromDate(photo.timestamp)
+                : Timestamp.fromDate(new Date(photo.timestamp));
+            } catch (error) {
+              console.warn('Failed to parse photo timestamp, using current time:', error);
+              processedPhoto.timestamp = Timestamp.fromDate(new Date());
+            }
+          } else {
+            // If no timestamp, use current date
+            processedPhoto.timestamp = Timestamp.fromDate(new Date());
+          }
+          
+          return processedPhoto;
+        });
       }
 
-      // Handle checkout site photos (siteOutPhotos)
+      // Handle checkout site photos (siteOutPhotos) with robust error handling
       if (updates.siteOutPhotos) {
-        firestoreUpdates.siteOutPhotos = updates.siteOutPhotos.map((photo: any) => ({
-          ...photo,
-          timestamp: Timestamp.fromDate(photo.timestamp)
-        }));
+        firestoreUpdates.siteOutPhotos = updates.siteOutPhotos.map((photo: any) => {
+          const processedPhoto: any = { ...photo };
+          
+          // Handle timestamp conversion safely for checkout photos with try-catch
+          if (photo.timestamp) {
+            try {
+              processedPhoto.timestamp = photo.timestamp instanceof Date 
+                ? Timestamp.fromDate(photo.timestamp)
+                : Timestamp.fromDate(new Date(photo.timestamp));
+            } catch (error) {
+              console.warn('Failed to parse checkout photo timestamp, using current time:', error);
+              processedPhoto.timestamp = Timestamp.fromDate(new Date());
+            }
+          } else {
+            // If no timestamp, use current date
+            processedPhoto.timestamp = Timestamp.fromDate(new Date());
+          }
+          
+          return processedPhoto;
+        });
       }
 
-      // Handle updatedAt conversion if it comes as Date object
-      if (updates.updatedAt && updates.updatedAt instanceof Date) {
-        firestoreUpdates.updatedAt = Timestamp.fromDate(updates.updatedAt);
+      // Handle updatedAt conversion - can be Date object or ISO string
+      if (updates.updatedAt) {
+        try {
+          const updatedAtDate = updates.updatedAt instanceof Date 
+            ? updates.updatedAt 
+            : new Date(updates.updatedAt);
+          firestoreUpdates.updatedAt = Timestamp.fromDate(updatedAtDate);
+        } catch (error) {
+          console.warn('Failed to parse updatedAt, using current time:', error);
+          firestoreUpdates.updatedAt = Timestamp.fromDate(new Date());
+        }
       }
 
       // Remove undefined values to prevent Firestore errors
@@ -117,11 +162,14 @@ export class SiteVisitService {
       });
 
       console.log("=== FIRESTORE UPDATE PAYLOAD ===");
-      console.log("Updates being sent to Firestore:", JSON.stringify({
+      console.log("Original updates:", JSON.stringify(updates, null, 2));
+      console.log("Processed Firestore updates:", JSON.stringify({
         ...firestoreUpdates,
         // Convert timestamps to readable format for logging
         siteOutTime: firestoreUpdates.siteOutTime?.toDate?.() || firestoreUpdates.siteOutTime,
-        updatedAt: firestoreUpdates.updatedAt?.toDate?.() || firestoreUpdates.updatedAt
+        updatedAt: firestoreUpdates.updatedAt?.toDate?.() || firestoreUpdates.updatedAt,
+        sitePhotos: firestoreUpdates.sitePhotos ? `Array of ${firestoreUpdates.sitePhotos.length} photos` : undefined,
+        siteOutPhotos: firestoreUpdates.siteOutPhotos ? `Array of ${firestoreUpdates.siteOutPhotos.length} photos` : undefined
       }, null, 2));
 
       await docRef.update(firestoreUpdates);
@@ -148,8 +196,14 @@ export class SiteVisitService {
 
       return result;
     } catch (error) {
+      console.error('=== SITE VISIT UPDATE ERROR ===');
       console.error('Error updating site visit:', error);
-      throw new Error('Failed to update site visit');
+      console.error('Error name:', error.name);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+      console.error('Updates that caused error:', JSON.stringify(updates, null, 2));
+      console.error('=====================================');
+      throw new Error(`Failed to update site visit: ${error.message}`);
     }
   }
 
