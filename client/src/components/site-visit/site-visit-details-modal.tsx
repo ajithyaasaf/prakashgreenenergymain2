@@ -713,15 +713,21 @@ export function SiteVisitDetailsModal({ isOpen, onClose, siteVisit }: SiteVisitD
                     
                     {/* Enhanced Grid Layout for Multiple Photos */}
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                      {siteVisit.sitePhotos.map((photo, index) => (
-                        <div key={index} className="space-y-2">
-                          <div className="relative group">
-                            <img
-                              src={photo.url}
-                              alt={`Site photo ${index + 1}`}
-                              className="w-full h-32 sm:h-36 object-cover rounded-lg transition-all duration-200 hover:scale-105 cursor-pointer border-2 border-transparent hover:border-blue-300"
-                              onClick={() => window.open(photo.url, '_blank')}
-                            />
+                      {siteVisit.sitePhotos.map((photo, index) => {
+                        // Handle both string URLs (follow-ups) and objects (site visits)
+                        const photoUrl = typeof photo === 'string' ? photo : photo.url;
+                        const photoTimestamp = typeof photo === 'object' ? photo.timestamp : null;
+                        const photoDescription = typeof photo === 'object' ? photo.description : null;
+                        
+                        return (
+                          <div key={index} className="space-y-2">
+                            <div className="relative group">
+                              <img
+                                src={photoUrl}
+                                alt={`Site photo ${index + 1}`}
+                                className="w-full h-32 sm:h-36 object-cover rounded-lg transition-all duration-200 hover:scale-105 cursor-pointer border-2 border-transparent hover:border-blue-300"
+                                onClick={() => window.open(photoUrl, '_blank')}
+                              />
                             
                             {/* Photo Number Badge */}
                             <Badge className="absolute top-1 left-1 text-xs bg-blue-600 text-white h-5 w-5 p-0 flex items-center justify-center rounded-full">
@@ -729,9 +735,11 @@ export function SiteVisitDetailsModal({ isOpen, onClose, siteVisit }: SiteVisitD
                             </Badge>
                             
                             {/* Timestamp Badge */}
-                            <Badge className="absolute top-1 right-1 text-xs bg-black/70 text-white">
-                              {format(new Date(photo.timestamp), 'HH:mm')}
-                            </Badge>
+                            {photoTimestamp && (
+                              <Badge className="absolute top-1 right-1 text-xs bg-black/70 text-white">
+                                {format(new Date(photoTimestamp), 'HH:mm')}
+                              </Badge>
+                            )}
                             
                             {/* Hover Overlay */}
                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-lg flex items-center justify-center">
@@ -742,27 +750,30 @@ export function SiteVisitDetailsModal({ isOpen, onClose, siteVisit }: SiteVisitD
                                   className="bg-white/90 hover:bg-white text-black text-xs h-7"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    window.open(photo.url, '_blank');
+                                    window.open(photoUrl, '_blank');
                                   }}
                                 >
                                   <Eye className="h-3 w-3 mr-1" />
                                   View
                                 </Button>
-                                <Badge variant="secondary" className="text-xs bg-white/90 text-black">
-                                  {format(new Date(photo.timestamp), 'MMM d')}
-                                </Badge>
+                                {photoTimestamp && (
+                                  <Badge variant="secondary" className="text-xs bg-white/90 text-black">
+                                    {format(new Date(photoTimestamp), 'MMM d')}
+                                  </Badge>
+                                )}
                               </div>
                             </div>
                           </div>
                           
                           {/* Description (only for first few photos to avoid clutter) */}
-                          {photo.description && index < 3 && (
-                            <p className="text-xs text-muted-foreground bg-gray-50 p-1.5 rounded truncate" title={photo.description}>
-                              {photo.description}
+                          {photoDescription && index < 3 && (
+                            <p className="text-xs text-muted-foreground bg-gray-50 p-1.5 rounded truncate" title={photoDescription}>
+                              {photoDescription}
                             </p>
                           )}
                         </div>
-                      ))}
+                      );
+                        })}
                     </div>
                     
                     {/* Photo Summary Info */}
@@ -773,12 +784,16 @@ export function SiteVisitDetailsModal({ isOpen, onClose, siteVisit }: SiteVisitD
                             <span className="text-blue-700 font-medium">
                               📸 {siteVisit.sitePhotos.length} Photos Captured
                             </span>
-                            <span className="text-blue-600 text-xs">
-                              First: {format(new Date(siteVisit.sitePhotos[0]?.timestamp), 'HH:mm')}
-                            </span>
-                            {siteVisit.sitePhotos.length > 1 && (
+                            {siteVisit.sitePhotos[0] && typeof siteVisit.sitePhotos[0] === 'object' && siteVisit.sitePhotos[0].timestamp && (
                               <span className="text-blue-600 text-xs">
-                                Last: {format(new Date(siteVisit.sitePhotos[siteVisit.sitePhotos.length - 1]?.timestamp), 'HH:mm')}
+                                First: {format(new Date(siteVisit.sitePhotos[0].timestamp), 'HH:mm')}
+                              </span>
+                            )}
+                            {siteVisit.sitePhotos.length > 1 && siteVisit.sitePhotos[siteVisit.sitePhotos.length - 1] && 
+                             typeof siteVisit.sitePhotos[siteVisit.sitePhotos.length - 1] === 'object' && 
+                             siteVisit.sitePhotos[siteVisit.sitePhotos.length - 1].timestamp && (
+                              <span className="text-blue-600 text-xs">
+                                Last: {format(new Date(siteVisit.sitePhotos[siteVisit.sitePhotos.length - 1].timestamp), 'HH:mm')}
                               </span>
                             )}
                           </div>
@@ -789,7 +804,10 @@ export function SiteVisitDetailsModal({ isOpen, onClose, siteVisit }: SiteVisitD
                             onClick={() => {
                               // Open all photos in separate tabs (limited to first 10 to avoid overwhelming)
                               const photosToOpen = siteVisit.sitePhotos.slice(0, 10);
-                              photosToOpen.forEach(photo => window.open(photo.url, '_blank'));
+                              photosToOpen.forEach(photo => {
+                                const url = typeof photo === 'string' ? photo : photo.url;
+                                window.open(url, '_blank');
+                              });
                               if (siteVisit.sitePhotos.length > 10) {
                                 alert(`Opened first 10 photos. ${siteVisit.sitePhotos.length - 10} more available - click individual photos to view.`);
                               }
