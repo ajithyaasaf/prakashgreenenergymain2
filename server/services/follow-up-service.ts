@@ -100,12 +100,36 @@ export class FollowUpService {
         firestoreUpdates.siteOutTime = Timestamp.fromDate(updates.siteOutTime);
       }
 
+      // Handle siteOutPhotos timestamps like site-visit-service
+      if (updates.siteOutPhotos && Array.isArray(updates.siteOutPhotos)) {
+        firestoreUpdates.siteOutPhotos = updates.siteOutPhotos.map((photo: any) => {
+          const processedPhoto = { ...photo };
+          if (processedPhoto.timestamp) {
+            try {
+              processedPhoto.timestamp = photo.timestamp instanceof Date 
+                ? Timestamp.fromDate(photo.timestamp)
+                : Timestamp.fromDate(new Date(photo.timestamp));
+            } catch (error) {
+              console.warn('Invalid timestamp for follow-up siteOutPhoto:', error);
+              processedPhoto.timestamp = Timestamp.fromDate(new Date());
+            }
+          }
+          return processedPhoto;
+        });
+      }
+
       // Remove undefined values to prevent Firestore errors
       Object.keys(firestoreUpdates).forEach(key => {
         if (firestoreUpdates[key] === undefined) {
           delete firestoreUpdates[key];
         }
       });
+
+      console.log("=== FOLLOW-UP SERVICE UPDATE DEBUG ===");
+      console.log("Follow-up ID:", id);
+      console.log("Original updates:", JSON.stringify(updates, null, 2));
+      console.log("Firestore updates:", JSON.stringify(firestoreUpdates, null, 2));
+      console.log("======================================");
 
       await docRef.update(firestoreUpdates);
       
@@ -211,6 +235,20 @@ export class FollowUpService {
   }
 
   /**
+   * Helper method to convert siteOutPhotos from Firestore format
+   */
+  private convertSiteOutPhotos(siteOutPhotos: any): any[] {
+    if (!Array.isArray(siteOutPhotos)) {
+      return [];
+    }
+    
+    return siteOutPhotos.map((photo: any) => ({
+      ...photo,
+      timestamp: photo.timestamp?.toDate ? photo.timestamp.toDate() : new Date(photo.timestamp || Date.now())
+    }));
+  }
+
+  /**
    * Convert Firestore document to FollowUpSiteVisit object
    */
   private convertFirestoreToFollowUp(data: any): Omit<FollowUpSiteVisit, 'id'> {
@@ -224,6 +262,7 @@ export class FollowUpService {
       siteOutTime: data.siteOutTime?.toDate() || undefined,
       siteOutLocation: data.siteOutLocation,
       siteOutPhotoUrl: data.siteOutPhotoUrl,
+      siteOutPhotos: this.convertSiteOutPhotos(data.siteOutPhotos),
       followUpReason: data.followUpReason,
       description: data.description,
       sitePhotos: data.sitePhotos || [],

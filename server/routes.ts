@@ -5370,7 +5370,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Validate known checkout fields
       const allowedFields = [
         'status', 'siteOutTime', 'siteOutLocation', 'siteOutPhotoUrl', 
-        'notes', 'updatedAt', 'sitePhotos'
+        'notes', 'updatedAt', 'sitePhotos', 'siteOutPhotos'
       ];
       
       const invalidFields = Object.keys(req.body).filter(field => 
