@@ -3,8 +3,19 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+
+// Increase payload size limits for photo uploads
+// Set to 50MB to handle multiple high-resolution photos
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: false, limit: '50mb' }));
+
+// Add request timeout handling
+app.use((req, res, next) => {
+  // Set a 5-minute timeout for upload-heavy requests
+  req.setTimeout(300000); // 5 minutes
+  res.setTimeout(300000);
+  next();
+});
 
 app.use((req, res, next) => {
   const start = Date.now();

@@ -326,11 +326,31 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
     }
     
     try {
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      context.drawImage(video, 0, 0);
+      // Optimize image dimensions to reduce file size
+      const maxWidth = 1280;
+      const maxHeight = 720;
+      let { width, height } = video.getBoundingClientRect();
       
-      const photoDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+      // Use actual video dimensions if available
+      if (video.videoWidth && video.videoHeight) {
+        width = video.videoWidth;
+        height = video.videoHeight;
+      }
+      
+      // Calculate new dimensions maintaining aspect ratio
+      if (width > maxWidth || height > maxHeight) {
+        const ratio = Math.min(maxWidth / width, maxHeight / height);
+        width = width * ratio;
+        height = height * ratio;
+      }
+      
+      canvas.width = width;
+      canvas.height = height;
+      context.drawImage(video, 0, 0, width, height);
+      
+      // Optimize image quality and size for better upload performance
+      // Use lower quality for smaller file sizes (0.6 instead of 0.8)
+      const photoDataUrl = canvas.toDataURL('image/jpeg', 0.6);
       
       if (photoDataUrl.length < 100) {
         throw new Error('Generated image data too small');
@@ -593,8 +613,12 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
       let errorMessage = "Could not complete site visit. Please try again.";
       
       if (error?.message) {
-        if (error.message.includes('network') || error.message.includes('fetch')) {
+        if (error.message.includes('413') || error.message.includes('Request entity too large')) {
+          errorMessage = "Upload failed: Photos are too large. Try taking fewer photos or with lower quality.";
+        } else if (error.message.includes('network') || error.message.includes('fetch')) {
           errorMessage = "Network error. Please check your connection and try again.";
+        } else if (error.message.includes('timeout')) {
+          errorMessage = "Upload timeout. Please try again with fewer photos.";
         } else if (error.message.includes('permission') || error.message.includes('access')) {
           errorMessage = "Access denied. Please check your permissions.";
         } else if (error.message.includes('not found')) {
