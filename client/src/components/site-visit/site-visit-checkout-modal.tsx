@@ -483,10 +483,12 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
         try {
           console.log("Uploading checkout selfie photo via server-side Cloudinary service...");
           
+          // Use different naming for follow-ups vs normal site visits
+          const photoPrefix = siteVisit.isFollowUp ? 'followup' : 'sitevisit';
           const uploadResponse = await apiRequest('/api/attendance/upload-photo', 'POST', {
             imageData: capturedPhotos.selfie, // Already base64 encoded
-            userId: `site_visit_checkout_selfie_${Date.now()}`, // Unique ID for checkout selfie photos
-            attendanceType: 'site_visit_checkout_selfie'
+            userId: `${photoPrefix}_checkout_selfie_${Date.now()}`, // Unique ID with follow-up distinction
+            attendanceType: `${photoPrefix}_checkout_selfie`
           });
 
           if (!uploadResponse.ok) {
@@ -522,10 +524,12 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
           try {
             console.log(`Uploading checkout site photo ${i + 1}/${capturedPhotos.sitePhotos.length} via server-side Cloudinary service...`);
             
+            // Use different naming for follow-ups vs normal site visits
+            const photoPrefix = siteVisit.isFollowUp ? 'followup' : 'sitevisit';
             const uploadResponse = await apiRequest('/api/attendance/upload-photo', 'POST', {
               imageData: sitePhoto, // Already base64 encoded
-              userId: `site_visit_checkout_site_${Date.now()}_${i}`, // Unique ID for each site photo
-              attendanceType: 'site_visit_checkout_site'
+              userId: `${photoPrefix}_checkout_site_${Date.now()}_${i}`, // Unique ID with follow-up distinction
+              attendanceType: `${photoPrefix}_checkout_site`
             });
 
             if (!uploadResponse.ok) {
