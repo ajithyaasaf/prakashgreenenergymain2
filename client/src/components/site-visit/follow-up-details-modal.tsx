@@ -112,7 +112,7 @@ export function FollowUpDetailsModal({
   if (isLoading) {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="w-[95vw] max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto p-3 sm:p-6">
+        <DialogContent className="w-[95vw] max-w-2xl max-h-[80vh] overflow-y-auto p-2 sm:p-6">
           <div className="flex justify-center items-center h-32">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
           </div>
@@ -124,7 +124,7 @@ export function FollowUpDetailsModal({
   if (!followUp) {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="w-[95vw] max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto p-3 sm:p-6">
+        <DialogContent className="w-[95vw] max-w-2xl max-h-[80vh] overflow-y-auto p-2 sm:p-6">
           <div className="text-center py-8">
             <AlertCircle className="h-8 w-8 sm:h-12 sm:w-12 text-red-500 mx-auto mb-4" />
             <h3 className="text-base sm:text-lg font-semibold">Follow-up Not Found</h3>
@@ -140,7 +140,7 @@ export function FollowUpDetailsModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[95vw] max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto p-3 sm:p-6">
+      <DialogContent className="w-[95vw] max-w-2xl max-h-[80vh] overflow-y-auto p-2 sm:p-6">
         <DialogHeader className="text-center sm:text-left">
           <DialogTitle className="flex items-center gap-2 justify-center sm:justify-start text-lg sm:text-xl">
             <RefreshCw className="h-4 w-4 sm:h-5 sm:w-5" />
@@ -148,7 +148,7 @@ export function FollowUpDetailsModal({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 sm:space-y-6">
+        <div className="space-y-2 sm:space-y-3">
           {/* Status and Department */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
             <Badge className={departmentColors[followUp.department as keyof typeof departmentColors] || "bg-gray-100 text-gray-800"}>
@@ -688,14 +688,19 @@ export function FollowUpDetailsModal({
           )}
 
           {/* Action Buttons */}
-          <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={onClose}>
+          <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4">
+            <Button 
+              variant="outline" 
+              onClick={onClose}
+              className="w-full sm:w-auto order-2 sm:order-1 h-10 sm:h-9 text-sm sm:text-base"
+            >
               Close
             </Button>
             {followUp.status === 'in_progress' && onCheckout && (
               <Button 
                 onClick={handleCheckout}
                 disabled={isCheckingOut}
+                className="w-full sm:w-auto order-1 sm:order-2 h-10 sm:h-9 text-sm sm:text-base"
               >
                 {isCheckingOut ? 'Processing...' : 'Checkout'}
               </Button>
