@@ -1116,8 +1116,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // For site visit uploads, allow temporary user IDs
-      const isSiteVisitUpload = userId.startsWith('site_visit');
+      // For site visit and follow-up uploads, allow temporary user IDs
+      const isSiteVisitUpload = userId.startsWith('site_visit') || userId.startsWith('sitevisit') || userId.startsWith('followup');
       if (!isSiteVisitUpload && userId !== req.user.uid) {
         return res.status(400).json({ 
           message: "Invalid request - user ID mismatch" 
