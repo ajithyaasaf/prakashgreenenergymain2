@@ -562,13 +562,16 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
         }
       }
 
-      // Create checkout payload - using correct schema field names
+      // Create checkout payload - different formats for site visits vs follow-ups
       const checkoutPayload = {
         status: 'completed',
         siteOutTime: new Date(), // Send as Date object, not ISO string
         siteOutLocation: currentLocation,
         ...(selfiePhotoUrl && { siteOutPhotoUrl: selfiePhotoUrl }),
-        siteOutPhotos: sitePhotoUrls, // Add checkout site photos
+        // Follow-ups expect simple URL arrays, site visits expect complex photo objects
+        siteOutPhotos: siteVisit.isFollowUp 
+          ? sitePhotoUrls.map(photo => photo.url) // Simple URL array for follow-ups
+          : sitePhotoUrls, // Complex objects for regular site visits
         notes: notes, // Use 'notes' instead of 'completionNotes'
         updatedAt: new Date()
       };

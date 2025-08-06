@@ -5913,10 +5913,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Update follow-up (checkout)
   app.patch("/api/follow-ups/:id/checkout", verifyAuth, async (req, res) => {
     try {
+      console.log("=== FOLLOW-UP CHECKOUT REQUEST START ===");
+      console.log("Follow-up ID:", req.params.id);
+      console.log("User UID:", req.user.uid);
+      console.log("Request body:", JSON.stringify(req.body, null, 2));
+      console.log("Request body keys:", Object.keys(req.body));
+      console.log("==========================================");
+
       const user = await storage.getUser(req.user.uid);
       const hasPermission = user ? await checkSiteVisitPermission(user, 'edit') : false;
       
       if (!user || !hasPermission) {
+        console.log("=== PERMISSION DENIED ===");
+        console.log("User exists:", !!user);
+        console.log("Has permission:", hasPermission);
+        console.log("=========================");
         return res.status(403).json({ 
           message: "Access denied. Site Visit access is limited to Technical, Marketing, and Admin departments." 
         });
@@ -5926,8 +5937,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const followUp = await followUpService.getFollowUpById(req.params.id);
       
       if (!followUp) {
+        console.log("=== FOLLOW-UP NOT FOUND ===");
+        console.log("Follow-up ID:", req.params.id);
+        console.log("=============================");
         return res.status(404).json({ message: "Follow-up visit not found" });
       }
+
+      console.log("=== FOLLOW-UP FOUND ===");
+      console.log("Follow-up userId:", followUp.userId);
+      console.log("Request user UID:", user.uid);
+      console.log("User role:", user.role);
+      console.log("=======================");
 
       // Check if user can checkout this follow-up
       const canCheckout = followUp.userId === user.uid || 
@@ -5935,23 +5955,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
                          user.role === 'master_admin';
       
       if (!canCheckout) {
+        console.log("=== CHECKOUT ACCESS DENIED ===");
+        console.log("User can checkout:", canCheckout);
+        console.log("Follow-up userId:", followUp.userId);
+        console.log("User UID:", user.uid);
+        console.log("===============================");
         return res.status(403).json({ message: "Access denied. You can only checkout your own follow-ups." });
       }
 
-      // Prepare checkout data
+      // Validate required fields
+      if (!req.body.siteOutLocation) {
+        console.log("=== VALIDATION ERROR: MISSING LOCATION ===");
+        return res.status(400).json({ 
+          message: "Missing required field: siteOutLocation",
+          error: "MISSING_LOCATION"
+        });
+      }
+
+      // Prepare checkout data - be more flexible with missing fields
       const checkoutData = {
         siteOutTime: new Date(),
         siteOutLocation: req.body.siteOutLocation,
-        siteOutPhotoUrl: req.body.siteOutPhotoUrl,
-        siteOutPhotos: req.body.siteOutPhotos, // Add missing checkout site photos
+        siteOutPhotoUrl: req.body.siteOutPhotoUrl || null,
+        siteOutPhotos: req.body.siteOutPhotos || [],
         status: 'completed' as const,
-        notes: req.body.notes || followUp.notes,
+        notes: req.body.notes || followUp.notes || '',
         updatedAt: new Date()
       };
 
       console.log("=== FOLLOW-UP CHECKOUT DEBUG ===");
       console.log("Follow-up ID:", req.params.id);
       console.log("Request body keys:", Object.keys(req.body));
+      console.log("siteOutLocation:", req.body.siteOutLocation);
+      console.log("siteOutPhotoUrl:", req.body.siteOutPhotoUrl);
       console.log("siteOutPhotos received:", req.body.siteOutPhotos);
       console.log("siteOutPhotos type:", typeof req.body.siteOutPhotos);
       console.log("siteOutPhotos length:", Array.isArray(req.body.siteOutPhotos) ? req.body.siteOutPhotos.length : 'not array');
@@ -5971,8 +6007,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: "Follow-up checkout completed successfully"
       });
     } catch (error) {
-      console.error("Error checking out follow-up:", error);
-      res.status(500).json({ message: "Failed to checkout follow-up visit" });
+      console.error("=== FOLLOW-UP CHECKOUT ERROR ===");
+      console.error("Follow-up ID:", req.params.id);
+      console.error("Error details:", error);
+      console.error("Error message:", error instanceof Error ? error.message : 'Unknown error');
+      console.error("Error stack:", error instanceof Error ? error.stack : 'No stack trace');
+      console.error("================================");
+      
+      // Return more specific error information
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      res.status(500).json({ 
+        message: "Failed to checkout follow-up visit",
+        error: errorMessage,
+        debugInfo: {
+          followUpId: req.params.id,
+          timestamp: new Date().toISOString()
+        }
+      });
     }
   });
 
