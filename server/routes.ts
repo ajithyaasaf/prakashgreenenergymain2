@@ -5911,7 +5911,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update follow-up (checkout)
-  app.patch("/api/follow-ups/:id/checkout", verifyAuth, async (req, res) => {
+  app.patch("/api/follow-ups/:id/checkout", (req, res, next) => {
+    console.log("=== RAW FOLLOW-UP CHECKOUT REQUEST ===");
+    console.log("Method:", req.method);
+    console.log("URL:", req.url);
+    console.log("Follow-up ID from params:", req.params.id);
+    console.log("Raw body keys:", Object.keys(req.body));
+    console.log("Authorization header present:", !!req.headers.authorization);
+    console.log("=====================================");
+    next();
+  }, verifyAuth, async (req, res) => {
     try {
       console.log("=== FOLLOW-UP CHECKOUT REQUEST START ===");
       console.log("Follow-up ID:", req.params.id);
