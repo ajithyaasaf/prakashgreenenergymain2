@@ -599,7 +599,7 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
                 accuracy: currentLocation?.accuracy,
                 address: currentLocation?.formattedAddress || currentLocation?.address || 'Address not available'
               },
-              timestamp: new Date().toISOString(),
+              timestamp: new Date(),
               description: `Site photo ${i + 1} captured during check-in`
             });
             console.log(`Site photo ${i + 1} uploaded successfully:`, uploadResult.url);
@@ -744,18 +744,19 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[95vw] max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto p-3 sm:p-6">
-        <DialogHeader className="text-center sm:text-left">
-          <DialogTitle className="flex items-center gap-2 justify-center sm:justify-start text-lg sm:text-xl">
+      <DialogContent className="w-[95vw] max-w-2xl h-[90vh] max-h-[90vh] overflow-y-auto p-2 sm:p-6 flex flex-col">
+        <DialogHeader className="text-center sm:text-left flex-shrink-0">
+          <DialogTitle className="flex items-center gap-2 justify-center sm:justify-start text-base sm:text-lg">
             <MapPin className="h-4 w-4 sm:h-5 sm:w-5" />
             Start Site Visit
           </DialogTitle>
-          <DialogDescription className="text-sm">
+          <DialogDescription className="text-xs sm:text-sm">
             Follow the steps to start your field site visit for {userDepartment} department
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 sm:space-y-6">
+        <div className="flex-1 overflow-y-auto min-h-0">
+          <div className="space-y-3 sm:space-y-4 pb-4">
           {/* Step Indicator */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-0">
             {/* Mobile: Vertical layout with current step highlighted */}
@@ -1359,6 +1360,7 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
               </div>
             </div>
           )}
+          </div>
         </div>
 
         {/* Hidden canvas for photo capture */}
