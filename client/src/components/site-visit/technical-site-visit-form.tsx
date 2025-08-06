@@ -22,7 +22,8 @@ import {
   Wrench,
   Settings,
   Camera,
-  MapPin
+  MapPin,
+  ArrowLeft
 } from "lucide-react";
 import { serviceTypes, technicalWorkTypes, workingStatus } from "@shared/schema";
 
@@ -407,26 +408,34 @@ export function TechnicalSiteVisitForm({ onSubmit, onBack, isDisabled, isLoading
       </Card>
 
       {/* Navigation */}
-      <div className="flex justify-between">
+      <div className="flex flex-col sm:flex-row justify-between gap-3 mt-6">
         {onBack && (
-          <Button variant="outline" onClick={onBack}>
-            Back to Customer Details
+          <Button 
+            variant="outline" 
+            onClick={onBack}
+            className="w-full sm:w-auto order-2 sm:order-1 h-10 sm:h-9 text-sm sm:text-base"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            <span className="hidden sm:inline">Back to Customer Details</span>
+            <span className="sm:hidden">Back</span>
           </Button>
         )}
         <Button
           onClick={handleSubmit}
           disabled={!isFormValid || isDisabled || isLoading}
-          className="flex items-center gap-2"
+          className="w-full sm:w-auto order-1 sm:order-2 h-10 sm:h-9 text-sm sm:text-base flex items-center gap-2"
         >
           {isLoading ? (
             <>
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-              Processing...
+              <span className="hidden sm:inline">Processing...</span>
+              <span className="sm:hidden">Wait...</span>
             </>
           ) : (
             <>
               <MapPin className="h-4 w-4" />
-              Continue to Site Photos
+              <span className="hidden sm:inline">Continue to Site Photos</span>
+              <span className="sm:hidden">Continue</span>
             </>
           )}
         </Button>
