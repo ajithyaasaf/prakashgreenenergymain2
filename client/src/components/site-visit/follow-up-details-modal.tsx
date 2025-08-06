@@ -539,10 +539,28 @@ export function FollowUpDetailsModal({
                     {/* Grid Layout for Checkout Site Photos */}
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
                       {followUp.siteOutPhotos.map((photo: any, index: number) => {
-                        // Handle both string URLs and photo objects
-                        const photoUrl = typeof photo === 'string' ? photo : photo.url;
-                        const photoDescription = typeof photo === 'object' ? photo.description : null;
-                        const photoTimestamp = typeof photo === 'object' ? photo.timestamp : null;
+                        // Debug logging
+                        console.log("Checkout photo debug:", { photo, index, type: typeof photo, keys: typeof photo === 'object' ? Object.keys(photo) : 'N/A' });
+                        
+                        // Handle both string URLs and photo objects - more robust extraction
+                        let photoUrl = null;
+                        let photoDescription = null;
+                        let photoTimestamp = null;
+                        
+                        if (typeof photo === 'string') {
+                          photoUrl = photo;
+                        } else if (typeof photo === 'object' && photo !== null) {
+                          // Try multiple possible URL field names
+                          photoUrl = photo.url || photo.photoUrl || photo.src || photo.imageUrl;
+                          photoDescription = photo.description || photo.caption || photo.note;
+                          photoTimestamp = photo.timestamp || photo.createdAt || photo.date;
+                        }
+                        
+                        // Skip if no valid URL found
+                        if (!photoUrl) {
+                          console.warn("No valid photo URL found for checkout photo:", photo);
+                          return null;
+                        }
                         
                         return (
                           <div key={index} className="space-y-2">
