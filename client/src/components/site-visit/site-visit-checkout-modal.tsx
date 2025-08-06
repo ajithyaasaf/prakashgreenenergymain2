@@ -23,7 +23,8 @@ import {
   User,
   AlertTriangle,
   RotateCcw,
-  X
+  X,
+  ArrowRight
 } from "lucide-react";
 import { EnhancedLocationCapture } from "./enhanced-location-capture";
 import { LocationData } from "@/lib/location-service";
@@ -696,31 +697,48 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <CheckCircle className="h-5 w-5" />
+      <DialogContent className="w-[95vw] max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto p-3 sm:p-6">
+        <DialogHeader className="text-center sm:text-left">
+          <DialogTitle className="flex items-center gap-2 justify-center sm:justify-start text-lg sm:text-xl">
+            <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5" />
             Complete Site Visit
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-sm">
             Complete your site visit by capturing checkout location and photo
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {/* Step Indicator */}
-          <div className="flex items-center justify-between">
-            <div className={`flex items-center gap-2 ${step >= 1 ? 'text-primary' : 'text-muted-foreground'}`}>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 1 ? 'bg-primary text-white' : 'bg-muted'}`}>
-                1
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-0">
+            {/* Mobile: Vertical layout with current step highlighted */}
+            <div className="flex sm:hidden w-full justify-center">
+              <div className={`flex items-center gap-2 ${step >= 1 ? 'text-primary' : 'text-muted-foreground'}`}>
+                <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm ${step >= 1 ? 'bg-primary text-white' : 'bg-muted'}`}>
+                  {step}
+                </div>
+                <span className="text-xs sm:text-sm font-medium">
+                  {step === 1 && 'Checkout Location'}
+                  {step === 2 && 'Photos & Notes'}
+                </span>
               </div>
-              <span className="text-sm font-medium">Checkout Location</span>
             </div>
-            <div className={`flex items-center gap-2 ${step >= 2 ? 'text-primary' : 'text-muted-foreground'}`}>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 2 ? 'bg-primary text-white' : 'bg-muted'}`}>
-                2
+            
+            {/* Desktop: Horizontal layout */}
+            <div className="hidden sm:flex items-center justify-between w-full">
+              <div className={`flex items-center gap-2 ${step >= 1 ? 'text-primary' : 'text-muted-foreground'}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 1 ? 'bg-primary text-white' : 'bg-muted'}`}>
+                  1
+                </div>
+                <span className="text-sm font-medium">Checkout Location</span>
               </div>
-              <span className="text-sm font-medium">Photos & Notes</span>
+              <ArrowRight className="h-4 w-4 text-muted-foreground" />
+              <div className={`flex items-center gap-2 ${step >= 2 ? 'text-primary' : 'text-muted-foreground'}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 2 ? 'bg-primary text-white' : 'bg-muted'}`}>
+                  2
+                </div>
+                <span className="text-sm font-medium">Photos & Notes</span>
+              </div>
             </div>
           </div>
 
@@ -764,12 +782,14 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
                 />
               </ErrorBoundary>
 
-              <div className="flex justify-end">
+              <div className="flex justify-center sm:justify-end">
                 <Button
                   onClick={() => setStep(2)}
                   disabled={!canProceedToStep2}
+                  className="w-full sm:w-auto"
                 >
                   Next: Photo & Notes
+                  <ArrowRight className="h-4 w-4 ml-2" />
                 </Button>
               </div>
             </div>
@@ -1038,15 +1058,16 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
 
               {/* Completion Notes */}
               <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Completion Notes</CardTitle>
+                <CardHeader className="pb-3 sm:pb-6">
+                  <CardTitle className="text-base sm:text-lg">Completion Notes</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <Textarea
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                     placeholder="Add any final notes about the site visit completion..."
-                    rows={4}
+                    rows={3}
+                    className="text-sm min-h-[60px] sm:min-h-[100px]"
                   />
                 </CardContent>
               </Card>
@@ -1079,29 +1100,31 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
                 <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
                   <div className="flex items-center gap-2 text-red-700">
                     <AlertTriangle className="h-4 w-4" />
-                    <span className="text-sm font-medium">Selfie photo required to complete checkout</span>
+                    <span className="text-xs sm:text-sm font-medium">Selfie photo required to complete checkout</span>
                   </div>
                 </div>
               )}
               
-              <div className="flex justify-between">
-                <Button variant="outline" onClick={() => setStep(1)}>
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-0 sm:justify-between">
+                <Button variant="outline" onClick={() => setStep(1)} className="order-2 sm:order-1 w-full sm:w-auto">
                   Back
                 </Button>
                 <Button
                   onClick={handleSubmit}
                   disabled={checkoutMutation.isPending || !capturedPhotos.selfie}
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-2 order-1 sm:order-2 w-full sm:w-auto"
                 >
                   {checkoutMutation.isPending ? (
                     <>
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                      Completing...
+                      <span className="hidden sm:inline">Completing...</span>
+                      <span className="sm:hidden">Processing...</span>
                     </>
                   ) : (
                     <>
                       <CheckCircle className="h-4 w-4" />
-                      Complete Site Visit
+                      <span className="hidden sm:inline">Complete Site Visit</span>
+                      <span className="sm:hidden">Complete</span>
                     </>
                   )}
                 </Button>
