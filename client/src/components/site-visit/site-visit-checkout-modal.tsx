@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { getAuth } from 'firebase/auth';
 import { 
   MapPin, 
   Camera, 
@@ -589,11 +590,25 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
       
       console.log("Using endpoint:", endpoint);
       
-      const response = await apiRequest(
-        endpoint,
-        'PATCH',
-        checkoutPayload
-      );
+      // Use direct fetch to get raw response for debugging
+      const auth = getAuth();
+      const currentUser = auth.currentUser;
+      
+      if (!currentUser) {
+        throw new Error("User not authenticated");
+      }
+      
+      const token = await currentUser.getIdToken();
+      
+      const response = await fetch(endpoint, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        credentials: 'include',
+        body: JSON.stringify(checkoutPayload)
+      });
 
       console.log("=== RESPONSE STATUS ===");
       console.log("Response status:", response.status);
