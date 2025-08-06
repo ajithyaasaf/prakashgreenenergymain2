@@ -706,7 +706,7 @@ export function FollowUpModal({ isOpen, onClose, originalVisit }: FollowUpModalP
 
   return (
     <Dialog open={isOpen} onOpenChange={handleCloseWithConfirmation}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[95vw] max-w-2xl max-h-[80vh] overflow-y-auto p-2 sm:p-6">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <RefreshCw className="h-5 w-5 text-blue-600" />
@@ -714,18 +714,38 @@ export function FollowUpModal({ isOpen, onClose, originalVisit }: FollowUpModalP
           </DialogTitle>
         </DialogHeader>
 
-        {/* Step Progress Indicator */}
-        <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg mb-6">
-          <StepIndicator step={1} currentStep={currentStep} label="Reason" isCompleted={canProceedFromStep(1)} />
-          <div className="flex-1 h-px bg-gray-300 mx-2" />
-          <StepIndicator step={2} currentStep={currentStep} label="Location" isCompleted={canProceedFromStep(2)} />
-          <div className="flex-1 h-px bg-gray-300 mx-2" />
-          <StepIndicator step={3} currentStep={currentStep} label="Details" isCompleted={canProceedFromStep(3)} />
-          <div className="flex-1 h-px bg-gray-300 mx-2" />
-          <StepIndicator step={4} currentStep={currentStep} label="Photos" isCompleted={canProceedFromStep(4)} />
+        {/* Step Progress Indicator - Mobile Responsive */}
+        <div className="p-2 sm:p-4 bg-gray-50 rounded-lg mb-4 sm:mb-6">
+          {/* Mobile: Stack vertically */}
+          <div className="flex sm:hidden flex-col space-y-2">
+            <div className="flex items-center justify-between">
+              <StepIndicator step={currentStep} currentStep={currentStep} label={
+                currentStep === 1 ? "Reason" : currentStep === 2 ? "Location" : 
+                currentStep === 3 ? "Details" : "Photos"
+              } isCompleted={canProceedFromStep(currentStep)} />
+              <span className="text-xs text-muted-foreground">Step {currentStep} of 4</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-1.5">
+              <div 
+                className="bg-blue-600 h-1.5 rounded-full transition-all duration-300" 
+                style={{ width: `${(currentStep / 4) * 100}%` }}
+              />
+            </div>
+          </div>
+          
+          {/* Desktop: Original horizontal layout */}
+          <div className="hidden sm:flex items-center justify-between">
+            <StepIndicator step={1} currentStep={currentStep} label="Reason" isCompleted={canProceedFromStep(1)} />
+            <div className="flex-1 h-px bg-gray-300 mx-2" />
+            <StepIndicator step={2} currentStep={currentStep} label="Location" isCompleted={canProceedFromStep(2)} />
+            <div className="flex-1 h-px bg-gray-300 mx-2" />
+            <StepIndicator step={3} currentStep={currentStep} label="Details" isCompleted={canProceedFromStep(3)} />
+            <div className="flex-1 h-px bg-gray-300 mx-2" />
+            <StepIndicator step={4} currentStep={currentStep} label="Photos" isCompleted={canProceedFromStep(4)} />
+          </div>
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-3 sm:space-y-4">
           {/* Original Visit Info - Always visible */}
           <Card>
             <CardHeader className="pb-3">
@@ -974,7 +994,7 @@ export function FollowUpModal({ isOpen, onClose, originalVisit }: FollowUpModalP
 
           {/* Step 4: Photo Capture */}
           {currentStep === 4 && (
-            <div className="space-y-6">
+            <div className="space-y-3 sm:space-y-4">
               {!isCameraActive && (
                 <Card>
                   <CardHeader>
@@ -987,7 +1007,7 @@ export function FollowUpModal({ isOpen, onClose, originalVisit }: FollowUpModalP
                     </p>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex flex-col space-y-4">
                       {/* Selfie Section */}
                       <div className="space-y-3">
                         <h4 className="font-medium flex items-center gap-2">
@@ -1164,50 +1184,112 @@ export function FollowUpModal({ isOpen, onClose, originalVisit }: FollowUpModalP
             </div>
           )}
 
-          {/* Navigation Buttons */}
-          <div className="flex justify-between pt-4">
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={handleCloseWithConfirmation}>
-                Cancel
-              </Button>
-              {currentStep > 1 && (
-                <Button
-                  variant="outline"
-                  onClick={prevStep}
-                  disabled={isCameraActive}
-                >
-                  <ChevronLeft className="h-4 w-4 mr-2" />
-                  Previous
-                </Button>
+          {/* Navigation Buttons - Mobile Responsive */}
+          <div className="pt-4 space-y-3">
+            {/* Mobile: Stack vertically with full-width buttons */}
+            <div className="flex sm:hidden flex-col gap-2">
+              {currentStep < 4 ? (
+                <>
+                  <Button
+                    onClick={nextStep}
+                    disabled={!canProceedFromStep(currentStep) || isCameraActive}
+                    className="w-full bg-blue-600 hover:bg-blue-700 h-10"
+                  >
+                    Next Step
+                    <ChevronRight className="h-4 w-4 ml-2" />
+                  </Button>
+                  {currentStep > 1 && (
+                    <Button
+                      variant="outline"
+                      onClick={prevStep}
+                      disabled={isCameraActive}
+                      className="w-full h-10"
+                    >
+                      <ChevronLeft className="h-4 w-4 mr-2" />
+                      Previous Step
+                    </Button>
+                  )}
+                  <Button variant="outline" onClick={handleCloseWithConfirmation} className="w-full h-10">
+                    Cancel
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    onClick={handleSubmit}
+                    disabled={isSubmitting || !canProceedFromStep(4)}
+                    className="w-full bg-green-600 hover:bg-green-700 h-10"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Creating...
+                      </>
+                    ) : (
+                      'Start Follow-up Visit'
+                    )}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={prevStep}
+                    disabled={isCameraActive}
+                    className="w-full h-10"
+                  >
+                    <ChevronLeft className="h-4 w-4 mr-2" />
+                    Previous Step
+                  </Button>
+                  <Button variant="outline" onClick={handleCloseWithConfirmation} className="w-full h-10">
+                    Cancel
+                  </Button>
+                </>
               )}
             </div>
-            
-            <div className="flex gap-2">
-              {currentStep < 4 ? (
-                <Button
-                  onClick={nextStep}
-                  disabled={!canProceedFromStep(currentStep) || isCameraActive}
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
-                  Next
-                  <ChevronRight className="h-4 w-4 ml-2" />
+
+            {/* Desktop: Original horizontal layout */}
+            <div className="hidden sm:flex justify-between">
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={handleCloseWithConfirmation}>
+                  Cancel
                 </Button>
-              ) : (
-                <Button
-                  onClick={handleSubmit}
-                  disabled={isSubmitting || !canProceedFromStep(4)}
-                  className="bg-green-600 hover:bg-green-700"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Creating Follow-up...
-                    </>
-                  ) : (
-                    'Start Follow-up Visit'
-                  )}
-                </Button>
-              )}
+                {currentStep > 1 && (
+                  <Button
+                    variant="outline"
+                    onClick={prevStep}
+                    disabled={isCameraActive}
+                  >
+                    <ChevronLeft className="h-4 w-4 mr-2" />
+                    Previous
+                  </Button>
+                )}
+              </div>
+              
+              <div className="flex gap-2">
+                {currentStep < 4 ? (
+                  <Button
+                    onClick={nextStep}
+                    disabled={!canProceedFromStep(currentStep) || isCameraActive}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4 ml-2" />
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={handleSubmit}
+                    disabled={isSubmitting || !canProceedFromStep(4)}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Creating Follow-up...
+                      </>
+                    ) : (
+                      'Start Follow-up Visit'
+                    )}
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         </div>
