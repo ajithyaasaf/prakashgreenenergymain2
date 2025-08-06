@@ -22,6 +22,7 @@ import {
   CheckCircle, 
   Clock,
   ArrowRight,
+  ArrowLeft,
   Users,
   Building,
   Zap,
@@ -960,16 +961,23 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
                 </CardContent>
               </Card>
 
-              <div className="flex flex-col sm:flex-row justify-between gap-2 sm:gap-0">
-                <Button variant="outline" onClick={() => setStep(1)} className="w-full sm:w-auto order-2 sm:order-1">
-                  Back
+              <div className="flex flex-col sm:flex-row justify-between gap-3 mt-6">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setStep(1)} 
+                  className="w-full sm:w-auto order-2 sm:order-1 h-10 sm:h-9 text-sm sm:text-base"
+                >
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  <span className="hidden sm:inline">Back to Customer Details</span>
+                  <span className="sm:hidden">Back</span>
                 </Button>
                 <Button
                   onClick={() => setStep(3)}
                   disabled={!canProceedToStep3}
-                  className="w-full sm:w-auto order-1 sm:order-2"
+                  className="w-full sm:w-auto order-1 sm:order-2 h-10 sm:h-9 text-sm sm:text-base"
                 >
-                  Next: {userDepartment.charAt(0).toUpperCase() + userDepartment.slice(1)} Details
+                  <span className="hidden sm:inline">Continue to Site Visit</span>
+                  <span className="sm:hidden">Continue</span>
                   <ArrowRight className="h-4 w-4 ml-2" />
                 </Button>
               </div>
