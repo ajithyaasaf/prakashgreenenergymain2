@@ -552,34 +552,51 @@ export function FollowUpDetailsModal({
                           });
                         }
                         
-                        // Handle corrupted photo data - reconstruct URL from character object
+                        // Handle ALL possible photo data formats - comprehensive reconstruction
                         let photoUrl = null;
                         let photoDescription = null;
                         let photoTimestamp = null;
                         
+                        console.log(`Processing photo ${index + 1}:`, { type: typeof photo, photo });
+                        
                         if (typeof photo === 'string') {
+                          // Simple string URL
                           photoUrl = photo;
+                          console.log(`Photo ${index + 1} is string:`, photoUrl);
                         } else if (typeof photo === 'object' && photo !== null) {
-                          // Check if it's a character-split object (corrupted string)
                           const keys = Object.keys(photo);
-                          const isCharObject = keys.length > 0 && keys.every(key => !isNaN(Number(key))) && typeof photo[0] === 'string';
                           
-                          if (isCharObject) {
+                          // Method 1: Check if it's a character-split object (corrupted string)
+                          const allKeysNumeric = keys.every(key => !isNaN(Number(key)));
+                          const hasCharacterData = typeof photo[0] === 'string' && photo[0].length === 1;
+                          
+                          if (allKeysNumeric && hasCharacterData) {
                             // Reconstruct URL from character object
-                            const maxKey = Math.max(...keys.map(k => Number(k)));
-                            const chars = [];
-                            for (let i = 0; i <= maxKey; i++) {
-                              if (photo[i] !== undefined) {
-                                chars.push(photo[i]);
-                              }
+                            try {
+                              const sortedKeys = keys.map(k => parseInt(k)).sort((a, b) => a - b);
+                              const chars = sortedKeys.map(i => photo[i.toString()]);
+                              photoUrl = chars.join('');
+                              console.log(`Photo ${index + 1} reconstructed from characters:`, photoUrl);
+                            } catch (error) {
+                              console.error(`Failed to reconstruct photo ${index + 1}:`, error);
                             }
-                            photoUrl = chars.join('');
-                            console.log("Reconstructed photo URL from character object:", photoUrl);
                           } else {
-                            // Normal photo object
+                            // Method 2: Normal photo object with properties
                             photoUrl = photo.url || photo.photoUrl || photo.src || photo.imageUrl;
                             photoDescription = photo.description || photo.caption || photo.note;
                             photoTimestamp = photo.timestamp || photo.createdAt || photo.date;
+                            console.log(`Photo ${index + 1} is object with URL:`, photoUrl);
+                          }
+                          
+                          // Method 3: Fallback - try to find any URL-like string in the object
+                          if (!photoUrl) {
+                            for (const [key, value] of Object.entries(photo)) {
+                              if (typeof value === 'string' && (value.startsWith('http') || value.includes('cloudinary'))) {
+                                photoUrl = value;
+                                console.log(`Photo ${index + 1} found URL in property ${key}:`, photoUrl);
+                                break;
+                              }
+                            }
                           }
                         }
                         

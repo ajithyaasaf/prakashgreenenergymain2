@@ -100,33 +100,29 @@ export class FollowUpService {
         firestoreUpdates.siteOutTime = Timestamp.fromDate(updates.siteOutTime);
       }
 
-      // Handle siteOutPhotos - follow-ups use simple string arrays, not complex photo objects
+      // Handle siteOutPhotos - FIXED: Ensure proper URL string storage
       if (updates.siteOutPhotos && Array.isArray(updates.siteOutPhotos)) {
         console.log("FOLLOW_UP_SERVICE: Processing siteOutPhotos:", updates.siteOutPhotos);
         
-        // Check if this is an array of strings (URLs) or photo objects
-        const firstPhoto = updates.siteOutPhotos[0];
-        if (typeof firstPhoto === 'string') {
-          // Simple string array - use as is
-          firestoreUpdates.siteOutPhotos = updates.siteOutPhotos;
-          console.log("FOLLOW_UP_SERVICE: Using string array for siteOutPhotos");
-        } else if (firstPhoto && typeof firstPhoto === 'object') {
-          // Photo objects - extract URLs or convert appropriately
-          firestoreUpdates.siteOutPhotos = updates.siteOutPhotos.map((photo: any) => {
-            if (typeof photo === 'string') {
-              return photo;
-            } else if (photo.url) {
-              return photo.url; // Extract URL from photo object
-            } else {
-              console.warn('FOLLOW_UP_SERVICE: Invalid photo object format:', photo);
-              return null;
-            }
-          }).filter(Boolean); // Remove null values
-          console.log("FOLLOW_UP_SERVICE: Converted photo objects to URLs");
-        } else {
-          // Empty array or invalid format
-          firestoreUpdates.siteOutPhotos = [];
-          console.log("FOLLOW_UP_SERVICE: Using empty array for siteOutPhotos");
+        // Always convert to simple string array to prevent corruption
+        firestoreUpdates.siteOutPhotos = updates.siteOutPhotos.map((photo: any) => {
+          if (typeof photo === 'string') {
+            return photo; // Already a string URL
+          } else if (photo && typeof photo === 'object' && photo.url) {
+            return photo.url; // Extract URL from photo object
+          } else {
+            console.warn('FOLLOW_UP_SERVICE: Invalid photo format, skipping:', photo);
+            return null;
+          }
+        }).filter(Boolean); // Remove null/undefined values
+        
+        console.log("FOLLOW_UP_SERVICE: Cleaned siteOutPhotos:", firestoreUpdates.siteOutPhotos);
+        
+        // Additional validation to ensure all are strings
+        const allStrings = firestoreUpdates.siteOutPhotos.every((url: any) => typeof url === 'string');
+        if (!allStrings) {
+          console.error("FOLLOW_UP_SERVICE: ERROR - Not all photo URLs are strings, forcing conversion");
+          firestoreUpdates.siteOutPhotos = firestoreUpdates.siteOutPhotos.map((url: any) => String(url));
         }
       }
 
