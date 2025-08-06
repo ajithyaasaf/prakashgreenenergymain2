@@ -195,7 +195,7 @@ export default function SiteVisitPage() {
   });
 
   // Fetch team/all site visits based on permissions
-  const { data: teamSiteVisits, isLoading: isLoadingTeam } = useQuery({
+  const { data: teamSiteVisits, isLoading: isLoadingTeam, refetch: refetchTeam } = useQuery({
     queryKey: ['/api/site-visits', { department: user?.department }],
     queryFn: async () => {
       const response = await apiRequest(`/api/site-visits?department=${user?.department}`, 'GET');
@@ -205,8 +205,19 @@ export default function SiteVisitPage() {
     refetchInterval: 30000,
   });
 
+  // Fetch team follow-ups for team visits tab
+  const { data: teamFollowUps, isLoading: isLoadingTeamFollowUps } = useQuery({
+    queryKey: ['/api/follow-ups', { department: user?.department }],
+    queryFn: async () => {
+      const response = await apiRequest(`/api/follow-ups?department=${user?.department}`, 'GET');
+      return await response.json();
+    },
+    enabled: Boolean(hasAccess && user?.department && activeTab === 'team-visits'),
+    refetchInterval: 30000,
+  });
+
   // Fetch active site visits
-  const { data: activeSiteVisits, isLoading: isLoadingActive } = useQuery({
+  const { data: activeSiteVisits, isLoading: isLoadingActive, refetch: refetchActive } = useQuery({
     queryKey: ['/api/site-visits/active'],
     queryFn: async () => {
       const response = await apiRequest('/api/site-visits/active', 'GET');
@@ -214,6 +225,17 @@ export default function SiteVisitPage() {
     },
     enabled: Boolean(hasAccess && activeTab === 'active-visits'),
     refetchInterval: 15000, // More frequent updates for active visits
+  });
+
+  // Fetch active follow-ups for active visits tab  
+  const { data: activeFollowUps, isLoading: isLoadingActiveFollowUps } = useQuery({
+    queryKey: ['/api/follow-ups/active'],
+    queryFn: async () => {
+      const response = await apiRequest('/api/follow-ups?status=in_progress', 'GET');
+      return await response.json();
+    },
+    enabled: Boolean(hasAccess && activeTab === 'active-visits'),
+    refetchInterval: 15000,
   });
 
   // Fetch site visit statistics
@@ -224,6 +246,7 @@ export default function SiteVisitPage() {
       return await response.json();
     },
     enabled: Boolean(hasAccess),
+    refetchInterval: 60000, // Refresh stats every minute
   });
 
   // Delete site visit mutation
@@ -561,11 +584,29 @@ export default function SiteVisitPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {isLoadingActive ? (
+              <div className="flex justify-between items-center mb-4">
+                <p className="text-sm text-muted-foreground">
+                  Real-time updates every 15 seconds
+                </p>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => refetchActive()}
+                  className="h-8 px-3"
+                >
+                  <RefreshCw className="h-3 w-3 mr-1" />
+                  Refresh
+                </Button>
+              </div>
+              {(isLoadingActive || isLoadingActiveFollowUps) ? (
                 <div className="flex justify-center py-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                 </div>
-              ) : (activeSiteVisits as SiteVisit[])?.length === 0 ? (
+              ) : (() => {
+                const combinedActiveVisits = combineVisitsAndFollowUps(activeSiteVisits, activeFollowUps);
+                const activeInProgressVisits = combinedActiveVisits.filter(visit => visit.status === 'in_progress');
+                return activeInProgressVisits.length === 0;
+              })() ? (
                 <div className="text-center py-6 sm:py-8 px-4">
                   <Activity className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mx-auto mb-3 sm:mb-4" />
                   <h3 className="text-base sm:text-lg font-semibold mb-2">No active site visits</h3>
@@ -575,7 +616,11 @@ export default function SiteVisitPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {groupVisitsByCustomer((activeSiteVisits as SiteVisit[]) || []).map((group: CustomerVisitGroup, index: number) => (
+                  {(() => {
+                    const combinedActiveVisits = combineVisitsAndFollowUps(activeSiteVisits, activeFollowUps);
+                    const activeInProgressVisits = combinedActiveVisits.filter(visit => visit.status === 'in_progress');
+                    return groupVisitsByCustomer(activeInProgressVisits);
+                  })().map((group: CustomerVisitGroup, index: number) => (
                     <UnifiedSiteVisitCard
                       key={`${group.customerMobile}_${group.customerName}_${index}`}
                       visitGroup={group}
@@ -601,11 +646,28 @@ export default function SiteVisitPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {isLoadingTeam ? (
+              <div className="flex justify-between items-center mb-4">
+                <p className="text-sm text-muted-foreground">
+                  Real-time updates every 30 seconds
+                </p>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => refetchTeam()}
+                  className="h-8 px-3"
+                >
+                  <RefreshCw className="h-3 w-3 mr-1" />
+                  Refresh
+                </Button>
+              </div>
+              {(isLoadingTeam || isLoadingTeamFollowUps) ? (
                 <div className="flex justify-center py-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                 </div>
-              ) : (teamSiteVisits as any)?.data?.length === 0 ? (
+              ) : (() => {
+                const combinedTeamVisits = combineVisitsAndFollowUps(teamSiteVisits, teamFollowUps);
+                return combinedTeamVisits.length === 0;
+              })() ? (
                 <div className="text-center py-6 sm:py-8 px-4">
                   <Users className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mx-auto mb-3 sm:mb-4" />
                   <h3 className="text-base sm:text-lg font-semibold mb-2">No team site visits</h3>
@@ -615,7 +677,7 @@ export default function SiteVisitPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {groupVisitsByCustomer((teamSiteVisits as any)?.data || []).map((group: CustomerVisitGroup, index: number) => (
+                  {groupVisitsByCustomer(combineVisitsAndFollowUps(teamSiteVisits, teamFollowUps)).map((group: CustomerVisitGroup, index: number) => (
                     <UnifiedSiteVisitCard
                       key={`${group.customerMobile}_${group.customerName}_${index}`}
                       visitGroup={group}
