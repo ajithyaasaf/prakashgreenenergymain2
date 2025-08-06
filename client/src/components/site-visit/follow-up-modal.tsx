@@ -706,7 +706,7 @@ export function FollowUpModal({ isOpen, onClose, originalVisit }: FollowUpModalP
 
   return (
     <Dialog open={isOpen} onOpenChange={handleCloseWithConfirmation}>
-      <DialogContent className="w-[95vw] max-w-2xl max-h-[80vh] overflow-y-auto p-2 sm:p-6">
+      <DialogContent className="w-[90vw] max-w-2xl max-h-[85vh] overflow-y-auto overflow-x-hidden p-2 sm:p-6">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <RefreshCw className="h-5 w-5 text-blue-600" />
@@ -838,14 +838,14 @@ export function FollowUpModal({ isOpen, onClose, originalVisit }: FollowUpModalP
                       <Button
                         key={template.reason}
                         variant={selectedTemplate === template.reason ? "default" : "outline"}
-                        className="justify-start h-auto p-3"
+                        className="justify-start h-auto p-3 text-left overflow-hidden"
                         onClick={() => handleTemplateSelect(template)}
                       >
-                        <div className="text-left">
-                          <div className="font-medium">
+                        <div className="text-left w-full min-w-0">
+                          <div className="font-medium truncate">
                             {followUpReasons.find(r => r.value === template.reason)?.label}
                           </div>
-                          <div className="text-xs text-muted-foreground">
+                          <div className="text-xs text-muted-foreground overflow-hidden text-ellipsis">
                             {template.description}
                           </div>
                         </div>
@@ -1124,15 +1124,16 @@ export function FollowUpModal({ isOpen, onClose, originalVisit }: FollowUpModalP
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center justify-between">
-                      <span>
+                      <span className="truncate mr-2">
                         Camera - {currentPhotoType === 'selfie' ? 'Selfie' : 'Site Photo'}
                       </span>
-                      <div className="flex gap-2">
+                      <div className="flex gap-1 sm:gap-2">
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={switchCamera}
                           disabled={!isVideoReady}
+                          className="p-2"
                         >
                           <SwitchCamera className="h-4 w-4" />
                         </Button>
@@ -1140,6 +1141,7 @@ export function FollowUpModal({ isOpen, onClose, originalVisit }: FollowUpModalP
                           variant="outline"
                           size="sm"
                           onClick={stopCamera}
+                          className="p-2"
                         >
                           <X className="h-4 w-4" />
                         </Button>
@@ -1148,13 +1150,13 @@ export function FollowUpModal({ isOpen, onClose, originalVisit }: FollowUpModalP
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      <div className="relative bg-black rounded-lg overflow-hidden">
+                      <div className="relative bg-black rounded-lg overflow-hidden max-w-full">
                         <video
                           ref={videoRef}
                           autoPlay
                           playsInline
                           muted
-                          className="w-full h-64 object-cover"
+                          className="w-full h-64 object-cover max-w-full"
                         />
                         {!isVideoReady && (
                           <div className="absolute inset-0 flex items-center justify-center bg-black/50">
