@@ -595,6 +595,21 @@ export function SiteVisitCheckoutModal({ isOpen, onClose, siteVisit }: SiteVisit
         checkoutPayload
       );
 
+      console.log("=== RESPONSE STATUS ===");
+      console.log("Response status:", response.status);
+      console.log("Response ok:", response.ok);
+      console.log("Response headers:", Object.fromEntries(response.headers.entries()));
+      console.log("======================");
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Failed to parse error response' }));
+        console.log("=== CHECKOUT ERROR DETAILS ===");
+        console.log("Status code:", response.status);
+        console.log("Error data:", errorData);
+        console.log("==============================");
+        throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+      }
+
       const result = await response.json();
       console.log("=== CHECKOUT SUCCESS ===");
       console.log("Server response:", result);
