@@ -539,10 +539,10 @@ export function FollowUpDetailsModal({
                     {/* Grid Layout for Checkout Site Photos */}
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
                       {followUp.siteOutPhotos.map((photo: any, index: number) => {
-                        // Debug logging
-                        console.log("Checkout photo debug:", { photo, index, type: typeof photo, keys: typeof photo === 'object' ? Object.keys(photo) : 'N/A' });
+                        // Debug logging (reduced)
+                        if (index === 0) console.log("First checkout photo structure:", { type: typeof photo, isCharObject: typeof photo === 'object' && photo !== null && typeof photo[0] === 'string' });
                         
-                        // Handle both string URLs and photo objects - more robust extraction
+                        // Handle corrupted photo data - reconstruct URL from character object
                         let photoUrl = null;
                         let photoDescription = null;
                         let photoTimestamp = null;
@@ -550,10 +550,18 @@ export function FollowUpDetailsModal({
                         if (typeof photo === 'string') {
                           photoUrl = photo;
                         } else if (typeof photo === 'object' && photo !== null) {
-                          // Try multiple possible URL field names
-                          photoUrl = photo.url || photo.photoUrl || photo.src || photo.imageUrl;
-                          photoDescription = photo.description || photo.caption || photo.note;
-                          photoTimestamp = photo.timestamp || photo.createdAt || photo.date;
+                          // Check if it's a character-split object (corrupted string)
+                          if (typeof photo[0] === 'string' && Object.keys(photo).every(key => !isNaN(Number(key)))) {
+                            // Reconstruct URL from character object
+                            const chars = Object.keys(photo).sort((a, b) => Number(a) - Number(b)).map(key => photo[key]);
+                            photoUrl = chars.join('');
+                            console.log("Reconstructed photo URL from character object:", photoUrl);
+                          } else {
+                            // Normal photo object
+                            photoUrl = photo.url || photo.photoUrl || photo.src || photo.imageUrl;
+                            photoDescription = photo.description || photo.caption || photo.note;
+                            photoTimestamp = photo.timestamp || photo.createdAt || photo.date;
+                          }
                         }
                         
                         // Skip if no valid URL found
