@@ -539,8 +539,18 @@ export function FollowUpDetailsModal({
                     {/* Grid Layout for Checkout Site Photos */}
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
                       {followUp.siteOutPhotos.map((photo: any, index: number) => {
-                        // Debug logging (reduced)
-                        if (index === 0) console.log("First checkout photo structure:", { type: typeof photo, isCharObject: typeof photo === 'object' && photo !== null && typeof photo[0] === 'string' });
+                        // Debug logging (enhanced)
+                        if (index === 0) {
+                          const keys = Object.keys(photo);
+                          const isCharObject = keys.length > 0 && keys.every(key => !isNaN(Number(key))) && typeof photo[0] === 'string';
+                          console.log("First checkout photo structure:", { 
+                            type: typeof photo, 
+                            isCharObject, 
+                            keyCount: keys.length,
+                            firstFewKeys: keys.slice(0, 5),
+                            firstFewValues: keys.slice(0, 5).map(k => photo[k])
+                          });
+                        }
                         
                         // Handle corrupted photo data - reconstruct URL from character object
                         let photoUrl = null;
@@ -551,9 +561,18 @@ export function FollowUpDetailsModal({
                           photoUrl = photo;
                         } else if (typeof photo === 'object' && photo !== null) {
                           // Check if it's a character-split object (corrupted string)
-                          if (typeof photo[0] === 'string' && Object.keys(photo).every(key => !isNaN(Number(key)))) {
+                          const keys = Object.keys(photo);
+                          const isCharObject = keys.length > 0 && keys.every(key => !isNaN(Number(key))) && typeof photo[0] === 'string';
+                          
+                          if (isCharObject) {
                             // Reconstruct URL from character object
-                            const chars = Object.keys(photo).sort((a, b) => Number(a) - Number(b)).map(key => photo[key]);
+                            const maxKey = Math.max(...keys.map(k => Number(k)));
+                            const chars = [];
+                            for (let i = 0; i <= maxKey; i++) {
+                              if (photo[i] !== undefined) {
+                                chars.push(photo[i]);
+                              }
+                            }
                             photoUrl = chars.join('');
                             console.log("Reconstructed photo URL from character object:", photoUrl);
                           } else {
