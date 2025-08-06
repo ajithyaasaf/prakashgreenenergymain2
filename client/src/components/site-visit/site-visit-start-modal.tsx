@@ -745,7 +745,7 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[95vw] max-w-2xl h-[90vh] max-h-[90vh] overflow-y-auto p-2 sm:p-6 flex flex-col">
+      <DialogContent className="w-[95vw] max-w-2xl h-[80vh] max-h-[80vh] overflow-y-auto p-2 sm:p-6 flex flex-col">
         <DialogHeader className="text-center sm:text-left flex-shrink-0">
           <DialogTitle className="flex items-center gap-2 justify-center sm:justify-start text-base sm:text-lg">
             <MapPin className="h-4 w-4 sm:h-5 sm:w-5" />
@@ -757,7 +757,7 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto min-h-0">
-          <div className="space-y-3 sm:space-y-4 pb-4">
+          <div className="space-y-2 sm:space-y-3 pb-3">
           {/* Step Indicator */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-0">
             {/* Mobile: Vertical layout with current step highlighted */}
@@ -809,7 +809,7 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
 
           {/* Step 1: Purpose Selection & Location */}
           {step === 1 && (
-            <div className="space-y-4">
+            <div className="space-y-3">
               <Card>
                 <CardHeader className="pb-3 sm:pb-6">
                   <CardTitle className="text-base sm:text-lg">Visit Purpose</CardTitle>
@@ -862,7 +862,7 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
 
           {/* Step 2: Customer Details */}
           {step === 2 && (
-            <div className="space-y-4">
+            <div className="space-y-3">
               <Card>
                 <CardHeader className="pb-3 sm:pb-6">
                   <CardTitle className="text-base sm:text-lg">Customer Information</CardTitle>
@@ -986,7 +986,7 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
 
           {/* Step 3: Department-Specific Forms */}
           {step === 3 && (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {normalizedDepartment === 'technical' && (
                 <ErrorBoundary>
                   <TechnicalSiteVisitForm 
@@ -1030,7 +1030,7 @@ export function SiteVisitStartModal({ isOpen, onClose, userDepartment }: SiteVis
 
           {/* Step 4: Photo & Confirmation */}
           {step === 4 && (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {/* Selfie Photo Section */}
               <Card>
                 <CardHeader className="pb-3 sm:pb-6">
