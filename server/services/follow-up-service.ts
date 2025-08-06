@@ -244,16 +244,31 @@ export class FollowUpService {
 
   /**
    * Helper method to convert siteOutPhotos from Firestore format
+   * FIXED: Handle both string arrays and complex photo objects
    */
   private convertSiteOutPhotos(siteOutPhotos: any): any[] {
     if (!Array.isArray(siteOutPhotos)) {
       return [];
     }
     
-    return siteOutPhotos.map((photo: any) => ({
-      ...photo,
-      timestamp: photo.timestamp?.toDate ? photo.timestamp.toDate() : new Date(photo.timestamp || Date.now())
-    }));
+    // For follow-ups, siteOutPhotos are stored as simple string URLs
+    // For regular site visits, they might be complex objects
+    return siteOutPhotos.map((photo: any) => {
+      if (typeof photo === 'string') {
+        // Simple string URL format - return as-is for follow-ups
+        return photo;
+      } else if (photo && typeof photo === 'object') {
+        // Complex photo object format - convert timestamp
+        return {
+          ...photo,
+          timestamp: photo.timestamp?.toDate ? photo.timestamp.toDate() : new Date(photo.timestamp || Date.now())
+        };
+      } else {
+        // Invalid format - return empty string or skip
+        console.warn('FOLLOW_UP_SERVICE: Invalid siteOutPhotos format:', photo);
+        return null;
+      }
+    }).filter(Boolean); // Remove any null values
   }
 
   /**
@@ -270,7 +285,7 @@ export class FollowUpService {
       siteOutTime: data.siteOutTime?.toDate() || undefined,
       siteOutLocation: data.siteOutLocation,
       siteOutPhotoUrl: data.siteOutPhotoUrl,
-      siteOutPhotos: this.convertSiteOutPhotos(data.siteOutPhotos),
+      siteOutPhotos: this.convertSiteOutPhotos(data.siteOutPhotos || []),
       followUpReason: data.followUpReason,
       description: data.description,
       sitePhotos: data.sitePhotos || [],
